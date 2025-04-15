@@ -1,0 +1,3 @@
+.vagrant
+*.qcow2
+*.box

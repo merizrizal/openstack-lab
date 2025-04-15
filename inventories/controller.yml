@@ -1,0 +1,18 @@
+---
+controller01:
+  ip_address: 192.168.123.5
+  hostname: controller01.local
+  memory: 4096
+  cpus: 4
+
+controller02:
+  ip_address: 192.168.123.6
+  hostname: controller02.local
+  memory: 4096
+  cpus: 4
+
+controller03:
+  ip_address: 192.168.123.7
+  hostname: controller03.local
+  memory: 4096
+  cpus: 4

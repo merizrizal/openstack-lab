@@ -1,0 +1,7 @@
+{
+    "ansible.python.interpreterPath": "/home/meriz/Documents/PyEnv/myEnv/bin/python3",
+    "redHatDependencyAnalytics.pip3.executable.path": "/home/meriz/Documents/PyEnv/myEnv/bin/pip3",
+    "terminal.integrated.env.linux": {
+        "VSCODE_SH_INIT_COMMAND": "source /home/meriz/Documents/PyEnv/myEnv/bin/activate; source envrc"
+    }
+}

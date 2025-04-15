@@ -1,0 +1,29 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  base_image_name = ENV["BASE_IMAGE_NAME"]
+  if base_image_name.nil?
+    puts ">>>>> BASE_IMAGE_NAME need to be provided <<<<<"; \
+		puts "Add BASE_IMAGE_NAME=this_name to the command"; \
+    exit 1
+  end
+
+  config.ssh.username = "vagrant"
+  config.ssh.password = "vagrant"
+  config.vm.define base_image_name do |d|
+    d.vm.synced_folder ".", "/vagrant", disabled: true
+  end
+
+  if base_image_name == "ubuntu_24"
+    config.vm.box = "bento/ubuntu-24.04"
+    config.vm.provision "shell", inline: <<-SHELL
+      sudo apt update
+      sudo apt upgrade -y
+      sudo apt install qemu-guest-agent gcc cloud-init -y
+    SHELL
+  else
+    puts ">>>>> BASE_IMAGE_NAME: #{base_image_name} is not available <<<<<"; \
+    exit 1
+  end
+end

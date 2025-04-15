@@ -1,0 +1,2 @@
+rootdir=$(pwd)
+export ROOT_DIR=${rootdir}

@@ -1,0 +1,8 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require_relative "../base"
+
+Vagrant.configure("2") do |config|
+  setup_vm("controller", config, "ubuntu_24_base", nil, 64)
+end
