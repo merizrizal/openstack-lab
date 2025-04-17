@@ -68,7 +68,7 @@ prepare-ubuntu-vm-network-patch:
 	echo "mv /tmp/50-vagrant.yaml /etc/netplan/" >> $$shell_file; \
 	echo "cp /etc/netplan/50-vagrant.yaml /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
 	echo "sed -i 's/eth1:/eth0:/g' /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
-	echo "sed -i 's/.123./.206./g' /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
+	echo "sed -i 's/.123./.121./g' /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
 	echo "" >> $$shell_file; \
 	echo "echo '      nameservers:' | tee --append /etc/netplan/50-vagrant.yaml" >> $$shell_file; \
 	echo "echo '        addresses: [8.8.8.8, 1.1.1.1]' | tee --append /etc/netplan/50-vagrant.yaml" >> $$shell_file; \
