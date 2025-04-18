@@ -1,0 +1,40 @@
+---
+- name: Configure MariaDB
+  ansible.builtin.template:
+    src: 99-openstack.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/99-openstack.cnf
+    mode: "640"
+
+- name: MariaDB secure installation
+  ansible.builtin.shell:
+    cmd: |
+      mysql -u root <<EOF
+      SET PASSWORD FOR root@localhost = PASSWORD('{{ mariadb_password }}');
+      DELETE FROM mysql.user WHERE User='';
+      DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+      DROP DATABASE IF EXISTS test;
+      DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+      FLUSH PRIVILEGES;
+      EOF
+  changed_when: false
+
+- name: Configure RabbitMQ
+  ansible.builtin.shell:
+    cmd: |
+      rabbitmqctl add_user openstack {{ rabbitmq_password }}
+      rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+  changed_when: false
+
+- name: Configure Memcached
+  ansible.builtin.lineinfile:
+    path: /etc/memcached.conf
+    regexp: "-l 127.0.0.1"
+    line: -l {{ controller01.mgmtnet_ip_address }}
+
+- name: Configure Etcd
+  ansible.builtin.blockinfile:
+    path: /etc/default/etcd
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'etcd.j2') }}"
+    insertafter: EOF

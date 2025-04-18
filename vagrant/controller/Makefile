@@ -5,7 +5,7 @@ export MAKE := make
 
 start-vm:
 	@$(MAKE) -C ../base_image check-base-image
-	@nodes=`(yq '.[] | key' ../../inventories/nodes.yml)`; \
+	@nodes=`(yq '.[] | key' ../../inventories/local/nodes.yml)`; \
 	{ \
 		for node in $$nodes; do \
 			$(MAKE) spin-up-vm VM=$$node; \

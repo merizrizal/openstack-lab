@@ -1,21 +1,8 @@
 controller: |
   echo "Provision on controller node"
-  apt install -y mariadb-server python3-pymysql
-  systemctl restart mysql
-  mysql -u root <<EOF
-  SET PASSWORD FOR root@localhost = PASSWORD('mriz12345');
-  DELETE FROM mysql.user WHERE User='';
-  DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
-  DROP DATABASE IF EXISTS test;
-  DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
-  FLUSH PRIVILEGES;
-  EOF
-  apt install -y rabbitmq-server
-  rabbitmqctl add_user openstack mriz12345
-  rabbitmqctl set_permissions openstack ".*" ".*" ".*"
-  apt install -y memcached python3-memcache
-  apt install -y etcd-server
-  systemctl enable etcd
-  systemctl restart etcd
+  # rabbitmqctl add_user openstack mriz12345
+  # rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+  # systemctl enable etcd
+  # systemctl restart etcd
 compute: |
   echo "Provision on compute node"

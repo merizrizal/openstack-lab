@@ -1,0 +1,19 @@
+---
+- name: Add OpenStack cloud-archive:epoxy repository
+  ansible.builtin.command:
+    cmd: add-apt-repository -y cloud-archive:epoxy
+  register: add_repo_result
+  changed_when: add_repo_result.stdout is defined and 'Found existing' not in add_repo_result.stdout
+
+- name: Do apt upgrade
+  ansible.builtin.apt:
+    upgrade: full
+    update_cache: true
+
+- name: Ensure all the packages are installed already
+  ansible.builtin.package:
+    name:
+      - chrony
+      - nova-compute
+      - python3-openstackclient
+    state: present

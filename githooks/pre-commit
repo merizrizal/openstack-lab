@@ -1,0 +1,20 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+BASE_DIR=$SCRIPT_DIR/../..
+
+CHANGED_ANSIBLE_YML_FILES=$(cd ${BASE_DIR} && git diff --cached --name-only --diff-filter=d | grep -E "ansible/" | grep -E "\.yml$|\.yaml$" | tr "\n" " ")
+CHANGED_ANSIBLE_YML_FILES_LEN=$(cd ${BASE_DIR} && git diff --cached --name-only --diff-filter=d | grep -E "ansible/" | grep -E "\.yml$|\.yaml$" | tr "\n" " " | wc -w | xargs)
+
+echo Running ansible-lint - do auto-format
+if [[ ${CHANGED_ANSIBLE_YML_FILES_LEN} -eq 0 ]]; then
+    echo "No ansible yaml files changes. No need for ansible-lint auto-format"
+else
+    cd ${BASE_DIR}
+    ansible-lint --fix --config-file ./ansible/.ansible-lint ${CHANGED_ANSIBLE_YML_FILES}
+    CHANGED_ANSIBLE_YML_FILES=$(git diff --name-only --diff-filter=d | grep -E "ansible/" | grep -E "\.yml$|\.yaml$" | tr "\n" " ")
+    CHANGED_ANSIBLE_YML_FILES_LEN=$(git diff --name-only --diff-filter=d | grep -E "ansible/" | grep -E "\.yml$|\.yaml$" | tr "\n" " " | wc -w | xargs)
+    if [[ ${CHANGED_ANSIBLE_YML_FILES_LEN} -gt 0 ]]; then
+        echo "Ansible yml files are formatted. Run git add ${CHANGED_ANSIBLE_YML_FILES}"
+        exit 1
+    fi
+fi

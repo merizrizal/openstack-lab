@@ -5,14 +5,8 @@ require_relative "../base"
 
 Vagrant.configure("2") do |config|
   cmds = <<-SHELL
-    apt install chrony -y
-    systemctl enable chronyd
-    systemctl start chronyd
-    add-apt-repository -y cloud-archive:dalmatian
-    apt update
-    apt upgrade -y
-    apt install -y nova-compute python3-openstackclient
+    echo Execute provision
   SHELL
 
-  setup_vm("nodes", config, "ubuntu_24_base", cmds)
+  setup_vm("local/nodes.yml", config, "ubuntu_24_base", cmds)
 end

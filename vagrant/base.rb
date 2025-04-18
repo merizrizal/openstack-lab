@@ -35,7 +35,7 @@ def setup_vm(component, config, box_name, shell_command)
 end
 
 def get_inventories(component)
-  inventories = YAML.load_file "#{ENV["ROOT_DIR"]}/inventories/#{component}.yml"
+  inventories = YAML.load_file "#{ENV["ROOT_DIR"]}/inventories/#{component}"
 
   return inventories
 end
@@ -91,7 +91,7 @@ def resize_disk(config)
 end
 
 def set_hostname(machine)
-  inventories = get_inventories("nodes")
+  inventories = get_inventories("local/nodes.yml")
   inventories.each do |key, value|
     machine.vm.provision "shell" do |s|
       ip_addr_hostname = "#{value["mgmtnet_ip_address"]} #{value["hostname"]}"
@@ -105,7 +105,7 @@ end
 
 def provision(machine)
   provision_src = YAML.load_file "./provision.yml"
-  inventories = get_inventories("nodes")
+  inventories = get_inventories("local/nodes.yml")
   inventories.each do |key, value|
     machine.vm.provision "shell" do |s|
       provision_cmds = provision_src[value["environment"]]

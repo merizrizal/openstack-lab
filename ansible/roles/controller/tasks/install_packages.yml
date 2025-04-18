@@ -1,0 +1,11 @@
+---
+- name: Ensure all the packages are installed already
+  ansible.builtin.package:
+    name:
+      - mariadb-server
+      - python3-pymysql
+      - rabbitmq-server
+      - memcached
+      - python3-memcache
+      - etcd-server
+    state: present

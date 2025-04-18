@@ -1,2 +1,5 @@
 rootdir=$(pwd)
+
+cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
+
 export ROOT_DIR=${rootdir}
