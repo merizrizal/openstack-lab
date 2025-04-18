@@ -1,12 +1,4 @@
 ---
-- name: Deploy and setup OpenStack dependencies
-  hosts: all
-  become: true
-  vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
-  roles:
-    - role: common
-
 - name: Deploy and setup OpenStack on controller
   hosts: controller
   become: true

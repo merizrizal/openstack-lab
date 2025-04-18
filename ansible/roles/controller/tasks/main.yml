@@ -3,7 +3,7 @@
   ansible.builtin.include_tasks:
     file: install_packages.yml
 
-- name: Install packages
+- name: Configure dependencies
   ansible.builtin.include_tasks:
     file: configure_dependencies.yml
 
@@ -22,5 +22,15 @@
 - name: Start and enable Etcd
   ansible.builtin.service:
     name: etcd
+    state: restarted
+    enabled: true
+
+- name: Install Keystone
+  ansible.builtin.include_tasks:
+    file: keystone.yml
+
+- name: Start and enable Apache2
+  ansible.builtin.service:
+    name: apache2
     state: restarted
     enabled: true
