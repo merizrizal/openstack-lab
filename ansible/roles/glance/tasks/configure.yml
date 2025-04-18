@@ -1,0 +1,21 @@
+---
+- name: Reconfigure glance-api.conf - comment out connection config
+  ansible.builtin.lineinfile:
+    path: /etc/glance/glance-api.conf
+    regexp: "^connection ="
+    line: "#connection ="
+    backrefs: true
+
+- name: Reconfigure glance-api.conf - set MySQL MariaDB connection database
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[database\\]\n(.*)\n"
+    replace: |
+      [database]
+      connection = mysql+pymysql://glance:{{ glance_password }}@{{ controller01.hostname }}/glance
+
+- name: Reconfigure glance.conf - set Keystone authtoken
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[keystone_authtoken\\](\n(.*))*\n*(#memcached_servers = <None>).*"
+    replace: "{{ lookup('ansible.builtin.template', 'keystone_authtoken.conf.j2') }}"

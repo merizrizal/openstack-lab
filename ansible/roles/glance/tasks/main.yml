@@ -1,0 +1,25 @@
+---
+- name: Initialize database
+  ansible.builtin.shell:
+    cmd: |
+      mysql -u root <<EOF
+      CREATE DATABASE IF NOT EXISTS glance;
+      GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '{{ glance_password }}';
+      GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '{{ glance_password }}';
+      FLUSH PRIVILEGES;
+      EOF
+    executable: /bin/bash
+  changed_when: false
+
+- name: Configure service
+  ansible.builtin.include_tasks:
+    file: configure_service.yml
+
+- name: Setup configuration
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Install Glance package
+  ansible.builtin.package:
+    name: glance
+    state: present

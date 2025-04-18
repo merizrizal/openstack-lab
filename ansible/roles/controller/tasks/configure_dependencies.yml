@@ -16,6 +16,7 @@
       DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
       FLUSH PRIVILEGES;
       EOF
+    executable: /bin/bash
   changed_when: false
 
 - name: Configure RabbitMQ
@@ -23,6 +24,7 @@
     cmd: |
       rabbitmqctl add_user openstack {{ rabbitmq_password }}
       rabbitmqctl set_permissions openstack ".*" ".*" ".*"
+    executable: /bin/bash
   changed_when: false
 
 - name: Configure Memcached

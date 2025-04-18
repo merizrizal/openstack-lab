@@ -24,13 +24,3 @@
     name: etcd
     state: restarted
     enabled: true
-
-- name: Install Keystone
-  ansible.builtin.include_tasks:
-    file: keystone.yml
-
-- name: Start and enable Apache2
-  ansible.builtin.service:
-    name: apache2
-    state: restarted
-    enabled: true

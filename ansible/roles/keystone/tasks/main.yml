@@ -8,6 +8,7 @@
       GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '{{ keystone_password }}';
       FLUSH PRIVILEGES;
       EOF
+    executable: /bin/bash
   changed_when: false
 
 - name: Install Keystone package
@@ -15,35 +16,9 @@
     name: keystone
     state: present
 
-- name: Reconfigure keystone.conf - comment out connection config
-  ansible.builtin.lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: "^connection ="
-    line: "#connection ="
-    backrefs: true
-
-- name: Reconfigure keystone.conf - set MySQL MariaDB connection database
-  ansible.builtin.replace:
-    path: /etc/keystone/keystone.conf
-    regexp: "^\\[database\\]\n(.*)\n"
-    replace: |
-      [database]
-      connection = mysql+pymysql://keystone:{{ keystone_password }}@{{ controller01.hostname }}/keystone
-
-- name: Reconfigure keystone.conf - comment out provider config
-  ansible.builtin.lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: "^provider ="
-    line: "#provider ="
-    backrefs: true
-
-- name: Reconfigure keystone.conf - set Fernet token provider
-  ansible.builtin.replace:
-    path: /etc/keystone/keystone.conf
-    regexp: "^\\[token\\]\n(.*)\n"
-    replace: |
-      [token]
-      provider = fernet
+- name: Setup configuration
+  ansible.builtin.include_tasks:
+    file: configure.yml
 
 - name: Populate the identity service database
   ansible.builtin.command:
@@ -55,6 +30,7 @@
     cmd: |
       sudo -u keystone keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
       sudo -u keystone keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+    executable: /bin/bash
   changed_when: false
 
 - name: Bootstrap the identity service
@@ -64,6 +40,7 @@
       --bootstrap-admin-url http://{{ controller01.hostname }}:5000/v3/ \
       --bootstrap-internal-url http://{{ controller01.hostname }}:5000/v3/ \
       --bootstrap-public-url http://{{ controller01.hostname }}:5000/v3/ \
+    executable: /bin/bash
   changed_when: false
 
 - name: Reconfigure Apache2 configuration - add ServerName
@@ -81,3 +58,13 @@
     prepend_newline: true
     block: "{{ lookup('ansible.builtin.template', 'environment.j2') }}"
     insertafter: EOF
+
+- name: Start and enable Apache2
+  ansible.builtin.service:
+    name: apache2
+    state: restarted
+    enabled: true
+
+- name: Create a domain, projects, users, and roles
+  ansible.builtin.include_tasks:
+    file: create_identity.yml

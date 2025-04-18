@@ -1,0 +1,13 @@
+---
+- name: Check the service project
+  ansible.builtin.shell:
+    cmd: openstack project show service || true
+    executable: /bin/bash
+  register: service_project
+  changed_when: false
+
+- name: Create the service project
+  ansible.builtin.command:
+    cmd: openstack project create --domain default --description "Service Project" service
+  when: service_project.stderr is defined and "No project with a name or ID" in service_project.stderr
+  changed_when: true

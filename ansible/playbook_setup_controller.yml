@@ -5,4 +5,6 @@
   vars_files:
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   roles:
-    - role: controller
+    # - role: controller
+    # - role: keystone
+    - role: glance

@@ -1,0 +1,70 @@
+---
+- name: Create the glance user
+  ansible.builtin.command:
+    cmd: openstack user create --domain default --password '{{ os_glance_password }}' glance
+  register: create_glance_user
+  changed_when: create_glance_user.stdout is defined and "password_expires_at" in create_glance_user.stdout
+  failed_when: create_glance_user.rc != 0 and "ConflictException" not in create_glance_user.stderr
+
+- name: Add the admin role to the glance user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user glance admin
+  changed_when: false
+
+- name: Check service entity for glance
+  ansible.builtin.shell:
+    cmd: openstack service show image || true
+    executable: /bin/bash
+  register: service_glance
+  changed_when: false
+
+- name: Create the glance service entity
+  ansible.builtin.command:
+    cmd: openstack service create --name glance --description "OpenStack Image" image
+  when: service_glance.stderr is defined and "No service with a type, name or ID" in service_glance.stderr
+  changed_when: true
+
+- name: Check public glance image service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.public.*.http://{{ controller01.hostname }}:9292' || true
+    executable: /bin/bash
+  register: public_endpoint
+  changed_when: false
+
+- name: Create public image service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne image public http://{{ controller01.hostname }}:9292
+  when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check internal glance image service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.internal.*.http://{{ controller01.hostname }}:9292' || true
+    executable: /bin/bash
+  register: internal_endpoint
+  changed_when: false
+
+- name: Create internal image service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne image internal http://{{ controller01.hostname }}:9292
+  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check admin glance image service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.admin.*.http://{{ controller01.hostname }}:9292' || true
+    executable: /bin/bash
+  register: admin_endpoint
+  changed_when: false
+
+- name: Create admin image service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne image admin http://{{ controller01.hostname }}:9292
+  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
+  changed_when: true
