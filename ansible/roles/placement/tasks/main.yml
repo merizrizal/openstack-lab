@@ -20,6 +20,17 @@
     name: placement-api
     state: present
 
-# - name: Setup configuration
-#   ansible.builtin.include_tasks:
-#     file: configure.yml
+- name: Setup configuration
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Populate the placement database
+  ansible.builtin.command:
+    cmd: sudo -u placement placement-manage db sync
+  changed_when: false
+
+- name: Start and enable Apache2
+  ansible.builtin.service:
+    name: apache2
+    state: restarted
+    enabled: true

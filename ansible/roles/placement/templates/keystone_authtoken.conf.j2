@@ -1,0 +1,11 @@
+[keystone_authtoken]
+auth_url = http://{{ controller01.hostname }}:5000/v3
+memcached_servers = {{ controller01.mgmtnet_ip_address }}:11211
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = placement
+password = {{ os_placement_password }}
+#
+# From keystonemiddleware.auth_token

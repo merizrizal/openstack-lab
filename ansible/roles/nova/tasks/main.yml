@@ -41,8 +41,8 @@
     regexp: "^\\[oslo_concurrency\\](\n(.*))*\n*(# From oslo.concurrency).*"
     replace: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
 
-# - name: Reconfigure nova.conf - set Placement
-#   ansible.builtin.replace:
-#     path: /etc/nova/nova.conf
-#     regexp: "^\\[placement\\](\n(.*))*\n*(# XXXXXXXX).*"
-#     replace: "{{ lookup('ansible.builtin.template', 'placement.conf.j2') }}"
+- name: Reconfigure nova.conf - set Placement
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[placement\\](\n(.*))*?\n*(\n# From nova.conf).*"
+    replace: "{{ lookup('ansible.builtin.template', 'placement.conf.j2') }}"
