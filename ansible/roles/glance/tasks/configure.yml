@@ -1,21 +1,47 @@
 ---
-- name: Reconfigure glance-api.conf - comment out connection config
-  ansible.builtin.lineinfile:
-    path: /etc/glance/glance-api.conf
-    regexp: "^connection ="
-    line: "#connection ="
-    backrefs: true
-
 - name: Reconfigure glance-api.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[database\\]\n(.*)\n"
-    replace: |
-      [database]
-      connection = mysql+pymysql://glance:{{ glance_password }}@{{ controller01.hostname }}/glance
+    regexp: "^\\[database\\](\n(.*))*\n*(#connection_parameters =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
-- name: Reconfigure glance.conf - set Keystone authtoken
+- name: Reconfigure glance-api.conf - set Keystone authtoken
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[keystone_authtoken\\](\n(.*))*\n*(#memcached_servers = <None>).*"
+    regexp: "^\\[keystone_authtoken\\](\n(.*))*\n*(#auth_section =).*"
     replace: "{{ lookup('ansible.builtin.template', 'keystone_authtoken.conf.j2') }}"
+
+- name: Reconfigure glance-api.conf - set paste deploy
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[paste_deploy\\](\n(.*))*\n*(#config_file =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'paste_deploy.conf.j2') }}"
+
+- name: Reconfigure glance-api.conf - set defaut
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*\n*(#rpc_ping_enabled =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+
+- name: Reconfigure glance-api.conf - set glance store
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[glance_store\\](\n(.*))*\n*(#vmware_datastores =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'glance_store.conf.j2') }}"
+
+- name: Get the image endpoint ID
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list --service glance --region RegionOne --interface public | grep RegionOne | cut -d '|' -f2 | sed 's/ //g'
+    executable: /bin/bash
+  register: image_endpoint_id
+  changed_when: false
+
+- name: Reconfigure glance-api.conf - set oslo limit
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[oslo_limit\\](\n(.*))*\n*(#retriable_status_codes =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'oslo_limit.conf.j2') }}"
+  vars:
+    endpoint_id: "{{ image_endpoint_id.stdout }}"

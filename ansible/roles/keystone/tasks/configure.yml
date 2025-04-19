@@ -1,30 +1,12 @@
 ---
-- name: Reconfigure keystone.conf - comment out connection config
-  ansible.builtin.lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: "^connection ="
-    line: "#connection ="
-    backrefs: true
-
 - name: Reconfigure keystone.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/keystone/keystone.conf
-    regexp: "^\\[database\\]\n(.*)\n"
-    replace: |
-      [database]
-      connection = mysql+pymysql://keystone:{{ keystone_password }}@{{ controller01.hostname }}/keystone
-
-- name: Reconfigure keystone.conf - comment out provider config
-  ansible.builtin.lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: "^provider ="
-    line: "#provider ="
-    backrefs: true
+    regexp: "^\\[database\\](\n(.*))*\n*(#connection_parameters =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Reconfigure keystone.conf - set Fernet token provider
   ansible.builtin.replace:
     path: /etc/keystone/keystone.conf
-    regexp: "^\\[token\\]\n(.*)\n"
-    replace: |
-      [token]
-      provider = fernet
+    regexp: "^\\[token\\](\n(.*))*\n*(#allow_expired_window =).*"
+    replace: "{{ lookup('ansible.builtin.template', 'token.conf.j2') }}"

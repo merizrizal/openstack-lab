@@ -8,3 +8,4 @@
     # - role: controller
     # - role: keystone
     - role: glance
+    - role: nova

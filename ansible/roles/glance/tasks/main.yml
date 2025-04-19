@@ -15,11 +15,22 @@
   ansible.builtin.include_tasks:
     file: configure_service.yml
 
-- name: Setup configuration
-  ansible.builtin.include_tasks:
-    file: configure.yml
-
 - name: Install Glance package
   ansible.builtin.package:
     name: glance
     state: present
+
+- name: Setup configuration
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Populate the image service database
+  ansible.builtin.command:
+    cmd: sudo -u glance glance-manage db_sync
+  changed_when: false
+
+- name: Start and enable Glance API
+  ansible.builtin.service:
+    name: glance-api
+    state: restarted
+    enabled: true
