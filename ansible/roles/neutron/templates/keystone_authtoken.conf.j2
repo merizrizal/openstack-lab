@@ -1,0 +1,12 @@
+[keystone_authtoken]
+www_authenticate_uri = http://{{ controller01.hostname }}:5000/
+auth_url = http://{{ controller01.hostname }}:5000/
+memcached_servers = {{ controller01.mgmtnet_ip_address }}:11211
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = neutron
+password = {{ os_neutron_password }}
+#
+# From keystonemiddleware.auth_token

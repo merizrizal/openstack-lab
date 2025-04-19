@@ -1,0 +1,11 @@
+[nova]
+auth_url = http://{{ controller01.hostname }}:5000
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+region_name = RegionOne
+project_name = service
+username = nova
+password = {{ os_nova_password }}
+#
+# Name of Nova region to use. Useful if Keystone manages more than one region.

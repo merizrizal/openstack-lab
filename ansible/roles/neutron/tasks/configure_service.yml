@@ -1,0 +1,70 @@
+---
+- name: Create the neutron user
+  ansible.builtin.command:
+    cmd: openstack user create --domain default --password '{{ os_neutron_password }}' neutron
+  register: create_neutron_user
+  changed_when: create_neutron_user.stdout is defined and "password_expires_at" in create_neutron_user.stdout
+  failed_when: create_neutron_user.rc != 0 and "ConflictException" not in create_neutron_user.stderr
+
+- name: Add the admin role to the neutron user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user neutron admin
+  changed_when: false
+
+- name: Check service entity for neutron
+  ansible.builtin.shell:
+    cmd: openstack service show network || true
+    executable: /bin/bash
+  register: service_neutron
+  changed_when: false
+
+- name: Create the neutron service entity
+  ansible.builtin.command:
+    cmd: openstack service create --name neutron --description "OpenStack Networking" network
+  when: service_neutron.stderr is defined and "No service with a type, name or ID" in service_neutron.stderr
+  changed_when: true
+
+- name: Check public neutron service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.public.*.http://{{ controller01.hostname }}:9696' || true
+    executable: /bin/bash
+  register: public_endpoint
+  changed_when: false
+
+- name: Create public neutron service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne network public http://{{ controller01.hostname }}:9696
+  when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check internal neutron service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.internal.*.http://{{ controller01.hostname }}:9696' || true
+    executable: /bin/bash
+  register: internal_endpoint
+  changed_when: false
+
+- name: Create internal neutron service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne network internal http://{{ controller01.hostname }}:9696
+  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check admin neutron service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.admin.*.http://{{ controller01.hostname }}:9696' || true
+    executable: /bin/bash
+  register: admin_endpoint
+  changed_when: false
+
+- name: Create admin neutron service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne network admin http://{{ controller01.hostname }}:9696
+  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
+  changed_when: true
