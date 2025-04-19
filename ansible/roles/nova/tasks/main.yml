@@ -1,0 +1,48 @@
+---
+- name: Reconfigure nova.conf - set default
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*\n*(# Availability zone for internal services).*"
+    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+
+- name: Reconfigure nova.conf - set API
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[api\\](\n(.*))*\n*(# Options under this group are used to define Nova API).*"
+    replace: "{{ lookup('ansible.builtin.template', 'api.conf.j2') }}"
+
+- name: Reconfigure nova.conf - set Keystone authtoken
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[keystone_authtoken\\](\n(.*))*\n*(# From keystonemiddleware.auth_token).*"
+    replace: "{{ lookup('ansible.builtin.template', 'keystone_authtoken.conf.j2') }}"
+
+- name: Reconfigure nova.conf - set service user
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[service_user\\](\n(.*))*\n*(# Configuration options for service to service authentication).*"
+    replace: "{{ lookup('ansible.builtin.template', 'service_user.conf.j2') }}"
+
+- name: Reconfigure nova.conf - set VNC
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[vnc\\](\n(.*))*\n*(# Virtual Network Computer \\(VNC\\)).*"
+    replace: "{{ lookup('ansible.builtin.template', 'vnc.conf.j2') }}"
+
+- name: Reconfigure nova.conf - set Glance
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[glance\\](\n(.*))*\n*(# Configuration options for the Image service).*"
+    replace: "{{ lookup('ansible.builtin.template', 'glance.conf.j2') }}"
+
+- name: Reconfigure nova.conf - set OSLO concurency
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[oslo_concurrency\\](\n(.*))*\n*(# From oslo.concurrency).*"
+    replace: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
+
+# - name: Reconfigure nova.conf - set Placement
+#   ansible.builtin.replace:
+#     path: /etc/nova/nova.conf
+#     regexp: "^\\[placement\\](\n(.*))*\n*(# XXXXXXXX).*"
+#     replace: "{{ lookup('ansible.builtin.template', 'placement.conf.j2') }}"

@@ -40,6 +40,7 @@
       --bootstrap-admin-url http://{{ controller01.hostname }}:5000/v3/ \
       --bootstrap-internal-url http://{{ controller01.hostname }}:5000/v3/ \
       --bootstrap-public-url http://{{ controller01.hostname }}:5000/v3/ \
+      --bootstrap-region-id RegionOne
     executable: /bin/bash
   changed_when: false
 

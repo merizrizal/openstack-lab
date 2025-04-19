@@ -1,0 +1,70 @@
+---
+- name: Create the placement user
+  ansible.builtin.command:
+    cmd: openstack user create --domain default --password '{{ os_placement_password }}' placement
+  register: create_placement_user
+  changed_when: create_placement_user.stdout is defined and "password_expires_at" in create_placement_user.stdout
+  failed_when: create_placement_user.rc != 0 and "ConflictException" not in create_placement_user.stderr
+
+- name: Add the admin role to the placement user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user placement admin
+  changed_when: false
+
+- name: Check service entity for placement
+  ansible.builtin.shell:
+    cmd: openstack service show placement || true
+    executable: /bin/bash
+  register: service_placement
+  changed_when: false
+
+- name: Create the placement service entity
+  ansible.builtin.command:
+    cmd: openstack service create --name placement --description "Placement API" placement
+  when: service_placement.stderr is defined and "No service with a type, name or ID" in service_placement.stderr
+  changed_when: true
+
+- name: Check public placement service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.placement.*.placement.*.public.*.http://{{ controller01.hostname }}:8774' || true
+    executable: /bin/bash
+  register: public_endpoint
+  changed_when: false
+
+- name: Create public placement service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne placement public http://{{ controller01.hostname }}:8774
+  when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check internal placement service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.placement.*.placement.*.internal.*.http://{{ controller01.hostname }}:8774' || true
+    executable: /bin/bash
+  register: internal_endpoint
+  changed_when: false
+
+- name: Create internal placement service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne placement internal http://{{ controller01.hostname }}:8774
+  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check admin placement service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.placement.*.placement.*.admin.*.http://{{ controller01.hostname }}:8774' || true
+    executable: /bin/bash
+  register: admin_endpoint
+  changed_when: false
+
+- name: Create admin placement service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne placement admin http://{{ controller01.hostname }}:8774
+  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
+  changed_when: true

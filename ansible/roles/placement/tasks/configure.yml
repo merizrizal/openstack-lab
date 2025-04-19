@@ -1,0 +1,12 @@
+---
+- name: Reconfigure placement.conf - set MySQL MariaDB connection database
+  ansible.builtin.replace:
+    path: /etc/placement/placement.conf
+    regexp: "^\\[database\\](\n(.*))*\n*(# From oslo.db).*"
+    replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
+
+- name: Reconfigure placement.conf - set API
+  ansible.builtin.replace:
+    path: /etc/placement/placement.conf
+    regexp: "^\\[api\\](\n(.*))*\n*(# Options under this group are used to define Nova API).*"
+    replace: "{{ lookup('ansible.builtin.template', 'api.conf.j2') }}"

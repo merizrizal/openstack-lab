@@ -14,6 +14,5 @@
   ansible.builtin.package:
     name:
       - chrony
-      - nova-compute
       - python3-openstackclient
     state: present

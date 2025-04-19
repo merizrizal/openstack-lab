@@ -8,4 +8,5 @@
     - role: controller
     - role: keystone
     - role: glance
+    - role: placement
     - role: nova_controller

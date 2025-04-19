@@ -1,6 +1,6 @@
 ---
 - name: Deploy and setup OpenStack on compute node
-  hosts: controller
+  hosts: compute
   become: true
   vars_files:
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"

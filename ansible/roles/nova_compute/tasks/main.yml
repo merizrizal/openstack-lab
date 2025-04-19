@@ -1,1 +1,28 @@
 ---
+- name: Install Nova package
+  ansible.builtin.package:
+    name: nova-compute
+    state: present
+
+- name: Set facts
+  ansible.builtin.set_fact:
+    mgmtnet_ip_address: "{{ compute01.mgmtnet_ip_address }}"
+
+- name: Setup configuration
+  ansible.builtin.include_role:
+    name: nova
+    tasks_from: main
+
+- name: Set environment variables
+  ansible.builtin.blockinfile:
+    path: /etc/environment
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'environment.j2') }}"
+    insertafter: EOF
+
+- name: Start and enable Nova compute
+  ansible.builtin.service:
+    name: nova-compute
+    state: restarted
+    enabled: true
