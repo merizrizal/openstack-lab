@@ -1,5 +1,5 @@
 ---
-- name: Deploy and setup OpenStack on controller
+- name: Deploy and setup OpenStack on controller node
   hosts: controller
   become: true
   vars_files:
@@ -8,4 +8,4 @@
     - role: controller
     - role: keystone
     - role: glance
-    - role: nova
+    - role: nova_controller
