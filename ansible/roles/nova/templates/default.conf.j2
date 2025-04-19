@@ -1,0 +1,8 @@
+[DEFAULT]
+log_dir = /var/log/nova
+lock_path = /var/lock/nova
+state_path = /var/lib/nova
+transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01.hostname }}:5672/
+my_ip = {{ controller01.mgmtnet_ip_address }}
+#
+# Availability zone for internal services. For more information, refer to the

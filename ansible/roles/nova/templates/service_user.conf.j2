@@ -1,0 +1,12 @@
+[service_user]
+send_service_user_token = true
+auth_url = https://{{ controller01.hostname }}/identity
+auth_strategy = keystone
+auth_type = password
+project_domain_name = Default
+project_name = service
+user_domain_name = Default
+username = nova
+password = {{ os_nova_password }}
+#
+# Configuration options for service to service authentication using a service

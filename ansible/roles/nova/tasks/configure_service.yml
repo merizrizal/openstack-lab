@@ -1,0 +1,70 @@
+---
+- name: Create the nova user
+  ansible.builtin.command:
+    cmd: openstack user create --domain default --password '{{ os_nova_password }}' nova
+  register: create_nova_user
+  changed_when: create_nova_user.stdout is defined and "password_expires_at" in create_nova_user.stdout
+  failed_when: create_nova_user.rc != 0 and "ConflictException" not in create_nova_user.stderr
+
+- name: Add the admin role to the nova user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user nova admin
+  changed_when: false
+
+- name: Check service entity for nova
+  ansible.builtin.shell:
+    cmd: openstack service show compute || true
+    executable: /bin/bash
+  register: service_nova
+  changed_when: false
+
+- name: Create the nova service entity
+  ansible.builtin.command:
+    cmd: openstack service create --name nova --description "OpenStack Compute" compute
+  when: service_nova.stderr is defined and "No service with a type, name or ID" in service_nova.stderr
+  changed_when: true
+
+- name: Check public nova compute service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.nova.*.compute.*.public.*.http://{{ controller01.hostname }}:8774/v2.1' || true
+    executable: /bin/bash
+  register: public_endpoint
+  changed_when: false
+
+- name: Create public compute service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne compute public http://{{ controller01.hostname }}:8774/v2.1
+  when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check internal nova compute service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.nova.*.compute.*.internal.*.http://{{ controller01.hostname }}:8774/v2.1' || true
+    executable: /bin/bash
+  register: internal_endpoint
+  changed_when: false
+
+- name: Create internal compute service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne compute internal http://{{ controller01.hostname }}:8774/v2.1
+  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check admin nova compute service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.nova.*.compute.*.admin.*.http://{{ controller01.hostname }}:8774/v2.1' || true
+    executable: /bin/bash
+  register: admin_endpoint
+  changed_when: false
+
+- name: Create admin compute service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne compute admin http://{{ controller01.hostname }}:8774/v2.1
+  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
+  changed_when: true

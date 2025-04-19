@@ -36,7 +36,7 @@
 - name: Bootstrap the identity service
   ansible.builtin.shell:
     cmd: |
-      sudo -u keystone keystone-manage bootstrap --bootstrap-password {{ keystone_admin_password }} \
+      sudo -u keystone keystone-manage bootstrap --bootstrap-password {{ os_keystone_password }} \
       --bootstrap-admin-url http://{{ controller01.hostname }}:5000/v3/ \
       --bootstrap-internal-url http://{{ controller01.hostname }}:5000/v3/ \
       --bootstrap-public-url http://{{ controller01.hostname }}:5000/v3/ \
