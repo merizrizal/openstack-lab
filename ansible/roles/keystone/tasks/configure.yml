@@ -2,11 +2,11 @@
 - name: Reconfigure keystone.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/keystone/keystone.conf
-    regexp: "^\\[database\\](\n(.*))*\n*(# From oslo.db).*"
+    regexp: "^\\[database\\](\n(.*))*?\n*(# From oslo.db).*"
     replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Reconfigure keystone.conf - set Fernet token provider
   ansible.builtin.replace:
     path: /etc/keystone/keystone.conf
-    regexp: "^\\[token\\](\n(.*))*\n*(# The amount of time that a token).*"
+    regexp: "^\\[token\\](\n(.*))*?\n*(# The amount of time that a token).*"
     replace: "{{ lookup('ansible.builtin.template', 'token.conf.j2') }}"

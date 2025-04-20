@@ -1,0 +1,22 @@
+---
+- name: Install Neutron package
+  ansible.builtin.package:
+    name: neutron-openvswitch-agent
+    state: present
+
+- name: Setup configuration
+  ansible.builtin.include_role:
+    name: neutron
+    tasks_from: main
+
+- name: Start and enable Nova compute
+  ansible.builtin.service:
+    name: nova-compute
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron OVS agent
+  ansible.builtin.service:
+    name: neutron-openvswitch-agent
+    state: restarted
+    enabled: true

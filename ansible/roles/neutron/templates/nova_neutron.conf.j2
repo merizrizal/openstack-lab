@@ -1,0 +1,12 @@
+[neutron]
+auth_url = http://{{ controller01.hostname }}:5000
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = {{ os_neutron_password }}
+{{ '' if nova_neutron_config is not defined else nova_neutron_config }}
+#
+# Configuration options for neutron (network connectivity as a service).

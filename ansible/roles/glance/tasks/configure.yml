@@ -2,31 +2,31 @@
 - name: Reconfigure glance-api.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[database\\](\n(.*))*\n*(# From oslo.db).*"
+    regexp: "^\\[database\\](\n(.*))*?\n*(# From oslo.db).*"
     replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Reconfigure glance-api.conf - set Keystone authtoken
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[keystone_authtoken\\](\n(.*))*\n*(# From keystonemiddleware.auth_token).*"
+    regexp: "^\\[keystone_authtoken\\](\n(.*))*?\n*(# From keystonemiddleware.auth_token).*"
     replace: "{{ lookup('ansible.builtin.template', 'keystone_authtoken.conf.j2') }}"
 
 - name: Reconfigure glance-api.conf - set paste deploy
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[paste_deploy\\](\n(.*))*\n*(#config_file = glance-api-paste.ini).*"
+    regexp: "^\\[paste_deploy\\](\n(.*))*?\n*(#config_file = glance-api-paste.ini).*"
     replace: "{{ lookup('ansible.builtin.template', 'paste_deploy.conf.j2') }}"
 
 - name: Reconfigure glance-api.conf - set default
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[DEFAULT\\](\n(.*))*\n*(# Allow limited access to).*"
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# Allow limited access to).*"
     replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
 
 - name: Reconfigure glance-api.conf - set glance store
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[glance_store\\](\n(.*))*\n*(# The store identifier for the default backend).*"
+    regexp: "^\\[glance_store\\](\n(.*))*?\n*(# The store identifier for the default backend).*"
     replace: "{{ lookup('ansible.builtin.template', 'glance_store.conf.j2') }}"
 
 - name: Get the image endpoint ID
@@ -41,7 +41,7 @@
 - name: Reconfigure glance-api.conf - set OSLO limit
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[oslo_limit\\](\n(.*))*\n*(# From oslo.limit).*"
+    regexp: "^\\[oslo_limit\\](\n(.*))*?\n*(# From oslo.limit).*"
     replace: "{{ lookup('ansible.builtin.template', 'oslo_limit.conf.j2') }}"
   vars:
     endpoint_id: "{{ image_endpoint_id.stdout }}"

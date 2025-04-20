@@ -2,17 +2,17 @@
 - name: Reconfigure placement.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/placement/placement.conf
-    regexp: "^\\[placement_database\\](\n(.*))*\n*(# The \\*Placement API Database\\*).*"
+    regexp: "^\\[placement_database\\](\n(.*))*?\n*(# The \\*Placement API Database\\*).*"
     replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Reconfigure placement.conf - set API
   ansible.builtin.replace:
     path: /etc/placement/placement.conf
-    regexp: "^\\[api\\](\n(.*))*\n*(# Options under this group are used to define Placement API).*"
+    regexp: "^\\[api\\](\n(.*))*?\n*(# Options under this group are used to define Placement API).*"
     replace: "{{ lookup('ansible.builtin.template', 'api.conf.j2') }}"
 
 - name: Reconfigure placement.conf - set Keystone authtoken
   ansible.builtin.replace:
     path: /etc/placement/placement.conf
-    regexp: "^\\[keystone_authtoken\\](\n(.*))*\n*(# From keystonemiddleware.auth_token).*"
+    regexp: "^\\[keystone_authtoken\\](\n(.*))*?\n*(# From keystonemiddleware.auth_token).*"
     replace: "{{ lookup('ansible.builtin.template', 'keystone_authtoken.conf.j2') }}"

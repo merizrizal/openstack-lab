@@ -1,0 +1,79 @@
+---
+- name: Initialize database
+  ansible.builtin.shell:
+    cmd: |
+      mysql -u root <<EOF
+      CREATE DATABASE IF NOT EXISTS neutron;
+      GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '{{ neutron_password }}';
+      GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '{{ neutron_password }}';
+      FLUSH PRIVILEGES;
+      EOF
+    executable: /bin/bash
+  changed_when: false
+
+- name: Configure service
+  ansible.builtin.include_tasks:
+    file: configure_service.yml
+
+- name: Configure Neutron
+  ansible.builtin.include_tasks:
+    file: configure_neutron.yml
+
+- name: Configure ML2
+  ansible.builtin.include_tasks:
+    file: configure_ml2.yml
+
+- name: Set facts
+  ansible.builtin.set_fact:
+    nova_neutron_config: |
+      service_metadata_proxy = true
+      metadata_proxy_shared_secret = {{ metadata_secret }}
+
+- name: Setup configuration
+  ansible.builtin.include_role:
+    name: neutron
+    tasks_from: main
+
+- name: Populate the neutron database
+  ansible.builtin.command:
+    cmd: >
+      sudo -u neutron neutron-db-manage --config-file /etc/neutron/neutron.conf
+      --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head
+  changed_when: false
+
+- name: Start and enable Nova API
+  ansible.builtin.service:
+    name: nova-api
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron server
+  ansible.builtin.service:
+    name: neutron-server
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron OVS agent
+  ansible.builtin.service:
+    name: neutron-openvswitch-agent
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron DHCP agent
+  ansible.builtin.service:
+    name: neutron-dhcp-agent
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron metadata agent
+  ansible.builtin.service:
+    name: neutron-metadata-agent
+    state: restarted
+    enabled: true
+
+# For Networking Option 2: Self-service networks
+# - name: Start and enable Neutron L3 agent
+#   ansible.builtin.service:
+#     name: neutron-l3-agent
+#     state: restarted
+#     enabled: true

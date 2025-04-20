@@ -23,3 +23,8 @@ spin-up-vm:
 teardown-vm:
 	vagrant halt $(VM)
 	vagrant destroy -f $(VM)
+
+copy-image-to-vm:
+	@vagrant upload \
+	/var/lib/libvirt/images/bento-VAGRANTSLASH-ubuntu-24.04_vagrant_box_image_202502.21.0_box_0.img \
+	/home/vagrant/ubuntu24.img controller01

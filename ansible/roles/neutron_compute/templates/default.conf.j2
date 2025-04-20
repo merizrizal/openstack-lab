@@ -1,0 +1,4 @@
+[DEFAULT]
+transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01.hostname }}:5672/
+#
+# Where to store Neutron state files. This directory must be writable by the

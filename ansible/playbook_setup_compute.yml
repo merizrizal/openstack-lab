@@ -6,3 +6,4 @@
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   roles:
     - role: nova_compute
+    - role: neutron_compute

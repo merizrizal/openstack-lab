@@ -2,13 +2,13 @@
 - name: Reconfigure nova.conf - set MySQL MariaDB connection API database
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
-    regexp: "^\\[api_database\\](\n(.*))*\n*(# The \\*Nova API Database\\*).*"
+    regexp: "^\\[api_database\\](\n(.*))*?\n*(# The \\*Nova API Database\\*).*"
     replace: "{{ lookup('ansible.builtin.template', 'api_database.conf.j2') }}"
 
 - name: Reconfigure nova.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
-    regexp: "^\\[database\\](\n(.*))*\n*(# The \\*Nova Database\\*).*"
+    regexp: "^\\[database\\](\n(.*))*?\n*(# The \\*Nova Database\\*).*"
     replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Set facts
