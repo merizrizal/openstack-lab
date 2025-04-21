@@ -7,10 +7,10 @@ lab:
     controller:
       hosts:
         controller01:
-          ansible_host: "{{ controller01.provider_ip_address }}"
+          ansible_host: "{{ controller01.private_ip_address }}"
           ntp_server: time.aws.com
     compute:
       hosts:
         compute01:
-          ansible_host: "{{ compute01.provider_ip_address }}"
+          ansible_host: "{{ compute01.private_ip_address }}"
           ntp_server: "{{ controller01.hostname }}"

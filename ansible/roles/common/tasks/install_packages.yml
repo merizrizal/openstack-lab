@@ -15,4 +15,5 @@
     name:
       - chrony
       - python3-openstackclient
+      - bridge-utils
     state: present

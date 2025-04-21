@@ -5,6 +5,7 @@
       - neutron-server
       - neutron-plugin-ml2
       - neutron-openvswitch-agent
+      - neutron-l3-agent
       - neutron-dhcp-agent
       - neutron-metadata-agent
     state: present

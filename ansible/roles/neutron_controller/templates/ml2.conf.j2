@@ -1,7 +1,7 @@
 [ml2]
-type_drivers = flat,vlan
-tenant_network_types =
-mechanism_drivers = openvswitch
+type_drivers = flat,vlan,vxlan
+tenant_network_types = vxlan
+mechanism_drivers = openvswitch,l2population
 extension_drivers = port_security
 #
 # From neutron.ml2

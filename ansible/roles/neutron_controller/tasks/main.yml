@@ -25,6 +25,7 @@
 
 - name: Set facts
   ansible.builtin.set_fact:
+    overlay_if_ip_address: "{{ controller01.mgmtnet_ip_address }}"
     nova_neutron_config: |
       service_metadata_proxy = true
       metadata_proxy_shared_secret = {{ metadata_secret }}
@@ -71,9 +72,8 @@
     state: restarted
     enabled: true
 
-# For Networking Option 2: Self-service networks
-# - name: Start and enable Neutron L3 agent
-#   ansible.builtin.service:
-#     name: neutron-l3-agent
-#     state: restarted
-#     enabled: true
+- name: Start and enable Neutron L3 agent
+  ansible.builtin.service:
+    name: neutron-l3-agent
+    state: restarted
+    enabled: true
