@@ -1,0 +1,10 @@
+---
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {{ provider_interface }}: {}
+  bridges:
+    br-prvdr:
+      interfaces: [{{ provider_interface }}]
+      addresses: [{{ provider_ip_address }}/24]

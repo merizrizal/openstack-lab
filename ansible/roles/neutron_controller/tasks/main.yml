@@ -26,6 +26,7 @@
 - name: Set facts
   ansible.builtin.set_fact:
     overlay_if_ip_address: "{{ controller01.mgmtnet_ip_address }}"
+    provider_ip_address: "{{ controller01.provider_ip_address }}"
     nova_neutron_config: |
       service_metadata_proxy = true
       metadata_proxy_shared_secret = {{ metadata_secret }}

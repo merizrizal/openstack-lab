@@ -6,7 +6,8 @@
 
 - name: Set facts
   ansible.builtin.set_fact:
-    overlay_if_ip_address: "{{ controller01.mgmtnet_ip_address }}"
+    overlay_if_ip_address: "{{ compute01.mgmtnet_ip_address }}"
+    provider_ip_address: "{{ compute01.provider_ip_address }}"
 
 - name: Setup configuration
   ansible.builtin.include_role:

@@ -66,5 +66,5 @@
   ansible.builtin.reboot:
     post_reboot_delay: 2
   when: >
-    (cloud_init_result is defined and cloud_init_result.msg is defined and '"Block inserted" in cloud_init_result.msg')
+    (cloud_init_result is defined and cloud_init_result.msg is defined and "Block inserted" in cloud_init_result.msg)
     or (set_soft_limit.changed or set_hard_limit.changed)

@@ -45,6 +45,23 @@
   ansible.builtin.shell:
     cmd: |
       ovs-vsctl add-br br-prvdr
-      ovs-vsctl add-port br-prvdr eth1
+      ovs-vsctl add-port br-prvdr {{ provider_interface }}
     executable: /bin/bash
+  register: add_br_prvdr
+  failed_when: >
+    add_br_prvdr.stderr is defined and add_br_prvdr.stderr != ""
+    and "already exists on bridge" is not in add_br_prvdr.stderr
+  changed_when: add_br_prvdr.rc == 0 and add_br_prvdr.stderr is defined and add_br_prvdr.stderr == ""
+
+- name: Re-configure provider interface
+  ansible.builtin.template:
+    src: interface.yml.j2
+    dest: /etc/netplan/50-vagrant.yaml
+    mode: "640"
+  register: configure_provider_if
+
+- name: Netplan apply
+  ansible.builtin.command:
+    cmd: netplan apply
+  when: configure_provider_if.changed is defined and configure_provider_if.changed
   changed_when: false
