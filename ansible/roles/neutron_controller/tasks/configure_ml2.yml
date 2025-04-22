@@ -16,15 +16,3 @@
     path: /etc/neutron/plugins/ml2/ml2_conf.ini
     regexp: "^\\[ml2_type_vxlan\\](\n(.*))*?\n*(# From neutron.ml2).*"
     replace: "{{ lookup('ansible.builtin.template', 'ml2_type_vxlan.conf.j2') }}"
-
-- name: Reconfigure dhcp_agent.ini - set dhcp agent default
-  ansible.builtin.replace:
-    path: /etc/neutron/dhcp_agent.ini
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.base.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'dhcp_agent_default.conf.j2') }}"
-
-- name: Reconfigure metadata_agent.ini - set metadata default
-  ansible.builtin.replace:
-    path: /etc/neutron/metadata_agent.ini
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.metadata.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'metadata_default.conf.j2') }}"

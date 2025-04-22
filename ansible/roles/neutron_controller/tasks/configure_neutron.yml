@@ -1,15 +1,4 @@
 ---
-- name: Install Neutron package
-  ansible.builtin.package:
-    name:
-      - neutron-server
-      - neutron-plugin-ml2
-      - neutron-openvswitch-agent
-      - neutron-l3-agent
-      - neutron-dhcp-agent
-      - neutron-metadata-agent
-    state: present
-
 - name: Reconfigure neutron.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/neutron/neutron.conf

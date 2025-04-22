@@ -1,45 +1,37 @@
 ---
-- name: Reconfigure neutron.conf - set default
-  ansible.builtin.replace:
-    path: /etc/neutron/neutron.conf
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# Where to store Neutron state files).*"
-    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+- name: Install Neutron package
+  ansible.builtin.package:
+    name:
+      - neutron-openvswitch-agent
+      - neutron-dhcp-agent
+      - neutron-metadata-agent
+    state: present
 
-- name: Reconfigure neutron.conf - set OSLO concurency
-  ansible.builtin.replace:
-    path: /etc/neutron/neutron.conf
-    regexp: "^\\[oslo_concurrency\\](\n(.*))*?\n*(# From oslo.concurrency).*"
-    replace: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
+- name: Configure Neutron
+  ansible.builtin.include_tasks:
+    file: configure_neutron.yml
 
-- name: Reconfigure neutron.conf - set Nova
-  ansible.builtin.replace:
-    path: /etc/neutron/neutron.conf
-    regexp: "^\\[nova\\](\n(.*))*?\n*(# Name of Nova region to use).*"
-    replace: "{{ lookup('ansible.builtin.template', 'nova.conf.j2') }}"
-
-- name: Reconfigure openvswitch_agent.ini - set ovs
-  ansible.builtin.replace:
-    path: /etc/neutron/plugins/ml2/openvswitch_agent.ini
-    regexp: "^\\[ovs\\](\n(.*))*?\n*(# From neutron.ml2.ovs.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'ovs.conf.j2') }}"
-
-- name: Reconfigure openvswitch_agent.ini - set agent
-  ansible.builtin.replace:
-    path: /etc/neutron/plugins/ml2/openvswitch_agent.ini
-    regexp: "^\\[agent\\](\n(.*))*?\n*(# From neutron.ml2.ovs.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'agent.conf.j2') }}"
-
-- name: Reconfigure openvswitch_agent.ini - set security group
-  ansible.builtin.replace:
-    path: /etc/neutron/plugins/ml2/openvswitch_agent.ini
-    regexp: "^\\[securitygroup\\](\n(.*))*?\n*(# From neutron.ml2.ovs.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'securitygroup.conf.j2') }}"
+- name: Configure OpenVSwitch
+  ansible.builtin.include_tasks:
+    file: configure_openvswitch.yml
 
 - name: Reconfigure Nova - set neutron
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
     regexp: "^\\[neutron\\](\n(.*))*?\n*(# Configuration options for neutron).*"
     replace: "{{ lookup('ansible.builtin.template', 'nova_neutron.conf.j2') }}"
+
+- name: Reconfigure dhcp_agent.ini - set dhcp agent default
+  ansible.builtin.replace:
+    path: /etc/neutron/dhcp_agent.ini
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.base.agent).*"
+    replace: "{{ lookup('ansible.builtin.template', 'dhcp_agent_default.conf.j2') }}"
+
+- name: Reconfigure metadata_agent.ini - set metadata default
+  ansible.builtin.replace:
+    path: /etc/neutron/metadata_agent.ini
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.metadata.agent).*"
+    replace: "{{ lookup('ansible.builtin.template', 'metadata_default.conf.j2') }}"
 
 - name: Add br-prvdr
   ansible.builtin.shell:
@@ -65,3 +57,21 @@
     cmd: netplan apply
   when: configure_provider_if.changed is defined and configure_provider_if.changed
   changed_when: false
+
+- name: Start and enable Neutron OVS agent
+  ansible.builtin.service:
+    name: neutron-openvswitch-agent
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron DHCP agent
+  ansible.builtin.service:
+    name: neutron-dhcp-agent
+    state: restarted
+    enabled: true
+
+- name: Start and enable Neutron metadata agent
+  ansible.builtin.service:
+    name: neutron-metadata-agent
+    state: restarted
+    enabled: true

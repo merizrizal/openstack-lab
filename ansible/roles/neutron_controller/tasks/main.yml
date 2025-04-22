@@ -11,6 +11,15 @@
     executable: /bin/bash
   changed_when: false
 
+- name: Install Neutron package
+  ansible.builtin.package:
+    name:
+      - neutron-server
+      - neutron-plugin-ml2
+      - neutron-openvswitch-agent
+      - neutron-l3-agent
+    state: present
+
 - name: Configure service
   ansible.builtin.include_tasks:
     file: configure_service.yml
@@ -52,24 +61,6 @@
 - name: Start and enable Neutron server
   ansible.builtin.service:
     name: neutron-server
-    state: restarted
-    enabled: true
-
-- name: Start and enable Neutron OVS agent
-  ansible.builtin.service:
-    name: neutron-openvswitch-agent
-    state: restarted
-    enabled: true
-
-- name: Start and enable Neutron DHCP agent
-  ansible.builtin.service:
-    name: neutron-dhcp-agent
-    state: restarted
-    enabled: true
-
-- name: Start and enable Neutron metadata agent
-  ansible.builtin.service:
-    name: neutron-metadata-agent
     state: restarted
     enabled: true
 

@@ -1,9 +1,4 @@
 ---
-- name: Install Neutron package
-  ansible.builtin.package:
-    name: neutron-openvswitch-agent
-    state: present
-
 - name: Set facts
   ansible.builtin.set_fact:
     overlay_if_ip_address: "{{ compute01.mgmtnet_ip_address }}"
@@ -17,11 +12,5 @@
 - name: Start and enable Nova compute
   ansible.builtin.service:
     name: nova-compute
-    state: restarted
-    enabled: true
-
-- name: Start and enable Neutron OVS agent
-  ansible.builtin.service:
-    name: neutron-openvswitch-agent
     state: restarted
     enabled: true

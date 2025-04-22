@@ -1,0 +1,18 @@
+---
+- name: Reconfigure neutron.conf - set default
+  ansible.builtin.replace:
+    path: /etc/neutron/neutron.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# Where to store Neutron state files).*"
+    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+
+- name: Reconfigure neutron.conf - set OSLO concurency
+  ansible.builtin.replace:
+    path: /etc/neutron/neutron.conf
+    regexp: "^\\[oslo_concurrency\\](\n(.*))*?\n*(# From oslo.concurrency).*"
+    replace: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
+
+- name: Reconfigure neutron.conf - set Nova
+  ansible.builtin.replace:
+    path: /etc/neutron/neutron.conf
+    regexp: "^\\[nova\\](\n(.*))*?\n*(# Name of Nova region to use).*"
+    replace: "{{ lookup('ansible.builtin.template', 'nova.conf.j2') }}"
