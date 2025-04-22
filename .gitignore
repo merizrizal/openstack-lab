@@ -2,3 +2,5 @@
 *.qcow2
 *.box
 *.log
+
+log

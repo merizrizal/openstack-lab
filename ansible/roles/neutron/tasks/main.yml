@@ -42,7 +42,7 @@
   register: add_br_prvdr
   failed_when: >
     add_br_prvdr.stderr is defined and add_br_prvdr.stderr != ""
-    and "already exists on bridge" is not in add_br_prvdr.stderr
+    and "already exists" is not in add_br_prvdr.stderr
   changed_when: add_br_prvdr.rc == 0 and add_br_prvdr.stderr is defined and add_br_prvdr.stderr == ""
 
 - name: Re-configure provider interface
