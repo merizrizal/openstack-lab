@@ -45,7 +45,8 @@ def customize_vms(config, inventories)
     config.vm.define host do |machine|
       machine.vm.hostname = inventory["hostname"]
       machine.vm.synced_folder ".", "/vagrant", disabled: true
-      machine.vm.network "private_network", ip: inventory["provider_ip_address"]
+      machine.vm.network "public_network", ip: inventory["provider_ip_address"],
+        dev: "br-provider0", mode: "bridge", type: "bridge"
       machine.vm.network "private_network", ip: inventory["private_ip_address"]
       machine.vm.provider "libvirt" do |lv|
         lv.memory = inventory["memory"]

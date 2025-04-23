@@ -3,6 +3,11 @@ SHELL := /bin/bash
 
 export MAKE := make
 
+start-provider-network:
+	@sudo ip link add name br-provider0 type bridge || true
+	@sudo ip addr add 192.168.123.1/24 dev br-provider0 || true
+	@sudo ip link set dev br-provider0 up || true
+
 start-vm:
 	@$(MAKE) -C ../base_image check-base-image
 	@nodes=`(yq '.[] | key' ../../inventories/local/nodes.yml)`; \
@@ -24,7 +29,10 @@ teardown-vm:
 	vagrant halt $(VM)
 	vagrant destroy -f $(VM)
 
+teardown-provider-network:
+	@sudo ip link del dev br-provider0 type bridge || true
+
 copy-image-to-vm:
 	@vagrant upload \
-	/var/lib/libvirt/images/bento-VAGRANTSLASH-ubuntu-24.04_vagrant_box_image_202502.21.0_box_0.img \
+	/var/lib/libvirt/images/ubuntu_24_base_vagrant_box_image_0_1744719988_box.img \
 	/home/vagrant/ubuntu24.img controller01

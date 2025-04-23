@@ -32,6 +32,10 @@
   ansible.builtin.include_tasks:
     file: configure_ml2.yml
 
+- name: Configure L3 agent
+  ansible.builtin.include_tasks:
+    file: configure_l3_agent.yml
+
 - name: Set facts
   ansible.builtin.set_fact:
     overlay_if_ip_address: "{{ controller01.mgmtnet_ip_address }}"
