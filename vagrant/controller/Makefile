@@ -33,6 +33,12 @@ teardown-provider-network:
 	@sudo ip link del dev br-provider0 type bridge || true
 
 copy-image-to-vm:
-	@vagrant upload \
-	/var/lib/libvirt/images/ubuntu_24_base_vagrant_box_image_0_1744719988_box.img \
-	/home/vagrant/ubuntu24.img controller01
+	@if [ ! -f "$$IMAGE_PATH" ]; then \
+		echo "$$IMAGE_PATH is not found."; \
+		exit 1; \
+	else \
+		echo Found $$IMAGE_PATH; \
+		echo Uploading to controller VM; \
+	fi;
+
+	@vagrant upload $$IMAGE_PATH /home/vagrant/ubuntu24.img controller01
