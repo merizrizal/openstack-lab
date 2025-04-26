@@ -14,7 +14,7 @@
   ansible.builtin.lineinfile:
     path: /etc/openstack-dashboard/local_settings.py
     regexp: "^OPENSTACK_KEYSTONE_URL ="
-    line: OPENSTACK_KEYSTONE_URL = "http://%s/identity/v3" % OPENSTACK_HOST
+    line: OPENSTACK_KEYSTONE_URL = "http://{{ controller01.hostname }}:5000/identity/v3"
 
 - name: Configure OpenStack Keystone
   ansible.builtin.blockinfile:
