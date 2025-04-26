@@ -36,6 +36,15 @@
     regexp: "^(CACHES =.*)(\n(.*))*?\n*(# Send email to the console by default).*"
     replace: "{{ lookup('ansible.builtin.template', 'memcached_session.conf.j2') }}"
 
+- name: Prepare OpenStack Horizon to start
+  ansible.builtin.shell:
+    cmd: |
+      rm -rf /var/lib/openstack-dashboard/static/*
+      sudo -u horizon python3 /usr/share/openstack-dashboard/manage.py collectstatic --noinput
+      sudo -u horizon python3 /usr/share/openstack-dashboard/manage.py compress
+    executable: /bin/bash
+  changed_when: false
+
 - name: Start and enable Apache2
   ansible.builtin.service:
     name: apache2
