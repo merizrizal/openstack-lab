@@ -1,7 +1,7 @@
 ## OpenStack Provisioning
 
 ### This repo is intended for learning OpenStack or deploying an OpenStack Lab.
-### We well install OpenStack to Libvirt KVM, this means any VM instances that is provisioned by OpenStack are running in nested virtualisasion.
+#### We well install OpenStack to Libvirt KVM, this means any VM instances that is provisioned by OpenStack are running in nested virtualisation.
 
 **Pre-requisite - Installed to our Operating System:**
 - QEMU + Libvirt: https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/
