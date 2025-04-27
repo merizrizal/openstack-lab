@@ -28,6 +28,6 @@ Now our OpenStack Lab should be ready.
 
 **Known Issues:**
 - Once we provisioned a VM by doing `openstack create server`. There will be no IP address configured. Somehow, the OpenStack DHCP service does not work as expected. So we need to configure the IP address manually on the VM.
-- Also we need to configure this on our bare-metal `sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <our-physical-interface> -j MASQUERADE` to allowed the VM to be connected to the internet.
+- Also we need to configure this on our bare-metal `sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <our-physical-interface> -j MASQUERADE` to allow the VM to be connected to the internet.
 
 Reach me at meriz.rizal@gmail.com to connect with me
