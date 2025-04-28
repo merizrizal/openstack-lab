@@ -1,8 +1,4 @@
 controller: |
   echo "Provision on controller node"
-  # rabbitmqctl add_user openstack mriz12345
-  # rabbitmqctl set_permissions openstack ".*" ".*" ".*"
-  # systemctl enable etcd
-  # systemctl restart etcd
 compute: |
   echo "Provision on compute node"

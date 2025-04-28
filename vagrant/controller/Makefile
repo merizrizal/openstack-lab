@@ -34,7 +34,8 @@ teardown-provider-network:
 
 copy-image-to-vm:
 	@if [ ! -f "$$IMAGE_PATH" ]; then \
-		echo "$$IMAGE_PATH is not found."; \
+		echo "Image: $$IMAGE_PATH is not found."; \
+		echo "Need to set IMAGE_PATH=/path/to/image.qcow2."; \
 		exit 1; \
 	else \
 		echo Found $$IMAGE_PATH; \
