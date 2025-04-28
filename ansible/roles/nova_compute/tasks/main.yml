@@ -7,7 +7,9 @@
 - name: Set facts
   ansible.builtin.set_fact:
     transport_url: rabbit://openstack:{{ rabbitmq_password }}@{{ controller01.hostname }}
-    mgmtnet_ip_address: "{{ compute01.mgmtnet_ip_address }}"
+    mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
+  vars:
+    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
 
 - name: Setup configuration
   ansible.builtin.include_role:

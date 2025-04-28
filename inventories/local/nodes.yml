@@ -15,6 +15,16 @@ compute01:
   provider_ip_address: 192.168.123.6
   private_ip_address: 192.168.124.6
   hostname: compute01.local
-  memory: 24576
+  memory: 12288
   cpus: 6
-  disks: 180
+  disks: 90
+
+compute02:
+  environment: compute
+  mgmtnet_ip_address: 192.168.121.7
+  provider_ip_address: 192.168.123.7
+  private_ip_address: 192.168.124.7
+  hostname: compute02.local
+  memory: 12288
+  cpus: 6
+  disks: 90

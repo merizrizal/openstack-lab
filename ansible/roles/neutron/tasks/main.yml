@@ -21,18 +21,6 @@
     regexp: "^\\[neutron\\](\n(.*))*?\n*(# Configuration options for neutron).*"
     replace: "{{ lookup('ansible.builtin.template', 'nova_neutron.conf.j2') }}"
 
-- name: Reconfigure dhcp_agent.ini - set dhcp agent default
-  ansible.builtin.replace:
-    path: /etc/neutron/dhcp_agent.ini
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.base.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'dhcp_agent_default.conf.j2') }}"
-
-- name: Reconfigure metadata_agent.ini - set metadata default
-  ansible.builtin.replace:
-    path: /etc/neutron/metadata_agent.ini
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.metadata.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'metadata_default.conf.j2') }}"
-
 - name: Add br-prvdr
   ansible.builtin.shell:
     cmd: |
@@ -61,17 +49,5 @@
 - name: Start and enable Neutron OVS agent
   ansible.builtin.service:
     name: neutron-openvswitch-agent
-    state: restarted
-    enabled: true
-
-- name: Start and enable Neutron DHCP agent
-  ansible.builtin.service:
-    name: neutron-dhcp-agent
-    state: restarted
-    enabled: true
-
-- name: Start and enable Neutron metadata agent
-  ansible.builtin.service:
-    name: neutron-metadata-agent
     state: restarted
     enabled: true
