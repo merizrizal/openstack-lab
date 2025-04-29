@@ -18,3 +18,6 @@ lab:
         compute02:
           ansible_host: "{{ compute02.private_ip_address }}"
           ntp_server: "{{ controller01.hostname }}"
+        # compute03:
+        #   ansible_host: "{{ compute03.private_ip_address }}"
+        #   ntp_server: "{{ controller01.hostname }}"
