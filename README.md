@@ -3,6 +3,36 @@
 ### This repo is intended for learning OpenStack or deploying an OpenStack Lab.
 #### We will install OpenStack to Libvirt KVM, this means any VM instances that is provisioned by OpenStack are running in nested virtualisation.
 
+**Ansible directory structure***
+```
+| - ansible
+  |  | - .ansible-lint
+  |  | - inventory_local.yml
+  |  | - roles
+  |  |  | - placement
+  |  |  | - glance
+  |  |  | - keystone
+  |  |  | - common
+  |  |  | - neutron_compute
+  |  |  | - nova_controller
+  |  |  | - neutron
+  |  |  | - nova
+  |  |  | - neutron_controller
+  |  |  | - horizon
+  |  |  | - nova_compute
+  |  |  | - controller
+  |  | - group_vars
+  |  |  | - all
+  |  |  | - controller
+  |  | - ansible.cfg
+  |  | - playbook_setup_controller.yml
+  |  | - playbook_pre_setup.yml
+  |  | - playbook_setup_compute.yml
+  | - inventories
+  |  | - local
+  |  |  | - nodes.yml
+```
+
 **Pre-requisite - Installed to our Operating System:**
 - QEMU + Libvirt: https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/
 - `yq`: https://github.com/mikef
