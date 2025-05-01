@@ -5,9 +5,9 @@ controller01:
   provider_ip_address: 192.168.123.5
   private_ip_address: 192.168.124.5
   hostname: controller01.local
-  memory: 8192
+  memory: 5120
   cpus: 2
-  disks: 100
+  disks: 64
 
 compute01:
   environment: compute
@@ -29,12 +29,13 @@ compute02:
   cpus: 6
   disks: 90
 
-# compute03:
-#   environment: compute
-#   mgmtnet_ip_address: 192.168.121.8
-#   provider_ip_address: 192.168.123.8
-#   private_ip_address: 192.168.124.8
-#   hostname: compute03.local
-#   memory: 12288
-#   cpus: 6
-#   disks: 90
+storage01:
+  environment: storage
+  mgmtnet_ip_address: 192.168.121.8
+  provider_ip_address: 192.168.123.8
+  private_ip_address: 192.168.124.8
+  hostname: storage01.local
+  memory: 2048
+  cpus: 2
+  disks: 64
+  additional_disks: [60]

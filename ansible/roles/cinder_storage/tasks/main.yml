@@ -1,0 +1,22 @@
+---
+- name: Install Cinder and utilities package
+  ansible.builtin.package:
+    name:
+      - lvm2
+      - thin-provisioning-tools
+      - cinder-volume
+      - tgt
+    state: present
+
+- name: Prepare storage volume
+  ansible.builtin.shell:
+    cmd: |
+      pvcreate /dev/{{ device_name }}
+      vgcreate cinder-volumes /dev/{{ device_name }}
+    executable: /bin/bash
+  changed_when: false
+
+- name: Setup configuration
+  ansible.builtin.include_role:
+    name: cinder
+    tasks_from: main

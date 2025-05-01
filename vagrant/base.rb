@@ -53,6 +53,12 @@ def customize_vms(config, inventories)
         lv.cpus = inventory["cpus"]
         lv.machine_virtual_size = inventory["disks"]
         lv.qemu_use_agent = true
+
+        if !inventory["additional_disks"].nil?
+          inventory["additional_disks"].each do |disks|
+            lv.storage :file, size: "#{disks}G", device: "vdb"
+          end
+        end
       end
     end
   end

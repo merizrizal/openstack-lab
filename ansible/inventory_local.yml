@@ -9,15 +9,13 @@ lab:
       hosts:
         controller01:
           ansible_host: "{{ controller01.private_ip_address }}"
-          ntp_server: time.aws.com
     compute:
       hosts:
         compute01:
           ansible_host: "{{ compute01.private_ip_address }}"
-          ntp_server: "{{ controller01.hostname }}"
         compute02:
           ansible_host: "{{ compute02.private_ip_address }}"
-          ntp_server: "{{ controller01.hostname }}"
-        # compute03:
-        #   ansible_host: "{{ compute03.private_ip_address }}"
-        #   ntp_server: "{{ controller01.hostname }}"
+    storage:
+      hosts:
+        storage01:
+          ansible_host: "{{ storage01.private_ip_address }}"

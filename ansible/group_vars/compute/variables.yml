@@ -1,0 +1,2 @@
+---
+ntp_server: "{{ controller01.hostname }}"

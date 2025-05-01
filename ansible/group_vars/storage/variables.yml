@@ -1,0 +1,3 @@
+---
+ntp_server: "{{ controller01.hostname }}"
+device_name: vdb

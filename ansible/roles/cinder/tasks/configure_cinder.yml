@@ -1,0 +1,32 @@
+---
+- name: Reconfigure cinder.conf - set MySQL MariaDB connection database
+  ansible.builtin.replace:
+    path: /etc/cinder/cinder.conf
+    regexp: "^\\[database\\](\n(.*))?"
+    replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
+
+- name: Reconfigure cinder.conf - set default
+  ansible.builtin.replace:
+    path: /etc/cinder/cinder.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(enabled_backends = lvm).*"
+    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+
+- name: Configure cinder.conf - set Keystone authtoken
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'keystone_authtoken.conf.j2') }}"
+    insertafter: EOF
+    marker_begin: BEGIN KEYSTONE_AUTHTOKEN
+    marker_end: END KEYSTONE_AUTHTOKEN
+
+- name: Configure cinder.conf - set OSLO concurrency
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
+    insertafter: EOF
+    marker_begin: BEGIN OSLO_CONCURRENCY
+    marker_end: END OSLO_CONCURRENCY

@@ -12,3 +12,4 @@
     - role: nova_controller
     - role: neutron_controller
     - role: horizon
+    - role: cinder_controller

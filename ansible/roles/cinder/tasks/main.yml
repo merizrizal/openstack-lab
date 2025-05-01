@@ -1,0 +1,4 @@
+---
+- name: Configure Cinder
+  ansible.builtin.include_tasks:
+    file: configure_cinder.yml
