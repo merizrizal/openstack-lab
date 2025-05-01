@@ -1,0 +1,16 @@
+---
+- name: Configure cinder.conf - set LVM
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'lvm.conf.j2') }}"
+    insertafter: EOF
+    marker_begin: BEGIN LVM
+    marker_end: END LVM
+
+- name: Configure TGT Cinder
+  ansible.builtin.copy:
+    content: include /var/lib/cinder/volumes/*
+    dest: /etc/tgt/conf.d/cinder.conf
+    mode: "644"

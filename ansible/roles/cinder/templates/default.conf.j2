@@ -1,6 +1,7 @@
 [DEFAULT]
 transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01.hostname }}
 my_ip = {{ controller01.mgmtnet_ip_address }}
+glance_api_servers = http://{{ controller01.hostname }}:9292
 rootwrap_config = /etc/cinder/rootwrap.conf
 api_paste_confg = /etc/cinder/api-paste.ini
 iscsi_helper = lioadm

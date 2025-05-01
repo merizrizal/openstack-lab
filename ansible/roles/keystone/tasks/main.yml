@@ -52,14 +52,6 @@
     block: ServerName {{ controller01.hostname }}
     insertafter: EOF
 
-- name: Set environment variables
-  ansible.builtin.blockinfile:
-    path: /etc/environment
-    append_newline: true
-    prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'environment.j2') }}"
-    insertafter: EOF
-
 - name: Start and enable Apache2
   ansible.builtin.service:
     name: apache2

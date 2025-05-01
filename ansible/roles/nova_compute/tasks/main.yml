@@ -16,14 +16,6 @@
     name: nova
     tasks_from: main
 
-- name: Set environment variables
-  ansible.builtin.blockinfile:
-    path: /etc/environment
-    append_newline: true
-    prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'environment.j2') }}"
-    insertafter: EOF
-
 - name: Start and enable Nova compute
   ansible.builtin.service:
     name: nova-compute

@@ -62,6 +62,14 @@
   community.general.timezone:
     name: UTC
 
+- name: Set environment variables
+  ansible.builtin.blockinfile:
+    path: /etc/environment
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'environment.j2') }}"
+    insertafter: EOF
+
 - name: Reboot to update the changes
   ansible.builtin.reboot:
     post_reboot_delay: 2

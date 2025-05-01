@@ -1,3 +1,4 @@
 ---
 ntp_server: "{{ controller01.hostname }}"
-device_name: vdb
+primary_device_name: vda
+secondary_device_name: vdb

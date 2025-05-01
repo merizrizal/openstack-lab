@@ -11,12 +11,34 @@
 - name: Prepare storage volume
   ansible.builtin.shell:
     cmd: |
-      pvcreate /dev/{{ device_name }}
-      vgcreate cinder-volumes /dev/{{ device_name }}
+      pvcreate /dev/{{ secondary_device_name }}
+      vgcreate cinder-volumes /dev/{{ secondary_device_name }}
     executable: /bin/bash
   changed_when: false
+
+- name: Reconfigure lvm.conf - set devices/filter
+  ansible.builtin.replace:
+    path: /etc/lvm/lvm.conf
+    regexp: "^(devices {)(\n(.*))*?\n*(# Configuration option devices/dir.).*"
+    replace: "{{ lookup('ansible.builtin.template', 'lvm_devices_filter.conf.j2') }}"
 
 - name: Setup configuration
   ansible.builtin.include_role:
     name: cinder
     tasks_from: main
+
+- name: Configure Cinder and stuff
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Start and enable TGT
+  ansible.builtin.service:
+    name: tgt
+    state: restarted
+    enabled: true
+
+- name: Start and enable Cinder volume
+  ansible.builtin.service:
+    name: cinder-volume
+    state: restarted
+    enabled: true
