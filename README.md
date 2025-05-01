@@ -6,34 +6,34 @@
 **Ansible directory structure**
 ```
   | - ansible
-  |  | - .ansible-lint
-  |  | - inventory_local.yml
-  |  | - roles
-  |  |  | - placement
-  |  |  | - glance
-  |  |  | - keystone
-  |  |  | - common
-  |  |  | - cinder
-  |  |  | - neutron_compute
-  |  |  | - nova_controller
-  |  |  | - neutron
-  |  |  | - nova
-  |  |  | - neutron_controller
-  |  |  | - horizon
-  |  |  | - nova_compute
-  |  |  | - cinder_controller
-  |  |  | - cinder_storage
-  |  |  | - controller
-  |  | - group_vars
-  |  |  | - compute
-  |  |  | - storage
-  |  |  | - all
-  |  |  | - controller
   |  | - ansible.cfg
-  |  | - playbook_setup_storage.yml
-  |  | - playbook_setup_controller.yml
+  |  | - .ansible-lint
+  |  | - group_vars
+  |  |  | - all
+  |  |  | - compute
+  |  |  | - controller
+  |  |  | - storage
+  |  | - inventory_local.yml
   |  | - playbook_pre_setup.yml
   |  | - playbook_setup_compute.yml
+  |  | - playbook_setup_controller.yml
+  |  | - playbook_setup_storage.yml
+  |  | - roles
+  |  |  | - cinder
+  |  |  | - cinder_controller
+  |  |  | - cinder_storage
+  |  |  | - common
+  |  |  | - controller
+  |  |  | - glance
+  |  |  | - horizon
+  |  |  | - keystone
+  |  |  | - neutron
+  |  |  | - neutron_compute
+  |  |  | - neutron_controller
+  |  |  | - nova
+  |  |  | - nova_compute
+  |  |  | - nova_controller
+  |  |  | - placement
   | - inventories
   |  | - local
   |  |  | - nodes.yml
