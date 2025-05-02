@@ -2,6 +2,6 @@
 enabled = true
 server_listen = 0.0.0.0
 server_proxyclient_address = $my_ip
-novncproxy_base_url = http://{{ controller01.hostname }}:6080/vnc_auto.html
+novncproxy_base_url = http://{{ controller01.mgmtnet_ip_address }}:6080/vnc_auto.html
 #
 # Virtual Network Computer (VNC) can be used to provide remote desktop
