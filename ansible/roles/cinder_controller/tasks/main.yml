@@ -22,6 +22,12 @@
   ansible.builtin.include_tasks:
     file: configure_service.yml
 
+- name: Set facts
+  ansible.builtin.set_fact:
+    mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
+  vars:
+    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
+
 - name: Setup configuration
   ansible.builtin.include_role:
     name: cinder

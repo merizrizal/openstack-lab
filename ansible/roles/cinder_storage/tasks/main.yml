@@ -11,16 +11,27 @@
 - name: Prepare storage volume
   ansible.builtin.shell:
     cmd: |
-      pvcreate /dev/{{ secondary_device_name }}
-      vgcreate cinder-volumes /dev/{{ secondary_device_name }}
+      pvcreate /dev/{{ secondary_device_name }} || true
+      vgcreate cinder-volumes /dev/{{ secondary_device_name }} || true
     executable: /bin/bash
+  register: prepare_volume
   changed_when: false
+  failed_when: >
+    prepare_volume.stderr is defined and
+    prepare_volume.stderr != "" and
+    "already exists in filesystem" not in prepare_volume.stderr
 
 - name: Reconfigure lvm.conf - set devices/filter
   ansible.builtin.replace:
     path: /etc/lvm/lvm.conf
     regexp: "^(devices {)(\n(.*))*?\n*(# Configuration option devices/dir.).*"
     replace: "{{ lookup('ansible.builtin.template', 'lvm_devices_filter.conf.j2') }}"
+
+- name: Set facts
+  ansible.builtin.set_fact:
+    mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
+  vars:
+    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
 
 - name: Setup configuration
   ansible.builtin.include_role:
