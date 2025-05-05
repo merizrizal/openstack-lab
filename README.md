@@ -41,7 +41,7 @@
 
 **Pre-requisite - Installed to our Operating System:**
 - QEMU + Libvirt: https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/
-- `yq`: https://github.com/mikef
+- `yq`: https://github.com/mikefarah/yq
 - GCC + Make or build-essential package if we are using Ubuntu.
 - Vagrant: https://developer.hashicorp.com/vagrant/install
 - Vagrant Libvirt: https://vagrant-libvirt.github.io/vagrant-libvirt/installation.html
