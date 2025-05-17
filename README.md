@@ -45,12 +45,13 @@
 - GCC + Make or build-essential package if we are using Ubuntu.
 - Vagrant: https://developer.hashicorp.com/vagrant/install
 - Vagrant Libvirt: https://vagrant-libvirt.github.io/vagrant-libvirt/installation.html
+- Ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
 
 
 **Preparation:**
 1. Navigate to `./vagrant` directory.
 2. Build the base image which will be used by Vagrant later.<br>
-Run `make -C base_image/ rebuild-base-image`. This will create a new Vagrant box that will be used for our OpenStack VM (controller node and compute node).
+Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagrant box that will be used for our OpenStack VM (controller node and compute node).
 3. Run `make -C controller/ start-provider-network` to create a new interface which will be used by Controller and Compute node.
 4. Run `make -C controller/ start-vm` to spin up 2 VMs which are Controller and Compute node.
 
