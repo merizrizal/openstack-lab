@@ -5,9 +5,10 @@
 
 **Ansible directory structure**
 ```
-  | - ansible
-  |  | - ansible.cfg
-  |  | - .ansible-lint
+  - ansible
+  |  - ansible.cfg
+  |  - .ansible-lint
+  |  - deploy_openstack
   |  | - group_vars
   |  |  | - all
   |  |  | - compute
@@ -34,9 +35,9 @@
   |  |  | - nova_compute
   |  |  | - nova_controller
   |  |  | - placement
-  | - inventories
-  |  | - local
-  |  |  | - nodes.yml
+  - inventories
+  |  - local
+  |  | - nodes.yml
 ```
 
 Learning materials sourced from https://docs.openstack.org/install-guide/openstack-services.html
@@ -59,10 +60,10 @@ Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagr
 
 **Provision OpenStack:**
 1. Navigate to `./ansible` directory.
-2. Run `ansible-playbook -i inventory_local.yml playbook_pre_setup.yml` to install and configure the pre-requisite packages.
-3. Run `ansible-playbook -i inventory_local.yml playbook_setup_controller.yml` to install and configure OpenStack services to Controller node.
-4. Run `ansible-playbook -i inventory_local.yml playbook_setup_compute.yml` to install and configure OpenStack services to Compute node.
-5. Run `ansible-playbook -i inventory_local.yml playbook_setup_storage.yml` to install and configure OpenStack services to Storage node.
+2. Run `ansible-playbook -i deploy_openstack/inventory_local.yml deploy_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
+3. Run `ansible-playbook -i deploy_openstack/inventory_local.yml deploy_openstack/playbook_setup_controller.yml` to install and configure OpenStack services to Controller node.
+4. Run `ansible-playbook -i deploy_openstack/inventory_local.yml deploy_openstack/playbook_setup_compute.yml` to install and configure OpenStack services to Compute node.
+5. Run `ansible-playbook -i deploy_openstack/inventory_local.yml deploy_openstack/playbook_setup_storage.yml` to install and configure OpenStack services to Storage node.
 
 Now our OpenStack Lab should be ready.
 
