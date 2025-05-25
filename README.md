@@ -60,7 +60,7 @@ Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagr
 4. Run `make -C controller/ start-vm` to spin up 4 VMs which are 1 Controller, 2 Computes and 1 Storage node.
 
 **Provision OpenStack:**
-1. Navigate to `./ansible` directory.
+1. Run `source envrc` then navigate to `./ansible` directory.
 2. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
 3. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_setup_controller.yml` to install and configure OpenStack services to Controller node.
 4. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_setup_compute.yml` to install and configure OpenStack services to Compute node.
