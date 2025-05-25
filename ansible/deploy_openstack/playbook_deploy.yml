@@ -1,0 +1,24 @@
+---
+- name: Pre-setup
+  ansible.builtin.import_playbook: playbook_pre_setup.yml
+
+- name: Setup Controller
+  ansible.builtin.import_playbook: playbook_setup_controller.yml
+
+- name: Setup Compute
+  ansible.builtin.import_playbook: playbook_setup_compute.yml
+
+- name: Post-setup Compute
+  hosts: controller
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Discover hosts
+      ansible.builtin.command:
+        cmd: sudo -u nova nova-manage cell_v2 discover_hosts --verbose
+      register: discover_hosts
+      changed_when: discover_hosts.stdout is defined and "Found 0 unmapped" not in discover_hosts.stdout
+
+- name: Setup Storage
+  ansible.builtin.import_playbook: playbook_setup_storage.yml

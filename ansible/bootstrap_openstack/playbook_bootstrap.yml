@@ -33,3 +33,27 @@
           cpu_arch: x86_64
           distro: ubuntu
         state: present
+
+    - name: Create provider network
+      openstack.cloud.network:
+        name: provider
+        external: true
+        shared: true
+        provider_physical_network: provider
+        provider_network_type: flat
+        state: present
+
+    - name: Create subnet for provider network
+      openstack.cloud.subnet:
+        network_name: provider
+        name: provider-subnet
+        cidr: 192.168.123.0/24
+        allocation_pool_start: 192.168.123.100
+        allocation_pool_end: 192.168.123.200
+        dns_nameservers:
+          - 8.8.4.4
+          - 8.8.8.8
+        host_routes:
+          - destination: 0.0.0.0/0
+            nexthop: 192.168.123.1
+        state: present

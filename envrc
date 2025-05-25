@@ -3,3 +3,10 @@ rootdir=$(pwd)
 cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
 
 export ROOT_DIR=${rootdir}
+
+show_tree() {
+    local depth=$1
+
+    find ./ansible -maxdepth $depth ! -path "*log*" ! -path "*.ansible*" | sort | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/| - \1/"
+    find ./inventories -maxdepth $depth | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/| - \1/"
+}
