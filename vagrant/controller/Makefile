@@ -32,14 +32,15 @@ teardown-vm:
 teardown-provider-network:
 	@sudo ip link del dev br-provider0 type bridge || true
 
-copy-image-to-vm:
+check-available-image:
 	@if [ ! -f "$$IMAGE_PATH" ]; then \
 		echo "Image: $$IMAGE_PATH is not found."; \
 		echo "Need to set IMAGE_PATH=/path/to/image.qcow2."; \
 		exit 1; \
 	else \
 		echo Found $$IMAGE_PATH; \
-		echo Uploading to controller VM; \
+		echo Copying image; \
 	fi;
 
+copy-image-to-vm: check-available-image
 	@vagrant upload $$IMAGE_PATH /home/vagrant/ubuntu24.img controller01

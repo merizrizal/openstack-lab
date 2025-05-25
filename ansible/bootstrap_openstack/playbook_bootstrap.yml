@@ -1,0 +1,35 @@
+---
+- name: Bootstraping OpenStack
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Create small flavor with 2048MB RAM, 2 vCPU, 15GB disk
+      openstack.cloud.compute_flavor:
+        state: present
+        name: small
+        ram: 2048
+        vcpus: 2
+        disk: 15
+
+    - name: Create medium flavor with 4096MB RAM, 2 vCPU, 65GB disk
+      openstack.cloud.compute_flavor:
+        name: medium
+        ram: 4096
+        vcpus: 2
+        disk: 65
+        state: present
+
+    - name: Register an image
+      openstack.cloud.image:
+        name: ubuntu24
+        container_format: bare
+        disk_format: qcow2
+        filename: /home/vagrant/ubuntu24.img
+        tags:
+          - custom
+        properties:
+          cpu_arch: x86_64
+          distro: ubuntu
+        state: present

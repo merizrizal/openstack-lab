@@ -1,0 +1,10 @@
+---
+lab:
+  vars:
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    target_env: local
+  children:
+    controller:
+      hosts:
+        controller01:
+          ansible_host: "{{ controller01.private_ip_address }}"
