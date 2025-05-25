@@ -53,7 +53,7 @@ Learning materials sourced from https://docs.openstack.org/install-guide/opensta
 
 
 **Preparation:**
-1. Navigate to `./vagrant` directory.
+1. Run `source envrc` then navigate to `./vagrant` directory.
 2. Build the base image which will be used by Vagrant later.<br>
 Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagrant box that will be used for our OpenStack VM (controller node, compute and storage node).
 3. Run `make -C controller/ start-provider-network` to create a new interface which will be used by Controller, Compute and Storage node.
