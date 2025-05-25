@@ -39,6 +39,8 @@
   |  |  | - nodes.yml
 ```
 
+Learning materials sourced from https://docs.openstack.org/install-guide/openstack-services.html
+
 **Pre-requisite - Installed to our Operating System:**
 - QEMU + Libvirt: https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/
 - `yq`: https://github.com/mikefarah/yq
@@ -53,7 +55,7 @@
 2. Build the base image which will be used by Vagrant later.<br>
 Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagrant box that will be used for our OpenStack VM (controller node, compute and storage node).
 3. Run `make -C controller/ start-provider-network` to create a new interface which will be used by Controller, Compute and Storage node.
-4. Run `make -C controller/ start-vm` to spin up 2 VMs which are Controller, Compute and Storage node.
+4. Run `make -C controller/ start-vm` to spin up 4 VMs which are 1 Controller, 2 Computes and 1 Storage node.
 
 **Provision OpenStack:**
 1. Navigate to `./ansible` directory.
