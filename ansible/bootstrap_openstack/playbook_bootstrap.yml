@@ -57,3 +57,32 @@
           - destination: 0.0.0.0/0
             nexthop: 192.168.123.1
         state: present
+
+    - name: Create self service network
+      openstack.cloud.network:
+        name: private
+        state: present
+
+    - name: Create subnet for self service network
+      openstack.cloud.subnet:
+        network_name: private
+        name: private-subnet
+        cidr: 172.21.1.0/24
+        dns_nameservers:
+          - 8.8.4.4
+          - 8.8.8.8
+        host_routes:
+          - destination: 0.0.0.0/0
+            nexthop: 172.21.1.1
+        state: present
+
+    - name: Create router for self service network
+      openstack.cloud.router:
+        name: router
+        external_fixed_ips:
+          - subnet_id: provider-subnet
+            ip_address: 192.168.123.3
+        network: provider
+        interfaces:
+          - private-subnet
+        state: present
