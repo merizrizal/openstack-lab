@@ -72,4 +72,8 @@ Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_ope
 
 Now our OpenStack Lab should be ready.
 
+**Bootstraping**
+1. Run `source envrc` then navigate to `./ansible` directory.
+2. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml` to bootstrap the minimum configuration, such as flavors, Glance images, provider or self-service networks, and security rules.
+
 Reach me at meriz.rizal@gmail.com to connect with me or collaboration.
