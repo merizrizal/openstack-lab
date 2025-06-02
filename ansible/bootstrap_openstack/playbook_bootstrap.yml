@@ -26,7 +26,7 @@
         name: ubuntu24
         container_format: bare
         disk_format: qcow2
-        filename: /home/vagrant/ubuntu24.img
+        filename: /home/vagrant/vm_image01.img
         tags:
           - custom
         properties:
