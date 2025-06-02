@@ -23,7 +23,7 @@
 
     - name: Register an image
       openstack.cloud.image:
-        name: ubuntu24
+        name: vm_image01
         container_format: bare
         disk_format: qcow2
         filename: /home/vagrant/vm_image01.img
