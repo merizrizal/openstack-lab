@@ -75,7 +75,10 @@ Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_ope
 Now our OpenStack Lab should be ready.
 
 **Bootstraping**
-1. Run `source envrc` then navigate to `./ansible` directory.
-2. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml` to bootstrap the minimum configuration, such as flavors, Glance images, provider or self-service networks, and security rules.
+1. Prepare the VM image in qcow2 format. This image is going to be uploaded to controller node.
+2. Run `export IMAGE_PATH=/path/to/image.qcow2`.
+3. Run `make -C vagrant/controller copy-image-to-vm`.
+4. Run `source envrc` then navigate to `./ansible` directory.
+5. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml` to bootstrap the minimum configuration, such as flavors, Glance images, provider or self-service networks, and security rules.
 
 Reach me at meriz.rizal@gmail.com to connect with me or collaboration.

@@ -43,4 +43,4 @@ check-available-image:
 	fi;
 
 copy-image-to-vm: check-available-image
-	@vagrant upload $$IMAGE_PATH /home/vagrant/ubuntu24.img controller01
+	@vagrant upload $$IMAGE_PATH /home/vagrant/vm_image01.img controller01
