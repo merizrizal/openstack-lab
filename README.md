@@ -3,6 +3,8 @@
 ### This repo is intended for learning OpenStack or deploying an OpenStack Lab.
 #### We will install OpenStack to Libvirt KVM, this means any VM instances that is provisioned by OpenStack are running in nested virtualisation.
 
+#### *Currently, it has only been tested on Ubuntu.
+
 **Ansible directory structure**
 ```
   | - ansible
