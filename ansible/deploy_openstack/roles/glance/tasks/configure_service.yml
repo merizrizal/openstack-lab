@@ -28,14 +28,14 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail #
-      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.public.*.http://{{ controller01.hostname }}:9292' || true
+      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.public.*.http://{{ controller01_host_addr }}:9292' || true
     executable: /bin/bash
   register: public_endpoint
   changed_when: false
 
 - name: Create public image service API endpoints
   ansible.builtin.command:
-    cmd: openstack endpoint create --region RegionOne image public http://{{ controller01.hostname }}:9292
+    cmd: openstack endpoint create --region RegionOne image public http://{{ controller01_host_addr }}:9292
   when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
   changed_when: true
 
@@ -43,14 +43,14 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail #
-      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.internal.*.http://{{ controller01.hostname }}:9292' || true
+      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.internal.*.http://{{ controller01_host_addr }}:9292' || true
     executable: /bin/bash
   register: internal_endpoint
   changed_when: false
 
 - name: Create internal image service API endpoints
   ansible.builtin.command:
-    cmd: openstack endpoint create --region RegionOne image internal http://{{ controller01.hostname }}:9292
+    cmd: openstack endpoint create --region RegionOne image internal http://{{ controller01_host_addr }}:9292
   when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
   changed_when: true
 
@@ -58,13 +58,13 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail #
-      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.admin.*.http://{{ controller01.hostname }}:9292' || true
+      openstack endpoint list | grep -E 'RegionOne.*.glance.*.image.*.admin.*.http://{{ controller01_host_addr }}:9292' || true
     executable: /bin/bash
   register: admin_endpoint
   changed_when: false
 
 - name: Create admin image service API endpoints
   ansible.builtin.command:
-    cmd: openstack endpoint create --region RegionOne image admin http://{{ controller01.hostname }}:9292
+    cmd: openstack endpoint create --region RegionOne image admin http://{{ controller01_host_addr }}:9292
   when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
   changed_when: true

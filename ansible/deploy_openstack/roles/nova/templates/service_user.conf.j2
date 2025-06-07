@@ -1,6 +1,6 @@
 [service_user]
 send_service_user_token = true
-auth_url = http://{{ controller01.hostname }}:5000/v3
+auth_url = http://{{ controller01_host_addr }}:5000/v3
 auth_strategy = keystone
 auth_type = password
 project_domain_name = Default

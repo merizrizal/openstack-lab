@@ -74,6 +74,6 @@ prepare-ubuntu-vm-network-patch:
 	echo "echo '        addresses: [8.8.8.8, 1.1.1.1]' | tee --append /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
 	echo "echo '      routes:' | tee --append /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
 	echo "echo '      - to: 0.0.0.0/0' | tee --append /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
-	echo "echo '        via: 192.168.124.1' | tee --append /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
+	echo "echo '        via: 192.168.121.1' | tee --append /etc/netplan/51-vagrant.yaml" >> $$shell_file; \
 	echo "netplan apply" >> $$shell_file; \
 	chmod +x $$shell_file;
