@@ -28,7 +28,7 @@ def setup_vm(component, config, box_name, shell_command)
   if initialize.nil?
     inventories.each do |host, inventory|
       config.vm.define host do |machine|
-        machine.ssh.host = inventory["provider_ip_address"]
+        machine.ssh.host = inventory["mgmtnet_ip_address"]
       end
     end
   end
