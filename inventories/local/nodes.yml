@@ -13,8 +13,8 @@ compute01:
   mgmtnet_ip_address: 192.168.121.6
   provider_ip_address: 192.168.123.6
   hostname: compute01.local
-  memory: 12288
-  cpus: 6
+  memory: 16384
+  cpus: 10
   disks: 90
 
 compute02:

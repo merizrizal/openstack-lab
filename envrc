@@ -10,3 +10,23 @@ show_tree() {
     find ./ansible -maxdepth $depth ! -path "*log*" ! -path "*.ansible*" | sort | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/| - \1/"
     find ./inventories -maxdepth $depth | sed -e "s/[^-][^\/]*\//  |/g" -e "s/|\([^ ]\)/| - \1/"
 }
+
+generate_os_client_config() {
+    local env=$1
+
+    output=$ROOT_DIR/generated/${env}_clouds.yml
+	controller01_ip_addr=`(yq '.controller01.mgmtnet_ip_address' inventories/$env/nodes.yml)`
+	os_keystone_password=`(yq '.os_keystone_password' ansible/deploy_openstack/inventories/$env/group_vars/all/common_secret.yml)`
+
+	echo "---" > $output
+	echo "clouds:" >> $output
+	echo "  cicd_lab:" >> $output
+	echo "    auth:" >> $output
+	echo "      auth_url: http://$controller01_ip_addr:5000/v3" >> $output
+	echo "      username: admin" >> $output
+	echo "      password: $os_keystone_password" >> $output
+	echo "      project_name: admin" >> $output
+	echo "      user_domain_name: default" >> $output
+	echo "      project_domain_name: default" >> $output
+	echo "    identity_api_version: 3" >> $output
+}

@@ -1,0 +1,48 @@
+---
+- name: Initialize CI/CD Servers
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Get provider network
+      openstack.cloud.networks_info:
+        name: provider
+      register: provider_network
+
+    - name: Set provider network id to fact
+      ansible.builtin.set_fact:
+        network_id: "{{ provider_network.networks[0].id }}"
+
+    - name: Create Gitlab server
+      openstack.cloud.server:
+        name: gitlab_vm01
+        image: vm_image01
+        flavor: medium.large
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        state: present
+
+    - name: Create Jenkins server
+      openstack.cloud.server:
+        name: jenkins_vm01
+        image: vm_image01
+        flavor: medium.large
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        state: present
+
+    - name: Create Runner
+      openstack.cloud.server:
+        name: runner_vm01
+        image: vm_image01
+        flavor: medium
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        state: present

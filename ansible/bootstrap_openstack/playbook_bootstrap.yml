@@ -13,20 +13,28 @@
         vcpus: 2
         disk: 15
 
-    - name: Create medium flavor with 4096MB RAM, 2 vCPU, 65GB disk
+    - name: Create medium flavor with 4096MB RAM, 2 vCPU, 30GB disk
       openstack.cloud.compute_flavor:
         name: medium
         ram: 4096
         vcpus: 2
-        disk: 65
+        disk: 30
         state: present
 
-    - name: Create large flavor with 4096MB RAM, 7 vCPU, 65GB disk
+    - name: Create medium.large flavor with 6144 RAM, 4 vCPU, 50GB disk
+      openstack.cloud.compute_flavor:
+        name: medium.large
+        ram: 6144
+        vcpus: 4
+        disk: 50
+        state: present
+
+    - name: Create large flavor with 8192MB RAM, 4 vCPU, 50GB disk
       openstack.cloud.compute_flavor:
         name: large
         ram: 8192
         vcpus: 4
-        disk: 65
+        disk: 50
         state: present
 
     - name: Register an image
