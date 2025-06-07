@@ -1,4 +1,4 @@
 [database]
-connection = mysql+pymysql://nova:{{ nova_password }}@{{ controller01.hostname }}/nova
+connection = mysql+pymysql://nova:{{ nova_password }}@{{ controller01_host_addr }}/nova
 #
 # The *Nova Database* is the primary database which is used for information

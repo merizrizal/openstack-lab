@@ -3,7 +3,6 @@ controller01:
   environment: controller
   mgmtnet_ip_address: 192.168.121.5
   provider_ip_address: 192.168.123.5
-  private_ip_address: 192.168.124.5
   hostname: controller01.local
   memory: 5120
   cpus: 2
@@ -13,7 +12,6 @@ compute01:
   environment: compute
   mgmtnet_ip_address: 192.168.121.6
   provider_ip_address: 192.168.123.6
-  private_ip_address: 192.168.124.6
   hostname: compute01.local
   memory: 12288
   cpus: 6
@@ -23,7 +21,6 @@ compute02:
   environment: compute
   mgmtnet_ip_address: 192.168.121.7
   provider_ip_address: 192.168.123.7
-  private_ip_address: 192.168.124.7
   hostname: compute02.local
   memory: 12288
   cpus: 6
@@ -33,7 +30,6 @@ storage01:
   environment: storage
   mgmtnet_ip_address: 192.168.121.8
   provider_ip_address: 192.168.123.8
-  private_ip_address: 192.168.124.8
   hostname: storage01.local
   memory: 2048
   cpus: 2

@@ -1,5 +1,5 @@
 [database]
-connection = mysql+pymysql://glance:{{ glance_password }}@{{ controller01.hostname }}/glance
+connection = mysql+pymysql://glance:{{ glance_password }}@{{ controller01_host_addr }}/glance
 backend = sqlalchemy
 #
 # From oslo.db

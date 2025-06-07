@@ -37,9 +37,9 @@
   ansible.builtin.shell:
     cmd: |
       sudo -u keystone keystone-manage bootstrap --bootstrap-password {{ os_keystone_password }} \
-      --bootstrap-admin-url http://{{ controller01.hostname }}:5000/v3/ \
-      --bootstrap-internal-url http://{{ controller01.hostname }}:5000/v3/ \
-      --bootstrap-public-url http://{{ controller01.hostname }}:5000/v3/ \
+      --bootstrap-admin-url http://{{ controller01_host_addr }}:5000/v3/ \
+      --bootstrap-internal-url http://{{ controller01_host_addr }}:5000/v3/ \
+      --bootstrap-public-url http://{{ controller01_host_addr }}:5000/v3/ \
       --bootstrap-region-id RegionOne
     executable: /bin/bash
   changed_when: false
@@ -49,7 +49,7 @@
     path: /etc/apache2/apache2.conf
     append_newline: true
     prepend_newline: true
-    block: ServerName {{ controller01.hostname }}
+    block: ServerName {{ controller01_host_addr }}
     insertafter: EOF
 
 - name: Start and enable Apache2

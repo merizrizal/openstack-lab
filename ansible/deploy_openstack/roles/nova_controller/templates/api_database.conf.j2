@@ -1,4 +1,4 @@
 [api_database]
-connection = mysql+pymysql://nova:{{ nova_password }}@{{ controller01.hostname }}/nova_api
+connection = mysql+pymysql://nova:{{ nova_password }}@{{ controller01_host_addr }}/nova_api
 #
 # The *Nova API Database* is a separate database which is used for information

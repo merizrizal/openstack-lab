@@ -28,14 +28,14 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail #
-      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.public.*.http://{{ controller01.hostname }}:9696' || true
+      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.public.*.http://{{ controller01_host_addr }}:9696' || true
     executable: /bin/bash
   register: public_endpoint
   changed_when: false
 
 - name: Create public neutron service API endpoints
   ansible.builtin.command:
-    cmd: openstack endpoint create --region RegionOne network public http://{{ controller01.hostname }}:9696
+    cmd: openstack endpoint create --region RegionOne network public http://{{ controller01_host_addr }}:9696
   when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
   changed_when: true
 
@@ -43,14 +43,14 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail #
-      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.internal.*.http://{{ controller01.hostname }}:9696' || true
+      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.internal.*.http://{{ controller01_host_addr }}:9696' || true
     executable: /bin/bash
   register: internal_endpoint
   changed_when: false
 
 - name: Create internal neutron service API endpoints
   ansible.builtin.command:
-    cmd: openstack endpoint create --region RegionOne network internal http://{{ controller01.hostname }}:9696
+    cmd: openstack endpoint create --region RegionOne network internal http://{{ controller01_host_addr }}:9696
   when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
   changed_when: true
 
@@ -58,13 +58,13 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail #
-      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.admin.*.http://{{ controller01.hostname }}:9696' || true
+      openstack endpoint list | grep -E 'RegionOne.*.neutron.*.network.*.admin.*.http://{{ controller01_host_addr }}:9696' || true
     executable: /bin/bash
   register: admin_endpoint
   changed_when: false
 
 - name: Create admin neutron service API endpoints
   ansible.builtin.command:
-    cmd: openstack endpoint create --region RegionOne network admin http://{{ controller01.hostname }}:9696
+    cmd: openstack endpoint create --region RegionOne network admin http://{{ controller01_host_addr }}:9696
   when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
   changed_when: true

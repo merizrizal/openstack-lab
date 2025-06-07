@@ -28,7 +28,7 @@ def setup_vm(component, config, box_name, shell_command)
   if initialize.nil?
     inventories.each do |host, inventory|
       config.vm.define host do |machine|
-        machine.ssh.host = inventory["private_ip_address"]
+        machine.ssh.host = inventory["provider_ip_address"]
       end
     end
   end
@@ -47,7 +47,6 @@ def customize_vms(config, inventories)
       machine.vm.synced_folder ".", "/vagrant", disabled: true
       machine.vm.network "public_network", ip: inventory["provider_ip_address"],
         dev: "br-provider0", mode: "bridge", type: "bridge"
-      machine.vm.network "private_network", ip: inventory["private_ip_address"]
       machine.vm.provider "libvirt" do |lv|
         lv.memory = inventory["memory"]
         lv.cpus = inventory["cpus"]

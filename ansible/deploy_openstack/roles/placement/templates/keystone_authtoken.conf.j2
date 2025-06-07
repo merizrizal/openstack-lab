@@ -1,5 +1,5 @@
 [keystone_authtoken]
-auth_url = http://{{ controller01.hostname }}:5000/v3
+auth_url = http://{{ controller01_host_addr }}:5000/v3
 memcached_servers = {{ controller01.mgmtnet_ip_address }}:11211
 auth_type = password
 project_domain_name = Default

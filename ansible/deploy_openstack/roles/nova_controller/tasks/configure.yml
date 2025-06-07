@@ -13,7 +13,7 @@
 
 - name: Set facts
   ansible.builtin.set_fact:
-    transport_url: rabbit://openstack:{{ rabbitmq_password }}@{{ controller01.hostname }}:5672/
+    transport_url: rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}:5672/
     mgmtnet_ip_address: "{{ controller01.mgmtnet_ip_address }}"
 
 - name: Setup configuration

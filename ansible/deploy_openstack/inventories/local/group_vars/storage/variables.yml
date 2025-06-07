@@ -1,4 +1,4 @@
 ---
-ntp_server: "{{ controller01.hostname }}"
+ntp_server: "{{ controller01_host_addr }}"
 primary_device_name: vda
 secondary_device_name: vdb
