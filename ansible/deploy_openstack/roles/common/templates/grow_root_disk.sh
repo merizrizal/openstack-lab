@@ -1,19 +1,19 @@
 printf "\nDisk free space before...\n"
 df -lhT /
 
-part_nr=$(lsblk --path --pairs | sed 's/\"//g' | awk '/\/dev\/sda/{print $1}' | awk -F '/dev/sda' '{print $2}' | tail -n 1)
+part_nr=$(lsblk --path --pairs | sed 's/\"//g' | awk '/\/dev\/vda/{print $1}' | awk -F '/dev/vda' '{print $2}' | tail -n 1)
 device=$(df -lhT / | awk '/\/dev/{print $1}')
 check_type=$(lsblk --pairs | grep -E 'MOUNTPOINT*.*="/"' | sed 's/\"//g')
 
 printf "\nResizing / partition live...\n"
-printf "/dev/sda $part_nr ...\n"
+printf "/dev/vda $part_nr ...\n"
 
-growpart /dev/sda $part_nr
+growpart /dev/vda $part_nr
 if [[ "$check_type" == *"TYPE=part"* ]]; then
   printf "Found TYPE=part disk...\n"
 elif [[ "$check_type" == *"TYPE=lvm"* ]]; then
   printf "Found TYPE=lvm disk...\n"
-  pvresize /dev/sda$part_nr
+  pvresize /dev/vda$part_nr
   lvresize -l +100%FREE $device
 fi
 
