@@ -84,10 +84,8 @@ Now our OpenStack Lab should be ready.
 ***Note:**
 
 > If your VM instances in OpenStack can't reach internet and if you're in a nested setup and using br-provider0 (custom bridge) with IP 192.168.123.1/24, make sure the host machine (baremetal) is doing NAT for VMs traffic.
-<br>
-<br>
-> Add this on the host:
-sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <host-external-interface> -j MASQUERADE
+Add this on the host:
+`sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <host-external-interface> -j MASQUERADE`
 
 Replace <host-external-interface> with the actual NIC connected to the internet (e.g., eth0).
 
