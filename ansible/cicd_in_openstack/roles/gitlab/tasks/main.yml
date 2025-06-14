@@ -1,0 +1,40 @@
+---
+- name: Install packages dependencies
+  ansible.builtin.package:
+    name:
+      - curl
+      - openssh-server
+      - ca-certificates
+      - tzdata
+      - perl
+      - postfix
+    state: present
+
+- name: Download the add repository shell script
+  ansible.builtin.get_url:
+    url: "{{ gitlab_ce_install_script }}"
+    dest: /home/{{ ansible_user }}/script.deb.sh
+    mode: "644"
+
+- name: Execute the add repository shell script
+  ansible.builtin.command:
+    chdir: /home/{{ ansible_user }}
+    cmd: bash script.deb.sh
+  changed_when: false
+
+- name: Install Gitlab CE
+  ansible.builtin.package:
+    name: gitlab-ce
+    state: present
+  environment:
+    EXTERNAL_URL: http://{{ ansible_host }}
+
+- name: Configure GitLab
+  ansible.builtin.command:
+    cmd: gitlab-ctl reconfigure
+  changed_when: false
+
+- name: Restart GitLab
+  ansible.builtin.command:
+    cmd: gitlab-ctl restart
+  changed_when: false

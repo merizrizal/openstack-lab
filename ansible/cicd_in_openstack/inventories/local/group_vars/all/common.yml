@@ -1,3 +1,7 @@
 ---
 ansible_connection: ssh
 ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
+
+ntp_server: time.aws.com
+
+gitlab_ce_install_script: https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh

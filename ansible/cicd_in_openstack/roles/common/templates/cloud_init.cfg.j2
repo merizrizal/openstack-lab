@@ -1,0 +1,8 @@
+manual_cache_clean: True
+
+ntp:
+  enabled: true
+  ntp_client: chrony
+  {% if ntp_server is defined -%}
+  servers: ['{{ ntp_server }}']
+  {%- endif -%}

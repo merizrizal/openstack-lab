@@ -1,0 +1,59 @@
+---
+- name: Grow root disks
+  ansible.builtin.shell:
+    cmd: |
+      {{ lookup('ansible.builtin.template', 'grow_root_disk.sh') }}
+    executable: /bin/bash
+  changed_when: false
+
+- name: Do apt upgrade
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+
+- name: Install packages dependencies
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: Start and enable chrony
+  ansible.builtin.service:
+    name: chrony
+    state: restarted
+    enabled: true
+
+- name: Put additonal configuration into cloud.cfg
+  ansible.builtin.blockinfile:
+    path: /etc/cloud/cloud.cfg
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'cloud_init.cfg.j2') }}"
+    insertafter: EOF
+  register: cloud_init_result
+
+- name: Add or modify soft nofile limits for wildcard domain
+  community.general.pam_limits:
+    domain: "*"
+    limit_type: soft
+    limit_item: nofile
+    value: 8192
+  register: set_soft_limit
+
+- name: Add or modify hard nofile limits for wildcard domain
+  community.general.pam_limits:
+    domain: "*"
+    limit_type: hard
+    limit_item: nofile
+    value: 262144
+  register: set_hard_limit
+
+- name: Set timezone to UTC
+  community.general.timezone:
+    name: UTC
+
+- name: Reboot to update the changes
+  ansible.builtin.reboot:
+    post_reboot_delay: 2
+  when: >
+    (cloud_init_result is defined and cloud_init_result.msg is defined and "Block inserted" in cloud_init_result.msg)
+    or (set_soft_limit.changed or set_hard_limit.changed)
