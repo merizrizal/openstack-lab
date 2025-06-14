@@ -88,4 +88,5 @@ Add this on the host:
 `sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <host-external-interface> -j MASQUERADE`<br>
 Replace <host-external-interface> with the actual NIC connected to the internet (e.g., eth0).
 
+
 Reach me at meriz.rizal@gmail.com to connect with me or collaboration.
