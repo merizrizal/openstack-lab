@@ -38,3 +38,7 @@
   ansible.builtin.command:
     cmd: gitlab-ctl restart
   changed_when: false
+
+- name: Setup Gitlab users
+  ansible.builtin.include_tasks:
+    file: setup_user.yml

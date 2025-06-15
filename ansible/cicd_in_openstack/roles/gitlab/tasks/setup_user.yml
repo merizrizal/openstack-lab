@@ -1,0 +1,35 @@
+---
+- name: Change root password
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      gitlab-rails console << EOF
+      user = User.find_by_username '{{ gitlab_root_username }}'
+      user.password = '{{ gitlab_root_password }}'
+      user.password_confirmation = '{{ gitlab_root_password }}'
+      user.save!
+      EOF
+    executable: /bin/bash
+  register: change_root_password
+  changed_when: '"true" in change_root_password.stdout'
+  failed_when: '"false" in change_root_password.stdout or "ERROR" in change_root_password.stdout or "error" in change_root_password.stdout'
+
+- name: Create root PAT
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      gitlab-rails console << EOF
+      user = User.find_by_username '{{ gitlab_root_username }}'
+      token = user.personal_access_tokens.create(
+        scopes: ['api', 'read_user', 'read_repository', 'write_repository', 'create_runner', 'manage_runner', 'sudo'],
+        name: 'Automation token for root',
+        expires_at: 365.days.from_now)
+      token.set_token('{{ gitlab_root_token }}')
+      token.save!
+      EOF
+    executable: /bin/bash
+  register: create_root_pat
+  changed_when: '"true" in create_root_pat.stdout and "duplicate key value" not in create_root_pat.stdout'
+  failed_when: >
+    "false" in create_root_pat.stdout or
+    (("ERROR" in create_root_pat.stdout or "error" in create_root_pat.stdout) and "duplicate key value" not in create_root_pat.stdout)
