@@ -8,12 +8,19 @@
 **Ansible directory structure**
 ```
   | - ansible
-  |  | - .ansible-lint
   |  | - ansible.cfg
   |  | - bootstrap_openstack
   |  |  | - inventories
   |  |  |  | - local
   |  |  | - playbook_bootstrap.yml
+  |  |  | - playbook_init_cicd_server.yml
+  |  | - cicd_in_openstack
+  |  |  | - inventories
+  |  |  |  | - local
+  |  |  | - playbook_deploy.yml
+  |  |  | - roles
+  |  |  |  | - common
+  |  |  |  | - gitlab
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -87,6 +94,12 @@ Now our OpenStack Lab should be ready.
 Add this on the host:
 `sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <host-external-interface> -j MASQUERADE`<br>
 Replace <host-external-interface> with the actual NIC connected to the internet (e.g., eth0).
+
+<br>
+
+**CI/CD Lab Deployment**
+
+TBD
 
 
 Reach me at meriz.rizal@gmail.com to connect with me or collaboration.
