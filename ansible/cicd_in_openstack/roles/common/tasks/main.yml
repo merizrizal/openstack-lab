@@ -13,7 +13,19 @@
 
 - name: Install packages dependencies
   ansible.builtin.package:
-    name: chrony
+    name:
+      - chrony
+      - curl
+      - openssh-server
+      - ca-certificates
+      - tzdata
+      - jq
+    state: present
+
+- name: Install packages dependencies with Snap
+  community.general.snap:
+    name:
+      - yq
     state: present
 
 - name: Start and enable chrony

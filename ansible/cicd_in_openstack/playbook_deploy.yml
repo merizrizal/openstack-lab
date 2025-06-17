@@ -9,3 +9,6 @@
 
     - role: gitlab
       when: '"gitlab" in inventory_hostname'
+
+    - role: runner
+      when: '"runner" in inventory_hostname'

@@ -12,7 +12,9 @@
     executable: /bin/bash
   register: change_root_password
   changed_when: '"true" in change_root_password.stdout'
-  failed_when: '"false" in change_root_password.stdout or "ERROR" in change_root_password.stdout or "error" in change_root_password.stdout'
+  failed_when: >
+    "false" in change_root_password.stdout or "ERROR" in change_root_password.stdout or "error" in change_root_password.stdout or
+    (change_root_password.stderr is defined and change_root_password.stderr != "" and change_root_password.rc != 0)
 
 - name: Create root PAT
   ansible.builtin.shell:
@@ -32,7 +34,8 @@
   changed_when: '"true" in create_root_pat.stdout and "duplicate key value" not in create_root_pat.stdout'
   failed_when: >
     "false" in create_root_pat.stdout or
-    (("ERROR" in create_root_pat.stdout or "error" in create_root_pat.stdout) and "duplicate key value" not in create_root_pat.stdout)
+    (("ERROR" in create_root_pat.stdout or "error" in create_root_pat.stdout) and "duplicate key value" not in create_root_pat.stdout) or
+    (create_root_pat.stderr is defined and create_root_pat.stderr != "" and create_root_pat.rc != 0)
 
 - name: Create standard user
   ansible.builtin.uri:
@@ -45,12 +48,14 @@
         "username": "{{ gitlab_user_username }}",
         "name": "{{ gitlab_user_name }}",
         "email": "{{ gitlab_user_email }}",
-        "password": "{{ gitlab_user_password }}"
+        "password": "{{ gitlab_user_password }}",
+        "skip_confirmation": true
       }
     body_format: json
     validate_certs: false
   register: create_standard_user
   changed_when: create_standard_user.json.id is defined
   failed_when: >
-    create_standard_user.status != 200 and create_standard_user.status != 201 and
-    create_standard_user.json.message is defined and 'has already been taken' not in create_standard_user.json.message
+    (create_standard_user.status != 200 and create_standard_user.status != 201 and
+    create_standard_user.json.message is defined and "has already been taken" not in create_standard_user.json.message) or
+    (create_standard_user.msg is defined and "Connection refused" in create_standard_user.msg)

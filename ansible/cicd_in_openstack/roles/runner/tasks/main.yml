@@ -1,1 +1,7 @@
 ---
+- name: Install packages dependencies with Snap - classic
+  community.general.snap:
+    name:
+      - node
+    classic: true
+    state: present
