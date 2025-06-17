@@ -8,3 +8,6 @@ gitlab_ce_install_script: https://packages.gitlab.com/install/repositories/gitla
 
 gitlab_user_email: vagrant@examplemaildomain.com
 gitlab_user_name: Vagrant
+
+gitlab_base_url: http://{{ ansible_host }}
+gitlab_api_url: "{{ gitlab_base_url }}/api/v4"
