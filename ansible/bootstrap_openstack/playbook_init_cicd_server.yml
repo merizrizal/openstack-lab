@@ -14,6 +14,11 @@
       ansible.builtin.set_fact:
         network_id: "{{ provider_network.networks[0].id }}"
 
+    - name: Get Gitlab server info
+      openstack.cloud.server_info:
+        name: gitlab_vm01
+      register: gitlab_server
+
     - name: Create Gitlab server
       openstack.cloud.server:
         name: gitlab_vm01
@@ -23,7 +28,12 @@
           - default
         nics:
           - net-id: "{{ network_id }}"
-        state: present
+      when: gitlab_server.servers is defined and gitlab_server.servers | length == 0
+
+    - name: Get Jenkins server info
+      openstack.cloud.server_info:
+        name: jenkins_vm01
+      register: jenkins_server
 
     - name: Create Jenkins server
       openstack.cloud.server:
@@ -34,7 +44,12 @@
           - default
         nics:
           - net-id: "{{ network_id }}"
-        state: present
+      when: jenkins_server.servers is defined and jenkins_server.servers | length == 0
+
+    - name: Get Runner server info
+      openstack.cloud.server_info:
+        name: runner_vm01
+      register: runner
 
     - name: Create Runner
       openstack.cloud.server:
@@ -45,4 +60,4 @@
           - default
         nics:
           - net-id: "{{ network_id }}"
-        state: present
+      when: runner.servers is defined and runner.servers | length == 0

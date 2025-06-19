@@ -2,6 +2,10 @@
 ansible_connection: ssh
 ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
 
+arch_mapping:
+  x86_64: amd64
+  aarch64: arm64
+
 ntp_server: time.aws.com
 
 gitlab_ce_install_script: https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh

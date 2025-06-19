@@ -7,6 +7,8 @@
   roles:
     - role: common
 
+    - role: docker
+
     - role: gitlab
       when: '"gitlab" in inventory_hostname'
 

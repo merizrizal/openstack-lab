@@ -14,6 +14,7 @@
 - name: Install packages dependencies
   ansible.builtin.package:
     name:
+      - build-essential
       - chrony
       - curl
       - openssh-server

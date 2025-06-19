@@ -1,0 +1,15 @@
+---
+- name: Capture Docker version
+  ansible.builtin.command:
+    cmd: docker --version
+  register: docker_version
+  changed_when: false
+  failed_when: false
+
+- name: Install docker
+  ansible.builtin.include_tasks:
+    file: install_docker.yml
+  when: docker_version.rc != 0
+
+- name: Reset ssh connection to allow user changes to affect ansible user
+  ansible.builtin.meta: reset_connection

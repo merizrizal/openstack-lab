@@ -1,0 +1,19 @@
+---
+- name: Ensure the directory of /etc/systemd/system/docker.service.d exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    mode: "775"
+    state: directory
+
+- name: Create http-proxy.conf file
+  ansible.builtin.template:
+    src: http-proxy.conf.j2
+    dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+    mode: "644"
+
+- name: Enable and start Docker services
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: restarted
+    daemon_reload: true

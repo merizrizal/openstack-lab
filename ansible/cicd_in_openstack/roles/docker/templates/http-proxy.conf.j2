@@ -1,0 +1,10 @@
+[Service]
+{% if proxy_env.http is defined %}
+Environment="HTTP_PROXY={{ proxy_env.http }}"
+{% endif %}
+{% if proxy_env.https is defined %}
+Environment="HTTPS_PROXY={{ proxy_env.https }}"
+{% endif %}
+{% if proxy_env.no_proxy is defined %}
+Environment="NO_PROXY={{ proxy_env.no_proxy | replace(' ', '') | replace('\n', '') }}"
+{% endif %}
