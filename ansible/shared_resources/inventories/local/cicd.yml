@@ -1,0 +1,9 @@
+---
+gitlab01:
+  name: gitlab_vm01
+
+jenkins01:
+  name: jenkins_vm01
+
+runner01:
+  name: runner_vm01

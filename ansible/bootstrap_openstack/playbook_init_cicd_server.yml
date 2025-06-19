@@ -16,12 +16,12 @@
 
     - name: Get Gitlab server info
       openstack.cloud.server_info:
-        name: gitlab_vm01
+        name: "{{ cicd_list.gitlab01.name }}"
       register: gitlab_server
 
     - name: Create Gitlab server
       openstack.cloud.server:
-        name: gitlab_vm01
+        name: "{{ cicd_list.gitlab01.name }}"
         image: vm_image01
         flavor: medium.large
         security_groups:
@@ -32,12 +32,12 @@
 
     - name: Get Jenkins server info
       openstack.cloud.server_info:
-        name: jenkins_vm01
+        name: "{{ cicd_list.jenkins01.name }}"
       register: jenkins_server
 
     - name: Create Jenkins server
       openstack.cloud.server:
-        name: jenkins_vm01
+        name: "{{ cicd_list.jenkins01.name }}"
         image: vm_image01
         flavor: medium.large
         security_groups:
@@ -48,12 +48,12 @@
 
     - name: Get Runner server info
       openstack.cloud.server_info:
-        name: runner_vm01
+        name: "{{ cicd_list.runner01.name }}"
       register: runner
 
     - name: Create Runner
       openstack.cloud.server:
-        name: runner_vm01
+        name: "{{ cicd_list.runner01.name }}"
         image: vm_image01
         flavor: medium
         security_groups:
