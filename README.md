@@ -20,7 +20,9 @@
   |  |  | - playbook_deploy.yml
   |  |  | - roles
   |  |  |  | - common
+  |  |  |  | - docker
   |  |  |  | - gitlab
+  |  |  |  | - runner
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -45,6 +47,9 @@
   |  |  |  | - nova_compute
   |  |  |  | - nova_controller
   |  |  |  | - placement
+  |  | - shared_resources
+  |  |  | - inventories
+  |  |  |  | - local
   | - inventories
   |  | - local
   |  |  | - nodes.yml
