@@ -9,12 +9,12 @@
 - name: Install gitlab-runner
   ansible.builtin.get_url:
     url: "{{ gitlab_runner_binary }}"
-    dest: /usr/local/bin/gitlab-runner
+    dest: "{{ gitlab_runner_installed }}"
     mode: "755"
     force: true
 
 - name: Gitlab runner creation
-  when: hostvars[inventory_hostname].ansible_env.gitlab_runner_token is not defined
+  when: hostvars[inventory_hostname].ansible_env[gitlab_runner_token_var] is not defined
   block:
     - name: Create Gitlab runner instance
       ansible.builtin.uri:
@@ -37,7 +37,69 @@
     - name: Save Gitlab runner token to environment variable
       ansible.builtin.lineinfile:
         path: /etc/environment
-        regexp: ^gitlab_runner_token=
-        line: gitlab_runner_token="{{ create_runner.json.token }}"
+        regexp: ^{{ gitlab_runner_token_var }}=
+        line: "{{ gitlab_runner_token_var }}={{ create_runner.json.token }}"
         insertafter: EOF
       when: create_runner.json.token is defined
+
+- name: Set fact for gitlab_runner_token
+  ansible.builtin.set_fact:
+    gitlab_runner_token: "{{ hostvars[inventory_hostname].ansible_env[gitlab_runner_token_var] | default(create_runner.json.token) }}"
+
+- name: Create dedicated user for Gitlab runner
+  ansible.builtin.user:
+    name: "{{ gitlab_runner_user }}"
+    password: "{{ ansible_password | password_hash('sha512', 'mysecretsalt') }}"
+    home: /home/{{ gitlab_runner_user }}
+
+- name: Check runner configuration file
+  ansible.builtin.stat:
+    path: /etc/gitlab-runner/config.toml
+  register: runner_config_file
+
+- name: Read runner configuration file and check the availability or runner
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      cat /etc/gitlab-runner/config.toml | grep -E "name = \"{{ inventory_hostname }}\"" || true
+    executable: /bin/bash
+  register: runner_availability
+  when: runner_config_file.stat.exists
+  changed_when: false
+
+- name: Register Gitlab runner
+  ansible.builtin.command:
+    cmd: >
+      gitlab-runner register --non-interactive --name {{ inventory_hostname }}
+      --url {{ gitlab_base_url }} --token "{{ gitlab_runner_token }}" --executor shell
+  register: register_gitlab_runner
+  when: >
+    not runner_config_file.stat.exists or
+    (runner_availability.stdout is defined and runner_availability.stdout == "")
+  changed_when: register_gitlab_runner.stderr is defined and "has already been registered" not in register_gitlab_runner.stderr
+
+- name: Create workspace directory for runner
+  ansible.builtin.file:
+    path: /home/{{ gitlab_runner_user }}/gitlab-runner-workspace
+    state: directory
+    owner: "{{ gitlab_runner_user }}"
+    group: "{{ gitlab_runner_user }}"
+    mode: "775"
+
+- name: Remove .bash_logout
+  ansible.builtin.file:
+    path: /home/{{ gitlab_runner_user }}/.bash_logout
+    state: absent
+
+- name: Create the Gitlab runner systemd service file
+  ansible.builtin.template:
+    src: gitlab-runner.service.j2
+    dest: /etc/systemd/system/gitlab-runner.service
+    mode: "644"
+
+- name: Enable and start Gitlab runner services
+  ansible.builtin.systemd_service:
+    name: gitlab-runner
+    enabled: true
+    state: restarted
+    daemon_reload: true
