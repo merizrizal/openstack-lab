@@ -20,7 +20,6 @@
   |  |  | - playbook_deploy.yml
   |  |  | - roles
   |  |  |  | - common
-  |  |  |  | - docker
   |  |  |  | - gitlab
   |  |  |  | - runner
   |  | - deploy_openstack
@@ -50,6 +49,8 @@
   |  | - shared_resources
   |  |  | - inventories
   |  |  |  | - local
+  |  |  | - playbooks
+  |  |  |  | - roles
   | - inventories
   |  | - local
   |  |  | - nodes.yml
