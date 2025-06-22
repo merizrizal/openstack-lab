@@ -1,0 +1,30 @@
+---
+- name: Install packages dependencies
+  ansible.builtin.package:
+    name:
+      - openjdk-21-jdk
+      - fontconfig
+    state: present
+
+- name: Add Jenkins keyring from a keyserver
+  ansible.builtin.get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    dest: /etc/apt/keyrings/jenkins-keyring.asc
+    mode: "644"
+
+- name: Add Jenkins repository
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc]
+      https://pkg.jenkins.io/debian-stable binary/
+    state: present
+
+- name: Do apt upgrade
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+
+- name: Install Jenkins
+  ansible.builtin.package:
+    name:
+      - jenkins

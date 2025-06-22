@@ -24,3 +24,5 @@ gitlab_runner_binary: >
 gitlab_runner_installed: /usr/local/bin/gitlab-runner
 
 gitlab_runner_token_var: gitlab_runner_token
+
+jenkins_plugins: '["gitlab-plugin", "git", "git-client"]'
