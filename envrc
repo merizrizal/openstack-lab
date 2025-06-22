@@ -3,6 +3,7 @@ rootdir=$(pwd)
 cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
 
 export ROOT_DIR=${rootdir}
+export ANSIBLE_CONFIG=$ROOT_DIR/ansible.cfg
 
 show_tree() {
     local depth=$1
