@@ -8,7 +8,6 @@
 **Ansible directory structure**
 ```
   | - ansible
-  |  | - ansible.cfg
   |  | - bootstrap_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -21,6 +20,7 @@
   |  |  | - roles
   |  |  |  | - common
   |  |  |  | - gitlab
+  |  |  |  | - jenkins
   |  |  |  | - runner
   |  | - deploy_openstack
   |  |  | - inventories
