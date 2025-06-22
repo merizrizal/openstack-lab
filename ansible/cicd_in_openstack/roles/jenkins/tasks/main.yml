@@ -1,0 +1,61 @@
+---
+- name: Install packages dependencies
+  ansible.builtin.package:
+    name:
+      - openjdk-21-jdk
+      - fontconfig
+    state: present
+
+- name: Add Jenkins keyring from a keyserver
+  ansible.builtin.get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    dest: /etc/apt/keyrings/jenkins-keyring.asc
+    mode: "644"
+
+- name: Add git-core repository
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc]
+      https://pkg.jenkins.io/debian-stable binary/
+    state: present
+
+- name: Do apt upgrade
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+
+- name: Install Jenkins
+  ansible.builtin.package:
+    name:
+      - jenkins
+
+- name: Ensure the directory of /usr/lib/systemd/system/jenkins.service.d exists
+  ansible.builtin.file:
+    path: /usr/lib/systemd/system/jenkins.service.d
+    mode: "775"
+    state: directory
+
+- name: Create jenkins.conf file
+  ansible.builtin.template:
+    src: jenkins.conf.j2
+    dest: /usr/lib/systemd/system/jenkins.service.d/jenkins.conf
+    mode: "644"
+
+- name: Ensure the directory of /var/lib/jenkins/init.groovy.d exists
+  ansible.builtin.file:
+    path: /var/lib/jenkins/init.groovy.d
+    mode: "755"
+    state: directory
+
+- name: Create basic-security.groovy file
+  ansible.builtin.template:
+    src: basic-security.groovy.j2
+    dest: /var/lib/jenkins/init.groovy.d/basic-security.groovy
+    mode: "644"
+
+- name: Enable and start Jenkins services
+  ansible.builtin.systemd_service:
+    name: jenkins
+    enabled: true
+    state: restarted
+    daemon_reload: true

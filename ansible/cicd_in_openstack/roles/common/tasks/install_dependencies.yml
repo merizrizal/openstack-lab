@@ -1,0 +1,42 @@
+---
+- name: Add git-core gpg from a keyserver
+  ansible.builtin.get_url:
+    url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xe363c90f8f1b6217
+    dest: /etc/apt/trusted.gpg.d/git-core.asc
+    mode: "644"
+
+- name: Add git-core repository
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [arch={{ arch_mapping[ansible_architecture] }} signed-by=/etc/apt/trusted.gpg.d/git-core.asc]
+      https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {{ ansible_distribution_release }} main
+    state: present
+
+- name: Do apt upgrade
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+
+- name: Install packages dependencies
+  ansible.builtin.package:
+    name:
+      - nano
+      - wget
+      - build-essential
+      - chrony
+      - curl
+      - openssh-server
+      - ca-certificates
+      - tzdata
+      - sshpass
+      - jq
+      - git
+      - zip
+      - unzip
+    state: present
+
+- name: Install packages dependencies with Snap
+  community.general.snap:
+    name:
+      - yq
+    state: present

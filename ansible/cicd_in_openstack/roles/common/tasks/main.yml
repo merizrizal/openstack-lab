@@ -6,28 +6,9 @@
     executable: /bin/bash
   changed_when: false
 
-- name: Do apt upgrade
-  ansible.builtin.apt:
-    upgrade: safe
-    update_cache: true
-
-- name: Install packages dependencies
-  ansible.builtin.package:
-    name:
-      - build-essential
-      - chrony
-      - curl
-      - openssh-server
-      - ca-certificates
-      - tzdata
-      - jq
-    state: present
-
-- name: Install packages dependencies with Snap
-  community.general.snap:
-    name:
-      - yq
-    state: present
+- name: Install dependencies
+  ansible.builtin.include_tasks:
+    file: install_dependencies.yml
 
 - name: Start and enable chrony
   ansible.builtin.service:
