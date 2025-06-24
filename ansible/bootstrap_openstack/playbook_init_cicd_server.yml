@@ -28,6 +28,8 @@
           - default
         nics:
           - net-id: "{{ network_id }}"
+        metadata:
+          group: gitlab01
       when: gitlab_server.servers is defined and gitlab_server.servers | length == 0
 
     - name: Get Jenkins server info
@@ -44,6 +46,8 @@
           - default
         nics:
           - net-id: "{{ network_id }}"
+        metadata:
+          group: jenkins01
       when: jenkins_server.servers is defined and jenkins_server.servers | length == 0
 
     - name: Get Runner server info
@@ -60,4 +64,6 @@
           - default
         nics:
           - net-id: "{{ network_id }}"
+        metadata:
+          group: runner01
       when: runner.servers is defined and runner.servers | length == 0

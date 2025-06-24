@@ -23,14 +23,9 @@
 
 - name: Create .groovy file
   ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: /var/lib/jenkins/init.groovy.d/{{ item }}
+    src: basic-security.groovy.j2
+    dest: /var/lib/jenkins/init.groovy.d/basic-security.groovy
     mode: "644"
-  loop:
-    - basic-security.groovy
-    - plugins.groovy
-  loop_control:
-    label: "{{ item }}"
 
 - name: Enable and start Jenkins services
   ansible.builtin.systemd_service:
@@ -38,3 +33,49 @@
     enabled: true
     state: restarted
     daemon_reload: true
+
+- name: Wait Jenkins service to be ready
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      journalctl -u jenkins | tail -n 1
+    executable: /bin/bash
+  register: jenkins_service_log
+  until: jenkins_service_log.stdout is defined and "Started jenkins.service" in jenkins_service_log.stdout
+  retries: 10
+  changed_when: false
+
+- name: Ensure the directory /opt/jenkins exists
+  ansible.builtin.file:
+    path: /opt/jenkins
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    state: directory
+    mode: "755"
+
+- name: Download Jenkins CLI
+  ansible.builtin.get_url:
+    url: "{{ jenkins_cli_jar }}"
+    dest: /opt/jenkins/{{ jenkins_cli_jar | basename }}
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "644"
+
+- name: Install plugins
+  ansible.builtin.command:
+    chdir: /opt/jenkins/
+    cmd: >
+      java -jar jenkins-cli.jar -s {{ jenkins_url }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}
+      install-plugin {{ jenkins_plugins | join(" ") }} -deploy -restart
+  changed_when: true
+
+- name: Wait Jenkins service to be ready
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      journalctl -u jenkins | tail -n 1
+    executable: /bin/bash
+  register: jenkins_service_log
+  until: jenkins_service_log.stdout is defined and "Started jenkins.service" in jenkins_service_log.stdout
+  retries: 10
+  changed_when: false

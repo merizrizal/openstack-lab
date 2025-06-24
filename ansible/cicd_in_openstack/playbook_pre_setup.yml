@@ -1,0 +1,10 @@
+---
+- name: Deploy and setup the dependencies
+  hosts: cicd_lab
+  become: true
+  vars:
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+  roles:
+    - role: common
+
+    - role: docker

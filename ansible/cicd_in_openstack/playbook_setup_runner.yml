@@ -1,0 +1,8 @@
+---
+- name: Deploy Runner to CI/CD Lab
+  hosts: runner*
+  become: true
+  vars:
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+  roles:
+    - role: runner

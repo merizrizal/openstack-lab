@@ -1,19 +1,12 @@
 ---
-- name: Deploy CI/CD Lab in OpenStack
-  hosts: cicd_lab
-  become: true
-  vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
-  roles:
-    - role: common
+- name: Pre-setup
+  ansible.builtin.import_playbook: playbook_pre_setup.yml
 
-    - role: docker
+- name: Setup Gitlab
+  ansible.builtin.import_playbook: playbook_setup_gitlab.yml
 
-    - role: gitlab
-      when: '"gitlab" in inventory_hostname'
+- name: Setup Jenkins
+  ansible.builtin.import_playbook: playbook_setup_jenkins.yml
 
-    - role: runner
-      when: '"runner" in inventory_hostname'
-
-    - role: jenkins
-      when: '"jenkins" in inventory_hostname'
+- name: Setup Runner
+  ansible.builtin.import_playbook: playbook_setup_runner.yml
