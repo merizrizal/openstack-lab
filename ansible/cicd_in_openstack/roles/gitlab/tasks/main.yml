@@ -23,7 +23,7 @@
     name: gitlab-ce
     state: present
   environment:
-    EXTERNAL_URL: http://{{ ansible_host }}
+    EXTERNAL_URL: "{{ gitlab_url }}"
 
 - name: Configure GitLab
   ansible.builtin.command:

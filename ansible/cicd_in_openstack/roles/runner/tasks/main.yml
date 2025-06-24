@@ -71,7 +71,7 @@
   ansible.builtin.command:
     cmd: >
       gitlab-runner register --non-interactive --name {{ inventory_hostname }}
-      --url {{ gitlab_base_url }} --token "{{ gitlab_runner_token }}" --executor shell
+      --url {{ gitlab_url }} --token "{{ gitlab_runner_token }}" --executor shell
   register: register_gitlab_runner
   when: >
     not runner_config_file.stat.exists or

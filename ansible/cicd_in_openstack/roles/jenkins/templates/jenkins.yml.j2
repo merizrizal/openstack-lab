@@ -1,0 +1,25 @@
+jenkins:
+  nodes:
+    - permanent:
+        launcher: "inbound"
+        name: "runner_vm01"
+        nodeProperties:
+          - diskSpaceMonitor:
+              freeDiskSpaceThreshold: "1GiB"
+              freeDiskSpaceWarningThreshold: "2GiB"
+              freeTempSpaceThreshold: "1GiB"
+              freeTempSpaceWarningThreshold: "2GiB"
+        remoteFS: "{{ runner_workspace_dir }}"
+        retentionStrategy: "always"
+
+    - permanent:
+        launcher: "inbound"
+        name: "runner_vm02"
+        nodeProperties:
+          - diskSpaceMonitor:
+              freeDiskSpaceThreshold: "1GiB"
+              freeDiskSpaceWarningThreshold: "2GiB"
+              freeTempSpaceThreshold: "1GiB"
+              freeTempSpaceWarningThreshold: "2GiB"
+        remoteFS: "{{ runner_workspace_dir }}"
+        retentionStrategy: "always"

@@ -47,7 +47,7 @@
 
 - name: Ensure the directory /opt/jenkins exists
   ansible.builtin.file:
-    path: /opt/jenkins
+    path: "{{ jenkins_cli_install_dir }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     state: directory
@@ -56,14 +56,32 @@
 - name: Download Jenkins CLI
   ansible.builtin.get_url:
     url: "{{ jenkins_cli_jar }}"
-    dest: /opt/jenkins/{{ jenkins_cli_jar | basename }}
+    dest: "{{ jenkins_cli_install_dir }}/{{ jenkins_cli_jar | basename }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "644"
 
+- name: Ensure the directory of /etc/jenkins exists
+  ansible.builtin.file:
+    path: /etc/jenkins
+    mode: "775"
+    state: directory
+
+- name: Create casc .yml file
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/jenkins/{{ item }}
+    mode: "644"
+  loop:
+    - credentials.yml
+    - unclassified.yml
+    - jenkins.yml
+  loop_control:
+    label: "{{ item }}"
+
 - name: Install plugins
   ansible.builtin.command:
-    chdir: /opt/jenkins/
+    chdir: "{{ jenkins_cli_install_dir }}"
     cmd: >
       java -jar jenkins-cli.jar -s {{ jenkins_url }} -auth {{ jenkins_admin_user }}:{{ jenkins_admin_password }}
       install-plugin {{ jenkins_plugins | join(" ") }} -deploy -restart

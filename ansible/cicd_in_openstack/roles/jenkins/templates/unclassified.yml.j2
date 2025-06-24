@@ -1,0 +1,11 @@
+unclassified:
+  gitLabConnectionConfig:
+    connections:
+      - apiTokenId: "{{ gitlab_api_token_var }}"
+        clientBuilderId: "autodetect"
+        connectionTimeout: 30
+        ignoreCertificateErrors: false
+        name: "Gitlab Private Server Connection"
+        readTimeout: 30
+        url: "{{ gitlab_url }}"
+    useAuthenticatedEndpoint: true
