@@ -8,6 +8,8 @@ StartLimitBurst=10
 ExecStart={{ jenkins_runner_install_dir }}/jenkins_runner_exec.sh
 Restart=always
 RestartSec=5
+User={{ runner_sys_user }}
+Group={{ runner_sys_user }}
 
 [Install]
 WantedBy=multi-user.target

@@ -22,12 +22,26 @@
     group: "{{ ansible_user }}"
     mode: "644"
 
+- name: Get Jenkins runner agent details
+  ansible.builtin.uri:
+    url: "{{ jenkins_url }}/computer/{{ cicd_list.runner01.name }}/slave-agent.jnlp"
+    method: GET
+    headers:
+      Authorization: Basic {{ (jenkins_admin_user ~ ':' ~ jenkins_admin_password) | b64encode }}
+    validate_certs: false
+    return_content: true
+  register: jenkins_runner_agent
+  failed_when: jenkins_runner_agent.status != 200 and jenkins_runner_agent.status != 201
+
 - name: Upload shell file
   ansible.builtin.template:
     src: jenkins_runner_exec.sh.j2
     dest: "{{ jenkins_runner_install_dir }}/jenkins_runner_exec.sh"
     owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: "770"
+  vars:
+    jenkins_runner_agent_token: "{{ jenkins_runner_agent.content | regex_search('(?<=<argument>)[a-f0-9]{64}(?=</argument>)') }}"
 
 - name: Create the Jenkins runner systemd service file
   ansible.builtin.template:

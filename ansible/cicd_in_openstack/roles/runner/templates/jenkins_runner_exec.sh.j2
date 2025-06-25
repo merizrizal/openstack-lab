@@ -1,5 +1,5 @@
 #!/bin/bash
 
 java -jar {{ jenkins_runner_install_dir }}/{{ jenkins_runner_jar | basename }} \
--url {{ jenkins_url }} -secret d4bcedb9687506f526778b8e02574db9fe086f11c1c07dfaa2a52355b88d9fdc \
+-url {{ jenkins_url }} -secret {{ jenkins_runner_agent_token }} \
 -name "{{ cicd_list.runner01.name }}" -webSocket -workDir "{{ runner_workspace_dir }}"
