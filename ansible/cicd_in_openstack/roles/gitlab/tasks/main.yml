@@ -50,7 +50,7 @@
       EOF
     executable: /bin/bash
   vars:
-    ip_addr_cidr: "{{ (ansible_host | ansible.utils.ipcut(16)) ~ '.0.0/16' }}"
+    ip_addr_cidr: "{{ ansible_host | ansible.utils.ipsubnet(16) }}"
   register: configure_settings
   changed_when: '"true" in configure_settings.stdout'
   failed_when: '"false" in configure_settings.stdout'

@@ -17,6 +17,10 @@
   |  |  | - inventories
   |  |  |  | - local
   |  |  | - playbook_deploy.yml
+  |  |  | - playbook_pre_setup.yml
+  |  |  | - playbook_setup_gitlab.yml
+  |  |  | - playbook_setup_jenkins.yml
+  |  |  | - playbook_setup_runner.yml
   |  |  | - roles
   |  |  |  | - common
   |  |  |  | - gitlab
