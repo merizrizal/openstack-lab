@@ -1,0 +1,13 @@
+[Unit]
+Description=Jenkins Runner {{ inventory_hostname}}
+After=network.target
+
+[Service]
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart={{ jenkins_runner_install_dir }}/jenkins_runner_exec.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

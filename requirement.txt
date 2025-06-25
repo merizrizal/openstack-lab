@@ -1,0 +1,9 @@
+ansible
+ansible-compat
+ansible-core
+ansible-lint
+ansible-pylibssh
+netaddr
+openstacksdk
+xmltodict
+jinja2

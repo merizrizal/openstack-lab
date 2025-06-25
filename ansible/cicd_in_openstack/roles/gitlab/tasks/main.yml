@@ -38,3 +38,19 @@
 - name: Setup Gitlab users
   ansible.builtin.include_tasks:
     file: setup_user.yml
+
+- name: Configure Gitlab settings
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      gitlab-rails console << EOF
+      ApplicationSetting.current.update(allow_local_requests_from_web_hooks_and_services: true)
+      ApplicationSetting.current.update(allow_local_requests_from_system_hooks: true)
+      ApplicationSetting.current.update(outbound_local_requests_whitelist: ["{{ ip_addr_cidr }}", "10.0.0.0/8"])
+      EOF
+    executable: /bin/bash
+  vars:
+    ip_addr_cidr: "{{ (ansible_host | ansible.utils.ipcut(16)) ~ '.0.0/16' }}"
+  register: configure_settings
+  changed_when: '"true" in configure_settings.stdout'
+  failed_when: '"false" in configure_settings.stdout'

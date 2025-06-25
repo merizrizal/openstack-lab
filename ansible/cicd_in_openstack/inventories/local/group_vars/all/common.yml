@@ -31,9 +31,14 @@ jenkins_plugins:
   - workflow-aggregator
   - configuration-as-code
 jenkins_url: http://{{ hostvars[cicd_list.jenkins01.name].ansible_host }}:8080
+jenkins_runner_install_dir: /opt/jenkins-runner
 jenkins_runner_jar: "{{ jenkins_url }}/jnlpJars/agent.jar"
 jenkins_cli_install_dir: /opt/jenkins
 jenkins_cli_jar: "{{ jenkins_url }}/jnlpJars/jenkins-cli.jar"
 
 runner_sys_user: "{{ hostvars[cicd_list.runner01.name].ansible_user }}"
 runner_workspace_dir: /home/{{ runner_sys_user }}/runner_workspace
+
+runner_agent_gitlab: gitlab
+runner_agent_jenkins: jenkins
+runner_agent: "{{ runner_agent_jenkins }}"

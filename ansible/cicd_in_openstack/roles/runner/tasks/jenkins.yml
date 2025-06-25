@@ -1,0 +1,43 @@
+---
+- name: Install packages dependencies
+  ansible.builtin.package:
+    name:
+      - openjdk-21-jdk
+      - fontconfig
+    state: present
+
+- name: Ensure the directory /opt/jenkins-runner exists
+  ansible.builtin.file:
+    path: "{{ jenkins_runner_install_dir }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    state: directory
+    mode: "755"
+
+- name: Download Jenkins runner agent
+  ansible.builtin.get_url:
+    url: "{{ jenkins_runner_jar }}"
+    dest: "{{ jenkins_runner_install_dir }}/{{ jenkins_runner_jar | basename }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "644"
+
+- name: Upload shell file
+  ansible.builtin.template:
+    src: jenkins_runner_exec.sh.j2
+    dest: "{{ jenkins_runner_install_dir }}/jenkins_runner_exec.sh"
+    owner: "{{ ansible_user }}"
+    mode: "770"
+
+- name: Create the Jenkins runner systemd service file
+  ansible.builtin.template:
+    src: jenkins-runner.service.j2
+    dest: /etc/systemd/system/jenkins-runner.service
+    mode: "644"
+
+- name: Enable and start Jenkins runner services
+  ansible.builtin.systemd_service:
+    name: jenkins-runner
+    enabled: true
+    state: restarted
+    daemon_reload: true
