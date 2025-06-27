@@ -96,7 +96,7 @@ Now our OpenStack Lab should be ready.
 2. Run `export IMAGE_PATH=/path/to/image.qcow2`.
 3. Run `make -C vagrant/controller copy-image-to-vm`.
 4. Run `source envrc` then navigate to `./ansible` directory.
-5. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml` to bootstrap the minimum configuration, such as flavors, Glance images, provider or self-service networks, and security rules.
+5. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml` to bootstrap the minimum. configuration, such as flavors, Glance images, provider or self-service networks, and security rules.
 
 ***Note:**
 
@@ -109,7 +109,16 @@ Replace <host-external-interface> with the actual NIC connected to the internet 
 
 **CI/CD Lab Deployment**
 
-TBD
+1. Run `source envrc`.
+2. Run `generate_os_client_config local` to generate the OpenStack cloud config `generated/local_clouds.yml`.
+3. Navigate to `./ansible` directory.
+4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_cicd_server.yml` to spin-up 3 VMs on top of OpenStack.
+5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
+6. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
+7. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_gitlab.yml` to provision Gitlab server.
+8. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_jenkins.yml` to provision Jenkins server.
+9. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_runner.yml` to provision the Runner VM. we will use this for running the pipeline job from Gitlab CI or Jenkins.
 
+Our CI/CD Lab should be ready.
 
 Reach me at meriz.rizal@gmail.com to connect with me or collaboration.
