@@ -69,6 +69,7 @@ Learning materials sourced from https://docs.openstack.org/install-guide/opensta
 - Vagrant: https://developer.hashicorp.com/vagrant/install
 - Vagrant Libvirt: https://vagrant-libvirt.github.io/vagrant-libvirt/installation.html
 - Ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
+- Install Ansible collection - merizrizal.utils: https://github.com/merizrizal/ansible-collections-for-utilities
 
 
 **Preparation:**
