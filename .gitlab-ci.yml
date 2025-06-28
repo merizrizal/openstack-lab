@@ -1,6 +1,5 @@
 stages:
   - lint
-  - test
 
 python-req:
   image: python:$VERSION
@@ -8,15 +7,12 @@ python-req:
   script:
     - python -m pip install --upgrade pip
     - python -m pip install -r requirements.txt
+    - source circ
+    - ansible-lint --fix --config-file ./.ansible-lint ansible/* inventories/*
   parallel:
     matrix:
       - VERSION: ["3.10", "3.11", "3.12"]
 
 ansible-sanity-test-lint:
-  stage: test
-  script: echo "Running test"
   needs:
     - job: python-req
-      parallel:
-        matrix:
-          - VERSION: "3.10"
