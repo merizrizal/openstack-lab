@@ -1,7 +1,7 @@
 stages:
   - lint
 
-python-req:
+ansible-sanity-test-lint:
   image: python:$VERSION
   stage: lint
   script:
@@ -12,7 +12,3 @@ python-req:
   parallel:
     matrix:
       - VERSION: ["3.10", "3.11", "3.12"]
-
-ansible-sanity-test-lint:
-  needs:
-    - job: python-req
