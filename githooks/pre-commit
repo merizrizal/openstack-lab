@@ -11,7 +11,9 @@ if [[ ${CHANGED_ANSIBLE_YML_FILES_LEN} -eq 0 ]]; then
     echo "No ansible yaml files changes. No need for ansible-lint auto-format"
 else
     cd ${BASE_DIR}
-    ansible-lint --fix --config-file ./.ansible-lint ${CHANGED_ANSIBLE_YML_FILES}
+    if ! ansible-lint --fix --config-file ./.ansible-lint ${CHANGED_ANSIBLE_YML_FILES}; then
+        exit 1;
+    fi
     CHANGED_ANSIBLE_YML_FILES=$(git diff --name-only --diff-filter=d | grep -E "$ANSIBLE_YML_FILES_PATH" | grep -E "\.yml$|\.yaml$" | tr "\n" " ")
     CHANGED_ANSIBLE_YML_FILES_LEN=$(git diff --name-only --diff-filter=d | grep -E "$ANSIBLE_YML_FILES_PATH" | grep -E "\.yml$|\.yaml$" | tr "\n" " " | wc -w | xargs)
     if [[ ${CHANGED_ANSIBLE_YML_FILES_LEN} -gt 0 ]]; then
