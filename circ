@@ -1,0 +1,5 @@
+rootdir=`dirname ${BASH_SOURCE[0]-$0}`
+rootdir=`cd $rootdir && pwd`
+
+export ROOT_DIR=${rootdir}
+export ANSIBLE_CONFIG=$ROOT_DIR/ansible.cfg

@@ -1,0 +1,14 @@
+stages:
+  - lint
+
+ansible-sanity-test-lint:
+  image: python:$VERSION
+  stage: lint
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -r requirements.txt
+    - source circ
+    - ansible-lint --fix --config-file ./.ansible-lint ansible/* inventories/*
+  parallel:
+    matrix:
+      - VERSION: ["3.10", "3.11", "3.12"]
