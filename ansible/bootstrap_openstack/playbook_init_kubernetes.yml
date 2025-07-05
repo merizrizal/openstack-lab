@@ -1,0 +1,69 @@
+---
+- name: Initialize Kubernetes control plane and workers
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Get provider network
+      openstack.cloud.networks_info:
+        name: provider
+      register: provider_network
+
+    - name: Set provider network id to fact
+      ansible.builtin.set_fact:
+        network_id: "{{ provider_network.networks[0].id }}"
+
+    - name: Get Control Plane server info
+      openstack.cloud.server_info:
+        name: "{{ kubernetes_list.control_plane01.name }}"
+      register: control_plane
+
+    - name: Create Control Plane server
+      openstack.cloud.server:
+        name: "{{ kubernetes_list.control_plane01.name }}"
+        image: vm_image01
+        flavor: medium
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        metadata:
+          group: control_plane01
+      when: control_plane.servers is defined and control_plane.servers | length == 0
+
+    - name: Get Worker01 server info
+      openstack.cloud.server_info:
+        name: "{{ kubernetes_list.worker01.name }}"
+      register: worker01
+
+    - name: Create Worker01 server
+      openstack.cloud.server:
+        name: "{{ kubernetes_list.worker01.name }}"
+        image: vm_image01
+        flavor: medium
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        metadata:
+          group: workers01
+      when: worker01.servers is defined and worker01.servers | length == 0
+
+    - name: Get Worker02 server info
+      openstack.cloud.server_info:
+        name: "{{ kubernetes_list.worker02.name }}"
+      register: worker02
+
+    - name: Create Worker02 server
+      openstack.cloud.server:
+        name: "{{ kubernetes_list.worker02.name }}"
+        image: vm_image01
+        flavor: medium
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        metadata:
+          group: workers01
+      when: worker02.servers is defined and worker02.servers | length == 0

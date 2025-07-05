@@ -1,0 +1,9 @@
+---
+control_plane01:
+  name: control_plane_vm01
+
+worker01:
+  name: worker_vm01
+
+worker02:
+  name: worker_vm02

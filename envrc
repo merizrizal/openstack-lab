@@ -14,6 +14,7 @@ show_tree() {
 
 generate_os_client_config() {
     local env=$1
+	local lab_name=$2
 
     output=$ROOT_DIR/generated/${env}_clouds.yml
 	controller01_ip_addr=`(yq '.controller01.mgmtnet_ip_address' inventories/$env/nodes.yml)`
@@ -21,7 +22,7 @@ generate_os_client_config() {
 
 	echo "---" > $output
 	echo "clouds:" >> $output
-	echo "  cicd_lab:" >> $output
+	echo "  $lab_name:" >> $output
 	echo "    auth:" >> $output
 	echo "      auth_url: http://$controller01_ip_addr:5000/v3" >> $output
 	echo "      username: admin" >> $output

@@ -1,0 +1,10 @@
+---
+plugin: openstack.cloud.openstack
+
+all_projects: false
+expand_hostvars: true
+inventory_hostname: name
+fail_on_errors: true
+only_clouds:
+  - kubernetes_lab
+strict: true
