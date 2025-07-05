@@ -2,6 +2,7 @@
 - name: Execute shell command to prepare the system
   ansible.builtin.shell:
     cmd: |
+      set -o pipefail #
       {{ lookup('ansible.builtin.file', 'prepare_sys.sh') }}
     executable: /bin/bash
   changed_when: false
@@ -14,28 +15,42 @@
   ansible.builtin.include_tasks:
     file: install_runc_cni.yml
 
-# - name: Add kubernetes gpg from pkgs.k8s.io
-#   ansible.builtin.get_url:
-#     url: https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key
-#     dest: /etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg
-#     mode: "644"
+- name: Download kubernetes gpg from pkgs.k8s.io
+  ansible.builtin.get_url:
+    url: https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key
+    dest: /home/{{ ansible_user }}/
+    mode: "644"
 
-# - name: Add kubernetes repository
-#   ansible.builtin.apt_repository:
-#     repo: >
-#       deb [arch={{ arch_mapping[ansible_architecture] }} signed-by=/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg]
-#       https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
-#     state: present
+- name: Add Kubernetes apt signing key
+  ansible.builtin.shell:
+    chdir: /home/{{ ansible_user }}
+    cmd: gpg --yes --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg < Release.key
+    executable: /bin/bash
+  changed_when: false
 
-# - name: Do apt upgrade
-#   ansible.builtin.apt:
-#     upgrade: safe
-#     update_cache: true
+- name: Add kubernetes repository
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [arch={{ arch_mapping[ansible_architecture] }} signed-by=/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg]
+      https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
+    state: present
 
-# - name: Install Kubernetes packages
-#   ansible.builtin.package:
-#     name:
-#       - kubelet
-#       - kubeadm
-#       - kubectl
-#     state: present
+- name: Do apt upgrade
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+
+- name: Install Kubernetes packages
+  ansible.builtin.package:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Restart kubelet service
+  ansible.builtin.systemd_service:
+    name: kubelet
+    enabled: true
+    state: restarted
+    daemon_reload: true

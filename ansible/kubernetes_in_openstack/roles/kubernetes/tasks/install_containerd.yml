@@ -12,12 +12,11 @@
     mode: "755"
     state: directory
 
-- name: Generate containerd default configuration
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail #
-      containerd config default | sudo tee /etc/containerd/config.toml
-    executable: /bin/bash
+- name: Set Containerd configuration
+  ansible.builtin.copy:
+    src: containerd.config.toml
+    dest: /etc/containerd/config.toml
+    mode: "644"
   changed_when: false
 
 - name: Create the Containerd systemd service file

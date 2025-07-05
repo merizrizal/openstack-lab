@@ -11,3 +11,16 @@
     cmd: install -m 755 {{ runc_download_url | basename }} /usr/local/sbin/runc
   register: runc
   changed_when: false
+
+- name: Ensure the directory /opt/cni/bin exists
+  ansible.builtin.file:
+    path: /opt/cni/bin
+    mode: "755"
+    state: directory
+
+- name: Download CNI plugins and extract
+  ansible.builtin.unarchive:
+    src: "{{ cni_plugin_download_url }}"
+    remote_src: true
+    dest: /opt/cni/bin
+    extra_opts: ["--strip-components=1", "--show-stored-names"]
