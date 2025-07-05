@@ -2,7 +2,7 @@
 - name: Grow root disks
   ansible.builtin.shell:
     cmd: |
-      {{ lookup('ansible.builtin.template', 'grow_root_disk.sh') }}
+      {{ lookup('ansible.builtin.file', 'grow_root_disk.sh') }}
     executable: /bin/bash
   changed_when: false
 

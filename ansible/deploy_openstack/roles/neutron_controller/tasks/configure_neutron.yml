@@ -15,7 +15,7 @@
   ansible.builtin.replace:
     path: /etc/neutron/dhcp_agent.ini
     regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.base.agent).*"
-    replace: "{{ lookup('ansible.builtin.template', 'dhcp_agent_default.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'dhcp_agent_default.conf') }}"
 
 - name: Reconfigure metadata_agent.ini - set metadata default
   ansible.builtin.replace:

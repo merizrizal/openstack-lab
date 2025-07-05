@@ -10,8 +10,8 @@
     state: directory
 
 - name: Create jenkins.conf file
-  ansible.builtin.template:
-    src: jenkins.conf.j2
+  ansible.builtin.copy:
+    src: jenkins.conf
     dest: /usr/lib/systemd/system/jenkins.service.d/jenkins.conf
     mode: "644"
 

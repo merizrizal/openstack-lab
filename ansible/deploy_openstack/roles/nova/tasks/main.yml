@@ -9,7 +9,7 @@
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
     regexp: "^\\[api\\](\n(.*))*?\n*(# Options under this group are used to define Nova API).*"
-    replace: "{{ lookup('ansible.builtin.template', 'api.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'api.conf') }}"
 
 - name: Reconfigure nova.conf - set Keystone authtoken
   ansible.builtin.replace:
@@ -23,11 +23,19 @@
     regexp: "^\\[service_user\\](\n(.*))*?\n*(# Configuration options for service to service authentication).*"
     replace: "{{ lookup('ansible.builtin.template', 'service_user.conf.j2') }}"
 
-- name: Reconfigure nova.conf - set VNC
-  ansible.builtin.replace:
-    path: /etc/nova/nova.conf
-    regexp: "^\\[vnc\\](\n(.*))*?\n*(# Virtual Network Computer \\(VNC\\)).*"
-    replace: "{{ lookup('ansible.builtin.template', 'vnc.conf.j2') }}"
+- name: Set VNC configuration
+  block:
+    - name: Reconfigure nova.conf - set VNC
+      ansible.builtin.replace:
+        path: /etc/nova/nova.conf
+        regexp: "^\\[vnc\\](\n(.*))*?\n*(# Virtual Network Computer \\(VNC\\)).*"
+        replace: "{{ lookup('ansible.builtin.template', 'vnc.conf.j2') }}"
+  rescue:
+    - name: Reconfigure nova.conf - set VNC
+      ansible.builtin.replace:
+        path: /etc/nova/nova.conf
+        regexp: "^\\[vnc\\](\n(.*))*?\n*(# Virtual Network Computer \\(VNC\\)).*"
+        replace: "{{ lookup('ansible.builtin.file', 'vnc.conf') }}"
 
 - name: Reconfigure nova.conf - set Glance
   ansible.builtin.replace:
@@ -39,7 +47,7 @@
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
     regexp: "^\\[oslo_concurrency\\](\n(.*))*?\n*(# From oslo.concurrency).*"
-    replace: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'oslo_concurrency.conf') }}"
 
 - name: Reconfigure nova.conf - set Placement
   ansible.builtin.replace:

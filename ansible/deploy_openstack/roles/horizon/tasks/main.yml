@@ -21,7 +21,7 @@
     path: /etc/openstack-dashboard/local_settings.py
     append_newline: true
     prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'keystone.conf.j2') }}"
+    block: "{{ lookup('ansible.builtin.file', 'keystone.conf') }}"
     insertafter: EOF
 
 # - name: Configure OpenStack allowed host setting

@@ -4,7 +4,7 @@
     path: /etc/cinder/cinder.conf
     append_newline: true
     prepend_newline: true
-    block: "{{ lookup('ansible.builtin.template', 'lvm.conf.j2') }}"
+    block: "{{ lookup('ansible.builtin.file', 'lvm.conf') }}"
     insertafter: EOF
     marker_begin: BEGIN LVM
     marker_end: END LVM
