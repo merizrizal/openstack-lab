@@ -1,1 +1,41 @@
 ---
+- name: Execute shell command to prepare the system
+  ansible.builtin.shell:
+    cmd: |
+      {{ lookup('ansible.builtin.file', 'prepare_sys.sh') }}
+    executable: /bin/bash
+  changed_when: false
+
+- name: Install Containerd
+  ansible.builtin.include_tasks:
+    file: install_containerd.yml
+
+- name: Install Runc and CNI
+  ansible.builtin.include_tasks:
+    file: install_runc_cni.yml
+
+# - name: Add kubernetes gpg from pkgs.k8s.io
+#   ansible.builtin.get_url:
+#     url: https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key
+#     dest: /etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg
+#     mode: "644"
+
+# - name: Add kubernetes repository
+#   ansible.builtin.apt_repository:
+#     repo: >
+#       deb [arch={{ arch_mapping[ansible_architecture] }} signed-by=/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg]
+#       https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
+#     state: present
+
+# - name: Do apt upgrade
+#   ansible.builtin.apt:
+#     upgrade: safe
+#     update_cache: true
+
+# - name: Install Kubernetes packages
+#   ansible.builtin.package:
+#     name:
+#       - kubelet
+#       - kubeadm
+#       - kubectl
+#     state: present

@@ -1,0 +1,13 @@
+---
+- name: Download Runc
+  ansible.builtin.get_url:
+    url: "{{ runc_download_url }}"
+    dest: /home/{{ ansible_user }}/
+    mode: "755"
+
+- name: Install Runc
+  ansible.builtin.command:
+    chdir: /home/{{ ansible_user }}
+    cmd: install -m 755 {{ runc_download_url | basename }} /usr/local/sbin/runc
+  register: runc
+  changed_when: false
