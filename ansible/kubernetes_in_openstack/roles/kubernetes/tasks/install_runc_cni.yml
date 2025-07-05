@@ -24,3 +24,9 @@
     remote_src: true
     dest: /opt/cni/bin
     extra_opts: ["--strip-components=1", "--show-stored-names"]
+
+- name: Set basic CNI bridge config
+  ansible.builtin.copy:
+    src: cni.10-bridge.conf
+    dest: /etc/cni/net.d/10-bridge.conf
+    mode: "644"
