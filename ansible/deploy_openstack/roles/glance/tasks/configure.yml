@@ -15,19 +15,19 @@
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
     regexp: "^\\[paste_deploy\\](\n(.*))*?\n*(#config_file = glance-api-paste.ini).*"
-    replace: "{{ lookup('ansible.builtin.template', 'paste_deploy.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'paste_deploy.conf') }}"
 
 - name: Reconfigure glance-api.conf - set default
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
     regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# Allow limited access to).*"
-    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'default.conf') }}"
 
 - name: Reconfigure glance-api.conf - set glance store
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
     regexp: "^\\[glance_store\\](\n(.*))*?\n*(# The store identifier for the default backend).*"
-    replace: "{{ lookup('ansible.builtin.template', 'glance_store.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'glance_store.conf') }}"
 
 - name: Get the image endpoint ID
   ansible.builtin.shell:

@@ -9,7 +9,7 @@
   ansible.builtin.replace:
     path: /etc/neutron/neutron.conf
     regexp: "^\\[oslo_concurrency\\](\n(.*))*?\n*(# From oslo.concurrency).*"
-    replace: "{{ lookup('ansible.builtin.template', 'oslo_concurrency.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'oslo_concurrency.conf') }}"
 
 - name: Reconfigure neutron.conf - set Nova
   ansible.builtin.replace:

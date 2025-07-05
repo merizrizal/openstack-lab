@@ -37,7 +37,7 @@
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
     regexp: "^\\[cinder\\](\n(.*))*?\n*(# From nova.conf).*"
-    replace: "{{ lookup('ansible.builtin.template', 'nova_cinder.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'nova_cinder.conf') }}"
 
 - name: Populate the cinder database
   ansible.builtin.command:

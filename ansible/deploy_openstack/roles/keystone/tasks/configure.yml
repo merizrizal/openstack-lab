@@ -9,4 +9,4 @@
   ansible.builtin.replace:
     path: /etc/keystone/keystone.conf
     regexp: "^\\[token\\](\n(.*))*?\n*(# The amount of time that a token).*"
-    replace: "{{ lookup('ansible.builtin.template', 'token.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'token.conf') }}"

@@ -9,7 +9,7 @@
   ansible.builtin.replace:
     path: /etc/placement/placement.conf
     regexp: "^\\[api\\](\n(.*))*?\n*(# Options under this group are used to define Placement API).*"
-    replace: "{{ lookup('ansible.builtin.template', 'api.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.file', 'api.conf') }}"
 
 - name: Reconfigure placement.conf - set Keystone authtoken
   ansible.builtin.replace:
