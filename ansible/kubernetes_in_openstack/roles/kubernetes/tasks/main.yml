@@ -24,7 +24,7 @@
 - name: Add Kubernetes apt signing key
   ansible.builtin.shell:
     chdir: /home/{{ ansible_user }}
-    cmd: gpg --yes --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg < Release.key
+    cmd: gpg --yes --dearmor -o /etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg < Release.key
     executable: /bin/bash
   changed_when: false
 

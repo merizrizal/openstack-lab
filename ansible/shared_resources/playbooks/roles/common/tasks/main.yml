@@ -6,6 +6,11 @@
     executable: /bin/bash
   changed_when: false
 
+- name: Set machine hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname | replace('_', '-') }}"
+    use: systemd
+
 - name: Install dependencies
   ansible.builtin.include_tasks:
     file: install_dependencies.yml
