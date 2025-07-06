@@ -1,6 +1,6 @@
 ---
 - name: Setup control plane node
-  hosts: control_plane01
+  hosts: control_plane*
   become: true
   vars:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
@@ -11,7 +11,7 @@
         tasks_from: control_plane
 
 - name: Setup workers node
-  hosts: workers01
+  hosts: workers*
   become: true
   vars:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
