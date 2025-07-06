@@ -1,0 +1,39 @@
+---
+- name: Check kubelet configuration file
+  ansible.builtin.stat:
+    path: /var/lib/kubelet/config.yaml
+  register: kubelet_config
+
+- name: Initialisation
+  when: not kubelet_config.stat.exists
+  block:
+    - name: Control plane initialisation
+      ansible.builtin.command:
+        cmd: sudo kubeadm init --pod-network-cidr={{ ip_addr_cidr }}
+      vars:
+        ip_addr_cidr: "{{ ansible_host | ansible.utils.ipsubnet(16) }}"
+      register: kubeadm_init
+      changed_when: kubeadm_init.stderr is defined and 'already exists' not in kubeadm_init.stderr
+
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/.kube
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "775"
+        state: directory
+
+    - name: Copy kube config file
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ ansible_user }}/.kube/config
+        remote_src: true
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "664"
+
+- name: Fetch kube config file to Ansible controller
+  ansible.builtin.fetch:
+    src: /home/{{ ansible_user }}/.kube/config
+    dest: "{{ kube_config_fetch_path }}"
+    flat: true

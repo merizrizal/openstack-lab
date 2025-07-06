@@ -1,0 +1,22 @@
+---
+- name: Setup control plane node
+  hosts: control_plane01
+  become: true
+  vars:
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+  tasks:
+    - name: Control plane
+      ansible.builtin.include_role:
+        name: nodes
+        tasks_from: control_plane
+
+- name: Setup workers node
+  hosts: workers01
+  become: true
+  vars:
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+  tasks:
+    - name: Control plane
+      ansible.builtin.include_role:
+        name: nodes
+        tasks_from: workers

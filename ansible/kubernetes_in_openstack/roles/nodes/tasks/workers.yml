@@ -1,0 +1,37 @@
+---
+- name: Check kubelet configuration file
+  ansible.builtin.stat:
+    path: /var/lib/kubelet/config.yaml
+  register: kubelet_config
+
+- name: Initialisation
+  when: not kubelet_config.stat.exists
+  block:
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/.kube
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "775"
+        state: directory
+
+    - name: Copy kube config file
+      ansible.builtin.copy:
+        src: "{{ kube_config_fetch_path }}"
+        dest: /home/{{ ansible_user }}/.kube/config
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "664"
+
+    - name: Create kubeadm token
+      ansible.builtin.command:
+        cmd: kubeadm token create --print-join-command
+      become: false
+      register: kubeadm_token
+      changed_when: false
+
+    - name: Run kubeadm join cluster
+      ansible.builtin.command:
+        cmd: "{{ kubeadm_token.stdout }}"
+      register: kubeadm_join
+      changed_when: false
