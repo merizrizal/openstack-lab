@@ -9,9 +9,7 @@
   block:
     - name: Control plane initialisation
       ansible.builtin.command:
-        cmd: sudo kubeadm init --pod-network-cidr={{ ip_addr_cidr }}
-      vars:
-        ip_addr_cidr: "{{ ansible_host | ansible.utils.ipsubnet(16) }}"
+        cmd: sudo kubeadm init --pod-network-cidr=10.191.0.0/16
       register: kubeadm_init
       changed_when: kubeadm_init.stderr is defined and 'already exists' not in kubeadm_init.stderr
 
@@ -31,6 +29,10 @@
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "664"
+
+- name: Configure CNI plugin
+  ansible.builtin.include_tasks:
+    file: configure_cni.yml
 
 - name: Fetch kube config file to Ansible controller
   ansible.builtin.fetch:

@@ -22,3 +22,13 @@ runc_download_url: https://github.com/opencontainers/runc/releases/download/v{{ 
 cni_plugin_version: 1.7.1
 cni_plugin_download_url: https://github.com/containernetworking/plugins/releases/download/v{{ cni_plugin_version }}/cni-plugins-linux-{{
   arch_mapping[ansible_architecture] }}-v{{ cni_plugin_version }}.tgz
+
+cni_networking_plugins:
+  - name: calico
+    path: https://raw.githubusercontent.com/projectcalico/calico/v3.30.2/manifests/calico.yaml
+
+  - name: basic
+    path: cni.10-bridge.conf
+    dest: /etc/cni/net.d/10-bridge.conf
+
+cni_selected_netplugin: calico
