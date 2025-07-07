@@ -13,6 +13,7 @@
   |  |  |  | - local
   |  |  | - playbook_bootstrap.yml
   |  |  | - playbook_init_cicd_server.yml
+  |  |  | - playbook_init_kubernetes.yml
   |  | - cicd_in_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -22,7 +23,6 @@
   |  |  | - playbook_setup_jenkins.yml
   |  |  | - playbook_setup_runner.yml
   |  |  | - roles
-  |  |  |  | - common
   |  |  |  | - gitlab
   |  |  |  | - jenkins
   |  |  |  | - runner
@@ -50,6 +50,15 @@
   |  |  |  | - nova_compute
   |  |  |  | - nova_controller
   |  |  |  | - placement
+  |  | - kubernetes_in_openstack
+  |  |  | - inventories
+  |  |  |  | - local
+  |  |  | - playbook_pre_setup.yml
+  |  |  | - playbook_setup_kubernetes.yml
+  |  |  | - playbook_setup_nodes.yml
+  |  |  | - roles
+  |  |  |  | - kubernetes
+  |  |  |  | - nodes
   |  | - shared_resources
   |  |  | - inventories
   |  |  |  | - local
@@ -111,7 +120,7 @@ Replace <host-external-interface> with the actual NIC connected to the internet 
 **CI/CD Lab Deployment**
 
 1. Run `source envrc`.
-2. Run `generate_os_client_config local` to generate the OpenStack cloud config `generated/local_clouds.yml`.
+2. Run `generate_os_client_config local cicd_lab` to generate the OpenStack cloud config `generated/local_clouds.yml`.
 3. Navigate to `./ansible` directory.
 4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_cicd_server.yml` to spin-up 3 VMs on top of OpenStack.
 5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
@@ -121,5 +130,18 @@ Replace <host-external-interface> with the actual NIC connected to the internet 
 9. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_runner.yml` to provision the Runner VM. we will use this for running the pipeline job from Gitlab CI or Jenkins.
 
 Our CI/CD Lab should be ready.
+
+**Kubernetes Lab Deployment**
+
+1. Run `source envrc`.
+2. Run `generate_os_client_config local kubernetes_lab` to generate the OpenStack cloud config `generated/local_clouds.yml`.
+3. Navigate to `./ansible` directory.
+4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_kubernetes.yml` to spin-up 3 VMs on top of OpenStack.
+5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
+6. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
+7. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_setup_kubernetes.yml` to install and provision Kubernetes platform to all VMs.
+8. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_setup_nodes.yml` to provision a Control plane and two Worker nodes.
+
+Our Kubernetes Lab should be ready.
 
 Reach me at meriz.rizal@gmail.com to connect with me or collaboration.
