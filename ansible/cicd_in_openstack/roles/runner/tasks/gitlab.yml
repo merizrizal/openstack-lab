@@ -15,12 +15,10 @@
         method: POST
         headers:
           Authorization: Bearer {{ gitlab_root_token }}
-        body: |
-          {
-            "runner_type": "instance_type",
-            "run_untagged": true,
-            "description": "Created automatically by Ansible"
-          }
+        body:
+          runner_type: instance_type
+          run_untagged: true
+          description: Created automatically by Ansible
         body_format: json
         validate_certs: false
       register: create_runner

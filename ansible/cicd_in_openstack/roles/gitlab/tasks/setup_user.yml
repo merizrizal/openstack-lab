@@ -43,14 +43,12 @@
     method: POST
     headers:
       Authorization: Bearer {{ gitlab_root_token }}
-    body: |
-      {
-        "username": "{{ gitlab_user_username }}",
-        "name": "{{ gitlab_user_name }}",
-        "email": "{{ gitlab_user_email }}",
-        "password": "{{ gitlab_user_password }}",
-        "skip_confirmation": true
-      }
+    body:
+      username: "{{ gitlab_user_username }}"
+      name: "{{ gitlab_user_name }}"
+      email: "{{ gitlab_user_email }}"
+      password: "{{ gitlab_user_password }}"
+      skip_confirmation: true
     body_format: json
     validate_certs: false
   register: create_standard_user
