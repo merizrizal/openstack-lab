@@ -7,3 +7,6 @@ jenkins01:
 
 runner01:
   name: runner_vm01
+
+ci_monitor01:
+  name: ci_monitor_vm01

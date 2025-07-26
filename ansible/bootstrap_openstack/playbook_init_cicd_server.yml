@@ -67,3 +67,21 @@
         metadata:
           group: runner01
       when: runner.servers is defined and runner.servers | length == 0
+
+    - name: Get CI Monitor server info
+      openstack.cloud.server_info:
+        name: "{{ cicd_list.ci_monitor01.name }}"
+      register: ci_monitor
+
+    - name: Create CI Monitor
+      openstack.cloud.server:
+        name: "{{ cicd_list.ci_monitor01.name }}"
+        image: vm_image01
+        flavor: medium
+        security_groups:
+          - default
+        nics:
+          - net-id: "{{ network_id }}"
+        metadata:
+          group: ci_monitor01
+      when: ci_monitor.servers is defined and ci_monitor.servers | length == 0
