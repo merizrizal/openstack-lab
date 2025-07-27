@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User={{ prometheus_node_exporter_user }}
+Group={{ prometheus_node_exporter_user }}
+Type=simple
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=0.0.0.0:{{ node_exporter_port }}
+
+[Install]
+WantedBy=default.target

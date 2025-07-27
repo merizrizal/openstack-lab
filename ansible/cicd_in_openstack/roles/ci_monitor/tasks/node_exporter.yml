@@ -1,0 +1,44 @@
+---
+- name: Create Node exporter user
+  ansible.builtin.user:
+    name: "{{ prometheus_node_exporter_user }}"
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Ensure the directory of /opt node_exporter_install_dir exists
+  ansible.builtin.file:
+    path: "{{ node_exporter_install_dir }}"
+    owner: "{{ prometheus_node_exporter_user }}"
+    group: "{{ prometheus_node_exporter_user }}"
+    mode: "775"
+    state: directory
+
+- name: Download Node exporter binary from URL and extract into /opt
+  ansible.builtin.unarchive:
+    src: "{{ node_exporter_binary }}"
+    remote_src: true
+    dest: "{{ node_exporter_install_dir }}/"
+    owner: "{{ prometheus_node_exporter_user }}"
+    group: "{{ prometheus_node_exporter_user }}"
+    extra_opts: ["--strip-components=1", "--show-stored-names"]
+
+- name: Copy Node exporter binary as link to /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ node_exporter_install_dir }}/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    owner: "{{ prometheus_node_exporter_user }}"
+    group: "{{ prometheus_node_exporter_user }}"
+    state: link
+
+- name: Create the Node exporter systemd service file
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: "644"
+
+- name: Enable and start Node exporter services
+  ansible.builtin.systemd_service:
+    name: node_exporter
+    enabled: true
+    state: restarted
+    daemon_reload: true

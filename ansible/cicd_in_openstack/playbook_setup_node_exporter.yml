@@ -1,0 +1,11 @@
+---
+- name: Deploy Prometheus node exporter to all CI/CD VMs
+  hosts: gitlab*, jenkins*, runner*
+  become: true
+  vars:
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+  tasks:
+    - name: Call CI monitor node_exporter role
+      ansible.builtin.include_role:
+        name: ci_monitor
+        tasks_from: node_exporter

@@ -5,7 +5,7 @@ global:
 scrape_configs:
   - job_name: prometheus
     static_configs:
-      - targets: ['{{ hostvars[cicd_list.ci_monitor01.name].ansible_host }}:9090']
+      - targets: ['{{ hostvars[cicd_list.ci_monitor01.name].ansible_host }}:{{ prometheus_port }}']
 
   - job_name: jenkins
     static_configs:
@@ -13,12 +13,12 @@ scrape_configs:
 
   - job_name: ci-agents-node-exporters
     static_configs:
-      - targets: ['{{ hostvars[cicd_list.runner01.name].ansible_host }}:9100']
+      - targets: ['{{ hostvars[cicd_list.runner01.name].ansible_host }}:{{ node_exporter_port }}']
 
   - job_name: gitlab-node-exporters
     static_configs:
-      - targets: ['{{ hostvars[cicd_list.gitlab01.name].ansible_host }}:9100']
+      - targets: ['{{ hostvars[cicd_list.gitlab01.name].ansible_host }}:{{ node_exporter_port }}']
 
   - job_name: jenkins-node-exporters
     static_configs:
-      - targets: ['{{ hostvars[cicd_list.jenkins01.name].ansible_host }}:9100']
+      - targets: ['{{ hostvars[cicd_list.jenkins01.name].ansible_host }}:{{ node_exporter_port }}']
