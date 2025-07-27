@@ -10,3 +10,6 @@
 
 - name: Setup Runner
   ansible.builtin.import_playbook: playbook_setup_runner.yml
+
+- name: Setup CI monitor
+  ansible.builtin.import_playbook: playbook_setup_ci_monitor.yml

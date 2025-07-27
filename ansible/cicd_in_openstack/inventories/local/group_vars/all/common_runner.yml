@@ -1,0 +1,7 @@
+---
+runner_sys_user: "{{ hostvars[cicd_list.runner01.name].ansible_user }}"
+runner_workspace_dir: /home/{{ runner_sys_user }}/runner_workspace
+
+runner_agent_gitlab: gitlab
+runner_agent_jenkins: jenkins
+runner_agent: "{{ runner_agent_jenkins }}"

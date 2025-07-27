@@ -1,0 +1,14 @@
+---
+gitlab_user_email: vagrant@examplemaildomain.com
+gitlab_user_name: Vagrant
+
+gitlab_ce_install_script: https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh
+gitlab_url: http://{{ hostvars[cicd_list.gitlab01.name].ansible_host }}
+gitlab_api_url: "{{ gitlab_url }}/api/v4"
+
+gitlab_runner_binary: >
+  https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/binaries/gitlab-runner-linux-{{ arch_mapping[ansible_architecture] }}
+
+gitlab_runner_installed: /usr/local/bin/gitlab-runner
+gitlab_runner_token_var: gitlab_runner_token
+gitlab_api_token_var: gitlab_api_token

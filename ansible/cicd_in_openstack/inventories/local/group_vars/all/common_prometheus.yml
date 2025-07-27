@@ -1,0 +1,6 @@
+---
+prometheus_version: 3.5.0
+prometheus_binary: >
+  https://github.com/prometheus/prometheus/releases/download/v{{
+  prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ arch_mapping[ansible_architecture] }}.tar.gz
+prometheus_install_dir: /opt/prometheus
