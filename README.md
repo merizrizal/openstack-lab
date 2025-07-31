@@ -19,10 +19,13 @@
   |  |  |  | - local
   |  |  | - playbook_deploy.yml
   |  |  | - playbook_pre_setup.yml
+  |  |  | - playbook_setup_ci_monitor.yml
   |  |  | - playbook_setup_gitlab.yml
   |  |  | - playbook_setup_jenkins.yml
+  |  |  | - playbook_setup_node_exporter.yml
   |  |  | - playbook_setup_runner.yml
   |  |  | - roles
+  |  |  |  | - ci_monitor
   |  |  |  | - gitlab
   |  |  |  | - jenkins
   |  |  |  | - runner
@@ -114,7 +117,7 @@ Now our OpenStack Lab should be ready.
 Add this on the host:
 `sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <host-external-interface> -j MASQUERADE`<br>
 Replace <host-external-interface> with the actual NIC connected to the internet (e.g., eth0).
-
+You can replace <host-external-interface> with `$(ip route get 1.1.1.1 | awk '{print $5}')` to dynamically detect your default NIC.
 <br>
 
 **CI/CD Lab Deployment**
