@@ -23,7 +23,7 @@
   retries: 5
   until: >
     (kata_containers.stdout is defined and "Kata Containers is now installed" in kata_containers.stdout)
-    or (kata_containers.stderr is defined and "Please remove existing Kata Containers" not in kata_containers.stderr)
+    or (kata_containers.stderr is defined and "Please remove existing Kata Containers" in kata_containers.stderr)
 
 - name: Remove containerd-shim-kata-v2 from /usr/bin
   ansible.builtin.file:
