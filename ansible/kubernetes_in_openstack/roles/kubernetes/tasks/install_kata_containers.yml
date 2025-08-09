@@ -1,4 +1,21 @@
 ---
+- name: Download Kata Containers archive to localhost
+  ansible.builtin.get_url:
+    url: "{{ kata_download_url }}"
+    dest: /tmp/{{ kata_download_url | basename }}
+    mode: "644"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Upload Kata Containers archive
+  ansible.builtin.copy:
+    src: /tmp/{{ kata_download_url | basename }}
+    dest: /home/{{ ansible_user }}/{{ kata_download_url | basename }}
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "644"
+
 - name: Download kata-manager.sh
   ansible.builtin.get_url:
     url: "{{ kata_manager_url }}"
@@ -8,10 +25,12 @@
 
 - name: Modify download script in kata-manager.sh
   ansible.builtin.lineinfile:
-    path: /home/{{ ansible_user }}/{{ kata_manager_url | basename }}
+    path: "{{ base_path }}/{{ kata_manager_url | basename }}"
     regexp: (\s+)curl -LO "\$download_url"
-    line: \1wget -c "$download_url"\1
+    line: \1cp {{ base_path }}/{{ kata_download_url | basename }} "$tmpdir/"\1
     backrefs: true
+  vars:
+    base_path: /home/{{ ansible_user }}
 
 - name: Install Kata Containers
   ansible.builtin.command:
@@ -19,7 +38,9 @@
     cmd: ./{{ kata_manager_url | basename }} -o -k {{ kata_version }}
   register: kata_containers
   changed_when: kata_containers.stdout is defined and "Kata Containers is now installed" in kata_containers.stdout
-  failed_when: kata_containers.stderr is defined and kata_containers.stderr != "" and "Please remove existing Kata Containers" not in kata_containers.stderr
+  failed_when: >
+    (kata_containers.stderr is defined and kata_containers.stderr != "" and "Please remove existing Kata Containers" not in kata_containers.stderr)
+    and (kata_containers.stdout is defined and "Kata Containers is now installed" not in kata_containers.stdout)
   retries: 5
   until: >
     (kata_containers.stdout is defined and "Kata Containers is now installed" in kata_containers.stdout)

@@ -21,6 +21,8 @@ runc_download_url: https://github.com/opencontainers/runc/releases/download/v{{ 
 
 kata_version: 3.19.1
 kata_manager_url: https://raw.githubusercontent.com/kata-containers/kata-containers/refs/heads/main/utils/kata-manager.sh
+kata_download_url: https://github.com/kata-containers/kata-containers/releases/download/{{ kata_version }}/kata-static-{{ kata_version }}-{{
+  arch_mapping[ansible_architecture] }}.tar.xz
 
 cni_plugin_version: 1.7.1
 cni_plugin_download_url: https://github.com/containernetworking/plugins/releases/download/v{{ cni_plugin_version }}/cni-plugins-linux-{{
