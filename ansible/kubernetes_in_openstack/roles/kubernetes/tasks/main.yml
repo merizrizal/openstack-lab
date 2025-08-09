@@ -15,6 +15,10 @@
   ansible.builtin.include_tasks:
     file: install_runc_cni.yml
 
+- name: Install Kata Containers
+  ansible.builtin.include_tasks:
+    file: install_kata_containers.yml
+
 - name: Download kubernetes gpg from pkgs.k8s.io
   ansible.builtin.get_url:
     url: https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key
@@ -47,6 +51,12 @@
       - kubeadm
       - kubectl
     state: present
+
+- name: Add crictl configuration
+  ansible.builtin.copy:
+    src: crictl.yaml
+    dest: /etc/crictl.yaml
+    mode: "644"
 
 - name: Restart kubelet service
   ansible.builtin.systemd_service:

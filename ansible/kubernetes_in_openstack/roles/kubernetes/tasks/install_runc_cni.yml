@@ -4,6 +4,7 @@
     url: "{{ runc_download_url }}"
     dest: /home/{{ ansible_user }}/
     mode: "755"
+    force: true
 
 - name: Install Runc
   ansible.builtin.command:

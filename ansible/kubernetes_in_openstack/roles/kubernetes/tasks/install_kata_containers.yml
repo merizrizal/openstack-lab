@@ -1,0 +1,37 @@
+---
+- name: Download kata-manager.sh
+  ansible.builtin.get_url:
+    url: "{{ kata_manager_url }}"
+    dest: /home/{{ ansible_user }}/
+    mode: "755"
+    force: true
+
+- name: Modify download script in kata-manager.sh
+  ansible.builtin.lineinfile:
+    path: /home/{{ ansible_user }}/{{ kata_manager_url | basename }}
+    regexp: (\s+)curl -LO "\$download_url"
+    line: \1wget -c "$download_url"\1
+    backrefs: true
+
+- name: Install Kata Containers
+  ansible.builtin.command:
+    chdir: /home/{{ ansible_user }}
+    cmd: ./{{ kata_manager_url | basename }} -o -k {{ kata_version }}
+  register: kata_containers
+  changed_when: kata_containers.stdout is defined and "Kata Containers is now installed" in kata_containers.stdout
+  failed_when: kata_containers.stderr is defined and kata_containers.stderr != "" and "Please remove existing Kata Containers" not in kata_containers.stderr
+  retries: 5
+  until: >
+    (kata_containers.stdout is defined and "Kata Containers is now installed" in kata_containers.stdout)
+    or (kata_containers.stderr is defined and "Please remove existing Kata Containers" not in kata_containers.stderr)
+
+- name: Remove containerd-shim-kata-v2 from /usr/bin
+  ansible.builtin.file:
+    path: /usr/bin/containerd-shim-kata-v2
+    state: absent
+
+- name: Add containerd-shim-kata-v2 symlink in /usr/local/bin
+  ansible.builtin.file:
+    src: /opt/kata/bin/containerd-shim-kata-v2
+    dest: /usr/local/bin/containerd-shim-kata-v2
+    state: link

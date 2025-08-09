@@ -17,7 +17,6 @@
     src: containerd.config.toml
     dest: /etc/containerd/config.toml
     mode: "644"
-  changed_when: false
 
 - name: Create the Containerd systemd service file
   ansible.builtin.copy:

@@ -23,7 +23,7 @@
       openstack.cloud.server:
         name: "{{ kubernetes_list.control_plane01.name }}"
         image: vm_image01
-        flavor: medium
+        flavor: small
         security_groups:
           - default
         nics:
@@ -41,7 +41,7 @@
       openstack.cloud.server:
         name: "{{ kubernetes_list.worker01.name }}"
         image: vm_image01
-        flavor: medium
+        flavor: medium.large
         security_groups:
           - default
         nics:
@@ -59,7 +59,7 @@
       openstack.cloud.server:
         name: "{{ kubernetes_list.worker02.name }}"
         image: vm_image01
-        flavor: medium
+        flavor: medium.large
         security_groups:
           - default
         nics:
