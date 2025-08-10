@@ -34,6 +34,13 @@
   ansible.builtin.include_tasks:
     file: configure_cni.yml
 
+- name: Restart containerd service
+  ansible.builtin.systemd_service:
+    name: containerd
+    enabled: true
+    state: restarted
+    daemon_reload: true
+
 - name: Fetch kube config file to Ansible controller
   ansible.builtin.fetch:
     src: /home/{{ ansible_user }}/.kube/config

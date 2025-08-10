@@ -18,6 +18,7 @@
 - name: Install Kata Containers
   ansible.builtin.include_tasks:
     file: install_kata_containers.yml
+  when: set_kata_containers
 
 - name: Download kubernetes gpg from pkgs.k8s.io
   ansible.builtin.get_url:
@@ -58,9 +59,12 @@
     dest: /etc/crictl.yaml
     mode: "644"
 
-- name: Restart kubelet service
+- name: Restart services
   ansible.builtin.systemd_service:
-    name: kubelet
+    name: "{{ item }}"
     enabled: true
     state: restarted
     daemon_reload: true
+  loop:
+    - kubelet
+    - containerd

@@ -1,8 +1,16 @@
 ---
-- name: Download containerd and extract
+- name: Download Containerd archive to localhost
+  ansible.builtin.get_url:
+    url: "{{ containerd_download_url }}"
+    dest: /tmp/{{ containerd_download_url | basename }}
+    mode: "644"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Upload Containerd and extract
   ansible.builtin.unarchive:
-    src: "{{ containerd_download_url }}"
-    remote_src: true
+    src: /tmp/{{ containerd_download_url | basename }}
     dest: /usr/local/bin
     extra_opts: ["--strip-components=1", "--show-stored-names"]
 
@@ -23,10 +31,3 @@
     src: containerd.service
     dest: /etc/systemd/system/containerd.service
     mode: "644"
-
-- name: Restart containerd service
-  ansible.builtin.systemd_service:
-    name: containerd
-    enabled: true
-    state: restarted
-    daemon_reload: true

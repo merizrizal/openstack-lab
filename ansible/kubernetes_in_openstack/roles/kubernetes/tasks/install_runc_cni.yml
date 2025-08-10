@@ -19,9 +19,17 @@
     mode: "755"
     state: directory
 
-- name: Download CNI plugins and extract
+- name: Download CNI plugins archive to localhost
+  ansible.builtin.get_url:
+    url: "{{ cni_plugin_download_url }}"
+    dest: /tmp/{{ cni_plugin_download_url | basename }}
+    mode: "644"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Upload CNI plugins and extract
   ansible.builtin.unarchive:
-    src: "{{ cni_plugin_download_url }}"
-    remote_src: true
+    src: /tmp/{{ cni_plugin_download_url | basename }}
     dest: /opt/cni/bin
     extra_opts: ["--strip-components=1", "--show-stored-names"]

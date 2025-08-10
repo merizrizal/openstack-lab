@@ -1,4 +1,9 @@
 ---
+- name: Install qemu-kvm which is needed by Kata Containers
+  ansible.builtin.package:
+    name: qemu-kvm
+    state: present
+
 - name: Download Kata Containers archive to localhost
   ansible.builtin.get_url:
     url: "{{ kata_download_url }}"
