@@ -25,7 +25,6 @@
   |  |  | - playbook_setup_node_exporter.yml
   |  |  | - playbook_setup_runner.yml
   |  |  | - roles
-  |  |  |  | - ci_monitor
   |  |  |  | - gitlab
   |  |  |  | - jenkins
   |  |  |  | - runner
@@ -65,8 +64,13 @@
   |  | - shared_resources
   |  |  | - inventories
   |  |  |  | - local
+  |  |  |  |  | - cicd.yml
+  |  |  |  |  | - kubernetes.yml
   |  |  | - playbooks
   |  |  |  | - roles
+  |  |  |  |  | - common
+  |  |  |  |  | - docker
+  |  |  |  |  | - telemetry
   | - inventories
   |  | - local
   |  |  | - nodes.yml
@@ -131,6 +135,8 @@ You can replace `<host-external-interface>` with `$(ip route get 1.1.1.1 | awk '
 7. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_gitlab.yml` to provision Gitlab server.
 8. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_jenkins.yml` to provision Jenkins server.
 9. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_runner.yml` to provision the Runner VM. we will use this for running the pipeline job from Gitlab CI or Jenkins.
+10. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_ci_monitor.yml` to provision Prometheus to "CI monitor" VM.
+11. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_node_exporter.yml` to provision Prometheus node exporter to Gitlab, Jenkins and Runner VM.
 
 Our CI/CD Lab should be ready.
 

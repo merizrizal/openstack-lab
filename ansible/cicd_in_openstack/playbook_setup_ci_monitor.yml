@@ -5,4 +5,4 @@
   vars:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
   roles:
-    - role: ci_monitor
+    - role: telemetry
