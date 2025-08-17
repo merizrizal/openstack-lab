@@ -1,16 +1,14 @@
 ---
+arch_mapping:
+  x86_64: amd64
+  aarch64: arm64
+
 prometheus_user: prometheus
 prometheus_version: 3.5.0
-prometheus_binary: >
-  https://github.com/prometheus/prometheus/releases/download/v{{
-  prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ arch_mapping[ansible_architecture] }}.tar.gz
 prometheus_install_dir: /opt/prometheus
 prometheus_port: 9090
 
 prometheus_node_exporter_user: node_exporter
 node_exporter_version: 1.9.1
-node_exporter_binary: >
-  https://github.com/prometheus/node_exporter/releases/download/v{{
-  node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ arch_mapping[ansible_architecture] }}.tar.gz
 node_exporter_install_dir: /opt/node_exporter
 node_exporter_port: 9200
