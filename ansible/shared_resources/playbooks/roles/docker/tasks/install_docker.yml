@@ -1,4 +1,10 @@
 ---
+- name: Print architecture variables
+  ansible.builtin.debug:
+    msg: |
+      Architecture: {{ ansible_architecture }}
+      OS: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }})
+
 - name: Install required packages
   ansible.builtin.package:
     pkg:
@@ -6,33 +12,76 @@
       - curl
   any_errors_fatal: true
 
-- name: Create directory for Docker's GPG key
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: "755"
+- name: Add Docker engine repository
+  block:
+    - name: Check if the OS distribution is Ubuntu
+      ansible.builtin.fail:
+        msg: The OS distribution is not Ubuntu, go to rescue block
+      when: '"Ubuntu" not in ansible_distribution'
 
-- name: Add Docker's official GPG key
-  ansible.builtin.apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    keyring: /etc/apt/keyrings/docker.gpg
-    state: present
-  register: add_docker_gpg_key
-  until: add_docker_gpg_key.key_id is defined and add_docker_gpg_key.short_id is defined
-  retries: 10
+    - name: Create directory for Docker's GPG key
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "755"
 
-- name: Print architecture variables
-  ansible.builtin.debug:
-    msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}"
+    - name: Add Docker's official GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        keyring: /etc/apt/keyrings/docker.gpg
+        state: present
+      register: add_docker_gpg_key
+      until: add_docker_gpg_key.key_id is defined and add_docker_gpg_key.short_id is defined
+      retries: 10
 
-- name: Add Docker repository
-  ansible.builtin.apt_repository:
-    repo: >
-      deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }}
-      signed-by=/etc/apt/keyrings/docker.gpg]
-      https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
-    filename: docker
-    state: present
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: >
+          deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }}
+          signed-by=/etc/apt/keyrings/docker.gpg]
+          https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+        filename: docker
+        state: present
+
+    - name: Remove any other packages which are potentially conflicting
+      ansible.builtin.package:
+        name:
+          - docker.io
+          - docker-doc
+          - docker-compose
+          - docker-compose-v2
+          - podman-docker
+          - containerd
+          - runc
+        state: absent
+  rescue:
+    - name: Rescued
+      ansible.builtin.debug:
+        msg: The OS distribution is RHEL
+
+    - name: Add Docker repository
+      ansible.builtin.yum_repository:
+        name: docker-ce
+        baseurl: https://download.docker.com/linux/centos/{{ ansible_distribution_major_version }}/x86_64/stable/
+        description: Docker CE repository
+        gpgcheck: true
+        gpgkey: https://download.docker.com/linux/centos/gpg
+        state: present
+
+    - name: Remove any other packages which are potentially conflicting
+      ansible.builtin.package:
+        name:
+          - docker
+          - docker-client
+          - docker-client-latest
+          - docker-common
+          - docker-latest
+          - docker-latest-logrotate
+          - docker-logrotate
+          - docker-engine
+          - podman
+          - runc
+        state: absent
 
 - name: Install Docker and related packages
   ansible.builtin.package:
