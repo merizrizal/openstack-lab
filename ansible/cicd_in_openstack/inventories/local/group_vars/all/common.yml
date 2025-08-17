@@ -3,9 +3,4 @@ ansible_connection: ssh
 ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
 
 cicd_list: "{{ (lookup('file', root_dir ~ '/ansible/shared_resources/inventories/' ~ target_env ~ '/cicd.yml') | from_yaml) }}"
-
-arch_mapping:
-  x86_64: amd64
-  aarch64: arm64
-
 ntp_server: time.aws.com
