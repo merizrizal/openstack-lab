@@ -28,6 +28,14 @@
   |  |  |  | - gitlab
   |  |  |  | - jenkins
   |  |  |  | - runner
+  |  | - deploy_ceph
+  |  |  | - inventories
+  |  |  |  | - local
+  |  |  | - playbook_deploy.yml
+  |  |  | - playbook_pre_setup.yml
+  |  |  | - playbook_setup_monitor.yml
+  |  |  | - roles
+  |  |  |  | - monitor
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -123,6 +131,12 @@ Add this on the host:
 Replace `<host-external-interface>` with the actual NIC connected to the internet (e.g., eth0).
 You can replace `<host-external-interface>` with `$(ip route get 1.1.1.1 | awk '{print $5}')` to dynamically detect your default NIC.
 <br>
+
+
+**Provision Ceph:**
+TBD.
+
+---
 
 **CI/CD Lab Deployment**
 

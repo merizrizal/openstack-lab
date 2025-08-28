@@ -1,0 +1,6 @@
+---
+- name: Pre-setup
+  ansible.builtin.import_playbook: playbook_pre_setup.yml
+
+- name: Setup Monitor
+  ansible.builtin.import_playbook: playbook_setup_monitor.yml

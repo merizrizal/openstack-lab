@@ -34,4 +34,14 @@ storage01:
   memory: 2048
   cpus: 2
   disks: 64
-  additional_disks: [60]
+  additional_disks:
+    - 60
+
+ceph01:
+  environment: ceph
+  mgmtnet_ip_address: 192.168.121.9
+  provider_ip_address: 192.168.123.9
+  hostname: ceph01.local
+  memory: 5120
+  cpus: 2
+  disks: 64

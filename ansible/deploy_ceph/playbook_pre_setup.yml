@@ -1,0 +1,10 @@
+---
+- name: Deploy and setup Ceph dependencies
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: common
+
+    - role: docker
