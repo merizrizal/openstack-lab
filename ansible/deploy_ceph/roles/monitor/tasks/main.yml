@@ -7,3 +7,12 @@
       - cephadm
       - ceph-common
     state: present
+
+- name: Bootstrap a new cluster
+  ansible.builtin.command:
+    cmd: >
+      cephadm bootstrap --mon-ip {{ ceph01.mgmtnet_ip_address }}
+      --initial-dashboard-user {{ ceph_admin_user }} --initial-dashboard-password {{ ceph_admin_password }}
+  register: ceph_bootstrap
+  changed_when: ceph_bootstrap.stdout is defined and 'Bootstrap complete' in ceph_bootstrap.stdout
+  failed_when: ceph_bootstrap.stderr is defined and ceph_bootstrap.stderr != '' and 'already exists' not in ceph_bootstrap.stderr
