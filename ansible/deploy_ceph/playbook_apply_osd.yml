@@ -9,3 +9,8 @@
       ansible.builtin.include_role:
         name: monitor_manager
         tasks_from: add_hosts
+
+    - name: Apply OSDs to cluster
+      ansible.builtin.include_role:
+        name: monitor_manager
+        tasks_from: add_osds

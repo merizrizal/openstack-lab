@@ -8,5 +8,5 @@
 - name: Setup OSD nodes
   ansible.builtin.import_playbook: playbook_setup_osd.yml
 
-- name: Add OSD nodes
-  ansible.builtin.import_playbook: playbook_add_osd_nodes.yml
+- name: Apply OSDs
+  ansible.builtin.import_playbook: playbook_apply_osd.yml

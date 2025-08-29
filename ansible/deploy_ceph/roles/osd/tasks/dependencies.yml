@@ -4,5 +4,6 @@
     name:
       - chrony
       - bridge-utils
+      - lvm2
       - ceph-common
     state: present
