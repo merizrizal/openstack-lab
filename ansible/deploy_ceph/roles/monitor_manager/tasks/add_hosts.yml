@@ -1,0 +1,8 @@
+---
+- name: Add OSD nodes to cluster
+  ansible.builtin.command:
+    cmd: ceph orch host add {{ item }} {{ node_vars.mgmtnet_ip_address }}
+  vars:
+    node_vars: "{{ lookup('ansible.builtin.vars', item) }}"
+  loop: "{{ groups['osd_nodes'] }}"
+  changed_when: false

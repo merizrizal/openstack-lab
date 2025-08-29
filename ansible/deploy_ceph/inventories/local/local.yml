@@ -8,3 +8,15 @@ lab:
       hosts:
         ceph01:
           ansible_host: "{{ ceph01.mgmtnet_ip_address }}"
+    osd_nodes:
+      children:
+        compute:
+          hosts:
+            compute01:
+              ansible_host: "{{ compute01.mgmtnet_ip_address }}"
+            compute02:
+              ansible_host: "{{ compute02.mgmtnet_ip_address }}"
+        storage:
+          hosts:
+            storage01:
+              ansible_host: "{{ storage01.mgmtnet_ip_address }}"

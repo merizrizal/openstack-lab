@@ -2,5 +2,11 @@
 - name: Pre-setup
   ansible.builtin.import_playbook: playbook_pre_setup.yml
 
-- name: Setup Monitor
-  ansible.builtin.import_playbook: playbook_setup_monitor.yml
+- name: Setup monitor and manager nodes
+  ansible.builtin.import_playbook: playbook_setup_mon_mgr.yml
+
+- name: Setup OSD nodes
+  ansible.builtin.import_playbook: playbook_setup_osd.yml
+
+- name: Add OSD nodes
+  ansible.builtin.import_playbook: playbook_add_osd_nodes.yml

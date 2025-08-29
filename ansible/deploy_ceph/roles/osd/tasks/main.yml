@@ -1,0 +1,12 @@
+---
+- name: Install dependencies
+  ansible.builtin.include_tasks:
+    file: dependencies.yml
+
+- name: Apply Ceph public key
+  ansible.builtin.blockinfile:
+    path: /root/.ssh/authorized_keys
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.file', ceph_pub_key_fetch_path) }}"
+    insertafter: EOF

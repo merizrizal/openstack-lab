@@ -15,7 +15,9 @@ compute01:
   hostname: compute01.local
   memory: 16384
   cpus: 10
-  disks: 90
+  disks: 64
+  additional_disks:
+    - 90
 
 compute02:
   environment: compute
@@ -24,7 +26,9 @@ compute02:
   hostname: compute02.local
   memory: 12288
   cpus: 6
-  disks: 90
+  disks: 64
+  additional_disks:
+    - 90
 
 storage01:
   environment: storage
@@ -35,7 +39,7 @@ storage01:
   cpus: 2
   disks: 64
   additional_disks:
-    - 60
+    - 90
 
 ceph01:
   environment: ceph

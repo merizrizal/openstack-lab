@@ -1,0 +1,8 @@
+---
+- name: Ensure all the packages are installed already
+  ansible.builtin.package:
+    name:
+      - chrony
+      - bridge-utils
+      - ceph-common
+    state: present
