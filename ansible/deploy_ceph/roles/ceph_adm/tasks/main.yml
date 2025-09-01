@@ -1,7 +1,7 @@
 ---
 - name: Ensure dependencies packages are installed already
   ansible.builtin.include_role:
-    name: osd
+    name: ceph_common
     tasks_from: dependencies
 
 - name: Ensure all Ceph packages are installed already

@@ -2,11 +2,11 @@
 - name: Pre-setup
   ansible.builtin.import_playbook: playbook_pre_setup.yml
 
-- name: Setup monitor and manager nodes
-  ansible.builtin.import_playbook: playbook_setup_mon_mgr.yml
+- name: Setup Ceph ADM
+  ansible.builtin.import_playbook: playbook_setup_adm.yml
 
-- name: Setup OSD nodes
-  ansible.builtin.import_playbook: playbook_setup_osd.yml
+- name: Setup Ceph common
+  ansible.builtin.import_playbook: playbook_setup_common.yml
 
-- name: Apply OSDs
+- name: Apply Ceph OSDs
   ansible.builtin.import_playbook: playbook_apply_osd.yml

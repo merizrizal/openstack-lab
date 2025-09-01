@@ -4,7 +4,7 @@ controller01:
   mgmtnet_ip_address: 192.168.121.5
   provider_ip_address: 192.168.123.5
   hostname: controller01.local
-  memory: 5120
+  memory: 4096
   cpus: 2
   disks: 64
 
@@ -16,8 +16,6 @@ compute01:
   memory: 16384
   cpus: 10
   disks: 64
-  additional_disks:
-    - 90
 
 compute02:
   environment: compute
@@ -27,8 +25,6 @@ compute02:
   memory: 12288
   cpus: 6
   disks: 64
-  additional_disks:
-    - 90
 
 storage01:
   environment: storage
@@ -39,13 +35,37 @@ storage01:
   cpus: 2
   disks: 64
   additional_disks:
-    - 90
+    - 20
 
 ceph01:
   environment: ceph
   mgmtnet_ip_address: 192.168.121.9
   provider_ip_address: 192.168.123.9
   hostname: ceph01.local
-  memory: 5120
+  memory: 4096
   cpus: 2
   disks: 64
+  additional_disks:
+    - 60
+
+ceph02:
+  environment: ceph
+  mgmtnet_ip_address: 192.168.121.10
+  provider_ip_address: 192.168.123.10
+  hostname: ceph02.local
+  memory: 4096
+  cpus: 2
+  disks: 64
+  additional_disks:
+    - 60
+
+ceph03:
+  environment: ceph
+  mgmtnet_ip_address: 192.168.121.11
+  provider_ip_address: 192.168.123.11
+  hostname: ceph03.local
+  memory: 4096
+  cpus: 2
+  disks: 64
+  additional_disks:
+    - 60
