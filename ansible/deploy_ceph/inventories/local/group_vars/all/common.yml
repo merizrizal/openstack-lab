@@ -3,3 +3,6 @@ ansible_connection: ssh
 ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
 
 ntp_server: time.aws.com
+
+ceph_pub_key_fetch_path: /tmp/fetch-ceph.pub
+device_name: vdb

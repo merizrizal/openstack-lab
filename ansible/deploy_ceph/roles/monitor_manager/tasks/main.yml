@@ -1,0 +1,45 @@
+---
+- name: Ensure dependencies packages are installed already
+  ansible.builtin.include_role:
+    name: osd
+    tasks_from: dependencies
+
+- name: Ensure all Ceph packages are installed already
+  ansible.builtin.package:
+    name: cephadm
+    state: present
+
+- name: Bootstrap a new cluster
+  ansible.builtin.command:
+    cmd: >
+      cephadm bootstrap --mon-ip {{ ceph01.mgmtnet_ip_address }}
+      --initial-dashboard-user {{ ceph_admin_user }} --initial-dashboard-password {{ ceph_admin_password }}
+  register: ceph_bootstrap
+  changed_when: ceph_bootstrap.stdout is defined and 'Bootstrap complete' in ceph_bootstrap.stdout
+  failed_when: ceph_bootstrap.stderr is defined and ceph_bootstrap.stderr != '' and 'already exists' not in ceph_bootstrap.stderr
+
+- name: Set public network
+  ansible.builtin.command:
+    cmd: ceph config set mon public_network {{ ip_addr_cidr }}
+  vars:
+    ip_addr_cidr: "{{ ceph01.provider_ip_address | ansible.utils.ipsubnet(24) }}"
+  changed_when: false
+
+- name: Set cluster network
+  ansible.builtin.command:
+    cmd: ceph config set mon cluster_network {{ ip_addr_cidr }}
+  vars:
+    ip_addr_cidr: "{{ ceph01.mgmtnet_ip_address | ansible.utils.ipsubnet(24) }}"
+  changed_when: false
+
+- name: Get Ceph public key
+  ansible.builtin.shell:
+    cmd: ceph cephadm get-pub-key > /home/{{ ansible_user }}/ceph.pub
+    executable: /bin/bash
+  changed_when: false
+
+- name: Fetch Ceph public key
+  ansible.builtin.fetch:
+    src: /home/{{ ansible_user }}/ceph.pub
+    dest: "{{ ceph_pub_key_fetch_path }}"
+    flat: true

@@ -1,8 +1,8 @@
 ---
-- name: Deploy and setup Ceph monitor
-  hosts: all
+- name: Deploy and setup Ceph monitor and manager
+  hosts: ceph
   become: true
   vars_files:
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   roles:
-    - role: monitor
+    - role: monitor_manager

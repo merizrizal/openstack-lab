@@ -1,0 +1,8 @@
+---
+- name: Deploy and setup Ceph OSD nodes
+  hosts: osd_nodes
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: osd

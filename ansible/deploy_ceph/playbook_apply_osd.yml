@@ -1,0 +1,16 @@
+---
+- name: Add Ceph OSD nodes
+  hosts: ceph
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Ceph OSD nodes to cluster
+      ansible.builtin.include_role:
+        name: monitor_manager
+        tasks_from: add_hosts
+
+    - name: Apply OSDs to cluster
+      ansible.builtin.include_role:
+        name: monitor_manager
+        tasks_from: add_osds

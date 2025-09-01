@@ -1,0 +1,7 @@
+---
+- name: Apply new OSDs to cluster
+  ansible.builtin.command:
+    cmd: ceph orch daemon add osd {{ item }}:/dev/{{ device_name }}
+  register: apply_osd
+  loop: "{{ groups['osd_nodes'] }}"
+  changed_when: apply_osd.stdout is defined and 'Created osd' in apply_osd.stdout
