@@ -1,10 +1,10 @@
 ---
-- name: Add OSD nodes to cluster
+- name: Add other nodes to other cluster
   ansible.builtin.command:
     cmd: ceph orch host add {{ item }} {{ node_vars.mgmtnet_ip_address }}
   vars:
     node_vars: "{{ lookup('ansible.builtin.vars', item) }}"
-  loop: "{{ groups['osd_nodes'] }}"
+  loop: "{{ groups['ceph_common'] }}"
   changed_when: false
 
 - name: Wait hosts and its devices to be ready
@@ -15,5 +15,5 @@
         sleep 1
       done
     executable: /bin/bash
-  loop: "{{ groups['osd_nodes'] }}"
+  loop: "{{ groups['ceph_common'] }}"
   changed_when: false

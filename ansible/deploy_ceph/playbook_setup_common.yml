@@ -1,8 +1,8 @@
 ---
-- name: Deploy and setup Ceph OSD nodes
-  hosts: osd_nodes
+- name: Deploy and setup Ceph common
+  hosts: ceph_common
   become: true
   vars_files:
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   roles:
-    - role: osd
+    - role: ceph_common

@@ -4,19 +4,13 @@ lab:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
     target_env: local
   children:
-    ceph:
+    ceph_adm:
       hosts:
         ceph01:
           ansible_host: "{{ ceph01.mgmtnet_ip_address }}"
-    osd_nodes:
-      children:
-        compute:
-          hosts:
-            compute01:
-              ansible_host: "{{ compute01.mgmtnet_ip_address }}"
-            compute02:
-              ansible_host: "{{ compute02.mgmtnet_ip_address }}"
-        storage:
-          hosts:
-            storage01:
-              ansible_host: "{{ storage01.mgmtnet_ip_address }}"
+    ceph_common:
+      hosts:
+        ceph02:
+          ansible_host: "{{ ceph02.mgmtnet_ip_address }}"
+        ceph03:
+          ansible_host: "{{ ceph03.mgmtnet_ip_address }}"

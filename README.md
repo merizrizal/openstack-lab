@@ -34,11 +34,11 @@
   |  |  | - playbook_apply_osd.yml
   |  |  | - playbook_deploy.yml
   |  |  | - playbook_pre_setup.yml
-  |  |  | - playbook_setup_mon_mgr.yml
-  |  |  | - playbook_setup_osd.yml
+  |  |  | - playbook_setup_adm.yml
+  |  |  | - playbook_setup_common.yml
   |  |  | - roles
-  |  |  |  | - monitor_manager
-  |  |  |  | - osd
+  |  |  |  | - ceph_adm
+  |  |  |  | - ceph_common
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local

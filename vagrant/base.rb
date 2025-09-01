@@ -60,7 +60,8 @@ def customize_vms(config, inventories)
 
         if !inventory["additional_disks"].nil?
           inventory["additional_disks"].each do |disks|
-            lv.storage :file, size: "#{disks}G", device: "vdb"
+            lv.storage :file, size: "#{disks}G", device: "vdb", type: "raw", detect_zeroes: "on",
+              bus: "virtio", cache: "none", discard: "unmap", shareable: false
           end
         end
       end
