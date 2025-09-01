@@ -6,3 +6,14 @@
     node_vars: "{{ lookup('ansible.builtin.vars', item) }}"
   loop: "{{ groups['osd_nodes'] }}"
   changed_when: false
+
+- name: Wait hosts and its devices to be ready
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      until sudo ceph orch device ls | grep -P '^(?=.*{{ item }})(?=.*/dev/{{ device_name }})'; do
+        sleep 1
+      done
+    executable: /bin/bash
+  loop: "{{ groups['osd_nodes'] }}"
+  changed_when: false
