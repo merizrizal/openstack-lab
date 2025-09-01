@@ -31,11 +31,14 @@
   |  | - deploy_ceph
   |  |  | - inventories
   |  |  |  | - local
+  |  |  | - playbook_apply_osd.yml
   |  |  | - playbook_deploy.yml
   |  |  | - playbook_pre_setup.yml
-  |  |  | - playbook_setup_monitor.yml
+  |  |  | - playbook_setup_mon_mgr.yml
+  |  |  | - playbook_setup_osd.yml
   |  |  | - roles
-  |  |  |  | - monitor
+  |  |  |  | - monitor_manager
+  |  |  |  | - osd
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local
