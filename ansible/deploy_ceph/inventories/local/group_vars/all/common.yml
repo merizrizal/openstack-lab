@@ -6,3 +6,6 @@ ntp_server: time.aws.com
 
 ceph_pub_key_fetch_path: /tmp/fetch-ceph.pub
 device_name: vdb
+
+mon_count: 3
+mgr_count: 2

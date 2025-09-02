@@ -17,3 +17,13 @@
     executable: /bin/bash
   loop: "{{ groups['ceph_common'] }}"
   changed_when: false
+
+- name: Place MON
+  ansible.builtin.command:
+    cmd: ceph orch apply mon --placement="{{ mon_count }}"
+  changed_when: false
+
+- name: Place MGR
+  ansible.builtin.command:
+    cmd: ceph orch apply mgr --placement="{{ mgr_count }}"
+  changed_when: false
