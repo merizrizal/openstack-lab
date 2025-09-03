@@ -1,5 +1,5 @@
 ---
-- name: Add other nodes to other cluster
+- name: Add other nodes to the cluster
   ansible.builtin.command:
     cmd: ceph orch host add {{ item }} {{ node_vars.mgmtnet_ip_address }}
   vars:

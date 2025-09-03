@@ -1,0 +1,10 @@
+---
+- name: Configure cinder.conf
+  ansible.builtin.include_tasks:
+    file: cinder.yml
+
+- name: Start and enable Cinder scheduler
+  ansible.builtin.service:
+    name: cinder-scheduler
+    state: restarted
+    enabled: true

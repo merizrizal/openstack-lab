@@ -1,0 +1,24 @@
+---
+- name: Deploy Ceph integration on controller node
+  hosts: controller
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Integrate Ceph to Cinder controller node
+      ansible.builtin.include_role:
+        name: ceph
+        tasks_from: cinder_controller
+
+- name: Deploy Ceph integration on storage node
+  hosts: storage
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: ceph_common_vars
+  tasks:
+    - name: Integrate Ceph to Cinder storage node
+      ansible.builtin.include_role:
+        name: ceph
+        tasks_from: cinder_storage

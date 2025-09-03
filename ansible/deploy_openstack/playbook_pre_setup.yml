@@ -6,3 +6,9 @@
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   roles:
     - role: common
+
+    - role: ceph_common_vars
+      when: ceph_enabled is defined and ceph_enabled
+
+    - role: ceph
+      when: ceph_enabled is defined and ceph_enabled

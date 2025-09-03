@@ -1,0 +1,6 @@
+---
+glance_keyring_path: /tmp/fetch-ceph.client.glance.keyring
+cinder_keyring_path: /tmp/fetch-ceph.client.cinder.keyring
+nova_keyring_path: /tmp/fetch-ceph.client.nova.keyring
+
+ceph_conf_path: /tmp/fetch-ceph.conf

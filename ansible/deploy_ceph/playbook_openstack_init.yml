@@ -1,0 +1,10 @@
+---
+- name: Initialise setup for OpenStack
+  hosts: ceph_adm
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: ceph_common_vars
+
+    - role: openstack

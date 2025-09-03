@@ -1,0 +1,12 @@
+---
+- name: Set facts
+  ansible.builtin.set_fact:
+    mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
+  vars:
+    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
+
+- name: Reconfigure cinder.conf - set default - apply ceph
+  ansible.builtin.replace:
+    path: /etc/cinder/cinder.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(#enabled_backends = lvm).*"
+    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
