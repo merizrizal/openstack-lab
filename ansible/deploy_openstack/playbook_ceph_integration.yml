@@ -22,3 +22,16 @@
       ansible.builtin.include_role:
         name: ceph
         tasks_from: cinder_storage
+
+- name: Deploy Ceph integration on compute node
+  hosts: compute
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: ceph_common_vars
+  tasks:
+    - name: Integrate Ceph to Nova compute node
+      ansible.builtin.include_role:
+        name: ceph
+        tasks_from: nova_compute

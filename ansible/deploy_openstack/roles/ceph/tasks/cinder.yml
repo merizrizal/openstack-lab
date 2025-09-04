@@ -9,4 +9,4 @@
   ansible.builtin.replace:
     path: /etc/cinder/cinder.conf
     regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(#enabled_backends = lvm).*"
-    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+    replace: "{{ lookup('ansible.builtin.template', 'cinder_default.conf.j2') }}"

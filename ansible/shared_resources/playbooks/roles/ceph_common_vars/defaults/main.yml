@@ -4,3 +4,5 @@ cinder_keyring_path: /tmp/fetch-ceph.client.cinder.keyring
 nova_keyring_path: /tmp/fetch-ceph.client.nova.keyring
 
 ceph_conf_path: /tmp/fetch-ceph.conf
+
+libvirt_secret_uuid: 45069ed8-d357-4921-b55d-d88fd583f661

@@ -23,7 +23,7 @@
     path: /etc/cinder/cinder.conf
     append_newline: true
     prepend_newline: true
-    block: "{{ lookup('ansible.builtin.file', 'ceph.conf') }}"
+    block: "{{ lookup('ansible.builtin.template', 'cinder_storage_ceph.conf.j2') }}"
     insertafter: EOF
     marker_begin: BEGIN CEPH
     marker_end: END CEPH
