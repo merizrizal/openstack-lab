@@ -6,6 +6,7 @@
 #### *Currently, it has only been tested on Ubuntu.
 
 **Ansible directory structure**
+
 ```
   | - ansible
   |  | - bootstrap_openstack
@@ -33,21 +34,25 @@
   |  |  |  | - local
   |  |  | - playbook_apply_osd.yml
   |  |  | - playbook_deploy.yml
+  |  |  | - playbook_openstack_init.yml
   |  |  | - playbook_pre_setup.yml
   |  |  | - playbook_setup_adm.yml
   |  |  | - playbook_setup_common.yml
   |  |  | - roles
   |  |  |  | - ceph_adm
   |  |  |  | - ceph_common
+  |  |  |  | - openstack
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local
+  |  |  | - playbook_ceph_integration.yml
   |  |  | - playbook_deploy.yml
   |  |  | - playbook_pre_setup.yml
   |  |  | - playbook_setup_compute.yml
   |  |  | - playbook_setup_controller.yml
   |  |  | - playbook_setup_storage.yml
   |  |  | - roles
+  |  |  |  | - ceph
   |  |  |  | - cinder
   |  |  |  | - cinder_controller
   |  |  |  | - cinder_storage
@@ -79,6 +84,7 @@
   |  |  |  |  | - kubernetes.yml
   |  |  | - playbooks
   |  |  |  | - roles
+  |  |  |  |  | - ceph_common_vars
   |  |  |  |  | - common
   |  |  |  |  | - docker
   |  |  |  |  | - telemetry
