@@ -1,5 +1,5 @@
 ---
-- name: Apply new OSDs to cluster
+- name: Apply new OSDs to the cluster
   ansible.builtin.command:
     cmd: ceph orch daemon add osd {{ item }}:/dev/{{ device_name }}
   register: apply_osd

@@ -35,7 +35,8 @@ storage01:
   cpus: 2
   disks: 64
   additional_disks:
-    - 20
+    - size: 20
+      name: vdb
 
 ceph01:
   environment: ceph
@@ -46,7 +47,8 @@ ceph01:
   cpus: 2
   disks: 64
   additional_disks:
-    - 60
+    - size: 60
+      name: vdb
 
 ceph02:
   environment: ceph
@@ -57,7 +59,8 @@ ceph02:
   cpus: 2
   disks: 64
   additional_disks:
-    - 60
+    - size: 60
+      name: vdb
 
 ceph03:
   environment: ceph
@@ -68,4 +71,5 @@ ceph03:
   cpus: 2
   disks: 64
   additional_disks:
-    - 60
+    - size: 60
+      name: vdb

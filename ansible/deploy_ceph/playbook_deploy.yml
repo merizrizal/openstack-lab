@@ -10,3 +10,6 @@
 
 - name: Apply Ceph OSDs
   ansible.builtin.import_playbook: playbook_apply_osd.yml
+
+- name: Apply Ceph OSDs
+  ansible.builtin.import_playbook: playbook_openstack_init.yml

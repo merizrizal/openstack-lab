@@ -1,0 +1,51 @@
+---
+- name: Create auth for Glance
+  ansible.builtin.command:
+    cmd: >
+      ceph auth get-or-create client.glance
+      mon 'profile rbd'
+      osd 'profile rbd pool=images'
+      -o /etc/ceph/ceph.client.glance.keyring
+  changed_when: false
+
+- name: Fetch Glance keyring
+  ansible.builtin.fetch:
+    src: /etc/ceph/ceph.client.glance.keyring
+    dest: "{{ glance_keyring_path }}"
+    flat: true
+
+- name: Create auth for Cinder
+  ansible.builtin.command:
+    cmd: >
+      ceph auth get-or-create client.cinder
+      mon 'profile rbd'
+      osd 'profile rbd pool=volumes, profile rbd pool=images'
+      -o /etc/ceph/ceph.client.cinder.keyring
+  changed_when: false
+
+- name: Fetch Cinder keyring
+  ansible.builtin.fetch:
+    src: /etc/ceph/ceph.client.cinder.keyring
+    dest: "{{ cinder_keyring_path }}"
+    flat: true
+
+- name: Create auth for Nova
+  ansible.builtin.command:
+    cmd: >
+      ceph auth get-or-create client.nova
+      mon 'profile rbd'
+      osd 'profile rbd pool=volumes, profile rbd pool=images'
+      -o /etc/ceph/ceph.client.nova.keyring
+  changed_when: false
+
+- name: Fetch Nova keyring
+  ansible.builtin.fetch:
+    src: /etc/ceph/ceph.client.nova.keyring
+    dest: "{{ nova_keyring_path }}"
+    flat: true
+
+- name: Fetch Ceph config
+  ansible.builtin.fetch:
+    src: /etc/ceph/ceph.conf
+    dest: "{{ ceph_conf_path }}"
+    flat: true

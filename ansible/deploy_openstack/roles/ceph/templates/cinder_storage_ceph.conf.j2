@@ -1,0 +1,11 @@
+[ceph]
+volume_driver = cinder.volume.drivers.rbd.RBDDriver
+volume_backend_name = ceph
+rbd_user = cinder
+rbd_pool = volumes
+rbd_ceph_conf = /etc/ceph/ceph.conf
+rbd_flatten_volume_from_snapshot = false
+rbd_max_clone_depth = 5
+rbd_store_chunk_size = 4
+rbd_secret_uuid = {{ libvirt_secret_uuid }}
+rados_connect_timeout = -1

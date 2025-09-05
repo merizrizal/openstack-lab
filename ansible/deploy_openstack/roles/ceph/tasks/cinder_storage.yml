@@ -1,0 +1,35 @@
+---
+- name: Copy Cinder keyring
+  ansible.builtin.copy:
+    src: "{{ cinder_keyring_path }}"
+    dest: /etc/ceph/ceph.client.cinder.keyring
+    owner: cinder
+    group: cinder
+    mode: "644"
+
+- name: Configure cinder.conf
+  ansible.builtin.include_tasks:
+    file: cinder.yml
+
+- name: Configure cinder.conf - remove LVM
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    marker_begin: BEGIN LVM
+    marker_end: END LVM
+    state: absent
+
+- name: Configure cinder.conf - set Ceph
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'cinder_storage_ceph.conf.j2') }}"
+    insertafter: EOF
+    marker_begin: BEGIN CEPH
+    marker_end: END CEPH
+
+- name: Start and enable Cinder volume
+  ansible.builtin.service:
+    name: cinder-volume
+    state: restarted
+    enabled: true

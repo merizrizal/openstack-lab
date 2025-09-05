@@ -22,3 +22,7 @@
 
 - name: Setup Storage
   ansible.builtin.import_playbook: playbook_setup_storage.yml
+
+- name: Ceph integration
+  ansible.builtin.import_playbook: playbook_ceph_integration.yml
+  when: ceph_enabled is defined and ceph_enabled

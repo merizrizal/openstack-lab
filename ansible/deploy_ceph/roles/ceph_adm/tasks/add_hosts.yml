@@ -1,5 +1,5 @@
 ---
-- name: Add other nodes to other cluster
+- name: Add other nodes to the cluster
   ansible.builtin.command:
     cmd: ceph orch host add {{ item }} {{ node_vars.mgmtnet_ip_address }}
   vars:
@@ -16,4 +16,14 @@
       done
     executable: /bin/bash
   loop: "{{ groups['ceph_common'] }}"
+  changed_when: false
+
+- name: Place MON
+  ansible.builtin.command:
+    cmd: ceph orch apply mon --placement="{{ mon_count }}"
+  changed_when: false
+
+- name: Place MGR
+  ansible.builtin.command:
+    cmd: ceph orch apply mgr --placement="{{ mgr_count }}"
   changed_when: false

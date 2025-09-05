@@ -1,0 +1,11 @@
+---
+- name: Ensure Ceph packages are installed already
+  ansible.builtin.package:
+    name: ceph-common
+    state: present
+
+- name: Copy Ceph config file
+  ansible.builtin.copy:
+    src: "{{ ceph_conf_path }}"
+    dest: /etc/ceph/ceph.conf
+    mode: "644"
