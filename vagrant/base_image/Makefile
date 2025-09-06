@@ -49,8 +49,30 @@ rebuild-base-image-ubuntu:
 	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=ubuntu_24
 	@$(MAKE) teardown-vm BASE_IMAGE_NAME=ubuntu_24
 
+rebuild-base-image-ubuntu-from-file:
+	@if [ -z "$$BASE_IMAGE_NAME" ]; then \
+		echo ">>>>> BASE_IMAGE_NAME need to be provided <<<<<"; \
+		echo "BASE_IMAGE_NAME=this_name"; \
+		exit 1; \
+	fi;
+
+	@if [ -z "$$IMAGE_FILE" ]; then \
+		echo ">>>>> IMAGE_FILE need to be provided <<<<<"; \
+		echo "IMAGE_FILE=/path/to/file/qcow2"; \
+		exit 1; \
+	fi;
+
+	@image_size=`(qemu-img info --output=json $$IMAGE_FILE | jq -r '."virtual-size"' | awk '{print $$1}')`; \
+	echo Image size = $$image_size; \
+	image_size_h=`(qemu-img info --output=json $$IMAGE_FILE | jq -r '."virtual-size"' | awk '{s=int($$1)/(1024^3); print (s == int(s)) ? s : int(s)+1 }')`; \
+	echo Human readable image size = $$image_size_h GB; \
+	box_name=$(BASE_IMAGE_NAME)_base; \
+	./create_box.sh $$IMAGE_FILE $$box_name.box Vagrantfile.add $$image_size_h; \
+	vagrant box add $$box_name.box --force --name $$box_name; \
+	rm $$box_name.box;
+
 check-base-image:
-	@image=`(vagrant box list | grep ubuntu_24_base)`; \
+	@image=`(vagrant box list | grep ubuntu_24 | grep base)`; \
 	if [ -z "$$image" ]; then \
 		echo ">>>>> Base image is not found. Run make rebuild-base-image <<<<<"; \
 		exit 1; \

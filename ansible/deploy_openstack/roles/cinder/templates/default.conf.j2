@@ -1,5 +1,5 @@
 [DEFAULT]
-transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}
+transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}:5672/
 my_ip = {{ mgmtnet_ip_address }}
 glance_api_servers = http://{{ controller01_host_addr }}:9292
 rootwrap_config = /etc/cinder/rootwrap.conf

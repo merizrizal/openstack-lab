@@ -4,9 +4,9 @@ controller01:
   mgmtnet_ip_address: 192.168.121.5
   provider_ip_address: 192.168.123.5
   hostname: controller01.local
-  memory: 4096
-  cpus: 2
-  disks: 64
+  memory: 7168
+  cpus: 4
+  disks: 40
 
 compute01:
   environment: compute
@@ -33,7 +33,7 @@ storage01:
   hostname: storage01.local
   memory: 2048
   cpus: 2
-  disks: 64
+  disks: 40
   additional_disks:
     - size: 20
       name: vdb
@@ -45,7 +45,7 @@ ceph01:
   hostname: ceph01.local
   memory: 4096
   cpus: 2
-  disks: 64
+  disks: 40
   additional_disks:
     - size: 60
       name: vdb
@@ -57,7 +57,7 @@ ceph02:
   hostname: ceph02.local
   memory: 4096
   cpus: 2
-  disks: 64
+  disks: 40
   additional_disks:
     - size: 60
       name: vdb
@@ -69,7 +69,7 @@ ceph03:
   hostname: ceph03.local
   memory: 4096
   cpus: 2
-  disks: 64
+  disks: 40
   additional_disks:
     - size: 60
       name: vdb

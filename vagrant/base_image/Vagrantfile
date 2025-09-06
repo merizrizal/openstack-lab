@@ -15,7 +15,7 @@ Vagrant.configure("2") do |config|
     d.vm.synced_folder ".", "/vagrant", disabled: true
   end
 
-  if base_image_name == "ubuntu_24"
+  if base_image_name.include?("ubuntu_24")
     config.vm.box = "bento/ubuntu-24.04"
     config.vm.box_version = "202508.03.0"
     config.vm.provision "shell", inline: <<-SHELL
