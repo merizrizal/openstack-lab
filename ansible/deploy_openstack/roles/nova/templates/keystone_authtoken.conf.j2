@@ -1,4 +1,6 @@
 [keystone_authtoken]
+service_token_roles = service
+service_token_roles_required = true
 www_authenticate_uri = http://{{ controller01_host_addr }}:5000/
 auth_url = http://{{ controller01_host_addr }}:5000/
 memcached_servers = {{ controller01.mgmtnet_ip_address }}:11211

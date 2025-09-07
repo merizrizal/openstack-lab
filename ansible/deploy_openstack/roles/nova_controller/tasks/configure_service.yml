@@ -11,6 +11,11 @@
     cmd: openstack role add --project service --user nova admin
   changed_when: false
 
+- name: Add the service role to the nova user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user nova service
+  changed_when: false
+
 - name: Check service entity for nova
   ansible.builtin.shell:
     cmd: openstack service show compute || true

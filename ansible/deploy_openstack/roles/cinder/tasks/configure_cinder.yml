@@ -30,3 +30,23 @@
     insertafter: EOF
     marker_begin: BEGIN OSLO_CONCURRENCY
     marker_end: END OSLO_CONCURRENCY
+
+- name: Configure cinder.conf - set Nova
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'nova.conf.j2') }}"
+    insertafter: EOF
+    marker_begin: BEGIN NOVA
+    marker_end: END NOVA
+
+- name: Configure cinder.conf - set service user
+  ansible.builtin.blockinfile:
+    path: /etc/cinder/cinder.conf
+    append_newline: true
+    prepend_newline: true
+    block: "{{ lookup('ansible.builtin.template', 'service_user.conf.j2') }}"
+    insertafter: EOF
+    marker_begin: BEGIN SERVICE_USER
+    marker_end: END SERVICE_USER

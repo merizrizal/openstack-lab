@@ -11,6 +11,11 @@
     cmd: openstack role add --project service --user cinder admin
   changed_when: false
 
+- name: Add the service role to the cinder user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user cinder service
+  changed_when: false
+
 - name: Check service entity for cinder
   ansible.builtin.shell:
     cmd: openstack service show volumev3 || true

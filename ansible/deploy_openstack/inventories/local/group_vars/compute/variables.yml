@@ -1,2 +1,3 @@
 ---
 ntp_server: "{{ controller01_host_addr }}"
+primary_device_name: vda

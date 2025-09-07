@@ -54,3 +54,9 @@
     path: /etc/nova/nova.conf
     regexp: "^\\[placement\\](\n(.*))*?\n*(\n# From nova.conf).*"
     replace: "{{ lookup('ansible.builtin.template', 'placement.conf.j2') }}"
+
+- name: Reconfigure Nova - set Cinder
+  ansible.builtin.replace:
+    path: /etc/nova/nova.conf
+    regexp: "^\\[cinder\\](\n(.*))*?\n*(# From nova.conf).*"
+    replace: "{{ lookup('ansible.builtin.template', 'cinder.conf.j2') }}"

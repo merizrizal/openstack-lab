@@ -2,15 +2,6 @@
 transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}:5672/
 my_ip = {{ mgmtnet_ip_address }}
 glance_api_servers = http://{{ controller01_host_addr }}:9292
-rootwrap_config = /etc/cinder/rootwrap.conf
-api_paste_confg = /etc/cinder/api-paste.ini
-iscsi_helper = lioadm
-volume_name_template = volume-%s
-volume_group = cinder-volumes
-verbose = True
 auth_strategy = keystone
-state_path = /var/lib/cinder
-lock_path = /var/lock/cinder
-volumes_dir = /var/lib/cinder/volumes
 enabled_backends = lvm
 #enabled_backends = lvm

@@ -1,0 +1,12 @@
+[cinder]
+os_region_name = RegionOne
+auth_url = http://{{ controller01_host_addr }}:5000/v3
+auth_strategy = keystone
+auth_type = password
+project_domain_name = Default
+project_name = service
+user_domain_name = Default
+username = cinder
+password = {{ os_cinder_password }}
+#
+# From nova.conf

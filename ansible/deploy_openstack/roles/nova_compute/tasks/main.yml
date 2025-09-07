@@ -16,6 +16,12 @@
     name: nova
     tasks_from: main
 
+- name: Reconfigure lvm.conf - set devices/filter
+  ansible.builtin.replace:
+    path: /etc/lvm/lvm.conf
+    regexp: "^(devices {)(\n(.*))*?\n*(# Configuration option devices/dir.).*"
+    replace: "{{ lookup('ansible.builtin.template', 'lvm_devices_filter.conf.j2') }}"
+
 - name: Start and enable Nova compute
   ansible.builtin.service:
     name: nova-compute

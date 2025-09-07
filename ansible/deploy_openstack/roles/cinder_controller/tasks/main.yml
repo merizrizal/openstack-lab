@@ -33,12 +33,6 @@
     name: cinder
     tasks_from: main
 
-- name: Reconfigure Nova - set cinder
-  ansible.builtin.replace:
-    path: /etc/nova/nova.conf
-    regexp: "^\\[cinder\\](\n(.*))*?\n*(# From nova.conf).*"
-    replace: "{{ lookup('ansible.builtin.file', 'nova_cinder.conf') }}"
-
 - name: Populate the cinder database
   ansible.builtin.command:
     cmd: sudo -u cinder cinder-manage db sync
