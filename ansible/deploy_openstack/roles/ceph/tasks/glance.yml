@@ -1,0 +1,26 @@
+---
+- name: Copy Glance keyring
+  ansible.builtin.copy:
+    src: "{{ glance_keyring_path }}"
+    dest: /etc/ceph/ceph.client.glance.keyring
+    owner: glance
+    group: glance
+    mode: "644"
+
+- name: Reconfigure glance-api.conf - set default
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# Allow limited access to).*"
+    replace: "{{ lookup('ansible.builtin.file', 'glance_default.conf') }}"
+
+- name: Reconfigure glance-api.conf - set Ceph in glance store
+  ansible.builtin.replace:
+    path: /etc/glance/glance-api.conf
+    regexp: "^\\[glance_store\\](\n(.*))*?\n*(# The store identifier for the default backend).*"
+    replace: "{{ lookup('ansible.builtin.file', 'glance_ceph.conf') }}"
+
+- name: Start and enable Glance API
+  ansible.builtin.service:
+    name: glance-api
+    state: restarted
+    enabled: true
