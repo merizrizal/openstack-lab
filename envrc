@@ -6,7 +6,7 @@ export ANSIBLE_CONFIG=$ROOT_DIR/ansible.cfg
 cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
 
 check_python_version() {
-	python_versions="3.11 3.12 3.13"
+	python_versions="3.11 3.12"
 	found=""
 	python_is_installed=""
 	for python_version in $python_versions; do
