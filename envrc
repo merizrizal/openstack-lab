@@ -5,6 +5,31 @@ export ANSIBLE_CONFIG=$ROOT_DIR/ansible.cfg
 
 cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
 
+check_python_version() {
+	python_versions="3.11 3.12 3.13"
+	found=""
+	python_is_installed=""
+	for python_version in $python_versions; do
+		python_is_installed=`(which "python$python_version")`
+		if [[ "$python_is_installed" == "" ]] then
+			echo "Python$python_version is not installed."
+		else
+			found="True"
+			echo "Found $python_is_installed"
+			break
+		fi
+	done
+
+	if [[ "$found" != "True" ]] then
+		echo "Required Python3 is not installed."
+        exit 1
+	fi
+
+	alias python3="$python_is_installed"
+}
+
+check_python_version
+
 show_tree() {
     local depth=$1
 
