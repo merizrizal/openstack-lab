@@ -143,7 +143,16 @@ You can replace `<host-external-interface>` with `$(ip route get 1.1.1.1 | awk '
 
 
 **Provision Ceph:**
-TBD.
+1. Run `source envrc` then navigate to `./ansible` directory.
+2. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
+3. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_adm.yml` to install and configure Ceph ADM service.
+4. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_common.yml` to install and configure Ceph common packages to the other hosts.
+5. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_apply_osd.yml` to add the other hosts and apply the OSD.
+6. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_openstack_init.yml` to configure OpenStack Cinder and Nova to be able to integrate with Ceph
+
+or
+
+Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_deploy.yml` to deploy all at once.
 
 ---
 
