@@ -1,5 +1,6 @@
 stages:
   - lint
+  - molecule
 
 ansible-sanity-test-lint:
   image: python:$VERSION
@@ -9,6 +10,19 @@ ansible-sanity-test-lint:
     - python -m pip install -r requirements.txt
     - source circ
     - ansible-lint --fix --config-file ./.ansible-lint ansible/* inventories/*
+  parallel:
+    matrix:
+      - VERSION: ["3.11", "3.12"]
+
+ansible-inventory-validation-test-molecule:
+  image: python:$VERSION
+  stage: molecule
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -r requirements.txt
+    - source circ
+    - PLAY_ENV=local molecule test -s openstack
+    - PLAY_ENV=local molecule test -s ceph
   parallel:
     matrix:
       - VERSION: ["3.11", "3.12"]
