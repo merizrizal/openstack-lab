@@ -1,4 +1,4 @@
-name: Run ansible sanity test lint
+name: Run ansible sanity test
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,3 +31,13 @@ jobs:
       run: |
         source circ
         ansible-lint --fix --config-file ./.ansible-lint ansible/* inventories/*
+
+    - name: Run Ansible inventory variable validation test using molecule - Openstack
+      run: |
+        source circ
+        PLAY_ENV=local molecule test -s openstack
+
+    - name: Run Ansible inventory variable validation test using molecule - Ceph
+      run: |
+        source circ
+        PLAY_ENV=local molecule test -s ceph
