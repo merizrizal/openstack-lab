@@ -1,0 +1,11 @@
+---
+- name: Clean up
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Remove actual json files
+      ansible.builtin.file:
+        path: "{{ molecule_scenario_directory }}/actual/{{ inventory_hostname }}.json"
+        state: absent
+      delegate_to: localhost
+      no_log: true

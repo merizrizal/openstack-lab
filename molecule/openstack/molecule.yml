@@ -1,0 +1,25 @@
+---
+ansible:
+  executor:
+    backend: ansible-playbook
+    args:
+      ansible_playbook:
+        - --diff
+        - --force-handlers
+        - --inventory=$ROOT_DIR/ansible/deploy_openstack/inventories/$PLAY_ENV/$PLAY_ENV.yml
+        - --extra-vars=@$ROOT_DIR/inventories/$PLAY_ENV/nodes.yml
+
+  playbooks:
+    create: null
+    converge: null
+    destroy: null
+    cleanup: ../cleanup.yml
+    prepare: null
+    side_effect: null
+    verify: ../verify.yml
+
+scenario:
+  name: openstack
+  test_sequence:
+    - verify
+    - cleanup
