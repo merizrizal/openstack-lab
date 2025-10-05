@@ -2,7 +2,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BASE_DIR=$SCRIPT_DIR/../..
 
-ANSIBLE_YML_FILES_PATH="ansible/|inventories/"
+ANSIBLE_YML_FILES_PATH="ansible/|inventories/|molecule/"
 CHANGED_ANSIBLE_YML_FILES=$(cd ${BASE_DIR} && git diff --cached --name-only --diff-filter=d | grep -E "$ANSIBLE_YML_FILES_PATH" | grep -E "\.yml$|\.yaml$" | tr "\n" " ")
 CHANGED_ANSIBLE_YML_FILES_LEN=$(cd ${BASE_DIR} && git diff --cached --name-only --diff-filter=d | grep -E "$ANSIBLE_YML_FILES_PATH" | grep -E "\.yml$|\.yaml$" | tr "\n" " " | wc -w | xargs)
 

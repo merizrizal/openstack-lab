@@ -4,10 +4,9 @@
   gather_facts: false
   vars:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    play_env: "{{ lookup('ansible.builtin.env', 'PLAY_ENV') }}"
     excluded_vars:
       - ^molecule
-      - .*pass.*
-      - .*secret.*
       - ^ansible_config_file$
       - ^ansible_facts$
       - ^ansible_version$
@@ -17,26 +16,45 @@
       - ^ansible_skip_tags$
       - ^playbook_dir$
   tasks:
+    - name: Do masking the secret on the inventory variables
+      ansible.builtin.set_fact:
+        inventory_vars_json: "{{ vars_as_json_replaced }}"
+      vars:
+        vars_as_json: "{{ hostvars[inventory_hostname] | to_json | replace(item.value, '***********') }}"
+        vars_as_json_replaced: "{{ inventory_vars_json | default(vars_as_json) | replace(item.value, '***********') }}"
+      loop: "{{ hostvars[inventory_hostname] | dict2items }}"
+      when: "'vault' in item.key and ('pass' in item.key or 'secret' in item.key)"
+      no_log: true
+
     - name: Get inventory variables
       ansible.builtin.set_fact:
         inventory_vars: "{{ parsed_vars | ansible.utils.remove_keys(target=excluded_vars, matching_parameter='regex') }}"
       vars:
         vars_as_json: "{{ hostvars[inventory_hostname] | to_json }}"
-        cleaned_vars_as_json: "{{ vars_as_json | replace(root_dir, '$ROOT_DIR') }}"
+        cleaned_vars_as_json: >-
+          {{ inventory_vars_json | default(vars_as_json) | replace(root_dir, '$ROOT_DIR') }}
         parsed_vars: "{{ cleaned_vars_as_json | from_json }}"
 
     - name: Write expected result if does not exist
       ansible.builtin.copy:
         content: "{{ inventory_vars | to_nice_json }}"
-        dest: "{{ molecule_scenario_directory }}/expected/{{ inventory_hostname }}.json"
+        dest: "{{ molecule_scenario_directory }}/{{ play_env }}/expected/{{ inventory_hostname }}.json"
         mode: "644"
         force: false
       delegate_to: localhost
 
+    - name: Ensure the actual directory exists
+      ansible.builtin.file:
+        path: "{{ molecule_scenario_directory }}/{{ play_env }}/actual"
+        state: directory
+        mode: "755"
+      delegate_to: localhost
+      no_log: true
+
     - name: Copy expected result json files to actual directory
       ansible.builtin.copy:
-        src: "{{ molecule_scenario_directory }}/expected/{{ inventory_hostname }}.json"
-        dest: "{{ molecule_scenario_directory }}/actual/{{ inventory_hostname }}.json"
+        src: "{{ molecule_scenario_directory }}/{{ play_env }}/expected/{{ inventory_hostname }}.json"
+        dest: "{{ molecule_scenario_directory }}/{{ play_env }}/actual/{{ inventory_hostname }}.json"
         mode: "644"
       delegate_to: localhost
       no_log: true
@@ -44,7 +62,7 @@
     - name: Overwrite the copied expected result json file againsts the actual result
       ansible.builtin.copy:
         content: "{{ inventory_vars | to_nice_json }}"
-        dest: "{{ molecule_scenario_directory }}/actual/{{ inventory_hostname }}.json"
+        dest: "{{ molecule_scenario_directory }}/{{ play_env }}/actual/{{ inventory_hostname }}.json"
         mode: "644"
       delegate_to: localhost
       register: overwrite_result

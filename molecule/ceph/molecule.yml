@@ -8,16 +8,14 @@ ansible:
         - --force-handlers
         - --inventory=$ROOT_DIR/ansible/deploy_ceph/inventories/$PLAY_ENV/$PLAY_ENV.yml
         - --extra-vars=@$ROOT_DIR/inventories/$PLAY_ENV/nodes.yml
-
   playbooks:
-    create: null
-    converge: null
-    destroy: null
+    create:
+    converge:
+    destroy:
     cleanup: ../cleanup.yml
-    prepare: null
-    side_effect: null
+    prepare:
+    side_effect:
     verify: ../verify.yml
-
 scenario:
   name: ceph
   test_sequence:

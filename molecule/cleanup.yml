@@ -2,10 +2,12 @@
 - name: Clean up
   hosts: all
   gather_facts: false
+  vars:
+    play_env: "{{ lookup('ansible.builtin.env', 'PLAY_ENV') }}"
   tasks:
     - name: Remove actual json files
       ansible.builtin.file:
-        path: "{{ molecule_scenario_directory }}/actual/{{ inventory_hostname }}.json"
+        path: "{{ molecule_scenario_directory }}/{{ play_env }}/actual/{{ inventory_hostname }}.json"
         state: absent
       delegate_to: localhost
       no_log: true
