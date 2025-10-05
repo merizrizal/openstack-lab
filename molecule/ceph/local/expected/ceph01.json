@@ -4,10 +4,12 @@
     "ansible_diff_mode": true,
     "ansible_forks": 50,
     "ansible_host": "192.168.121.9",
+    "ansible_password": "vagrant",
     "ansible_run_tags": [
         "all"
     ],
     "ansible_ssh_common_args": "-o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no -o \"PubkeyAuthentication=no\"",
+    "ansible_sudo_pass": "vagrant",
     "ansible_user": "vagrant",
     "ceph01": {
         "additional_disks": [
@@ -54,6 +56,7 @@
         "mgmtnet_ip_address": "192.168.121.11",
         "provider_ip_address": "192.168.123.11"
     },
+    "ceph_admin_password": "vagrant",
     "ceph_admin_user": "admin",
     "ceph_pub_key_fetch_path": "/tmp/fetch-ceph.pub",
     "compute01": {
