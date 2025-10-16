@@ -1,7 +1,7 @@
 ---
-- name: Add OpenStack cloud-archive:epoxy repository
+- name: Add OpenStack repository {{ openstack_repo }}
   ansible.builtin.command:
-    cmd: add-apt-repository -y cloud-archive:epoxy
+    cmd: add-apt-repository -y {{ openstack_repo }}
   register: add_repo_result
   changed_when: add_repo_result.stdout is defined and 'Found existing' not in add_repo_result.stdout
 
