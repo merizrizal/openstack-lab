@@ -5,6 +5,8 @@ stages:
 ansible-sanity-test-lint:
   image: python:$VERSION
   stage: lint
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
   script:
     - python -m pip install --upgrade pip
     - python -m pip install -r requirements.txt
@@ -17,6 +19,8 @@ ansible-sanity-test-lint:
 ansible-inventory-validation-test-molecule:
   image: python:$VERSION
   stage: molecule
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
   script:
     - python -m pip install --upgrade pip
     - python -m pip install -r requirements.txt
