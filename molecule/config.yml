@@ -1,0 +1,38 @@
+---
+ansible:
+  cfg:
+    defaults:
+      collections_path: >-
+        $HOME/.ansible/collections:/usr/share/ansible/collections:$ROOT_DIR/dist/ansible/itential-deployer:$ROOT_DIR/dist/ansible/colt_utils_collections
+      roles_path: $HOME/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:$ROOT_DIR/shared_resources/playbooks/roles
+      log_path: $ROOT_DIR/molecule/log/$SCENARIO/$LOG_FILE.log
+    inventory:
+      enable_plugins: host_list, script, auto, yaml, ini, toml
+  executor:
+    backend: ansible-playbook
+    args:
+      ansible_playbook:
+        - --diff
+        - --force-handlers
+        - --inventory=$ROOT_DIR/ansible/deploy_$SCENARIO/inventories/$TARGET_ENV/$TARGET_ENV.yml
+        - --extra-vars=@$ROOT_DIR/inventories/$TARGET_ENV/nodes.yml
+  playbooks:
+    create: $ROOT_DIR/molecule/create.yml
+    converge: $ROOT_DIR/molecule/$SCENARIO/converge.yml
+    destroy: $ROOT_DIR/molecule/destroy.yml
+    cleanup: $ROOT_DIR/molecule/cleanup.yml
+    prepare:
+    side_effect:
+    verify: $ROOT_DIR/molecule/vars_validation.yml
+scenario:
+  test_sequence:
+    - verify
+    - cleanup
+  create_sequence:
+    - create
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+verifier:
+  name: ansible
