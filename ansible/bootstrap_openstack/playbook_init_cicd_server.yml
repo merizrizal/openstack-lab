@@ -29,7 +29,16 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: gitlab01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.gitlab01.name | replace('_', '-') }}"
       when: gitlab_server.servers is defined and gitlab_server.servers | length == 0
 
     - name: Get Jenkins server info
@@ -47,7 +56,16 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: jenkins01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.jenkins01.name | replace('_', '-') }}"
       when: jenkins_server.servers is defined and jenkins_server.servers | length == 0
 
     - name: Get Runner server info
@@ -65,7 +83,16 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: runner01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.runner01.name | replace('_', '-') }}"
       when: runner.servers is defined and runner.servers | length == 0
 
     - name: Get CI Monitor server info
@@ -83,5 +110,14 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: ci_monitor01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.ci_monitor01.name | replace('_', '-') }}"
       when: ci_monitor.servers is defined and ci_monitor.servers | length == 0

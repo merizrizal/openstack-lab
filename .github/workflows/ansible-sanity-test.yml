@@ -35,9 +35,9 @@ jobs:
     - name: Run Ansible inventory variable validation test using molecule - Openstack
       run: |
         source circ
-        PLAY_ENV=local molecule test -s openstack
+        make validate-openstack
 
     - name: Run Ansible inventory variable validation test using molecule - Ceph
       run: |
         source circ
-        PLAY_ENV=local molecule test -s ceph
+        make validate-ceph
