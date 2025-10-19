@@ -29,7 +29,16 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: control_plane01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.control_plane01.name | replace('_', '-') }}"
       when: control_plane.servers is defined and control_plane.servers | length == 0
 
     - name: Get Worker01 server info
@@ -47,7 +56,16 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: workers01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.worker01.name | replace('_', '-') }}"
       when: worker01.servers is defined and worker01.servers | length == 0
 
     - name: Get Worker02 server info
@@ -65,5 +83,14 @@
         nics:
           - net-id: "{{ network_id }}"
         metadata:
+          hostname: "{{ hostname }}"
           group: workers01
+        userdata: |
+          #cloud-config
+          hostname: {{ hostname }}
+          create_hostname_file: true
+          fqdn: {{ hostname }}.example.com
+          prefer_fqdn_over_hostname: true
+      vars:
+        hostname: "{{ cicd_list.worker02.name | replace('_', '-') }}"
       when: worker02.servers is defined and worker02.servers | length == 0
