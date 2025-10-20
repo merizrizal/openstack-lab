@@ -24,6 +24,8 @@
         name: "{{ cicd_list.gitlab01.name }}"
         image: vm_image01
         flavor: medium.large
+        boot_from_volume: true
+        volume_size: 50
         security_groups:
           - default
         nics:
@@ -51,6 +53,8 @@
         name: "{{ cicd_list.jenkins01.name }}"
         image: vm_image01
         flavor: medium.large
+        boot_from_volume: true
+        volume_size: 50
         security_groups:
           - default
         nics:
@@ -78,6 +82,8 @@
         name: "{{ cicd_list.runner01.name }}"
         image: vm_image01
         flavor: medium
+        boot_from_volume: true
+        volume_size: 30
         security_groups:
           - default
         nics:
@@ -105,6 +111,8 @@
         name: "{{ cicd_list.ci_monitor01.name }}"
         image: vm_image01
         flavor: medium
+        boot_from_volume: true
+        volume_size: 30
         security_groups:
           - default
         nics:

@@ -15,4 +15,5 @@
   loop:
     - images
     - volumes
+    - vms
   changed_when: false
