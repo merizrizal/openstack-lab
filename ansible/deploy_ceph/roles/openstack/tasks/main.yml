@@ -5,6 +5,7 @@
       ceph auth get-or-create client.glance
       mon 'profile rbd'
       osd 'profile rbd pool=images'
+      mgr 'profile rbd pool=images'
       -o /etc/ceph/ceph.client.glance.keyring
   changed_when: false
 
@@ -20,6 +21,7 @@
       ceph auth get-or-create client.cinder
       mon 'profile rbd'
       osd 'profile rbd pool=volumes, profile rbd pool=images'
+      mgr 'profile rbd pool=volumes, profile rbd pool=images'
       -o /etc/ceph/ceph.client.cinder.keyring
   changed_when: false
 
@@ -34,7 +36,8 @@
     cmd: >
       ceph auth get-or-create client.nova
       mon 'profile rbd'
-      osd 'profile rbd pool=volumes, profile rbd pool=images'
+      osd 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
+      mgr 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
       -o /etc/ceph/ceph.client.nova.keyring
   changed_when: false
 

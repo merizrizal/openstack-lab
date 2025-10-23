@@ -15,11 +15,11 @@
         "additional_disks": [
             {
                 "name": "vdb",
-                "size": 60
+                "size": 100
             }
         ],
         "cpus": 2,
-        "disks": 40,
+        "disks": 25,
         "environment": "ceph",
         "hostname": "ceph01.local",
         "memory": 4096,
@@ -30,11 +30,11 @@
         "additional_disks": [
             {
                 "name": "vdb",
-                "size": 60
+                "size": 100
             }
         ],
         "cpus": 2,
-        "disks": 40,
+        "disks": 25,
         "environment": "ceph",
         "hostname": "ceph02.local",
         "memory": 4096,
@@ -45,11 +45,11 @@
         "additional_disks": [
             {
                 "name": "vdb",
-                "size": 60
+                "size": 100
             }
         ],
         "cpus": 2,
-        "disks": 40,
+        "disks": 25,
         "environment": "ceph",
         "hostname": "ceph03.local",
         "memory": 4096,
@@ -60,7 +60,7 @@
     "cinder_password": "vagrant",
     "compute01": {
         "cpus": 10,
-        "disks": 90,
+        "disks": 25,
         "environment": "compute",
         "hostname": "compute01.local",
         "memory": 16384,
@@ -70,7 +70,7 @@
     "compute01_host_addr": "192.168.121.6",
     "compute02": {
         "cpus": 6,
-        "disks": 90,
+        "disks": 25,
         "environment": "compute",
         "hostname": "compute02.local",
         "memory": 12288,
@@ -79,7 +79,7 @@
     },
     "controller01": {
         "cpus": 4,
-        "disks": 40,
+        "disks": 25,
         "environment": "controller",
         "hostname": "controller01.local",
         "memory": 7168,
@@ -146,7 +146,7 @@
             }
         ],
         "cpus": 2,
-        "disks": 40,
+        "disks": 25,
         "environment": "storage",
         "hostname": "storage01.local",
         "memory": 2048,

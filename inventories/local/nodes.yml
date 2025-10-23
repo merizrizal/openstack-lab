@@ -6,7 +6,7 @@ controller01:
   hostname: controller01.local
   memory: 7168
   cpus: 4
-  disks: 40
+  disks: 25
 
 compute01:
   environment: compute
@@ -15,7 +15,7 @@ compute01:
   hostname: compute01.local
   memory: 16384
   cpus: 10
-  disks: 90
+  disks: 25
 
 compute02:
   environment: compute
@@ -24,7 +24,7 @@ compute02:
   hostname: compute02.local
   memory: 12288
   cpus: 6
-  disks: 90
+  disks: 25
 
 storage01:
   environment: storage
@@ -33,7 +33,7 @@ storage01:
   hostname: storage01.local
   memory: 2048
   cpus: 2
-  disks: 40
+  disks: 25
   additional_disks:
     - size: 20
       name: vdb
@@ -45,9 +45,9 @@ ceph01:
   hostname: ceph01.local
   memory: 4096
   cpus: 2
-  disks: 40
+  disks: 25
   additional_disks:
-    - size: 60
+    - size: 100
       name: vdb
 
 ceph02:
@@ -57,9 +57,9 @@ ceph02:
   hostname: ceph02.local
   memory: 4096
   cpus: 2
-  disks: 40
+  disks: 25
   additional_disks:
-    - size: 60
+    - size: 100
       name: vdb
 
 ceph03:
@@ -69,7 +69,7 @@ ceph03:
   hostname: ceph03.local
   memory: 4096
   cpus: 2
-  disks: 40
+  disks: 25
   additional_disks:
-    - size: 60
+    - size: 100
       name: vdb

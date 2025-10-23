@@ -8,3 +8,4 @@ netaddr
 openstacksdk
 xmltodict
 jinja2
+passlib
