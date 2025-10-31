@@ -56,7 +56,7 @@
         "mgmtnet_ip_address": "192.168.121.11",
         "provider_ip_address": "192.168.123.11"
     },
-    "ceph_enabled": false,
+    "ceph_enabled": true,
     "cinder_password": "vagrant",
     "compute01": {
         "cpus": 10,
