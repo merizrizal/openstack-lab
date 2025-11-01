@@ -9,4 +9,4 @@ controller01_host_addr: "{{ use_hostname | ternary(controller01.hostname, contro
 compute01_host_addr: "{{ use_hostname | ternary(compute01.hostname, compute01.mgmtnet_ip_address) }}"
 storage01_host_addr: "{{ use_hostname | ternary(storage01.hostname, storage01.mgmtnet_ip_address) }}"
 
-ceph_enabled: true
+ceph_enabled: false
