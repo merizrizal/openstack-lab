@@ -1,0 +1,29 @@
+---
+- name: Get server info
+  openstack.cloud.server_info:
+    name: "{{ server_name }}"
+  register: server_info
+
+- name: Create server
+  openstack.cloud.server:
+    name: "{{ server_name }}"
+    image: "{{ image_name }}"
+    flavor: "{{ server_flavor }}"
+    boot_from_volume: true
+    volume_size: "{{ server_volume_size }}"
+    security_groups:
+      - default
+    nics:
+      - net-id: "{{ network_id }}"
+    metadata:
+      hostname: "{{ server_hostname }}"
+      group: "{{ server_group }}"
+    userdata: |
+      #cloud-config
+      hostname: {{ server_hostname }}
+      create_hostname_file: true
+      fqdn: {{ server_hostname }}.example.com
+      prefer_fqdn_over_hostname: true
+  vars:
+    server_hostname: "{{ server_name | replace('_', '-') }}"
+  when: server_info.servers is defined and server_info.servers | length == 0

@@ -7,125 +7,49 @@
   tasks:
     - name: Get provider network
       openstack.cloud.networks_info:
-        name: provider
+        name: "{{ provider_network_name }}"
       register: provider_network
 
     - name: Set provider network id to fact
       ansible.builtin.set_fact:
         network_id: "{{ provider_network.networks[0].id }}"
 
-    - name: Get Gitlab server info
-      openstack.cloud.server_info:
-        name: "{{ cicd_list.gitlab01.name }}"
-      register: gitlab_server
-
     - name: Create Gitlab server
-      openstack.cloud.server:
-        name: "{{ cicd_list.gitlab01.name }}"
-        image: vm_image01
-        flavor: medium.large
-        boot_from_volume: true
-        volume_size: 50
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: gitlab01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ cicd_list.gitlab01.name | replace('_', '-') }}"
-      when: gitlab_server.servers is defined and gitlab_server.servers | length == 0
-
-    - name: Get Jenkins server info
-      openstack.cloud.server_info:
-        name: "{{ cicd_list.jenkins01.name }}"
-      register: jenkins_server
+        server_name: "{{ cicd_list.gitlab01.name }}"
+        server_flavor: medium.large
+        server_volume_size: 50
+        server_group: gitlab01
 
     - name: Create Jenkins server
-      openstack.cloud.server:
-        name: "{{ cicd_list.jenkins01.name }}"
-        image: vm_image01
-        flavor: medium.large
-        boot_from_volume: true
-        volume_size: 50
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: jenkins01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ cicd_list.jenkins01.name | replace('_', '-') }}"
-      when: jenkins_server.servers is defined and jenkins_server.servers | length == 0
+        server_name: "{{ cicd_list.jenkins01.name }}"
+        server_flavor: medium.large
+        server_volume_size: 50
+        server_group: jenkins01
 
-    - name: Get Runner server info
-      openstack.cloud.server_info:
-        name: "{{ cicd_list.runner01.name }}"
-      register: runner
-
-    - name: Create Runner
-      openstack.cloud.server:
-        name: "{{ cicd_list.runner01.name }}"
-        image: vm_image01
-        flavor: medium
-        boot_from_volume: true
-        volume_size: 30
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: runner01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+    - name: Create Runner server
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ cicd_list.runner01.name | replace('_', '-') }}"
-      when: runner.servers is defined and runner.servers | length == 0
+        server_name: "{{ cicd_list.runner01.name }}"
+        server_flavor: medium
+        server_volume_size: 30
+        server_group: runner01
 
-    - name: Get CI Monitor server info
-      openstack.cloud.server_info:
-        name: "{{ cicd_list.ci_monitor01.name }}"
-      register: ci_monitor
-
-    - name: Create CI Monitor
-      openstack.cloud.server:
-        name: "{{ cicd_list.ci_monitor01.name }}"
-        image: vm_image01
-        flavor: medium
-        boot_from_volume: true
-        volume_size: 30
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: ci_monitor01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+    - name: Create CI Monitor server
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ cicd_list.ci_monitor01.name | replace('_', '-') }}"
-      when: ci_monitor.servers is defined and ci_monitor.servers | length == 0
+        server_name: "{{ cicd_list.ci_monitor01.name }}"
+        server_flavor: medium
+        server_volume_size: 30
+        server_group: ci_monitor01

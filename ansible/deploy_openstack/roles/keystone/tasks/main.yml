@@ -4,8 +4,10 @@
     cmd: |
       mysql -u root <<EOF
       CREATE DATABASE IF NOT EXISTS keystone;
-      GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '{{ keystone_password }}';
-      GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY '{{ keystone_password }}';
+      CREATE USER IF NOT EXISTS 'keystone'@'localhost' IDENTIFIED BY '{{ keystone_password }}';
+      GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost';
+      CREATE USER IF NOT EXISTS 'keystone'@'%' IDENTIFIED BY '{{ keystone_password }}';
+      GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%';
       FLUSH PRIVILEGES;
       EOF
     executable: /bin/bash

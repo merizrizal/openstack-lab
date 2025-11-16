@@ -7,96 +7,39 @@
   tasks:
     - name: Get provider network
       openstack.cloud.networks_info:
-        name: provider
+        name: "{{ provider_network_name }}"
       register: provider_network
 
     - name: Set provider network id to fact
       ansible.builtin.set_fact:
         network_id: "{{ provider_network.networks[0].id }}"
 
-    - name: Get Control Plane server info
-      openstack.cloud.server_info:
-        name: "{{ kubernetes_list.control_plane01.name }}"
-      register: control_plane
-
     - name: Create Control Plane server
-      openstack.cloud.server:
-        name: "{{ kubernetes_list.control_plane01.name }}"
-        image: vm_image01
-        flavor: medium
-        boot_from_volume: true
-        volume_size: 30
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: control_plane01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ kubernetes_list.control_plane01.name | replace('_', '-') }}"
-      when: control_plane.servers is defined and control_plane.servers | length == 0
-
-    - name: Get Worker01 server info
-      openstack.cloud.server_info:
-        name: "{{ kubernetes_list.worker01.name }}"
-      register: worker01
+        server_name: "{{ kubernetes_list.control_plane01.name }}"
+        server_flavor: medium
+        server_volume_size: 30
+        server_group: control_plane01
 
     - name: Create Worker01 server
-      openstack.cloud.server:
-        name: "{{ kubernetes_list.worker01.name }}"
-        image: vm_image01
-        flavor: medium
-        boot_from_volume: true
-        volume_size: 30
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: workers01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ kubernetes_list.worker01.name | replace('_', '-') }}"
-      when: worker01.servers is defined and worker01.servers | length == 0
-
-    - name: Get Worker02 server info
-      openstack.cloud.server_info:
-        name: "{{ kubernetes_list.worker02.name }}"
-      register: worker02
+        server_name: "{{ kubernetes_list.worker01.name }}"
+        server_flavor: medium
+        server_volume_size: 30
+        server_group: workers01
 
     - name: Create Worker02 server
-      openstack.cloud.server:
-        name: "{{ kubernetes_list.worker02.name }}"
-        image: vm_image01
-        flavor: medium
-        boot_from_volume: true
-        volume_size: 30
-        security_groups:
-          - default
-        nics:
-          - net-id: "{{ network_id }}"
-        metadata:
-          hostname: "{{ hostname }}"
-          group: workers01
-        userdata: |
-          #cloud-config
-          hostname: {{ hostname }}
-          create_hostname_file: true
-          fqdn: {{ hostname }}.example.com
-          prefer_fqdn_over_hostname: true
+      ansible.builtin.include_role:
+        name: openstack
+        tasks_from: init_server
       vars:
-        hostname: "{{ kubernetes_list.worker02.name | replace('_', '-') }}"
-      when: worker02.servers is defined and worker02.servers | length == 0
+        server_name: "{{ kubernetes_list.worker02.name }}"
+        server_flavor: medium
+        server_volume_size: 30
+        server_group: workers02
