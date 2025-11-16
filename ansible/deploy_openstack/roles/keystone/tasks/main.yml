@@ -1,17 +1,12 @@
 ---
 - name: Initialize database
-  ansible.builtin.shell:
-    cmd: |
-      mysql -u root <<EOF
-      CREATE DATABASE IF NOT EXISTS keystone;
-      CREATE USER IF NOT EXISTS 'keystone'@'localhost' IDENTIFIED BY '{{ keystone_password }}';
-      GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost';
-      CREATE USER IF NOT EXISTS 'keystone'@'%' IDENTIFIED BY '{{ keystone_password }}';
-      GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%';
-      FLUSH PRIVILEGES;
-      EOF
-    executable: /bin/bash
-  changed_when: false
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: init_database
+  vars:
+    db_name: keystone
+    db_user: keystone
+    db_password: "{{ keystone_password }}"
 
 - name: Install Keystone package
   ansible.builtin.package:

@@ -1,15 +1,12 @@
 ---
 - name: Initialize database
-  ansible.builtin.shell:
-    cmd: |
-      mysql -u root <<EOF
-      CREATE DATABASE IF NOT EXISTS placement;
-      GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'localhost' IDENTIFIED BY '{{ placement_password }}';
-      GRANT ALL PRIVILEGES ON placement.* TO 'placement'@'%' IDENTIFIED BY '{{ placement_password }}';
-      FLUSH PRIVILEGES;
-      EOF
-    executable: /bin/bash
-  changed_when: false
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: init_database
+  vars:
+    db_name: placement
+    db_user: placement
+    db_password: "{{ placement_password }}"
 
 - name: Configure service
   ansible.builtin.include_tasks:

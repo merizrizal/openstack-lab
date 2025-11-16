@@ -11,6 +11,15 @@
     executable: /bin/bash
   changed_when: false
 
+- name: Initialize database
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: init_database
+  vars:
+    db_name: neutron
+    db_user: neutron
+    db_password: "{{ neutron_password }}"
+
 - name: Install Neutron package
   ansible.builtin.package:
     name:
