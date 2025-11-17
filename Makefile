@@ -11,7 +11,7 @@ validate-openstack:
 
 start-validate-%:
 	@mkdir -p molecule/log/$*
-	@mkdir -p molecule/$*/$$TARGET_ENV/expected
+	@mkdir -p molecule/$*/results/$$TARGET_ENV/expected
 	@date=`(date "+%Y_%m_%d_%H_%M_%N")`; \
 	SCENARIO=$* LOG_FILE=$$TARGET_ENV-$$date molecule -c molecule/config.yml test -s $* --report --command-borders
-	@rm -rf molecule/$*/$$TARGET_ENV/actual
+	@rm -rf molecule/$*/results/$$TARGET_ENV/actual

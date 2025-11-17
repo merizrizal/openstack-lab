@@ -7,7 +7,7 @@
   tasks:
     - name: Remove actual json files
       ansible.builtin.file:
-        path: "{{ molecule_scenario_directory }}/{{ target_env }}/actual/{{ inventory_hostname }}.json"
+        path: "{{ molecule_scenario_directory }}/results/{{ target_env }}/actual/{{ inventory_hostname }}.json"
         state: absent
       delegate_to: localhost
       no_log: true

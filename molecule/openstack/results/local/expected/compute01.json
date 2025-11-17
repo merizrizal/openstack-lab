@@ -122,7 +122,7 @@
     "inventory_hostname_short": "compute01",
     "metadata_secret": "vagrant",
     "ntp_server": "192.168.121.5",
-    "openstack_repo": "cloud-archive:flamingo",
+    "openstack_repo": "cloud-archive:epoxy",
     "os_cinder_password": "vagrant",
     "os_keystone_password": "vagrant",
     "os_neutron_password": "vagrant",
