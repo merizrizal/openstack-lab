@@ -4,125 +4,21 @@
     "ansible_diff_mode": true,
     "ansible_forks": 50,
     "ansible_host": "192.168.121.8",
-    "ansible_password": "vagrant",
     "ansible_run_tags": [
         "all"
     ],
     "ansible_ssh_common_args": "-o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no -o \"PubkeyAuthentication=no\"",
-    "ansible_sudo_pass": "vagrant",
-    "ansible_user": "vagrant",
-    "ceph01": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph01.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.9",
-        "provider_ip_address": "192.168.123.9"
-    },
-    "ceph02": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph02.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.10",
-        "provider_ip_address": "192.168.123.10"
-    },
-    "ceph03": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph03.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.11",
-        "provider_ip_address": "192.168.123.11"
-    },
-    "ceph_enabled": false,
     "cinder_password": "vagrant",
-    "compute01": {
-        "cpus": 10,
-        "disks": 25,
-        "environment": "compute",
-        "hostname": "compute01.local",
-        "memory": 16384,
-        "mgmtnet_ip_address": "192.168.121.6",
-        "provider_ip_address": "192.168.123.6"
-    },
-    "compute01_host_addr": "192.168.121.6",
-    "compute02": {
-        "cpus": 6,
-        "disks": 25,
-        "environment": "compute",
-        "hostname": "compute02.local",
-        "memory": 12288,
-        "mgmtnet_ip_address": "192.168.121.7",
-        "provider_ip_address": "192.168.123.7"
-    },
-    "controller01": {
-        "cpus": 4,
-        "disks": 25,
-        "environment": "controller",
-        "hostname": "controller01.local",
-        "memory": 7168,
-        "mgmtnet_ip_address": "192.168.121.5",
-        "provider_ip_address": "192.168.123.5"
-    },
-    "controller01_host_addr": "192.168.121.5",
     "group_names": [
         "lab",
         "storage"
     ],
-    "groups": {
-        "all": [
-            "controller01",
-            "compute01",
-            "compute02",
-            "storage01"
-        ],
-        "compute": [
-            "compute01",
-            "compute02"
-        ],
-        "controller": [
-            "controller01"
-        ],
-        "lab": [
-            "controller01",
-            "compute01",
-            "compute02",
-            "storage01"
-        ],
-        "storage": [
-            "storage01"
-        ],
-        "ungrouped": []
-    },
     "inventory_dir": "$ROOT_DIR/ansible/deploy_openstack/inventories/local",
     "inventory_file": "$ROOT_DIR/ansible/deploy_openstack/inventories/local/local.yml",
     "inventory_hostname": "storage01",
     "inventory_hostname_short": "storage01",
     "metadata_secret": "vagrant",
     "ntp_server": "192.168.121.5",
-    "openstack_repo": "cloud-archive:epoxy",
     "os_cinder_password": "vagrant",
     "os_keystone_password": "vagrant",
     "os_neutron_password": "vagrant",
@@ -131,24 +27,6 @@
     "primary_device_name": "vda",
     "provider_interface": "eth1",
     "rabbitmq_password": "vagrant",
-    "root_dir": "$ROOT_DIR",
     "secondary_device_name": "vdb",
-    "storage01": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 200
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "storage",
-        "hostname": "storage01.local",
-        "memory": 2048,
-        "mgmtnet_ip_address": "192.168.121.8",
-        "provider_ip_address": "192.168.123.8"
-    },
-    "storage01_host_addr": "192.168.121.8",
-    "target_env": "local",
-    "use_hostname": false
+    "target_env": "local"
 }
