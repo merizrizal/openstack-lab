@@ -1,0 +1,24 @@
+{
+    "ansible_check_mode": false,
+    "ansible_connection": "ssh",
+    "ansible_diff_mode": true,
+    "ansible_forks": 50,
+    "ansible_host": "192.168.121.9",
+    "ansible_run_tags": [
+        "all"
+    ],
+    "ansible_ssh_common_args": "-o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no -o \"PubkeyAuthentication=no\"",
+    "ceph_admin_password": "vagrant",
+    "ceph_admin_user": "admin",
+    "ceph_common_nodes": [],
+    "group_names": [
+        "ceph_adm",
+        "lab"
+    ],
+    "inventory_dir": "$ROOT_DIR/ansible/deploy_ceph/inventories/local",
+    "inventory_file": "$ROOT_DIR/ansible/deploy_ceph/inventories/local/local.yml",
+    "inventory_hostname": "ceph01",
+    "inventory_hostname_short": "ceph01",
+    "is_single_node": true,
+    "target_env": "local"
+}

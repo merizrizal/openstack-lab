@@ -1,0 +1,37 @@
+---
+- name: Set list of common variables
+  ansible.builtin.set_fact:
+    common_vars_list:
+      - ansible_user
+      - ansible_password
+      - ansible_sudo_pass
+      - ceph01
+      - ceph02
+      - ceph03
+      - compute01
+      - compute01_host_addr
+      - compute02
+      - compute02_host_addr
+      - controller01
+      - controller01_host_addr
+      - groups
+      - use_hostname
+      - openstack_repo
+      - ceph_enabled
+      - root_dir
+      - storage01
+      - storage01_host_addr
+
+- name: Set fact for common variables excluded
+  ansible.builtin.set_fact:
+    common_vars_excluded: "{{ common_vars_excluded + ['^' ~ item ~ '$'] }}"
+  vars:
+    common_vars_excluded: []
+  loop: "{{ common_vars_list }}"
+
+- name: Set common variables
+  ansible.builtin.set_fact:
+    inventory_common_vars: "{{ inventory_common_vars | combine({item: parsed_vars[item] | default(omit)}) }}"
+  vars:
+    inventory_common_vars: {}
+  loop: "{{ common_vars_list }}"

@@ -2,7 +2,7 @@
 ansible_connection: ssh
 ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
 
-openstack_repo: cloud-archive:flamingo
+openstack_repo: cloud-archive:epoxy
 
 use_hostname: false
 controller01_host_addr: "{{ use_hostname | ternary(controller01.hostname, controller01.mgmtnet_ip_address) }}"

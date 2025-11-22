@@ -35,7 +35,7 @@ storage01:
   cpus: 2
   disks: 25
   additional_disks:
-    - size: 20
+    - size: 200
       name: vdb
 
 ceph01:

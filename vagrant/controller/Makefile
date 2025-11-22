@@ -13,6 +13,9 @@ start-vm:
 	@nodes=`(yq '.[] | key' ../../inventories/local/nodes.yml)`; \
 	{ \
 		for node in $$nodes; do \
+			if [[ ! -z "$$WITHOUT_CEPH" && "$$node" == *"ceph"* ]]; then \
+				break; \
+			fi; \
 			$(MAKE) spin-up-vm VM=$$node; \
 		done; \
 	}

@@ -39,10 +39,10 @@
 
     - name: Register an image
       openstack.cloud.image:
-        name: vm_image01
+        name: "{{ image_name }}"
         container_format: bare
         disk_format: qcow2
-        filename: /home/vagrant/vm_image01.img
+        filename: /home/vagrant/{{ image_name }}.img
         tags:
           - custom
         properties:
@@ -52,7 +52,7 @@
 
     - name: Create provider network
       openstack.cloud.network:
-        name: provider
+        name: "{{ provider_network_name }}"
         external: true
         shared: true
         provider_physical_network: provider
@@ -61,7 +61,7 @@
 
     - name: Create subnet for provider network
       openstack.cloud.subnet:
-        network_name: provider
+        network_name: "{{ provider_network_name }}"
         name: provider-subnet
         cidr: 192.168.123.0/24
         allocation_pool_start: 192.168.123.100
@@ -76,12 +76,12 @@
 
     - name: Create self service network
       openstack.cloud.network:
-        name: private
+        name: "{{ self_service_network_name }}"
         state: present
 
     - name: Create subnet for self service network
       openstack.cloud.subnet:
-        network_name: private
+        network_name: "{{ self_service_network_name }}"
         name: private-subnet
         cidr: 172.21.1.0/24
         dns_nameservers:
@@ -98,7 +98,7 @@
         external_fixed_ips:
           - subnet_id: provider-subnet
             ip_address: 192.168.123.3
-        network: provider
+        network: "{{ provider_network_name }}"
         interfaces:
           - private-subnet
         state: present

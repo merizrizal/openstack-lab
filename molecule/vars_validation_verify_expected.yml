@@ -1,0 +1,37 @@
+---
+- name: Write expected result if does not exist
+  ansible.builtin.copy:
+    content: "{{ expected_variables | to_nice_json }}"
+    dest: "{{ molecule_scenario_directory }}/results/{{ target_env }}/expected/{{ json_expected_file }}.json"
+    mode: "644"
+    force: false
+  delegate_to: localhost
+
+- name: Ensure the actual directory exists
+  ansible.builtin.file:
+    path: "{{ molecule_scenario_directory }}/results/{{ target_env }}/actual"
+    state: directory
+    mode: "755"
+  delegate_to: localhost
+  no_log: true
+
+- name: Copy expected result json files to actual directory
+  ansible.builtin.copy:
+    src: "{{ molecule_scenario_directory }}/results/{{ target_env }}/expected/{{ json_expected_file }}.json"
+    dest: "{{ molecule_scenario_directory }}/results/{{ target_env }}/actual/{{ json_expected_file }}.json"
+    mode: "644"
+  delegate_to: localhost
+  no_log: true
+
+- name: Overwrite the copied expected result json file againsts the actual result
+  ansible.builtin.copy:
+    content: "{{ expected_variables | to_nice_json }}"
+    dest: "{{ molecule_scenario_directory }}/results/{{ target_env }}/actual/{{ json_expected_file }}.json"
+    mode: "644"
+  delegate_to: localhost
+  register: overwrite_result
+
+- name: Validate inventory variables
+  ansible.builtin.assert:
+    that:
+      - overwrite_result is not changed

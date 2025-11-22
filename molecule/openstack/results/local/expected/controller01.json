@@ -1,0 +1,37 @@
+{
+    "ansible_check_mode": false,
+    "ansible_connection": "ssh",
+    "ansible_diff_mode": true,
+    "ansible_forks": 50,
+    "ansible_host": "192.168.121.5",
+    "ansible_run_tags": [
+        "all"
+    ],
+    "ansible_ssh_common_args": "-o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no -o \"PubkeyAuthentication=no\"",
+    "cinder_password": "vagrant",
+    "glance_password": "vagrant",
+    "group_names": [
+        "controller",
+        "lab"
+    ],
+    "inventory_dir": "$ROOT_DIR/ansible/deploy_openstack/inventories/local",
+    "inventory_file": "$ROOT_DIR/ansible/deploy_openstack/inventories/local/local.yml",
+    "inventory_hostname": "controller01",
+    "inventory_hostname_short": "controller01",
+    "keystone_password": "vagrant",
+    "mariadb_password": "vagrant",
+    "metadata_secret": "vagrant",
+    "neutron_password": "vagrant",
+    "nova_password": "vagrant",
+    "ntp_server": "time.aws.com",
+    "os_cinder_password": "vagrant",
+    "os_glance_password": "vagrant",
+    "os_keystone_password": "vagrant",
+    "os_neutron_password": "vagrant",
+    "os_nova_password": "vagrant",
+    "os_placement_password": "vagrant",
+    "placement_password": "vagrant",
+    "provider_interface": "eth1",
+    "rabbitmq_password": "vagrant",
+    "target_env": "local"
+}
