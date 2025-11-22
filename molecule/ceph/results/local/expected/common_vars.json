@@ -6,46 +6,16 @@
         "additional_disks": [
             {
                 "name": "vdb",
-                "size": 150
+                "size": 300
             }
         ],
         "cpus": 2,
         "disks": 25,
         "environment": "ceph",
         "hostname": "ceph01.local",
-        "memory": 4096,
+        "memory": 9216,
         "mgmtnet_ip_address": "192.168.121.9",
         "provider_ip_address": "192.168.123.9"
-    },
-    "ceph02": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph02.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.10",
-        "provider_ip_address": "192.168.123.10"
-    },
-    "ceph03": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph03.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.11",
-        "provider_ip_address": "192.168.123.11"
     },
     "ceph_pub_key_fetch_path": "/tmp/fetch-ceph.pub",
     "compute01": {
@@ -78,26 +48,18 @@
     "device_name": "vdb",
     "groups": {
         "all": [
-            "ceph01",
-            "ceph02",
-            "ceph03"
+            "ceph01"
         ],
         "ceph_adm": [
             "ceph01"
         ],
-        "ceph_common": [
-            "ceph02",
-            "ceph03"
-        ],
         "lab": [
-            "ceph01",
-            "ceph02",
-            "ceph03"
+            "ceph01"
         ],
         "ungrouped": []
     },
-    "mgr_count": 2,
-    "mon_count": 3,
+    "mgr_count": 1,
+    "mon_count": 1,
     "ntp_server": "time.aws.com",
     "root_dir": "$ROOT_DIR",
     "storage01": {

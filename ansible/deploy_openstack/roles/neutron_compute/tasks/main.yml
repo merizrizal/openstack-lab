@@ -4,7 +4,7 @@
     overlay_if_ip_address: "{{ node.mgmtnet_ip_address }}"
     provider_ip_address: "{{ node.provider_ip_address }}"
   vars:
-    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
+    node: "{{ lookup('ansible.builtin.vars', ansible_facts['hostname']) }}"
 
 - name: Setup configuration
   ansible.builtin.include_role:

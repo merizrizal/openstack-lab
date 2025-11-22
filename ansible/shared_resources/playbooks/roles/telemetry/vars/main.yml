@@ -1,8 +1,8 @@
 ---
 prometheus_binary: >
   https://github.com/prometheus/prometheus/releases/download/v{{
-  prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ arch_mapping[ansible_architecture] }}.tar.gz
+  prometheus_version }}/prometheus-{{ prometheus_version }}.linux-{{ arch_mapping[ansible_facts['architecture']] }}.tar.gz
 
 node_exporter_binary: >
   https://github.com/prometheus/node_exporter/releases/download/v{{
-  node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ arch_mapping[ansible_architecture] }}.tar.gz
+  node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ arch_mapping[ansible_facts['architecture']] }}.tar.gz

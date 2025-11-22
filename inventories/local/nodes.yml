@@ -43,33 +43,33 @@ ceph01:
   mgmtnet_ip_address: 192.168.121.9
   provider_ip_address: 192.168.123.9
   hostname: ceph01.local
-  memory: 4096
+  memory: 9216
   cpus: 2
   disks: 25
   additional_disks:
-    - size: 150
+    - size: 300
       name: vdb
 
-ceph02:
-  environment: ceph
-  mgmtnet_ip_address: 192.168.121.10
-  provider_ip_address: 192.168.123.10
-  hostname: ceph02.local
-  memory: 4096
-  cpus: 2
-  disks: 25
-  additional_disks:
-    - size: 150
-      name: vdb
+# ceph02:
+#   environment: ceph
+#   mgmtnet_ip_address: 192.168.121.10
+#   provider_ip_address: 192.168.123.10
+#   hostname: ceph02.local
+#   memory: 4096
+#   cpus: 2
+#   disks: 25
+#   additional_disks:
+#     - size: 200
+#       name: vdb
 
-ceph03:
-  environment: ceph
-  mgmtnet_ip_address: 192.168.121.11
-  provider_ip_address: 192.168.123.11
-  hostname: ceph03.local
-  memory: 4096
-  cpus: 2
-  disks: 25
-  additional_disks:
-    - size: 150
-      name: vdb
+# ceph03:
+#   environment: ceph
+#   mgmtnet_ip_address: 192.168.121.11
+#   provider_ip_address: 192.168.123.11
+#   hostname: ceph03.local
+#   memory: 4096
+#   cpus: 2
+#   disks: 25
+#   additional_disks:
+#     - size: 200
+#       name: vdb

@@ -8,9 +8,9 @@ lab:
       hosts:
         ceph01:
           ansible_host: "{{ ceph01.mgmtnet_ip_address }}"
-    ceph_common:
-      hosts:
-        ceph02:
-          ansible_host: "{{ ceph02.mgmtnet_ip_address }}"
-        ceph03:
-          ansible_host: "{{ ceph03.mgmtnet_ip_address }}"
+    # ceph_common:
+    #   hosts:
+    #     ceph02:
+    #       ansible_host: "{{ ceph02.mgmtnet_ip_address }}"
+    #     ceph03:
+    #       ansible_host: "{{ ceph03.mgmtnet_ip_address }}"

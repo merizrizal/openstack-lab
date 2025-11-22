@@ -112,6 +112,18 @@ Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagr
 3. Run `make -C controller/ start-provider-network` to create a new interface which will be used by Controller, Compute and Storage node.
 4. Run `make -C controller/ start-vm` to spin up 4 VMs which are 1 Controller, 2 Computes and 1 Storage node.
 
+**Provision Ceph:**
+1. Run `source envrc` then navigate to `./ansible` directory.
+2. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
+3. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_adm.yml` to install and configure Ceph ADM service.
+4. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_common.yml` to install and configure Ceph common packages to the other hosts.
+5. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_apply_osd.yml` to add the other hosts and apply the OSD.
+6. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_openstack_init.yml` to configure OpenStack Cinder and Nova to be able to integrate with Ceph
+
+or
+
+Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_deploy.yml` to deploy all at once.
+
 **Provision OpenStack:**
 1. Run `source envrc` then navigate to `./ansible` directory.
 2. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
@@ -140,19 +152,6 @@ Add this on the host:
 Replace `<host-external-interface>` with the actual NIC connected to the internet (e.g., eth0).
 You can replace `<host-external-interface>` with `$(ip route get 1.1.1.1 | awk '{print $5}')` to dynamically detect your default NIC.
 <br>
-
-
-**Provision Ceph:**
-1. Run `source envrc` then navigate to `./ansible` directory.
-2. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
-3. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_adm.yml` to install and configure Ceph ADM service.
-4. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_common.yml` to install and configure Ceph common packages to the other hosts.
-5. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_apply_osd.yml` to add the other hosts and apply the OSD.
-6. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_openstack_init.yml` to configure OpenStack Cinder and Nova to be able to integrate with Ceph
-
-or
-
-Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_deploy.yml` to deploy all at once.
 
 ---
 
