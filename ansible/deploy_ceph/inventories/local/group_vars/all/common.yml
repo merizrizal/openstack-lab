@@ -7,5 +7,8 @@ ntp_server: time.aws.com
 ceph_pub_key_fetch_path: /tmp/fetch-ceph.pub
 device_name: vdb
 
-mon_count: 3
-mgr_count: 2
+ceph_common_nodes: "{{ groups.ceph_common | default([]) }}"
+is_single_node: "{{ ceph_common_nodes | length == 0 }}"
+
+mon_count: "{{ is_single_node | ternary(1, 3) }}"
+mgr_count: "{{ is_single_node | ternary(1, 2) }}"

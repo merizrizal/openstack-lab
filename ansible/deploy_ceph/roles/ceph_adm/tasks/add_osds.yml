@@ -3,15 +3,25 @@
   ansible.builtin.command:
     cmd: ceph orch daemon add osd {{ item }}:/dev/{{ device_name }}
   register: apply_osd
-  loop: "{{ groups['ceph_adm'] + groups['ceph_common'] }}"
+  loop: "{{ groups.ceph_adm + ceph_common_nodes }}"
   changed_when: apply_osd.stdout is defined and 'Created osd' in apply_osd.stdout
+
+- name: Set pool size limit to 1 on single_node mode
+  ansible.builtin.shell:
+    cmd: |
+      ceph config set global osd_pool_default_size 1
+      ceph config set global osd_pool_default_min_size 1
+    executable: /bin/bash
+  when: is_single_node
+  changed_when: false
 
 - name: Create OSD pool
   ansible.builtin.shell:
     cmd: |
-      ceph osd pool create {{ item }} 16
+      ceph osd pool create {{ item }} {{ is_single_node | ternary(8, 16) }}
       ceph osd pool application enable {{ item }} rbd
       rbd pool init {{ item }}
+    executable: /bin/bash
   loop:
     - images
     - volumes

@@ -3,7 +3,7 @@
   ansible.builtin.set_fact:
     mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
   vars:
-    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
+    node: "{{ lookup('ansible.builtin.vars', ansible_facts['hostname']) }}"
 
 - name: Reconfigure cinder.conf - set default - apply ceph
   ansible.builtin.replace:

@@ -7,6 +7,7 @@
 
 - name: Setup Ceph common
   ansible.builtin.import_playbook: playbook_setup_common.yml
+  when: not is_single_node
 
 - name: Apply Ceph OSDs
   ansible.builtin.import_playbook: playbook_apply_osd.yml
