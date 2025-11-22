@@ -17,7 +17,7 @@
         "mgmtnet_ip_address": "192.168.121.9",
         "provider_ip_address": "192.168.123.9"
     },
-    "ceph_enabled": false,
+    "ceph_enabled": true,
     "compute01": {
         "cpus": 10,
         "disks": 25,
