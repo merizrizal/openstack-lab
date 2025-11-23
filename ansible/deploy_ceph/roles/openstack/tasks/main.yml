@@ -20,8 +20,8 @@
     cmd: >
       ceph auth get-or-create client.cinder
       mon 'profile rbd'
-      osd 'profile rbd pool=volumes, profile rbd pool=images'
-      mgr 'profile rbd pool=volumes, profile rbd pool=images'
+      osd 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
+      mgr 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
       -o /etc/ceph/ceph.client.cinder.keyring
   changed_when: false
 
@@ -29,22 +29,6 @@
   ansible.builtin.fetch:
     src: /etc/ceph/ceph.client.cinder.keyring
     dest: "{{ cinder_keyring_path }}"
-    flat: true
-
-- name: Create auth for Nova
-  ansible.builtin.command:
-    cmd: >
-      ceph auth get-or-create client.nova
-      mon 'profile rbd'
-      osd 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
-      mgr 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
-      -o /etc/ceph/ceph.client.nova.keyring
-  changed_when: false
-
-- name: Fetch Nova keyring
-  ansible.builtin.fetch:
-    src: /etc/ceph/ceph.client.nova.keyring
-    dest: "{{ nova_keyring_path }}"
     flat: true
 
 - name: Fetch Ceph config
