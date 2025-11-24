@@ -7,7 +7,7 @@ gitlab_url: http://{{ hostvars[cicd_list.gitlab01.name].ansible_host }}
 gitlab_api_url: "{{ gitlab_url }}/api/v4"
 
 gitlab_runner_binary: >
-  https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/binaries/gitlab-runner-linux-{{ arch_mapping[ansible_architecture] }}
+  https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/binaries/gitlab-runner-linux-{{ arch_mapping[ansible_facts['architecture']] }}
 
 gitlab_runner_installed: /usr/local/bin/gitlab-runner
 gitlab_runner_token_var: gitlab_runner_token

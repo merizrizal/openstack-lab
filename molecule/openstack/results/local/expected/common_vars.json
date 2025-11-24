@@ -6,48 +6,18 @@
         "additional_disks": [
             {
                 "name": "vdb",
-                "size": 150
+                "size": 300
             }
         ],
         "cpus": 2,
         "disks": 25,
         "environment": "ceph",
         "hostname": "ceph01.local",
-        "memory": 4096,
+        "memory": 9216,
         "mgmtnet_ip_address": "192.168.121.9",
         "provider_ip_address": "192.168.123.9"
     },
-    "ceph02": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph02.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.10",
-        "provider_ip_address": "192.168.123.10"
-    },
-    "ceph03": {
-        "additional_disks": [
-            {
-                "name": "vdb",
-                "size": 150
-            }
-        ],
-        "cpus": 2,
-        "disks": 25,
-        "environment": "ceph",
-        "hostname": "ceph03.local",
-        "memory": 4096,
-        "mgmtnet_ip_address": "192.168.121.11",
-        "provider_ip_address": "192.168.123.11"
-    },
-    "ceph_enabled": false,
+    "ceph_enabled": true,
     "compute01": {
         "cpus": 10,
         "disks": 25,

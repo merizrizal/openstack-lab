@@ -36,7 +36,7 @@
 - name: Add kubernetes repository
   ansible.builtin.apt_repository:
     repo: >
-      deb [arch={{ arch_mapping[ansible_architecture] }} signed-by=/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg]
+      deb [arch={{ arch_mapping[ansible_facts['architecture']] }} signed-by=/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg]
       https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
     state: present
 

@@ -8,8 +8,8 @@
 - name: Add git-core repository
   ansible.builtin.apt_repository:
     repo: >
-      deb [arch={{ arch_mapping[ansible_architecture] }} signed-by=/etc/apt/trusted.gpg.d/git-core.asc]
-      https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {{ ansible_distribution_release }} main
+      deb [arch={{ arch_mapping[ansible_facts['architecture']] }} signed-by=/etc/apt/trusted.gpg.d/git-core.asc]
+      https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {{ ansible_facts['distribution_release'] }} main
     state: present
 
 - name: Do apt upgrade

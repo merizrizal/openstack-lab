@@ -9,7 +9,7 @@
     transport_url: rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}:5672/
     mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
   vars:
-    node: "{{ lookup('ansible.builtin.vars', ansible_hostname) }}"
+    node: "{{ lookup('ansible.builtin.vars', ansible_facts['hostname']) }}"
 
 - name: Setup configuration
   ansible.builtin.include_role:
