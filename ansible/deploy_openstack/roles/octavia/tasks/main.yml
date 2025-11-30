@@ -1,0 +1,9 @@
+---
+- name: Initialize database
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: init_database
+  vars:
+    db_name: octavia
+    db_user: octavia
+    db_password: "{{ octavia_password }}"

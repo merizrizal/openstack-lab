@@ -8,9 +8,18 @@
     db_user: glance
     db_password: "{{ glance_password }}"
 
-- name: Configure service
-  ansible.builtin.include_tasks:
-    file: configure_service.yml
+- name: Configure Glance service
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: configure_service
+  vars:
+    component: glance
+    os_component_password: "{{ os_glance_password }}"
+    user_roles:
+      - admin
+    service_name: image
+    service_description: OpenStack Image
+    endpoint_url: http://{{ controller01_host_addr }}:9292
 
 - name: Install Glance package
   ansible.builtin.package:

@@ -1,0 +1,13 @@
+---
+- name: Check service entity for the component
+  ansible.builtin.shell:
+    cmd: openstack service show {{ service.name }} || true
+    executable: /bin/bash
+  register: service_component
+  changed_when: false
+
+- name: Create the component service entity
+  ansible.builtin.command:
+    cmd: openstack service create --name {{ os_component_name }} --description "{{ service.description }}" {{ service.name }}
+  when: service_component.stderr is defined and "No service with a type, name or ID" in service_component.stderr
+  changed_when: true

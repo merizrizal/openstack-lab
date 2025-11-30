@@ -15,9 +15,20 @@
       - cinder-scheduler
     state: present
 
-- name: Configure service
-  ansible.builtin.include_tasks:
-    file: configure_service.yml
+- name: Configure Cinder service
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: configure_service
+  vars:
+    component: cinder
+    os_component_password: "{{ os_cinder_password }}"
+    user_roles:
+      - admin
+      - service
+    service_name: volumev3
+    service_description: OpenStack Block Storage
+    endpoint_url: http://{{ controller01_host_addr }}:8776/v3
+    endpoint_url_suffix: /%\(project_id\)s
 
 - name: Set facts
   ansible.builtin.set_fact:

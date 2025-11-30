@@ -17,9 +17,18 @@
       - neutron-l3-agent
     state: present
 
-- name: Configure service
-  ansible.builtin.include_tasks:
-    file: configure_service.yml
+- name: Configure Neutron service
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: configure_service
+  vars:
+    component: neutron
+    os_component_password: "{{ os_neutron_password }}"
+    user_roles:
+      - admin
+    service_name: network
+    service_description: OpenStack Networking
+    endpoint_url: http://{{ controller01_host_addr }}:9696
 
 - name: Configure Neutron
   ansible.builtin.include_tasks:

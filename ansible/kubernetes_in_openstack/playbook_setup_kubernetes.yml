@@ -1,5 +1,5 @@
 ---
-- name: Deploy Kubernetes to CI/CD Lab
+- name: Deploy Kubernetes
   hosts: all
   become: true
   vars:
