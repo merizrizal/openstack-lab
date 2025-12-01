@@ -26,9 +26,19 @@
     db_user: nova
     db_password: "{{ nova_password }}"
 
-- name: Configure service
-  ansible.builtin.include_tasks:
-    file: configure_service.yml
+- name: Configure Nova service
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: configure_service
+  vars:
+    component: nova
+    os_component_password: "{{ os_nova_password }}"
+    user_roles:
+      - admin
+      - service
+    service_name: compute
+    service_description: OpenStack Compute
+    endpoint_url: http://{{ controller01_host_addr }}:8774/v2.1
 
 - name: Install Nova package
   ansible.builtin.package:

@@ -24,6 +24,7 @@
     "neutron_password": "vagrant",
     "nova_password": "vagrant",
     "ntp_server": "time.aws.com",
+    "octavia_password": "vagrant",
     "os_cinder_password": "vagrant",
     "os_glance_password": "vagrant",
     "os_keystone_password": "vagrant",

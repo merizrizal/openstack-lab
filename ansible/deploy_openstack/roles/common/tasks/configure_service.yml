@@ -1,0 +1,67 @@
+---
+- name: Create user and its roles
+  ansible.builtin.include_tasks:
+    file: create_user_and_roles.yml
+  vars:
+    os_component:
+      name: "{{ component }}"
+      password: "{{ os_component_password }}"
+    user_role_list: "{{ user_roles }}"
+
+- name: Create service
+  ansible.builtin.include_tasks:
+    file: create_service.yml
+  vars:
+    os_component_name: "{{ component }}"
+    service:
+      name: "{{ service_name }}"
+      description: "{{ service_description }}"
+
+- name: Check endpoint_url_suffix and append to endpoint_url when defined
+  ansible.builtin.set_fact:
+    service_endpoint_url: "{{ endpoint_url ~ (endpoint_url_suffix | default('')) }}"
+
+- name: Check public component service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.{{ component }}.*.{{ service_name }}.*.public.*.{{ endpoint_url }}' || true
+    executable: /bin/bash
+  register: public_endpoint
+  changed_when: false
+
+- name: Create public component service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne {{ service_name }} public {{ service_endpoint_url }}
+  when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check internal component service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.{{ component }}.*.{{ service_name }}.*.internal.*.{{ endpoint_url }}' || true
+    executable: /bin/bash
+  register: internal_endpoint
+  changed_when: false
+
+- name: Create internal component service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne {{ service_name }} internal {{ service_endpoint_url }}
+  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
+  changed_when: true
+
+- name: Check admin component service API endpoints
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail #
+      openstack endpoint list | grep -E 'RegionOne.*.{{ component }}.*.{{ service_name }}.*.admin.*.{{ endpoint_url }}' || true
+    executable: /bin/bash
+  register: admin_endpoint
+  changed_when: false
+
+- name: Create admin component service API endpoints
+  ansible.builtin.command:
+    cmd: openstack endpoint create --region RegionOne {{ service_name }} admin {{ service_endpoint_url }}
+  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
+  changed_when: true

@@ -1,0 +1,13 @@
+---
+- name: Create the component user
+  ansible.builtin.command:
+    cmd: openstack user create --domain default --password '{{ os_component.password }}' {{ os_component.name }}
+  register: create_component_user
+  changed_when: create_component_user.stdout is defined and "password_expires_at" in create_component_user.stdout
+  failed_when: create_component_user.rc != 0 and "ConflictException" not in create_component_user.stderr
+
+- name: Add the certain role to the component user and service project
+  ansible.builtin.command:
+    cmd: openstack role add --project service --user {{ os_component.name }} {{ item }}
+  changed_when: false
+  loop: "{{ user_role_list }}"
