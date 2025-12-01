@@ -7,3 +7,118 @@
     db_name: octavia
     db_user: octavia
     db_password: "{{ octavia_password }}"
+
+- name: Configure Octavia service
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: configure_service
+  vars:
+    component: octavia
+    os_component_password: "{{ os_octavia_password }}"
+    user_roles:
+      - admin
+    service_name: load-balancer
+    service_description: OpenStack Octavia
+    endpoint_url: http://{{ controller01_host_addr }}:9876
+
+- name: Create octavia-openrc file
+  ansible.builtin.template:
+    src: octavia-openrc.j2
+    dest: /home/{{ ansible_user }}/octavia-openrc
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "644"
+
+- name: Create the amphora image # To do: Build the real amphora image later
+  ansible.builtin.debug:
+    msg: Create the amphora image here
+
+- name: Register the amphora image
+  openstack.cloud.image:
+    name: amphora-x64-haproxy
+    container_format: bare
+    disk_format: qcow2
+    filename: /home/{{ ansible_user }}/vm_image01.img # To do: Use the real amphora image later
+    visibility: private
+    tags:
+      - amphora
+    properties:
+      cpu_arch: x86_64
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Create a flavor for the amphora image
+  openstack.cloud.compute_flavor:
+    state: present
+    id: 200
+    name: amphora
+    ram: 1024
+    vcpus: 1
+    disk: 2
+  environment: "{{ octavia_env_vars }}"
+
+- name: Install Octavia packages
+  ansible.builtin.package:
+    name:
+      - octavia-api
+      - octavia-health-manager
+      - octavia-housekeeping
+      - octavia-worker
+      - python3-octavia
+      - python3-octaviaclient
+    state: present
+
+- name: Pull OpenStack Octavia repository
+  ansible.builtin.git:
+    repo: https://opendev.org/openstack/octavia.git
+    dest: /home/{{ ansible_user }}/octavia
+    version: stable/2025.1
+  become: false
+
+- name: Execute shell command to create certs
+  ansible.builtin.shell:
+    chdir: /home/{{ ansible_user }}
+    cmd: |
+      set -o pipefail #
+      {{ lookup('ansible.builtin.file', 'create_certs.sh') }}
+    executable: /bin/bash
+  changed_when: false
+
+- name: Add security group for management
+  openstack.cloud.security_group:
+    name: lb-mgmt-sec-grp
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Add security group rules to management
+  openstack.cloud.security_group_rule:
+    security_group: lb-mgmt-sec-grp
+    protocol: tcp
+    port_range_min: "{{ item }}"
+    port_range_max: "{{ item }}"
+    state: present
+  loop:
+    - 22
+    - 9443
+  environment: "{{ octavia_env_vars }}"
+
+- name: Add security group for health manager
+  openstack.cloud.security_group:
+    name: lb-health-mgr-sec-grp
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Add security group rules to health manager
+  openstack.cloud.security_group_rule:
+    security_group: lb-health-mgr-sec-grp
+    protocol: tcp
+    port_range_min: 5555
+    port_range_max: 5555
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Create a key pair for logging in to the amphora instance
+  openstack.cloud.keypair:
+    name: "{{ ansible_user }}key"
+    public_key_file: /home/{{ ansible_user }}/.ssh/id_rsa.pub
+    state: present

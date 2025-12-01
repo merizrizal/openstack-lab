@@ -1,0 +1,11 @@
+---
+octavia_env_vars:
+  OS_PROJECT_DOMAIN_NAME: Default
+  OS_USER_DOMAIN_NAME: Default
+  OS_PROJECT_NAME: service
+  OS_USERNAME: octavia
+  OS_PASSWORD: "{{ os_octavia_password }}"
+  OS_AUTH_URL: http://{{ controller01_host_addr }}:5000
+  OS_IDENTITY_API_VERSION: 3
+  OS_IMAGE_API_VERSION: 2
+  OS_VOLUME_API_VERSION: 3
