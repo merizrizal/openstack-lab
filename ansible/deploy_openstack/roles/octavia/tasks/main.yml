@@ -117,6 +117,12 @@
     state: present
   environment: "{{ octavia_env_vars }}"
 
+- name: Generate a ssh key
+  ansible.builtin.command:
+    chdir: /home/{{ ansible_user }}
+    cmd: ssh-keygen -q -t rsa -f /home/{{ ansible_user }}/.ssh/id_rsa -C octavia -N ""
+    creates: /home/{{ ansible_user }}/.ssh/id_rsa
+
 - name: Create a key pair for logging in to the amphora instance
   openstack.cloud.keypair:
     name: "{{ ansible_user }}key"
