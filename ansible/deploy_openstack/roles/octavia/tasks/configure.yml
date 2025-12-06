@@ -1,0 +1,42 @@
+---
+- name: Reconfigure octavia.conf - set default
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
+
+- name: Reconfigure octavia.conf - set database
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[database\\](\n(.*))*?\n*(# From oslo.db).*"
+    replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
+
+- name: Reconfigure octavia.conf - set OSLO messaging
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[oslo_messaging\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.file', 'oslo_messaging.conf') }}"
+
+- name: Reconfigure octavia.conf - set API settings
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[api_settings\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.file', 'api_settings.conf') }}"
+
+- name: Reconfigure octavia.conf - set health manager
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[health_manager\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.file', 'health_manager.conf') }}"
+
+- name: Reconfigure octavia.conf - set controller worker
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[controller_worker\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.template', 'controller_worker.conf.j2') }}"
+
+- name: Reconfigure octavia.conf - set neutron
+  ansible.builtin.replace:
+    path: /etc/octavia/octavia.conf
+    regexp: "^\\[neutron\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.template', 'neutron.conf.j2') }}"

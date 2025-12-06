@@ -41,7 +41,7 @@
     filename: /home/{{ ansible_user }}/vm_image01.img # To do: Use the real amphora image later
     visibility: private
     tags:
-      - amphora
+      - "{{ amp_image_tag }}"
     properties:
       cpu_arch: x86_64
     state: present
@@ -50,7 +50,7 @@
 - name: Create a flavor for the amphora image
   openstack.cloud.compute_flavor:
     state: present
-    id: 200
+    id: "{{ amp_flavor_id }}"
     name: amphora
     ram: 1024
     vcpus: 1
@@ -84,15 +84,33 @@
     executable: /bin/bash
   changed_when: false
 
+- name: Create management network
+  openstack.cloud.network:
+    name: "{{ amp_mgmt_network }}"
+    state: present
+
+- name: Create subnet for management network
+  openstack.cloud.subnet:
+    network_name: "{{ amp_mgmt_network }}"
+    name: private-subnet
+    cidr: 172.16.0.0/24
+    dns_nameservers:
+      - 8.8.4.4
+      - 8.8.8.8
+    host_routes:
+      - destination: 0.0.0.0/0
+        nexthop: 172.16.0.1
+    state: present
+
 - name: Add security group for management
   openstack.cloud.security_group:
-    name: lb-mgmt-sec-grp
+    name: "{{ amp_mgmt_secgroup }}"
     state: present
   environment: "{{ octavia_env_vars }}"
 
 - name: Add security group rules to management
   openstack.cloud.security_group_rule:
-    security_group: lb-mgmt-sec-grp
+    security_group: "{{ amp_mgmt_secgroup }}"
     protocol: tcp
     port_range_min: "{{ item }}"
     port_range_max: "{{ item }}"
@@ -104,13 +122,13 @@
 
 - name: Add security group for health manager
   openstack.cloud.security_group:
-    name: lb-health-mgr-sec-grp
+    name: "{{ amp_health_mgr_secgroup }}"
     state: present
   environment: "{{ octavia_env_vars }}"
 
 - name: Add security group rules to health manager
   openstack.cloud.security_group_rule:
-    security_group: lb-health-mgr-sec-grp
+    security_group: "{{ amp_health_mgr_secgroup }}"
     protocol: tcp
     port_range_min: 5555
     port_range_max: 5555
@@ -125,6 +143,39 @@
 
 - name: Create a key pair for logging in to the amphora instance
   openstack.cloud.keypair:
-    name: "{{ ansible_user }}key"
+    name: "{{ amp_ssh_key_name }}"
     public_key_file: /home/{{ ansible_user }}/.ssh/id_rsa.pub
     state: present
+
+- name: Setup configuration
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Populate the octavia database
+  ansible.builtin.command:
+    cmd: sudo -u octavia octavia-db-manage --config-file /etc/octavia/octavia.conf upgrade head
+  changed_when: false
+
+- name: Start and enable Octavia API
+  ansible.builtin.service:
+    name: octavia-api
+    state: restarted
+    enabled: true
+
+- name: Start and enable Octavia health manager
+  ansible.builtin.service:
+    name: octavia-health-manager
+    state: restarted
+    enabled: true
+
+- name: Start and enable Octavia housekeeping
+  ansible.builtin.service:
+    name: octavia-housekeeping
+    state: restarted
+    enabled: true
+
+- name: Start and enable Octavia worker
+  ansible.builtin.service:
+    name: octavia-worker
+    state: restarted
+    enabled: true

@@ -1,0 +1,6 @@
+[DEFAULT]
+transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}
+auth_strategy = keystone
+verbose = True
+#
+# From octavia
