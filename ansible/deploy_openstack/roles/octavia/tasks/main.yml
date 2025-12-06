@@ -29,16 +29,12 @@
     group: "{{ ansible_user }}"
     mode: "644"
 
-- name: Create the amphora image # To do: Build the real amphora image later
-  ansible.builtin.debug:
-    msg: Create the amphora image here
-
 - name: Register the amphora image
   openstack.cloud.image:
-    name: amphora-x64-haproxy
+    name: amphora-haproxy
     container_format: bare
     disk_format: qcow2
-    filename: /home/{{ ansible_user }}/vm_image01.img # To do: Use the real amphora image later
+    filename: /home/{{ ansible_user }}/{{ amp_image }}
     visibility: private
     tags:
       - "{{ amp_image_tag }}"
@@ -87,12 +83,18 @@
 - name: Create management network
   openstack.cloud.network:
     name: "{{ amp_mgmt_network }}"
+    provider_network_type: vxlan
     state: present
+  register: amp_mgmt_network_result
+
+- name: Set management network id to fact
+  ansible.builtin.set_fact:
+    amp_mgmt_network_id: "{{ amp_mgmt_network_result.id }}"
 
 - name: Create subnet for management network
   openstack.cloud.subnet:
     network_name: "{{ amp_mgmt_network }}"
-    name: private-subnet
+    name: "{{ amp_mgmt_network }}-subnet"
     cidr: 172.16.0.0/24
     dns_nameservers:
       - 8.8.4.4
@@ -107,6 +109,11 @@
     name: "{{ amp_mgmt_secgroup }}"
     state: present
   environment: "{{ octavia_env_vars }}"
+  register: amp_mgmt_secgroup_result
+
+- name: Set security group id to fact
+  ansible.builtin.set_fact:
+    amp_mgmt_secgroup_id: "{{ amp_mgmt_secgroup_result.security_group.id }}"
 
 - name: Add security group rules to management
   openstack.cloud.security_group_rule:

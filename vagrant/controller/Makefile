@@ -46,4 +46,8 @@ check-available-image:
 	fi;
 
 copy-image-to-vm: check-available-image
-	@vagrant upload $$IMAGE_PATH /home/vagrant/vm_image01.img controller01
+	@image_name="vm_image01.img"; \
+	if [[ ! -z $$IMAGE_FILE ]]; then \
+		image_name=$$IMAGE_FILE; \
+	fi; \
+	vagrant upload $$IMAGE_PATH /home/vagrant/$$image_name controller01

@@ -10,9 +10,10 @@ octavia_env_vars:
   OS_IMAGE_API_VERSION: 2
   OS_VOLUME_API_VERSION: 3
 
+amp_image: amphora-haproxy.qcow2
 amp_image_tag: amphora
 amp_ssh_key_name: amp_{{ ansible_user }}_key
 amp_mgmt_secgroup: lb-mgmt-sec-grp
 amp_health_mgr_secgroup: lb-health-mgr-sec-grp
-amp_flavor_id: 200
+amp_flavor_id: 2750
 amp_mgmt_network: amphora-mgmt-net
