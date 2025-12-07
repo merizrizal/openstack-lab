@@ -85,6 +85,7 @@
     name: "{{ amp_mgmt_network }}"
     provider_network_type: vxlan
     state: present
+  environment: "{{ octavia_env_vars }}"
   register: amp_mgmt_network_result
 
 - name: Set management network id to fact
@@ -103,6 +104,7 @@
       - destination: 0.0.0.0/0
         nexthop: 172.16.0.1
     state: present
+  environment: "{{ octavia_env_vars }}"
 
 - name: Add security group for management
   openstack.cloud.security_group:
@@ -153,6 +155,7 @@
     name: "{{ amp_ssh_key_name }}"
     public_key_file: /home/{{ ansible_user }}/.ssh/id_rsa.pub
     state: present
+  environment: "{{ octavia_env_vars }}"
 
 - name: Setup configuration
   ansible.builtin.include_tasks:

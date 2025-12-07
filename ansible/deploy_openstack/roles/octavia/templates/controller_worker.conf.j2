@@ -7,6 +7,8 @@ amp_flavor_id = {{ amp_flavor_id }}
 network_driver = allowed_address_pairs_driver
 compute_driver = compute_nova_driver
 amphora_driver = amphora_haproxy_rest_driver
+volume_driver = volume_cinder_driver
+image_driver = image_glance_driver
 client_ca = /etc/octavia/certs/client_ca.cert.pem
 #
 # From octavia

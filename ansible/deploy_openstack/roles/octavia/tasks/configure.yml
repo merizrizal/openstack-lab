@@ -69,3 +69,4 @@
   ansible.builtin.replace:
     path: /etc/octavia/octavia.conf
     regexp: "^\\[glance\\](\n(.*))*?\n*(# From octavia).*"
+    replace: "{{ lookup('ansible.builtin.file', 'glance.conf') }}"

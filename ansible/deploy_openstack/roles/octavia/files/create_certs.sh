@@ -7,3 +7,4 @@ cp -p etc/octavia/certs/server_ca-chain.cert.pem /etc/octavia/certs
 cp -p etc/octavia/certs/server_ca.key.pem /etc/octavia/certs/private
 cp -p etc/octavia/certs/client_ca.cert.pem /etc/octavia/certs
 cp -p etc/octavia/certs/client.cert-and-key.pem /etc/octavia/certs/private
+sudo chown -R octavia:octavia /etc/octavia
