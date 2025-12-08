@@ -103,16 +103,26 @@
           - private-subnet
         state: present
 
-    - name: Add security group rule for ping to default
+    - name: Add security group for OpenStack Lab
+      openstack.cloud.security_group:
+        name: "{{ security_group_name }}"
+        state: present
+      register: openstack_lab_secgroup_result
+
+    - name: Set security group id to fact
+      ansible.builtin.set_fact:
+        openstack_lab_secgroup_id: "{{ openstack_lab_secgroup_result.security_group.id }}"
+
+    - name: Add security group rule for ping to OpenStack Lab
       openstack.cloud.security_group_rule:
-        security_group: default
+        security_group: "{{ openstack_lab_secgroup_id }}"
         protocol: icmp
         remote_ip_prefix: 0.0.0.0/0
         state: present
 
-    - name: Add security group rule for operational port to default
+    - name: Add security group rule for operational port to OpenStack Lab
       openstack.cloud.security_group_rule:
-        security_group: default
+        security_group: "{{ openstack_lab_secgroup_id }}"
         protocol: tcp
         port_range_min: "{{ item }}"
         port_range_max: "{{ item }}"

@@ -23,6 +23,7 @@
     "os_keystone_password": "vagrant",
     "os_neutron_password": "vagrant",
     "os_nova_password": "vagrant",
+    "os_octavia_password": "vagrant",
     "os_placement_password": "vagrant",
     "primary_device_name": "vda",
     "provider_interface": "eth1",

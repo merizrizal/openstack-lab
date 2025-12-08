@@ -30,9 +30,11 @@
     "os_keystone_password": "vagrant",
     "os_neutron_password": "vagrant",
     "os_nova_password": "vagrant",
+    "os_octavia_password": "vagrant",
     "os_placement_password": "vagrant",
     "placement_password": "vagrant",
     "provider_interface": "eth1",
+    "provider_network_name": "provider",
     "rabbitmq_password": "vagrant",
     "target_env": "local"
 }

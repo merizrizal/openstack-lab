@@ -80,6 +80,11 @@
     executable: /bin/bash
   changed_when: false
 
+- name: Get provider management network info
+  openstack.cloud.networks_info:
+    name: "{{ provider_network_name }}"
+  register: provider_mgmt_network_result
+
 - name: Create management network
   openstack.cloud.network:
     name: "{{ amp_mgmt_network }}"
@@ -90,7 +95,7 @@
 
 - name: Set management network id to fact
   ansible.builtin.set_fact:
-    amp_mgmt_network_id: "{{ amp_mgmt_network_result.id }}"
+    amp_mgmt_network_id: "{{ provider_mgmt_network_result.networks[0].id }}"
 
 - name: Create subnet for management network
   openstack.cloud.subnet:
