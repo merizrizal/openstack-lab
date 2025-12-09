@@ -5,6 +5,7 @@ ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyCheck
 image_name: vm_image01
 provider_network_name: provider
 self_service_network_name: private
+security_group_name: openstack_lab
 
 cicd_list: "{{ (lookup('file', root_dir ~ '/ansible/shared_resources/inventories/' ~ target_env ~ '/cicd.yml') | from_yaml) }}"
 kubernetes_list: "{{ (lookup('file', root_dir ~ '/ansible/shared_resources/inventories/' ~ target_env ~ '/kubernetes.yml') | from_yaml) }}"

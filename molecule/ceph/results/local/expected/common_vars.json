@@ -41,7 +41,7 @@
         "disks": 25,
         "environment": "controller",
         "hostname": "controller01.local",
-        "memory": 7168,
+        "memory": 9216,
         "mgmtnet_ip_address": "192.168.121.5",
         "provider_ip_address": "192.168.123.5"
     },

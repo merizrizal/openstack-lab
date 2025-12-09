@@ -12,7 +12,7 @@
     boot_from_volume: true
     volume_size: "{{ server_volume_size }}"
     security_groups:
-      - default
+      - "{{ security_group_name }}"
     nics:
       - net-id: "{{ network_id }}"
     metadata:

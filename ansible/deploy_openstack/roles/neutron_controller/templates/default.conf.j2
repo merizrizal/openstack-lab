@@ -2,6 +2,7 @@
 core_plugin = ml2
 service_plugins = router
 transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}:5672/
+verbose = True
 auth_strategy = keystone
 notify_nova_on_port_status_changes = true
 notify_nova_on_port_data_changes = true

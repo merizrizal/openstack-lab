@@ -1,2 +1,3 @@
 ---
 ntp_server: time.aws.com
+provider_network_name: provider

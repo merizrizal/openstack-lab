@@ -1,0 +1,11 @@
+[service_auth]
+auth_url = http://{{ controller01_host_addr }}:5000
+memcached_servers = {{ controller01_host_addr }}:11211
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = octavia
+password = {{ os_octavia_password }}
+#
+# From octavia

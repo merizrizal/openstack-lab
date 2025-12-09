@@ -7,3 +7,190 @@
     db_name: octavia
     db_user: octavia
     db_password: "{{ octavia_password }}"
+
+- name: Configure Octavia service
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: configure_service
+  vars:
+    component: octavia
+    os_component_password: "{{ os_octavia_password }}"
+    user_roles:
+      - admin
+    service_name: load-balancer
+    service_description: OpenStack Octavia
+    endpoint_url: http://{{ controller01_host_addr }}:9876
+
+- name: Create octavia-openrc file
+  ansible.builtin.template:
+    src: octavia-openrc.j2
+    dest: /home/{{ ansible_user }}/octavia-openrc
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "644"
+
+- name: Register the amphora image
+  openstack.cloud.image:
+    name: amphora-haproxy
+    container_format: bare
+    disk_format: qcow2
+    filename: /home/{{ ansible_user }}/{{ amp_image }}
+    visibility: private
+    tags:
+      - "{{ amp_image_tag }}"
+    properties:
+      cpu_arch: x86_64
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Create a flavor for the amphora image
+  openstack.cloud.compute_flavor:
+    state: present
+    id: "{{ amp_flavor_id }}"
+    name: amphora
+    ram: 1024
+    vcpus: 1
+    disk: 2
+  environment: "{{ octavia_env_vars }}"
+
+- name: Install Octavia packages
+  ansible.builtin.package:
+    name:
+      - octavia-api
+      - octavia-health-manager
+      - octavia-housekeeping
+      - octavia-worker
+      - python3-octavia
+      - python3-octaviaclient
+    state: present
+
+- name: Pull OpenStack Octavia repository
+  ansible.builtin.git:
+    repo: https://opendev.org/openstack/octavia.git
+    dest: /home/{{ ansible_user }}/octavia
+    version: stable/2025.1
+  become: false
+
+- name: Execute shell command to create certs
+  ansible.builtin.shell:
+    chdir: /home/{{ ansible_user }}
+    cmd: |
+      set -o pipefail #
+      {{ lookup('ansible.builtin.file', 'create_certs.sh') }}
+    executable: /bin/bash
+  changed_when: false
+
+- name: Get provider management network info
+  openstack.cloud.networks_info:
+    name: "{{ provider_network_name }}"
+  register: provider_mgmt_network_result
+
+- name: Create management network
+  openstack.cloud.network:
+    name: "{{ amp_mgmt_network }}"
+    provider_network_type: vxlan
+    state: present
+  environment: "{{ octavia_env_vars }}"
+  register: amp_mgmt_network_result
+
+- name: Set management network id to fact
+  ansible.builtin.set_fact:
+    amp_mgmt_network_id: "{{ provider_mgmt_network_result.networks[0].id }}"
+
+- name: Create subnet for management network
+  openstack.cloud.subnet:
+    network_name: "{{ amp_mgmt_network }}"
+    name: "{{ amp_mgmt_network }}-subnet"
+    cidr: 172.16.0.0/24
+    dns_nameservers:
+      - 8.8.4.4
+      - 8.8.8.8
+    host_routes:
+      - destination: 0.0.0.0/0
+        nexthop: 172.16.0.1
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Add security group for management
+  openstack.cloud.security_group:
+    name: "{{ amp_mgmt_secgroup }}"
+    state: present
+  environment: "{{ octavia_env_vars }}"
+  register: amp_mgmt_secgroup_result
+
+- name: Set security group id to fact
+  ansible.builtin.set_fact:
+    amp_mgmt_secgroup_id: "{{ amp_mgmt_secgroup_result.security_group.id }}"
+
+- name: Add security group rules to management
+  openstack.cloud.security_group_rule:
+    security_group: "{{ amp_mgmt_secgroup }}"
+    protocol: tcp
+    port_range_min: "{{ item }}"
+    port_range_max: "{{ item }}"
+    state: present
+  loop:
+    - 22
+    - 9443
+  environment: "{{ octavia_env_vars }}"
+
+- name: Add security group for health manager
+  openstack.cloud.security_group:
+    name: "{{ amp_health_mgr_secgroup }}"
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Add security group rules to health manager
+  openstack.cloud.security_group_rule:
+    security_group: "{{ amp_health_mgr_secgroup }}"
+    protocol: tcp
+    port_range_min: 5555
+    port_range_max: 5555
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Generate a ssh key
+  ansible.builtin.command:
+    chdir: /home/{{ ansible_user }}
+    cmd: ssh-keygen -q -t rsa -f /home/{{ ansible_user }}/.ssh/id_rsa -C octavia -N ""
+    creates: /home/{{ ansible_user }}/.ssh/id_rsa
+
+- name: Create a key pair for logging in to the amphora instance
+  openstack.cloud.keypair:
+    name: "{{ amp_ssh_key_name }}"
+    public_key_file: /home/{{ ansible_user }}/.ssh/id_rsa.pub
+    state: present
+  environment: "{{ octavia_env_vars }}"
+
+- name: Setup configuration
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Populate the octavia database
+  ansible.builtin.command:
+    cmd: sudo -u octavia octavia-db-manage --config-file /etc/octavia/octavia.conf upgrade head
+  changed_when: false
+
+- name: Start and enable Octavia API
+  ansible.builtin.service:
+    name: octavia-api
+    state: restarted
+    enabled: true
+
+- name: Start and enable Octavia health manager
+  ansible.builtin.service:
+    name: octavia-health-manager
+    state: restarted
+    enabled: true
+
+- name: Start and enable Octavia housekeeping
+  ansible.builtin.service:
+    name: octavia-housekeeping
+    state: restarted
+    enabled: true
+
+- name: Start and enable Octavia worker
+  ansible.builtin.service:
+    name: octavia-worker
+    state: restarted
+    enabled: true

@@ -1,5 +1,6 @@
 [DEFAULT]
 transport_url = rabbit://openstack:{{ rabbitmq_password }}@{{ controller01_host_addr }}:5672/
+verbose = True
 my_ip = {{ mgmtnet_ip_address }}
 glance_api_servers = http://{{ controller01_host_addr }}:9292
 auth_strategy = keystone
