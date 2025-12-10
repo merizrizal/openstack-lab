@@ -22,7 +22,7 @@
 
 - name: Download kubernetes gpg from pkgs.k8s.io
   ansible.builtin.get_url:
-    url: https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key
+    url: https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/Release.key
     dest: /home/{{ ansible_user }}/
     mode: "644"
 
@@ -37,7 +37,7 @@
   ansible.builtin.apt_repository:
     repo: >
       deb [arch={{ arch_mapping[ansible_facts['architecture']] }} signed-by=/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg]
-      https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
+      https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/ /
     state: present
 
 - name: Do apt upgrade

@@ -10,7 +10,6 @@
   ansible.builtin.command:
     chdir: /home/{{ ansible_user }}
     cmd: install -m 755 {{ runc_download_url | basename }} /usr/local/sbin/runc
-  register: runc
   changed_when: false
 
 - name: Ensure the directory /opt/cni/bin exists
