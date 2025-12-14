@@ -72,11 +72,14 @@
         host_routes:
           - destination: 0.0.0.0/0
             nexthop: 192.168.123.1
+          - destination: 172.21.1.0/24
+            nexthop: 192.168.123.3
         state: present
 
     - name: Create self service network
       openstack.cloud.network:
         name: "{{ self_service_network_name }}"
+        shared: true
         state: present
 
     - name: Create subnet for self service network

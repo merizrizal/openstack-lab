@@ -5,14 +5,14 @@
   vars_files:
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   tasks:
-    - name: Get provider network
+    - name: Get self service network
       openstack.cloud.networks_info:
-        name: "{{ provider_network_name }}"
-      register: provider_network
+        name: "{{ self_service_network_name }}"
+      register: private_network
 
-    - name: Set provider network id to fact
+    - name: Set self service network id to fact
       ansible.builtin.set_fact:
-        network_id: "{{ provider_network.networks[0].id }}"
+        network_id: "{{ private_network.networks[0].id }}"
 
     - name: Create Gitlab server
       ansible.builtin.include_role:

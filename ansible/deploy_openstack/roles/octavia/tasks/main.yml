@@ -85,31 +85,9 @@
     name: "{{ provider_network_name }}"
   register: provider_mgmt_network_result
 
-- name: Create management network
-  openstack.cloud.network:
-    name: "{{ amp_mgmt_network }}"
-    provider_network_type: vxlan
-    state: present
-  environment: "{{ octavia_env_vars }}"
-  register: amp_mgmt_network_result
-
 - name: Set management network id to fact
   ansible.builtin.set_fact:
     amp_mgmt_network_id: "{{ provider_mgmt_network_result.networks[0].id }}"
-
-- name: Create subnet for management network
-  openstack.cloud.subnet:
-    network_name: "{{ amp_mgmt_network }}"
-    name: "{{ amp_mgmt_network }}-subnet"
-    cidr: 172.16.0.0/24
-    dns_nameservers:
-      - 8.8.4.4
-      - 8.8.8.8
-    host_routes:
-      - destination: 0.0.0.0/0
-        nexthop: 172.16.0.1
-    state: present
-  environment: "{{ octavia_env_vars }}"
 
 - name: Add security group for management
   openstack.cloud.security_group:

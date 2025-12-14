@@ -13,6 +13,7 @@
     volume_size: "{{ server_volume_size }}"
     security_groups:
       - "{{ security_group_name }}"
+    auto_ip: false
     nics:
       - net-id: "{{ network_id }}"
     metadata:
