@@ -15,6 +15,8 @@
   |  |  | - playbook_bootstrap.yml
   |  |  | - playbook_init_cicd_server.yml
   |  |  | - playbook_init_kubernetes.yml
+  |  |  | - roles
+  |  |  |  | - openstack
   |  | - cicd_in_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -50,6 +52,7 @@
   |  |  | - playbook_pre_setup.yml
   |  |  | - playbook_setup_compute.yml
   |  |  | - playbook_setup_controller.yml
+  |  |  | - playbook_setup_octavia.yml
   |  |  | - playbook_setup_storage.yml
   |  |  | - roles
   |  |  |  | - ceph
@@ -67,6 +70,7 @@
   |  |  |  | - nova
   |  |  |  | - nova_compute
   |  |  |  | - nova_controller
+  |  |  |  | - octavia
   |  |  |  | - placement
   |  | - kubernetes_in_openstack
   |  |  | - inventories
@@ -161,6 +165,11 @@ You can replace `<host-external-interface>` with `$(ip route get 1.1.1.1 | awk '
 2. Run `generate_os_client_config local cicd_lab` to generate the OpenStack cloud config `generated/local_clouds.yml`.
 3. Navigate to `./ansible` directory.
 4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_cicd_server.yml` to spin-up 3 VMs on top of OpenStack.
+
+    4.1. Once all the VMs are up, log in to OpenStack Horizon (user: `admin`, password: `vagrant`).
+
+    4.2. Go to Compute > Instances page, then assign a floating IP to each VM.
+
 5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
 6. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
 7. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_gitlab.yml` to provision Gitlab server.
@@ -177,6 +186,11 @@ Our CI/CD Lab should be ready.
 2. Run `generate_os_client_config local kubernetes_lab` to generate the OpenStack cloud config `generated/local_clouds.yml`.
 3. Navigate to `./ansible` directory.
 4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_kubernetes.yml` to spin-up 3 VMs on top of OpenStack.
+
+    4.1. Once all the VMs are up, log in to OpenStack Horizon (user: `admin`, password: `vagrant`).
+
+    4.2. Go to Compute > Instances page, then assign a floating IP to each VM.
+
 5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
 6. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
 7. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_setup_kubernetes.yml` to install and provision Kubernetes platform to all VMs.

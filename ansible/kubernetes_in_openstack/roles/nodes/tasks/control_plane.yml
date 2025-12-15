@@ -9,7 +9,9 @@
   block:
     - name: Control plane initialisation
       ansible.builtin.command:
-        cmd: sudo kubeadm init --pod-network-cidr=10.191.0.0/16
+        cmd: >-
+          sudo kubeadm init --pod-network-cidr=10.191.0.0/16 --apiserver-cert-extra-sans {{
+          ansible_facts.default_ipv4.address }},{{ ansible_host }}
       register: kubeadm_init
       changed_when: kubeadm_init.stderr is defined and 'already exists' not in kubeadm_init.stderr
 
