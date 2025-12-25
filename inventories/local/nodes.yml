@@ -4,7 +4,7 @@ controller01:
   mgmtnet_ip_address: 192.168.121.5
   provider_ip_address: 192.168.123.5
   hostname: controller01.local
-  memory: 9216
+  memory: 10240
   cpus: 4
   disks: 50
 

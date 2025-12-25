@@ -1,0 +1,45 @@
+---
+- name: Download archive to localhost
+  ansible.builtin.get_url:
+    url: "{{ download_url }}"
+    dest: "{{ download_to_path }}"
+    mode: "644"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Create home directory
+  ansible.builtin.file:
+    path: "{{ home_path }}"
+    state: directory
+    owner: "{{ file_owner | default(omit) }}"
+    group: "{{ file_owner | default(omit) }}"
+    mode: "755"
+
+- name: Upload and extract
+  ansible.builtin.unarchive:
+    src: "{{ download_to_path }}"
+    dest: "{{ home_path }}"
+    owner: "{{ file_owner | default(omit) }}"
+    group: "{{ file_owner | default(omit) }}"
+    extra_opts: ["--strip-components=1", "--show-stored-names"]
+
+- name: Copy configuration file
+  ansible.builtin.template:
+    src: "{{ config_file }}.j2"
+    dest: "{{ home_path }}/{{ config_file }}"
+    owner: "{{ file_owner | default(omit) }}"
+    group: "{{ file_owner | default(omit) }}"
+    mode: "644"
+  when: config_file is defined
+
+- name: Call specific task
+  ansible.builtin.include_tasks:
+    file: "{{ specific_task_file }}"
+  when: specific_task_file is defined
+
+- name: Create systemd service
+  ansible.builtin.template:
+    src: "{{ service_file }}.j2"
+    dest: /etc/systemd/system/{{ service_file }}
+    mode: "644"

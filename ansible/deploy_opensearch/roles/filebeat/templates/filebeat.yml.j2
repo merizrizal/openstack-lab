@@ -1,0 +1,20 @@
+filebeat.inputs:
+  - type: filestream
+    id: openstack-logs
+    enabled: true
+    paths:
+      - /var/log/nova/*.log
+      - /var/log/neutron/*.log
+      - /var/log/keystone/*.log
+      - /var/log/glance/*.log
+      - /var/log/cinder/*.log
+      - /var/log/octavia/*.log
+      - /var/log/horizon/*.log
+      - /var/log/mysql/*.log
+      - /var/log/rabbitmq/*.log
+
+output.logstash:
+  hosts: ["{{ mgmtnet_ip_address }}:{{ logstash_beat_port }}"]
+
+setup.ilm.enabled: false
+ilm.enabled: false

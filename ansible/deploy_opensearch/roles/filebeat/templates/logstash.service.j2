@@ -1,0 +1,16 @@
+[Unit]
+Description=Logstash on {{ inventory_hostname}}
+After=network.target
+
+[Service]
+WorkingDirectory={{ logstash_home }}
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart={{ logstash_home }}/bin/logstash -f logstash.conf
+Restart=always
+RestartSec=15
+User={{ ansible_user }}
+Group={{ ansible_user }}
+
+[Install]
+WantedBy=multi-user.target

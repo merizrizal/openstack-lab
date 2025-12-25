@@ -1,0 +1,48 @@
+---
+- name: Download OpenSearch Dashboards archive to localhost
+  ansible.builtin.get_url:
+    url: "{{ os_download_url }}-dashboards/{{ os_dashboards_version }}/opensearch-dashboards-{{ os_dashboards_version }}-linux-x64.tar.gz"
+    dest: /tmp/opensearch-dashboards.tar.gz
+    mode: "644"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Create OpenSearch Dashboards user
+  ansible.builtin.user:
+    name: "{{ os_dashboards_user }}"
+    state: present
+    shell: /bin/false
+    create_home: true
+    home: "{{ os_dashboards_home }}"
+
+- name: Create OpenSearch Dashboards home directory
+  ansible.builtin.file:
+    path: "{{ os_dashboards_home }}"
+    state: directory
+    owner: "{{ os_dashboards_user }}"
+    group: "{{ os_dashboards_user }}"
+    mode: "755"
+
+- name: Upload OpenSearch Dashboards and extract
+  ansible.builtin.unarchive:
+    src: /tmp/opensearch-dashboards.tar.gz
+    dest: "{{ os_dashboards_home }}"
+    owner: "{{ os_dashboards_user }}"
+    group: "{{ os_dashboards_user }}"
+    extra_opts: ["--strip-components=1", "--show-stored-names"]
+
+- name: Copy configuration file
+  ansible.builtin.template:
+    src: opensearch_dashboards.yml.j2
+    dest: "{{ os_dashboards_config_dir }}/opensearch_dashboards.yml"
+    backup: true
+    owner: "{{ os_dashboards_user }}"
+    group: "{{ os_dashboards_user }}"
+    mode: "644"
+
+- name: Create OpenSearch Dashboards systemd service
+  ansible.builtin.template:
+    src: dashboards.service.j2
+    dest: /etc/systemd/system/dashboards.service
+    mode: "644"

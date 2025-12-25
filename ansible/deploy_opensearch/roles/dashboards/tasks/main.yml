@@ -9,13 +9,13 @@
   ansible.builtin.include_tasks:
     file: configure.yml
 
-- name: Install OpenSearch
+- name: Install OpenSearch Dashboards
   ansible.builtin.include_tasks:
     file: install.yml
 
 - name: Start services
   ansible.builtin.systemd_service:
-    name: opensearch
+    name: dashboards
     enabled: true
     state: restarted
     daemon_reload: true
