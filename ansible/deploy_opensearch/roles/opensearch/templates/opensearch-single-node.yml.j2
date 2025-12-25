@@ -1,0 +1,7 @@
+cluster.name: "{{ os_cluster_name }}"
+node.name: "{{ inventory_hostname }}"
+network.host: "{{ mgmtnet_ip_address }}"
+http.port: "{{ os_api_port }}"
+discovery.type: single-node
+bootstrap.memory_lock: true
+plugins.security.disabled: true

@@ -6,7 +6,7 @@ controller01:
   hostname: controller01.local
   memory: 9216
   cpus: 4
-  disks: 25
+  disks: 50
 
 compute01:
   environment: compute

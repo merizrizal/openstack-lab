@@ -1,0 +1,19 @@
+---
+ansible_connection: ssh
+ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
+
+os_cluster_name: openstack-cluster
+os_download_url: https://artifacts.opensearch.org/releases/bundle/opensearch
+os_version: 3.4.0
+os_dashboards_version: 3.4.0
+
+os_api_port: 9200
+os_home: /usr/share/opensearch
+os_config_dir: /usr/share/opensearch/config
+
+os_user: opensearch
+
+xms_value: 4
+xmx_value: 4
+
+cluster_type: single-node
