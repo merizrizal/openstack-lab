@@ -3,14 +3,13 @@ filebeat.inputs:
     id: openstack-logs
     enabled: true
     paths:
-      - /var/log/nova/*.log
-      - /var/log/neutron/*.log
-      - /var/log/keystone/*.log
-      - /var/log/glance/*.log
       - /var/log/cinder/*.log
+      - /var/log/glance/*.log
+      - /var/log/keystone/*.log
+      - /var/log/neutron/*.log
+      - /var/log/nova/*.log
       - /var/log/octavia/*.log
-      - /var/log/horizon/*.log
-      - /var/log/mysql/*.log
+      - /var/log/placement/*.log
       - /var/log/rabbitmq/*.log
 
 output.logstash:

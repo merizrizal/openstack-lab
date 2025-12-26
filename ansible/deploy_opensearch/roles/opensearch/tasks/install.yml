@@ -36,7 +36,6 @@
   ansible.builtin.blockinfile:
     block: "{{ lookup('ansible.builtin.template', 'opensearch_' ~ cluster_type ~ '.yml.j2') }}"
     dest: "{{ os_config_dir }}/opensearch.yml"
-    backup: true
     state: present
     create: true
     marker: "## {mark} OpenSearch main configuration ##"

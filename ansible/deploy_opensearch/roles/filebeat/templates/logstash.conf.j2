@@ -7,6 +7,6 @@ input {
 output {
   opensearch {
     hosts => ["http://{{ controller01.mgmtnet_ip_address }}:{{ os_api_port }}"]
-    index => "openstack-{{ inventory_hostname }}-%{[@metadata][beat]}-%{[@metadata][version]}-%{+YYYY.MM.dd}"
+    index => "openstack-{{ inventory_hostname }}-%{[@metadata][beat]}-%{+YYYY.MM.dd}"
   }
 }

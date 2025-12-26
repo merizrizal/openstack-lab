@@ -36,7 +36,6 @@
   ansible.builtin.template:
     src: opensearch_dashboards.yml.j2
     dest: "{{ os_dashboards_config_dir }}/opensearch_dashboards.yml"
-    backup: true
     owner: "{{ os_dashboards_user }}"
     group: "{{ os_dashboards_user }}"
     mode: "644"
