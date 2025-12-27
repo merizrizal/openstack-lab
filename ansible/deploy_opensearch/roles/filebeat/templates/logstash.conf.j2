@@ -6,7 +6,10 @@ input {
 
 output {
   opensearch {
-    hosts => ["http://{{ controller01.mgmtnet_ip_address }}:{{ os_api_port }}"]
-    index => "openstack-{{ inventory_hostname }}-%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+    hosts => ["https://{{ controller01.mgmtnet_ip_address }}:{{ os_api_port }}"]
+    index => "openstack-logs-{{ inventory_hostname }}-%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+    user => "{{ os_admin_user }}"
+    password => "{{ os_admin_password }}"
+    ssl_certificate_verification => false
   }
 }

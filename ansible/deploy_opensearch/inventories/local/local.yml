@@ -18,3 +18,9 @@ lab:
       hosts:
         storage01:
           ansible_host: "{{ storage01.mgmtnet_ip_address }}"
+os_cluster:
+  hosts:
+    controller01:
+os_master:
+  hosts:
+    controller01:

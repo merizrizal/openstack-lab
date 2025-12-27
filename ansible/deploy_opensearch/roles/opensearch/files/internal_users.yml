@@ -1,0 +1,16 @@
+---
+_meta:
+  type: "internalusers"
+  config_version: 2
+
+admin:
+  hash: "replace_this_with_os_admin_password_hashed"
+  reserved: true
+  backend_roles:
+    - "admin"
+  description: "admin user"
+
+kibanaserver:
+  hash: "replace_this_with_os_kibana_password_hashed"
+  reserved: true
+  description: "kibanaserver user"

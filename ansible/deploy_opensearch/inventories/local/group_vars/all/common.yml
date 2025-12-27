@@ -7,16 +7,19 @@ os_download_url: https://artifacts.opensearch.org/releases/bundle/opensearch
 os_version: 3.4.0
 os_api_port: 9200
 os_home: /usr/share/opensearch
-os_config_dir: /usr/share/opensearch/config
+os_config_dir: "{{ os_home }}/config"
+os_sec_plugin_config_dir: "{{ os_home }}/config/opensearch-security"
 
 xms_value: 2
 xmx_value: 2
-
 cluster_type: single-node
+auth_type: internal
+domain_name: openstacklab.net
+cert_valid_days: 730
 
 os_dashboards_version: 3.4.0
 os_dashboards_home: /usr/share/opensearch-dashboards
-os_dashboards_config_dir: /usr/share/opensearch-dashboards/config
+os_dashboards_config_dir: "{{ os_dashboards_home }}/config"
 
 logstash_download_url: https://artifacts.elastic.co/downloads/logstash
 logstash_version: 9.2.3

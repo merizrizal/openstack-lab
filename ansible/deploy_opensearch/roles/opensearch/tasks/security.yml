@@ -1,0 +1,113 @@
+---
+- name: Force create local temporary directory for certificates generation
+  ansible.builtin.file:
+    path: /tmp/opensearch-nodecerts
+    mode: "755"
+    state: "{{ item }}"
+  become: false
+  delegate_to: localhost
+  run_once: true
+  loop:
+    - absent
+    - directory
+
+- name: Download certificates generation tool and extract
+  ansible.builtin.unarchive:
+    remote_src: true
+    src: https://repo1.maven.org/maven2/com/floragunn/search-guard-tlstool/1.8/search-guard-tlstool-1.8.tar.gz
+    dest: /tmp/opensearch-nodecerts
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Copy the TLS configuration
+  ansible.builtin.template:
+    src: tlsconfig.yml.j2
+    dest: /tmp/opensearch-nodecerts/config/tlsconfig.yml
+    mode: "644"
+  become: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate the node & admin certificates in local
+  ansible.builtin.command:
+    cmd: >-
+      /tmp/opensearch-nodecerts/tools/sgtlstool.sh -c /tmp/opensearch-nodecerts/config/tlsconfig.yml
+      -ca -crt -t /tmp/opensearch-nodecerts/config/
+  become: false
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Copy the node and admin certificates to OpenSearch nodes
+  ansible.builtin.copy:
+    src: "/tmp/opensearch-nodecerts/config/{{ item }}"
+    dest: "{{ os_config_dir }}"
+    owner: "{{ os_sys_user }}"
+    group: "{{ os_sys_user }}"
+    mode: "600"
+  loop:
+    - root-ca.pem
+    - root-ca.key
+    - "{{ inventory_hostname }}.key"
+    - "{{ inventory_hostname }}.pem"
+    - "{{ inventory_hostname }}_http.key"
+    - "{{ inventory_hostname }}_http.pem"
+    - admin.key
+    - admin.pem
+
+- name: Apply the security configuration
+  ansible.builtin.blockinfile:
+    block: "{{ lookup('ansible.builtin.file', 'security_conf.yml') }}"
+    dest: "{{ os_config_dir }}/opensearch.yml"
+    insertafter: EOF
+    marker: "## {mark} OpenSearch Security common configuration ##"
+
+- name: Apply the additional security configuration
+  ansible.builtin.blockinfile:
+    block: "{{ lookup('ansible.builtin.file', '/tmp/opensearch-nodecerts/config/' ~ inventory_hostname ~ '_elasticsearch_config_snippet.yml') }}"
+    dest: "{{ os_config_dir }}/opensearch.yml"
+    insertafter: EOF
+    marker: "## {mark} OpenSearch Security Node and Admin certificates configuration  ##"
+
+- name: Prepare the OpenSearch security configuration file
+  ansible.builtin.replace:
+    path: "{{ os_config_dir }}/opensearch.yml"
+    regexp: searchguard
+    replace: plugins.security
+
+- name: Copy the opensearch security internal users template
+  ansible.builtin.copy:
+    src: internal_users.yml
+    dest: "{{ os_sec_plugin_config_dir }}/internal_users.yml"
+    owner: "{{ os_sys_user }}"
+    group: "{{ os_sys_user }}"
+    mode: "644"
+
+- name: Generate hash for admin user password
+  ansible.builtin.command:
+    cmd: bash {{ os_home }}/plugins/opensearch-security/tools/hash.sh -p {{ os_admin_password }}
+  environment:
+    JAVA_HOME: "{{ os_home }}/jdk"
+  register: hash_result
+  changed_when: false
+
+- name: Replace admin user password configuration with hashed password
+  ansible.builtin.replace:
+    path: "{{ os_sec_plugin_config_dir }}/internal_users.yml"
+    regexp: replace_this_with_os_admin_password_hashed
+    replace: "{{ hash_result.stdout }}"
+
+- name: Generate hash for kibanaserver user password
+  ansible.builtin.command:
+    cmd: bash {{ os_home }}/plugins/opensearch-security/tools/hash.sh -p {{ os_kibana_password }}
+  environment:
+    JAVA_HOME: "{{ os_home }}/jdk"
+  register: hash_result
+  changed_when: false
+
+- name: Replace kibanaserver user password configuration with hashed password
+  ansible.builtin.replace:
+    path: "{{ os_sec_plugin_config_dir }}/internal_users.yml"
+    regexp: replace_this_with_os_kibana_password_hashed
+    replace: "{{ hash_result.stdout }}"

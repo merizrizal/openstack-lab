@@ -10,7 +10,7 @@
 
 - name: Create OpenSearch user
   ansible.builtin.user:
-    name: "{{ os_user }}"
+    name: "{{ os_sys_user }}"
     state: present
     shell: /bin/false
     create_home: true
@@ -20,16 +20,16 @@
   ansible.builtin.file:
     path: "{{ os_home }}"
     state: directory
-    owner: "{{ os_user }}"
-    group: "{{ os_user }}"
+    owner: "{{ os_sys_user }}"
+    group: "{{ os_sys_user }}"
     mode: "755"
 
 - name: Upload OpenSearch and extract
   ansible.builtin.unarchive:
     src: /tmp/opensearch.tar.gz
     dest: "{{ os_home }}"
-    owner: "{{ os_user }}"
-    group: "{{ os_user }}"
+    owner: "{{ os_sys_user }}"
+    group: "{{ os_sys_user }}"
     extra_opts: ["--strip-components=1", "--show-stored-names"]
 
 - name: Copy configuration file
@@ -38,17 +38,18 @@
     dest: "{{ os_config_dir }}/opensearch.yml"
     state: present
     create: true
-    marker: "## {mark} OpenSearch main configuration ##"
-    owner: "{{ os_user }}"
-    group: "{{ os_user }}"
+    owner: "{{ os_sys_user }}"
+    group: "{{ os_sys_user }}"
     mode: "600"
+    marker: "## {mark} OpenSearch main configuration ##"
+    insertafter: EOF
 
 - name: Copy jvm.options file for instance
   ansible.builtin.template:
     src: jvm.options.j2
     dest: "{{ os_config_dir }}/jvm.options"
-    owner: "{{ os_user }}"
-    group: "{{ os_user }}"
+    owner: "{{ os_sys_user }}"
+    group: "{{ os_sys_user }}"
     mode: "600"
     force: true
 
