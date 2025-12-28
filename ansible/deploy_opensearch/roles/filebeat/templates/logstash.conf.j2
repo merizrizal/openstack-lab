@@ -4,10 +4,35 @@ input {
   }
 }
 
+filter {
+  if [log][file][path] {
+    grok {
+      match => {
+        "[log][file][path]" => [
+          "/var/log/%{DATA:component}/%{DATA:service}\.log",
+          "/var/log/%{DATA:component}/%{DATA:service}\.log",
+          "/var/log/%{DATA:component}/%{DATA:service}\.log",
+          "/var/log/%{DATA:component}/%{DATA:service}\.log",
+          "/var/log/%{DATA:component}/%{DATA:service}\.log",
+          "/var/log/%{DATA:component}/%{DATA:service}\.log"
+        ]
+      }
+    }
+  }
+
+  grok {
+    match => {
+      "[message]" => [
+        "%{TIMESTAMP_ISO8601:timestamp} %{INT:} %{LOGLEVEL:level} %{DATA:class_component}%{SPACE:}\[%{DATA:request_id}\] %{GREEDYDATA:app_message}"
+      ]
+    }
+  }
+}
+
 output {
   opensearch {
     hosts => ["https://{{ controller01.mgmtnet_ip_address }}:{{ os_api_port }}"]
-    index => "openstack-logs-{{ inventory_hostname }}-%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+    index => "openstack-{{ inventory_hostname }}-%{[component]}-logs-%{[service]}-%{+YYYY.MM.dd}"
     user => "{{ os_admin_user }}"
     password => "{{ os_admin_password }}"
     ssl_certificate_verification => false
