@@ -29,7 +29,7 @@
   delegate_to: localhost
   run_once: true
 
-- name: Generate the node & admin certificates in local
+- name: Generate the node and admin certificates in local
   ansible.builtin.command:
     cmd: >-
       /tmp/opensearch-nodecerts/tools/sgtlstool.sh -c /tmp/opensearch-nodecerts/config/tlsconfig.yml
@@ -58,7 +58,7 @@
 
 - name: Apply the security configuration
   ansible.builtin.blockinfile:
-    block: "{{ lookup('ansible.builtin.file', 'security_conf.yml') }}"
+    block: "{{ lookup('ansible.builtin.template', 'security_conf.yml.j2') }}"
     dest: "{{ os_config_dir }}/opensearch.yml"
     insertafter: EOF
     marker: "## {mark} OpenSearch Security common configuration ##"
@@ -77,8 +77,8 @@
     replace: plugins.security
 
 - name: Copy the opensearch security internal users template
-  ansible.builtin.copy:
-    src: internal_users.yml
+  ansible.builtin.template:
+    src: internal_users.yml.j2
     dest: "{{ os_sec_plugin_config_dir }}/internal_users.yml"
     owner: "{{ os_sys_user }}"
     group: "{{ os_sys_user }}"
