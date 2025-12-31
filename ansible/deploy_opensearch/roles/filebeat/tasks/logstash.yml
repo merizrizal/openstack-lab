@@ -1,0 +1,6 @@
+---
+- name: Install OpenSearch plugin
+  ansible.builtin.command:
+    chdir: "{{ logstash_home }}/bin"
+    cmd: ./logstash-plugin install logstash-output-opensearch
+  changed_when: false

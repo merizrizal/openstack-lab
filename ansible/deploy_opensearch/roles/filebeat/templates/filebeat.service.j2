@@ -1,0 +1,16 @@
+[Unit]
+Description=Filebeat on {{ inventory_hostname}}
+After=network.target
+
+[Service]
+WorkingDirectory={{ filebeat_home }}
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart={{ filebeat_home }}/filebeat -e
+Restart=always
+RestartSec=15
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

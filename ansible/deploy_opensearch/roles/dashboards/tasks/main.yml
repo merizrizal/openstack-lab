@@ -1,0 +1,21 @@
+---
+- name: Set facts
+  ansible.builtin.set_fact:
+    mgmtnet_ip_address: "{{ node.mgmtnet_ip_address }}"
+  vars:
+    node: "{{ lookup('ansible.builtin.vars', ansible_facts['hostname']) }}"
+
+- name: Configure the system settings and stuff
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Install OpenSearch Dashboards
+  ansible.builtin.include_tasks:
+    file: install.yml
+
+- name: Start services
+  ansible.builtin.systemd_service:
+    name: dashboards
+    enabled: true
+    state: restarted
+    daemon_reload: true

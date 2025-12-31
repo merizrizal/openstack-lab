@@ -1,0 +1,9 @@
+---
+- name: Install OpenSearch
+  ansible.builtin.import_playbook: playbook_setup_opensearch.yml
+
+- name: Install OpenSearch Dashboards
+  ansible.builtin.import_playbook: playbook_setup_opensearch_dashboard.yml
+
+- name: Install Beats
+  ansible.builtin.import_playbook: playbook_setup_filebeat.yml
