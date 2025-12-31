@@ -38,10 +38,10 @@
     },
     "controller01": {
         "cpus": 4,
-        "disks": 25,
+        "disks": 50,
         "environment": "controller",
         "hostname": "controller01.local",
-        "memory": 9216,
+        "memory": 16384,
         "mgmtnet_ip_address": "192.168.121.5",
         "provider_ip_address": "192.168.123.5"
     },
@@ -69,11 +69,11 @@
                 "size": 200
             }
         ],
-        "cpus": 2,
+        "cpus": 4,
         "disks": 25,
         "environment": "storage",
         "hostname": "storage01.local",
-        "memory": 2048,
+        "memory": 4096,
         "mgmtnet_ip_address": "192.168.121.8",
         "provider_ip_address": "192.168.123.8"
     }
