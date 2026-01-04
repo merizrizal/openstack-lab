@@ -9,11 +9,6 @@ filter {
     grok {
       match => {
         "[log][file][path]" => [
-          "/var/log/%{DATA:component}/%{DATA:service}\.log",
-          "/var/log/%{DATA:component}/%{DATA:service}\.log",
-          "/var/log/%{DATA:component}/%{DATA:service}\.log",
-          "/var/log/%{DATA:component}/%{DATA:service}\.log",
-          "/var/log/%{DATA:component}/%{DATA:service}\.log",
           "/var/log/%{DATA:component}/%{DATA:service}\.log"
         ]
       }

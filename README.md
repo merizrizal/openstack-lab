@@ -44,6 +44,17 @@
   |  |  |  | - ceph_adm
   |  |  |  | - ceph_common
   |  |  |  | - openstack
+  |  | - deploy_opensearch
+  |  |  | - inventories
+  |  |  |  | - local
+  |  |  | - playbook_deploy.yml
+  |  |  | - playbook_setup_filebeat.yml
+  |  |  | - playbook_setup_opensearch_dashboard.yml
+  |  |  | - playbook_setup_opensearch.yml
+  |  |  | - roles
+  |  |  |  | - dashboards
+  |  |  |  | - filebeat
+  |  |  |  | - opensearch
   |  | - deploy_openstack
   |  |  | - inventories
   |  |  |  | - local
@@ -141,7 +152,17 @@ Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_ope
 
 Now our OpenStack Lab should be ready.
 
-**Bootstraping**
+**Provision OpenSearch as part of the observability stack**
+1. Run `source envrc` then navigate to `./ansible` directory.
+2. Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_setup_opensearch.yml` to install and configure OpenSearch.
+3. Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_setup_opensearch_dashboard.yml` to install and configure OpenSearch Dashboards.
+4. Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_setup_filebeat.yml` to install and configure Logstash and Filebeat.
+
+or
+
+Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_deploy.yml` to deploy all at once.
+
+**OpenStack Bootstraping**
 1. Prepare the VM image in qcow2 format. This image is going to be uploaded to controller node.
 2. Run `export IMAGE_PATH=/path/to/image.qcow2`.
 3. Run `make -C vagrant/controller copy-image-to-vm`.
