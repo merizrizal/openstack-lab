@@ -3,22 +3,10 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: prometheus
-    static_configs:
-      - targets: ['{{ hostvars[cicd_list.ci_monitor01.name].ansible_host }}:{{ prometheus_port }}']
+  {%- for scrape_config_item in scrape_configs %}
 
-  - job_name: jenkins
+  - job_name: {{ scrape_config_item.job_name }}
     static_configs:
-      - targets: ['{{ hostvars[cicd_list.jenkins01.name].ansible_host }}:8080']
+      - targets: ['{{ scrape_config_item.host }}:{{ scrape_config_item.port }}']
 
-  - job_name: ci-agents-node-exporters
-    static_configs:
-      - targets: ['{{ hostvars[cicd_list.runner01.name].ansible_host }}:{{ node_exporter_port }}']
-
-  - job_name: gitlab-node-exporters
-    static_configs:
-      - targets: ['{{ hostvars[cicd_list.gitlab01.name].ansible_host }}:{{ node_exporter_port }}']
-
-  - job_name: jenkins-node-exporters
-    static_configs:
-      - targets: ['{{ hostvars[cicd_list.jenkins01.name].ansible_host }}:{{ node_exporter_port }}']
+  {%- endfor %}

@@ -1,0 +1,21 @@
+---
+scrape_configs:
+  - job_name: prometheus
+    host: "{{ hostvars[cicd_list.ci_monitor01.name].ansible_host }}"
+    port: "{{ prometheus_port }}"
+
+  - job_name: jenkins
+    host: "{{ hostvars[cicd_list.jenkins01.name].ansible_host }}"
+    port: "{{ 8080 }}"
+
+  - job_name: ci-agents-node-exporters
+    host: "{{ hostvars[cicd_list.runner01.name].ansible_host }}"
+    port: "{{ node_exporter_port }}"
+
+  - job_name: gitlab-node-exporters
+    host: "{{ hostvars[cicd_list.gitlab01.name].ansible_host }}"
+    port: "{{ node_exporter_port }}"
+
+  - job_name: jenkins-node-exporters
+    host: "{{ hostvars[cicd_list.jenkins01.name].ansible_host }}"
+    port: "{{ node_exporter_port }}"

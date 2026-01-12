@@ -13,3 +13,6 @@
 
 - name: Setup CI monitor
   ansible.builtin.import_playbook: playbook_setup_ci_monitor.yml
+
+- name: Setup Node exporter
+  ansible.builtin.import_playbook: playbook_setup_node_exporter.yml
