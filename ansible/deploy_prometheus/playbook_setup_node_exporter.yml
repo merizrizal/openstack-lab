@@ -1,0 +1,11 @@
+---
+- name: Deploy and setup Prometheus node exporter
+  hosts: controller, compute, storage, ceph_adm
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Call telemetry node_exporter role
+      ansible.builtin.include_role:
+        name: telemetry
+        tasks_from: node_exporter

@@ -1,0 +1,28 @@
+---
+ansible_connection: ssh
+ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
+
+scrape_configs:
+  - job_name: prometheus
+    host: "{{ controller01.mgmtnet_ip_address }}"
+    port: "{{ prometheus_port }}"
+
+  - job_name: controller-node-exporters
+    host: "{{ controller01.mgmtnet_ip_address }}"
+    port: "{{ node_exporter_port }}"
+
+  - job_name: compute01-node-exporters
+    host: "{{ compute01.mgmtnet_ip_address }}"
+    port: "{{ node_exporter_port }}"
+
+  - job_name: compute02-node-exporters
+    host: "{{ compute02.mgmtnet_ip_address }}"
+    port: "{{ node_exporter_port }}"
+
+  - job_name: storage01-node-exporters
+    host: "{{ storage01.mgmtnet_ip_address }}"
+    port: "{{ node_exporter_port }}"
+
+  - job_name: ceph01-node-exporters
+    host: "{{ ceph01.mgmtnet_ip_address }}"
+    port: "{{ node_exporter_port }}"

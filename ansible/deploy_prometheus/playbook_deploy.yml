@@ -1,0 +1,6 @@
+---
+- name: Install Prometheus
+  ansible.builtin.import_playbook: playbook_setup_prometheus.yml
+
+- name: Install Prometheus node exporter
+  ansible.builtin.import_playbook: playbook_setup_node_exporter.yml
