@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenStack exporter for Prometheus on {{ inventory_hostname}}
+After=network.target
+
+[Service]
+WorkingDirectory={{ openstack_exporter_home }}
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart={{ openstack_exporter_home }}/openstack-exporter --os-client-config openstack_clouds.yml default
+Restart=always
+RestartSec=15
+User={{ ansible_user }}
+Group={{ ansible_user }}
+
+[Install]
+WantedBy=multi-user.target
