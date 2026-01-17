@@ -5,7 +5,7 @@ ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyCheck
 os_cluster_name: openstack-cluster
 os_download_url: https://artifacts.opensearch.org/releases/bundle/opensearch
 os_version: 3.4.0
-os_api_port: 9200
+os_api_port: 9920
 os_home: /usr/share/opensearch
 os_config_dir: "{{ os_home }}/config"
 os_sec_plugin_config_dir: "{{ os_home }}/config/opensearch-security"

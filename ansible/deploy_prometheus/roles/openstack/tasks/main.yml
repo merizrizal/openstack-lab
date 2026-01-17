@@ -1,0 +1,23 @@
+---
+- name: Configure the system settings and stuff
+  ansible.builtin.include_tasks:
+    file: configure.yml
+
+- name: Install Mariadb exporter
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: install_archived_package
+  vars:
+    download_url: "{{ mysqld_exporter_download_url }}/v{{ mysqld_exporter_version }}/mysqld_exporter-{{ mysqld_exporter_version }}.linux-amd64.tar.gz"
+    download_to_path: /tmp/mysqld_exporter.tar.gz
+    file_owner: "{{ ansible_user }}"
+    home_path: "{{ mysqld_exporter_home }}"
+    config_file: mariadb_exporter.cnf
+    service_file: prometheus_mariadb_exporter.service
+
+- name: Start services
+  ansible.builtin.systemd_service:
+    name: prometheus_mariadb_exporter
+    enabled: true
+    state: restarted
+    daemon_reload: true

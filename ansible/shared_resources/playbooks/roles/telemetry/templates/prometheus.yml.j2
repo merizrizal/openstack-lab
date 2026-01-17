@@ -1,12 +1,6 @@
 ---
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
-scrape_configs:
-  {%- for scrape_config_item in scrape_configs %}
-
-  - job_name: {{ scrape_config_item.job_name }}
-    static_configs:
-      - targets: ['{{ scrape_config_item.host }}:{{ scrape_config_item.port }}']
-
-  {%- endfor %}
+scrape_configs: {{ scrape_configs }}

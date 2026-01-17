@@ -1,0 +1,16 @@
+---
+- name: MariaDB add Prometheus exporter user
+  ansible.builtin.shell:
+    cmd: |
+      mysql -u root <<EOF
+      CREATE USER IF NOT EXISTS 'exporter'@'{{ controller01.mgmtnet_ip_address }}' IDENTIFIED BY '{{ mariadb_prometheus_password }}' WITH MAX_USER_CONNECTIONS 3;
+      GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'{{ controller01.mgmtnet_ip_address }}';
+      EOF
+    executable: /bin/bash
+  changed_when: false
+
+- name: Enable rabbitmq_prometheus plugin
+  ansible.builtin.command:
+    cmd: rabbitmq-plugins enable rabbitmq_prometheus
+  register: enable_rabbitmq_prometheus
+  changed_when: enable_rabbitmq_prometheus.stdout is defined and 'Plugin configuration unchanged' not in enable_rabbitmq_prometheus.stdout

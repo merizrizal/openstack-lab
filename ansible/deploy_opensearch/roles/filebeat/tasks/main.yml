@@ -6,20 +6,23 @@
     node: "{{ lookup('ansible.builtin.vars', ansible_facts['hostname']) }}"
 
 - name: Install Logstash
-  ansible.builtin.include_tasks:
-    file: install.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: install_archived_package
   vars:
     download_url: "{{ logstash_download_url }}/logstash-{{ logstash_version }}-linux-x86_64.tar.gz"
     download_to_path: /tmp/logstash.tar.gz
     file_owner: "{{ ansible_user }}"
     home_path: "{{ logstash_home }}"
-    specific_task_file: logstash.yml
+    specific_role: filebeat
+    specific_task: logstash
     config_file: logstash.conf
     service_file: logstash.service
 
 - name: Install Filebeat
-  ansible.builtin.include_tasks:
-    file: install.yml
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: install_archived_package
   vars:
     download_url: "{{ filebeat_download_url }}/filebeat-oss-{{ filebeat_version }}-linux-x86_64.tar.gz"
     download_to_path: /tmp/filebeat.tar.gz

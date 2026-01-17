@@ -1,0 +1,4 @@
+---
+mysqld_exporter_download_url: https://github.com/prometheus/mysqld_exporter/releases/download
+mysqld_exporter_version: 0.18.0
+mysqld_exporter_home: /opt/mysqld_exporter

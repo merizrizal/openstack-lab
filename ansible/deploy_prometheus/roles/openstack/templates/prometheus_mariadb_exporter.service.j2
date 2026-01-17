@@ -1,0 +1,16 @@
+[Unit]
+Description=Mariadb exporter for Prometheus on {{ inventory_hostname}}
+After=network.target
+
+[Service]
+WorkingDirectory={{ mysqld_exporter_home }}
+StartLimitInterval=5
+StartLimitBurst=10
+ExecStart={{ mysqld_exporter_home }}/mysqld_exporter --config.my-cnf="mariadb_exporter.cnf" --no-collect.slave_status
+Restart=always
+RestartSec=15
+User={{ ansible_user }}
+Group={{ ansible_user }}
+
+[Install]
+WantedBy=multi-user.target
