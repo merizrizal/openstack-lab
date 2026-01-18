@@ -26,6 +26,12 @@
     state: present
   any_errors_fatal: true
 
+- name: Provision Prometheus datasource
+  ansible.builtin.include_tasks:
+    file: grafana_datasource.yml
+  vars:
+    config_file: grafana_prometheus_ds.yml
+
 - name: Enable and start Grafana services
   ansible.builtin.systemd_service:
     name: grafana-server
