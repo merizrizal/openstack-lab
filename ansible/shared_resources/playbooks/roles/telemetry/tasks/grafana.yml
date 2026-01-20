@@ -1,0 +1,40 @@
+---
+- name: Create directory for Grafana's GPG key
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "755"
+
+- name: Add Grafana's official GPG key
+  ansible.builtin.apt_key:
+    url: https://apt.grafana.com/gpg.key
+    keyring: /etc/apt/keyrings/grafana.gpg
+    state: present
+  register: add_grafana_gpg_key
+  until: add_grafana_gpg_key.key_id is defined and add_grafana_gpg_key.short_id is defined
+  retries: 10
+
+- name: Add Grafana repository
+  ansible.builtin.apt_repository:
+    repo: deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main
+    filename: docker
+    state: present
+
+- name: Install Grafana packages
+  ansible.builtin.package:
+    name: grafana
+    state: present
+  any_errors_fatal: true
+
+- name: Provision Prometheus datasource
+  ansible.builtin.include_tasks:
+    file: grafana_datasource.yml
+  vars:
+    config_file: grafana_prometheus_ds.yml
+
+- name: Enable and start Grafana services
+  ansible.builtin.systemd_service:
+    name: grafana-server
+    enabled: true
+    state: restarted
+    daemon_reload: true

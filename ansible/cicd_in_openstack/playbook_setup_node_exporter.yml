@@ -5,7 +5,7 @@
   vars:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
   tasks:
-    - name: Call telemtry node_exporter role
+    - name: Call telemetry node_exporter role
       ansible.builtin.include_role:
         name: telemetry
         tasks_from: node_exporter

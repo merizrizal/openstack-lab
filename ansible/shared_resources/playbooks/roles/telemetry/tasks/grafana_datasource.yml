@@ -1,0 +1,7 @@
+---
+- name: Add datasource configuration file
+  ansible.builtin.template:
+    src: "{{ config_file }}.j2"
+    dest: /etc/grafana/provisioning/datasources/{{ config_file }}
+    group: grafana
+    mode: "640"

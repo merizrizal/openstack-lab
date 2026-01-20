@@ -22,7 +22,9 @@
     dest: "{{ home_path }}"
     owner: "{{ file_owner | default(omit) }}"
     group: "{{ file_owner | default(omit) }}"
-    extra_opts: ["--strip-components=1", "--show-stored-names"]
+    extra_opts: >
+      {{ [] if (no_strip is defined and no_strip)
+      else ['--strip-components=1', '--show-stored-names'] }}
 
 - name: Copy configuration file
   ansible.builtin.template:
@@ -34,9 +36,10 @@
   when: config_file is defined
 
 - name: Call specific task
-  ansible.builtin.include_tasks:
-    file: "{{ specific_task_file }}"
-  when: specific_task_file is defined
+  ansible.builtin.include_role:
+    name: "{{ specific_role }}"
+    tasks_from: "{{ specific_task }}"
+  when: specific_role is defined and specific_task is defined
 
 - name: Create systemd service
   ansible.builtin.template:

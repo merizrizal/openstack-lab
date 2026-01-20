@@ -1,0 +1,71 @@
+---
+- name: Create Prometheus user
+  ansible.builtin.user:
+    name: "{{ prometheus_user }}"
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Ensure the directory of /opt prometheus_install_dir exists
+  ansible.builtin.file:
+    path: "{{ prometheus_install_dir }}"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "775"
+    state: directory
+
+- name: Download Prometheus binary from URL and extract into /opt
+  ansible.builtin.unarchive:
+    src: "{{ prometheus_binary }}"
+    remote_src: true
+    dest: "{{ prometheus_install_dir }}/"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    extra_opts: ["--strip-components=1", "--show-stored-names"]
+
+- name: Copy Prometheus binary as link to /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ prometheus_install_dir }}/{{ item }}"
+    dest: /usr/local/bin/{{ item }}
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    state: link
+  loop:
+    - prometheus
+    - promtool
+
+- name: Ensure the directory of /etc/prometheus exists
+  ansible.builtin.file:
+    path: /etc/prometheus
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "775"
+    state: directory
+
+- name: Create Prometheus configuration /etc/prometheus/prometheus.yml
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "644"
+
+- name: Ensure the directory of /var/lib/prometheus exists
+  ansible.builtin.file:
+    path: /var/lib/prometheus
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_user }}"
+    mode: "775"
+    state: directory
+
+- name: Create the Prometheus systemd service file
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    mode: "644"
+
+- name: Enable and start Prometheus services
+  ansible.builtin.systemd_service:
+    name: prometheus
+    enabled: true
+    state: restarted
+    daemon_reload: true
