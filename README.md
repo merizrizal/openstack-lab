@@ -1,222 +1,478 @@
-## OpenStack Provisioning
+# OpenStack Lab Provisioning
 
-### This repo is intended for learning OpenStack or deploying an OpenStack Lab.
-#### We will install OpenStack to Libvirt KVM, this means any VM instances that is provisioned by OpenStack are running in nested virtualisation.
+## Overview
 
-#### *Currently, it has only been tested on Ubuntu.
+This repository is intended for **learning OpenStack** and **deploying a full OpenStack lab environment**.
 
-**Ansible directory structure**
+The lab is deployed on **Libvirt/KVM**, meaning all OpenStack instances run under **nested virtualization**.
 
-```
-  | - ansible
-  |  | - bootstrap_openstack
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  | - playbook_bootstrap.yml
-  |  |  | - playbook_init_cicd_server.yml
-  |  |  | - playbook_init_kubernetes.yml
-  |  |  | - roles
-  |  |  |  | - openstack
-  |  | - cicd_in_openstack
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  | - playbook_deploy.yml
-  |  |  | - playbook_pre_setup.yml
-  |  |  | - playbook_setup_ci_monitor.yml
-  |  |  | - playbook_setup_gitlab.yml
-  |  |  | - playbook_setup_jenkins.yml
-  |  |  | - playbook_setup_node_exporter.yml
-  |  |  | - playbook_setup_runner.yml
-  |  |  | - roles
-  |  |  |  | - gitlab
-  |  |  |  | - jenkins
-  |  |  |  | - runner
-  |  | - deploy_ceph
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  | - playbook_apply_osd.yml
-  |  |  | - playbook_deploy.yml
-  |  |  | - playbook_openstack_init.yml
-  |  |  | - playbook_pre_setup.yml
-  |  |  | - playbook_setup_adm.yml
-  |  |  | - playbook_setup_common.yml
-  |  |  | - roles
-  |  |  |  | - ceph_adm
-  |  |  |  | - ceph_common
-  |  |  |  | - openstack
-  |  | - deploy_opensearch
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  | - playbook_deploy.yml
-  |  |  | - playbook_setup_filebeat.yml
-  |  |  | - playbook_setup_opensearch_dashboard.yml
-  |  |  | - playbook_setup_opensearch.yml
-  |  |  | - roles
-  |  |  |  | - dashboards
-  |  |  |  | - filebeat
-  |  |  |  | - opensearch
-  |  | - deploy_openstack
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  | - playbook_ceph_integration.yml
-  |  |  | - playbook_deploy.yml
-  |  |  | - playbook_pre_setup.yml
-  |  |  | - playbook_setup_compute.yml
-  |  |  | - playbook_setup_controller.yml
-  |  |  | - playbook_setup_octavia.yml
-  |  |  | - playbook_setup_storage.yml
-  |  |  | - roles
-  |  |  |  | - ceph
-  |  |  |  | - cinder
-  |  |  |  | - cinder_controller
-  |  |  |  | - cinder_storage
-  |  |  |  | - common
-  |  |  |  | - controller
-  |  |  |  | - glance
-  |  |  |  | - horizon
-  |  |  |  | - keystone
-  |  |  |  | - neutron
-  |  |  |  | - neutron_compute
-  |  |  |  | - neutron_controller
-  |  |  |  | - nova
-  |  |  |  | - nova_compute
-  |  |  |  | - nova_controller
-  |  |  |  | - octavia
-  |  |  |  | - placement
-  |  | - kubernetes_in_openstack
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  | - playbook_pre_setup.yml
-  |  |  | - playbook_setup_kubernetes.yml
-  |  |  | - playbook_setup_nodes.yml
-  |  |  | - roles
-  |  |  |  | - kubernetes
-  |  |  |  | - nodes
-  |  | - shared_resources
-  |  |  | - inventories
-  |  |  |  | - local
-  |  |  |  |  | - cicd.yml
-  |  |  |  |  | - kubernetes.yml
-  |  |  | - playbooks
-  |  |  |  | - roles
-  |  |  |  |  | - ceph_common_vars
-  |  |  |  |  | - common
-  |  |  |  |  | - docker
-  |  |  |  |  | - telemetry
-  | - inventories
-  |  | - local
-  |  |  | - nodes.yml
-```
+> **Status**
+>
+> * Tested on **Ubuntu only**
+> * Intended for lab, learning, and experimentation purposes
 
-Learning materials sourced from https://docs.openstack.org/install-guide/openstack-services.html
-
-**Pre-requisite - Installed to our Operating System:**
-- QEMU + Libvirt: https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/
-- `yq`: https://github.com/mikefarah/yq
-- GCC + Make or build-essential package if we are using Ubuntu.
-- Vagrant: https://developer.hashicorp.com/vagrant/install
-- Vagrant Libvirt: https://vagrant-libvirt.github.io/vagrant-libvirt/installation.html
-- Ansible: https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
-- Install Ansible collection - merizrizal.utils: https://github.com/merizrizal/ansible-collections-for-utilities
-
-
-**Preparation:**
-1. Run `source envrc` then navigate to `./vagrant` directory.
-2. Build the base image which will be used by Vagrant later.<br>
-Run `make -C base_image/ rebuild-base-image-ubuntu`. This will create a new Vagrant box that will be used for our OpenStack VM (controller node, compute and storage node).
-3. Run `make -C controller/ start-provider-network` to create a new interface which will be used by Controller, Compute and Storage node.
-4. Run `make -C controller/ start-vm` to spin up 4 VMs which are 1 Controller, 2 Computes and 1 Storage node.
-
-**Provision Ceph:**
-1. Run `source envrc` then navigate to `./ansible` directory.
-2. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
-3. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_adm.yml` to install and configure Ceph ADM service.
-4. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_setup_common.yml` to install and configure Ceph common packages to the other hosts.
-5. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_apply_osd.yml` to add the other hosts and apply the OSD.
-6. Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_openstack_init.yml` to configure OpenStack Cinder and Nova to be able to integrate with Ceph
-
-or
-
-Run `ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_deploy.yml` to deploy all at once.
-
-**Provision OpenStack:**
-1. Run `source envrc` then navigate to `./ansible` directory.
-2. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
-3. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_setup_controller.yml` to install and configure OpenStack services to Controller node.
-4. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_setup_compute.yml` to install and configure OpenStack services to Compute node.
-5. Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_setup_storage.yml` to install and configure OpenStack services to Storage node.
-
-or
-
-Run `ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_deploy.yml` to deploy all at once.
-
-Now our OpenStack Lab should be ready.
-
-**Provision OpenSearch as part of the observability stack**
-1. Run `source envrc` then navigate to `./ansible` directory.
-2. Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_setup_opensearch.yml` to install and configure OpenSearch.
-3. Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_setup_opensearch_dashboard.yml` to install and configure OpenSearch Dashboards.
-4. Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_setup_filebeat.yml` to install and configure Logstash and Filebeat.
-
-or
-
-Run `ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_deploy.yml` to deploy all at once.
-
-**OpenStack Bootstraping**
-1. Prepare the VM image in qcow2 format. This image is going to be uploaded to controller node.
-2. Run `export IMAGE_PATH=/path/to/image.qcow2`.
-3. Run `make -C vagrant/controller copy-image-to-vm`.
-4. Run `source envrc` then navigate to `./ansible` directory.
-5. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml` to bootstrap the minimum. configuration, such as flavors, Glance images, provider or self-service networks, and security rules.
-
-***Note:**
-
-> If your VM instances in OpenStack can't reach internet and if you're in a nested setup and using br-provider0 (custom bridge) with IP 192.168.123.1/24, make sure the host machine (baremetal) is doing NAT for VMs traffic.<br>
-Add this on the host:
-`sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o <host-external-interface> -j MASQUERADE`<br>
-Replace `<host-external-interface>` with the actual NIC connected to the internet (e.g., eth0).
-You can replace `<host-external-interface>` with `$(ip route get 1.1.1.1 | awk '{print $5}')` to dynamically detect your default NIC.
-<br>
+Learning materials are primarily sourced from the official OpenStack documentation:
+[https://docs.openstack.org/install-guide/openstack-services.html](https://docs.openstack.org/install-guide/openstack-services.html)
 
 ---
 
-**CI/CD Lab Deployment**
+## Architecture Summary
 
-1. Run `source envrc`.
-2. Run `generate_os_client_config local cicd_lab` to generate the OpenStack cloud config `generated/local_clouds.yml`.
-3. Navigate to `./ansible` directory.
-4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_cicd_server.yml` to spin-up 3 VMs on top of OpenStack.
+* Host OS: Ubuntu
+* Hypervisor: Libvirt + KVM
+* VM provisioning: Vagrant
+* Configuration management: Ansible
+* Storage backend: Ceph
+* Observability: OpenSearch, Prometheus, Grafana stack
+* Optional workloads:
 
-    4.1. Once all the VMs are up, log in to OpenStack Horizon (user: `admin`, password: `vagrant`).
+  * CI/CD Lab (GitLab, Jenkins, Runner, Prometheus)
+  * Kubernetes Lab (kubeadm-based)
 
-    4.2. Go to Compute > Instances page, then assign a floating IP to each VM.
+---
 
-5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
-6. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
-7. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_gitlab.yml` to provision Gitlab server.
-8. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_jenkins.yml` to provision Jenkins server.
-9. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_runner.yml` to provision the Runner VM. we will use this for running the pipeline job from Gitlab CI or Jenkins.
-10. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_ci_monitor.yml` to provision Prometheus to "CI monitor" VM.
-11. Run `ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_setup_node_exporter.yml` to provision Prometheus node exporter to Gitlab, Jenkins and Runner VM.
+## Prerequisites (Host Machine)
 
-Our CI/CD Lab should be ready.
+Ensure the following tools are installed on your host OS:
 
-**Kubernetes Lab Deployment**
+* **QEMU + Libvirt**
+  [https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/](https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/)
 
-1. Run `source envrc`.
-2. Run `generate_os_client_config local kubernetes_lab` to generate the OpenStack cloud config `generated/local_clouds.yml`.
-3. Navigate to `./ansible` directory.
-4. Run `ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_kubernetes.yml` to spin-up 3 VMs on top of OpenStack.
+* **yq**
+  [https://github.com/mikefarah/yq](https://github.com/mikefarah/yq)
 
-    4.1. Once all the VMs are up, log in to OpenStack Horizon (user: `admin`, password: `vagrant`).
+* **Build tools**
+  `gcc`, `make`, or `build-essential` (Ubuntu)
 
-    4.2. Go to Compute > Instances page, then assign a floating IP to each VM.
+* **Vagrant**
+  [https://developer.hashicorp.com/vagrant/install](https://developer.hashicorp.com/vagrant/install)
 
-5. Run `export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`
-6. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_pre_setup.yml` to install and configure the pre-requisite packages.
-7. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_setup_kubernetes.yml` to install and provision Kubernetes platform to all VMs.
-8. Run `ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_setup_nodes.yml` to provision a Control plane and two Worker nodes.
+* **Vagrant Libvirt provider**
+  [https://vagrant-libvirt.github.io/vagrant-libvirt/installation.html](https://vagrant-libvirt.github.io/vagrant-libvirt/installation.html)
 
-Our Kubernetes Lab should be ready.
+* **Ansible**
+  [https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
 
-Reach me at meriz.rizal@gmail.com to connect with me or collaboration.
+* **Custom Ansible collection**
+  [https://github.com/merizrizal/ansible-collections-for-utilities](https://github.com/merizrizal/ansible-collections-for-utilities)
+
+---
+
+## Environment Preparation
+
+1. Load environment variables:
+
+   ```bash
+   source envrc
+   ```
+
+2. Navigate to the Vagrant directory:
+
+   ```bash
+   cd vagrant
+   ```
+
+3. Build the base Ubuntu image:
+
+   ```bash
+   make -C base_image/ rebuild-base-image-ubuntu
+   ```
+
+   This creates a reusable Vagrant box for:
+
+   * Controller node
+   * Compute nodes
+   * Storage node
+   * Ceph node
+
+4. Create the provider network:
+
+   ```bash
+   make -C controller/ start-provider-network
+   ```
+
+5. Start the OpenStack VMs:
+
+   ```bash
+   make -C controller/ start-vm
+   ```
+
+   This provisions:
+
+   * 1 Controller node
+   * 2 Compute nodes
+   * 1 Storage node
+   * 1 Ceph node
+
+---
+
+## Ceph Provisioning
+
+All Ceph provisioning is done using Ansible.
+
+1. Load environment variables and navigate to Ansible:
+
+   ```bash
+   source envrc
+   cd ansible
+   ```
+
+2. Run the playbooks in sequence:
+
+   * Pre-requisites:
+
+     ```bash
+     ansible-playbook -i deploy_ceph/inventories/local/local.yml \
+       deploy_ceph/playbook_pre_setup.yml
+     ```
+
+   * Deploy Ceph ADM:
+
+     ```bash
+     ansible-playbook -i deploy_ceph/inventories/local/local.yml \
+       deploy_ceph/playbook_setup_adm.yml
+     ```
+
+   * Install Ceph common packages:
+
+     ```bash
+     ansible-playbook -i deploy_ceph/inventories/local/local.yml \
+       deploy_ceph/playbook_setup_common.yml
+     ```
+
+   * Apply OSDs:
+
+     ```bash
+     ansible-playbook -i deploy_ceph/inventories/local/local.yml \
+       deploy_ceph/playbook_apply_osd.yml
+     ```
+
+   * Integrate Ceph with OpenStack (Cinder & Nova):
+
+     ```bash
+     ansible-playbook -i deploy_ceph/inventories/local/local.yml \
+       deploy_ceph/playbook_openstack_init.yml
+     ```
+
+### One-step Ceph deployment
+
+Alternatively, deploy everything at once:
+
+```bash
+ansible-playbook -i deploy_ceph/inventories/local/local.yml \
+  deploy_ceph/playbook_deploy.yml
+```
+
+---
+
+## OpenStack Provisioning
+
+1. Load environment variables and navigate to Ansible:
+
+   ```bash
+   source envrc
+   cd ansible
+   ```
+
+2. Run the playbooks in sequence:
+
+   * Pre-requisites:
+
+     ```bash
+     ansible-playbook -i deploy_openstack/inventories/local/local.yml \
+       deploy_openstack/playbook_pre_setup.yml
+     ```
+
+   * Controller node:
+
+     ```bash
+     ansible-playbook -i deploy_openstack/inventories/local/local.yml \
+       deploy_openstack/playbook_setup_controller.yml
+     ```
+
+   * Compute nodes:
+
+     ```bash
+     ansible-playbook -i deploy_openstack/inventories/local/local.yml \
+       deploy_openstack/playbook_setup_compute.yml
+     ```
+
+   * Storage node:
+
+     ```bash
+     ansible-playbook -i deploy_openstack/inventories/local/local.yml \
+       deploy_openstack/playbook_setup_storage.yml
+     ```
+
+### One-step OpenStack deployment
+
+```bash
+ansible-playbook -i deploy_openstack/inventories/local/local.yml \
+  deploy_openstack/playbook_deploy.yml
+```
+
+At this point, your **OpenStack Lab should be operational**.
+
+---
+
+## Observability Stack (OpenSearch, Prometheus, Grafana)
+
+1. Load environment variables and navigate to Ansible:
+
+   ```bash
+   source envrc
+   cd ansible
+   ```
+
+2. Deploy OpenSearch components individually:
+
+   * OpenSearch:
+
+     ```bash
+     ansible-playbook -i deploy_opensearch/inventories/local/local.yml \
+       deploy_opensearch/playbook_setup_opensearch.yml
+     ```
+
+   * OpenSearch Dashboards:
+
+     ```bash
+     ansible-playbook -i deploy_opensearch/inventories/local/local.yml \
+       deploy_opensearch/playbook_setup_opensearch_dashboard.yml
+     ```
+
+   * Logstash and Filebeat:
+
+     ```bash
+     ansible-playbook -i deploy_opensearch/inventories/local/local.yml \
+       deploy_opensearch/playbook_setup_filebeat.yml
+     ```
+
+3. Deploy Prometheus and Grafana components individually:
+
+   * Prometheus and Grafana:
+
+     ```bash
+     ansible-playbook -i deploy_prometheus/inventories/local/local.yml \
+       deploy_prometheus/playbook_setup_prometheus.yml
+     ```
+
+   * Prometheus node exporter:
+
+     ```bash
+     ansible-playbook -i deploy_prometheus/inventories/local/local.yml \
+       deploy_prometheus/playbook_setup_node_exporter.yml
+
+### One-step deployment
+
+```bash
+ansible-playbook -i deploy_opensearch/inventories/local/local.yml \
+  deploy_opensearch/playbook_deploy.yml
+
+ansible-playbook -i deploy_prometheus/inventories/local/local.yml \
+  deploy_prometheus/playbook_deploy.yml
+```
+
+---
+
+## OpenStack Bootstrap
+
+This step initializes basic OpenStack resources.
+
+1. Prepare a VM image in **qcow2** format.
+
+2. Export the image path:
+
+   ```bash
+   export IMAGE_PATH=/path/to/image.qcow2
+   ```
+
+3. Copy the image to the Controller VM:
+
+   ```bash
+   make -C vagrant/controller copy-image-to-vm
+   ```
+
+4. Bootstrap OpenStack:
+
+   ```bash
+   source envrc
+   cd ansible
+   ansible-playbook -i bootstrap_openstack/inventories/local/local.yml \
+     bootstrap_openstack/playbook_bootstrap.yml
+   ```
+
+This configures:
+
+* Flavors
+* Glance images
+* Provider / self-service networks
+* Security groups
+
+---
+
+## Networking Note (Nested Virtualization)
+
+If OpenStack instances cannot access the internet and you are using:
+
+* Custom bridge: `br-provider0`
+* Subnet: `192.168.123.0/24`
+
+Ensure NAT is configured on the **bare-metal host**:
+
+```bash
+sudo iptables -t nat -A POSTROUTING \
+  -s 192.168.123.0/24 \
+  -o <host-external-interface> \
+  -j MASQUERADE
+```
+
+To auto-detect the external interface:
+
+```bash
+$(ip route get 1.1.1.1 | awk '{print $5}')
+```
+
+---
+
+## CI/CD Lab Deployment
+
+This deploys GitLab, Jenkins, Runner, and Prometheus on OpenStack.
+
+1. Load environment variables:
+
+   ```bash
+   source envrc
+   ```
+
+2. Generate OpenStack client config:
+
+   ```bash
+   generate_os_client_config local cicd_lab
+   ```
+
+3. Bootstrap CI/CD VMs:
+
+   ```bash
+   cd ansible
+   ansible-playbook -i bootstrap_openstack/inventories/local/local.yml \
+     bootstrap_openstack/playbook_init_cicd_server.yml
+   ```
+
+4. Assign floating IPs via Horizon:
+
+   * URL: OpenStack Dashboard
+   * User: `admin`
+   * Password: `vagrant`
+
+5. Export cloud config:
+
+   ```bash
+   export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml
+   ```
+
+6. Provision services:
+
+   * Pre-setup:
+
+     ```bash
+     ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml \
+       cicd_in_openstack/playbook_pre_setup.yml
+     ```
+   * GitLab:
+
+     ```bash
+     ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml \
+       cicd_in_openstack/playbook_setup_gitlab.yml
+     ```
+   * Jenkins:
+
+     ```bash
+     ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml \
+       cicd_in_openstack/playbook_setup_jenkins.yml
+     ```
+   * Runner:
+
+     ```bash
+     ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml \
+       cicd_in_openstack/playbook_setup_runner.yml
+     ```
+   * Prometheus:
+
+     ```bash
+     ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml \
+       cicd_in_openstack/playbook_setup_ci_monitor.yml
+     ```
+   * Node Exporter:
+
+     ```bash
+     ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml \
+       cicd_in_openstack/playbook_setup_node_exporter.yml
+     ```
+
+---
+
+## Kubernetes Lab Deployment
+
+This provisions a **kubeadm-based Kubernetes cluster** on OpenStack.
+
+1. Load environment variables:
+
+   ```bash
+   source envrc
+   ```
+
+2. Generate OpenStack client config:
+
+   ```bash
+   generate_os_client_config local kubernetes_lab
+   ```
+
+3. Bootstrap Kubernetes VMs:
+
+   ```bash
+   cd ansible
+   ansible-playbook -i bootstrap_openstack/inventories/local/local.yml \
+     bootstrap_openstack/playbook_init_kubernetes.yml
+   ```
+
+4. Assign floating IPs via Horizon.
+
+   * URL: OpenStack Dashboard
+   * User: `admin`
+   * Password: `vagrant`
+
+5. Export cloud config:
+
+   ```bash
+   export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml
+   ```
+
+6. Provision Kubernetes:
+
+   * Pre-setup:
+
+     ```bash
+     ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml \
+       kubernetes_in_openstack/playbook_pre_setup.yml
+     ```
+   * Install Kubernetes:
+
+     ```bash
+     ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml \
+       kubernetes_in_openstack/playbook_setup_kubernetes.yml
+     ```
+   * Configure nodes:
+
+     ```bash
+     ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml \
+       kubernetes_in_openstack/playbook_setup_nodes.yml
+     ```
+
+---
+
+## Contact
+
+For collaboration, questions, or discussions:
+
+**Email:** [meriz.rizal@gmail.com](mailto:meriz.rizal@gmail.com)
+
