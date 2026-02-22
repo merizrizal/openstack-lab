@@ -10,6 +10,7 @@ The lab is deployed on **Libvirt/KVM**, meaning all OpenStack instances run unde
 >
 > * Tested on **Ubuntu only**
 > * Intended for lab, learning, and experimentation purposes
+> * Inventory secrets are **lab defaults only** and must be changed for shared/public environments
 
 Learning materials are primarily sourced from the official OpenStack documentation:
 [https://docs.openstack.org/install-guide/openstack-services.html](https://docs.openstack.org/install-guide/openstack-services.html)
@@ -55,6 +56,33 @@ Ensure the following tools are installed on your host OS:
 
 * **Custom Ansible collection**
   [https://github.com/merizrizal/ansible-collections-for-utilities](https://github.com/merizrizal/ansible-collections-for-utilities)
+
+Install Python dependencies:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+---
+
+## Important Notes Before Deploy
+
+1. **Recommended deployment order**
+   - Vagrant VM setup -> Ceph deployment -> OpenStack deployment -> OpenStack bootstrap -> optional stacks (observability, CI/CD, Kubernetes).
+
+2. **Ceph is enabled by default in OpenStack playbooks**
+   - `deploy_openstack` has `ceph_enabled: true` by default.
+   - Run Ceph playbooks first so Ceph artifacts are available for OpenStack integration.
+   - If you want to skip Ceph, set `ceph_enabled: false` in:
+     `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml`.
+
+3. **Credentials in repository are insecure defaults**
+   - Files under `ansible/**/group_vars/*secret*.yml` use static sample credentials.
+   - Replace them before using this outside local isolated lab usage.
+
+4. **Node exporter default port**
+   - Node exporter in this repository listens on `9200`.
+   - Ensure your security groups allow `tcp/9200` when scraping from external monitor VMs (for example CI monitor).
 
 ---
 
@@ -167,6 +195,9 @@ ansible-playbook -i deploy_ceph/inventories/local/local.yml \
 
 ## OpenStack Provisioning
 
+> **Important:** Run Ceph provisioning first unless you explicitly disable Ceph integration in
+> `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml`.
+
 1. Load environment variables and navigate to Ansible:
 
    ```bash
@@ -261,6 +292,9 @@ At this point, your **OpenStack Lab should be operational**.
      ```bash
      ansible-playbook -i deploy_prometheus/inventories/local/local.yml \
        deploy_prometheus/playbook_setup_node_exporter.yml
+     ```
+
+   If node exporters are unreachable from another OpenStack VM, add security group rule for `tcp/9200`.
 
 ### One-step deployment
 
@@ -470,9 +504,25 @@ This provisions a **kubeadm-based Kubernetes cluster** on OpenStack.
 
 ---
 
+## Troubleshooting
+
+1. **OpenStack pre-setup fails on Ceph files in `/tmp/fetch-ceph*`**
+   - Run Ceph deployment first (`deploy_ceph/playbook_deploy.yml`), or disable Ceph with `ceph_enabled: false`.
+
+2. **Ansible fails with callback plugin error**
+   - Install `merizrizal.utils` collection, then rerun playbook.
+
+3. **Dynamic inventory for CI/CD or Kubernetes is empty**
+   - Ensure `OS_CLIENT_CONFIG_FILE` points to `generated/local_clouds.yml`.
+   - Ensure cloud name passed into `generate_os_client_config` matches inventory plugin (`cicd_lab` or `kubernetes_lab`).
+
+4. **CI monitor cannot scrape node exporter**
+   - Verify node exporter service is running and that `tcp/9200` is allowed in associated OpenStack security groups.
+
+---
+
 ## Contact
 
 For collaboration, questions, or discussions:
 
 **Email:** [meriz.rizal@gmail.com](mailto:meriz.rizal@gmail.com)
-
