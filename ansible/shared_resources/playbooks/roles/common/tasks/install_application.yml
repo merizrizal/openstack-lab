@@ -1,0 +1,126 @@
+---
+- name: Install application
+  ansible.builtin.debug:
+    msg: "{{ item.name }}"
+
+- name: Ensure the applications /opt directory created or exists
+  ansible.builtin.file:
+    path: /opt/{{ item.name }}
+    mode: "755"
+    state: directory
+
+- name: Check the .installed_version file
+  ansible.builtin.stat:
+    path: /opt/{{ item.name }}/.installed_version
+  register: check_file
+
+- name: Get installed version
+  ansible.builtin.slurp:
+    src: /opt/{{ item.name }}/.installed_version
+  register: version_result
+  when: check_file.stat.exists
+
+- name: Get installed version content and set installed_version to fact
+  ansible.builtin.set_fact:
+    installed_version: "{{  file_content | default(None) }}"
+  vars:
+    file_content: "{{ version_result.content is defined | ternary((version_result.content | b64decode | trim), None) }}"
+
+- name: Install application if not installed or version is different
+  when: installed_version is not defined or installed_version != item.version
+  block:
+    - name: Backup the applications /opt directory
+      community.general.archive:
+        path:
+          - /opt/{{ item.name }}
+        dest: /opt/{{ item.name }}.tar.gz
+        mode: "644"
+
+    - name: Ensure the applications /opt directory empty
+      ansible.builtin.file:
+        path: /opt/{{ item.name }}
+        state: absent
+
+    - name: Ensure the applications /opt directory added
+      ansible.builtin.file:
+        path: /opt/{{ item.name }}
+        mode: "755"
+        state: directory
+
+    - name: Download applications from URL and save into /opt
+      ansible.builtin.get_url:
+        url: "{{ item.url | replace('#application_version#', item.version) }}"
+        dest: /opt/{{ item.name }}/
+        mode: "755"
+      when: item.is_archive is not defined
+
+    - name: Download applications from URL and extract into /opt
+      ansible.builtin.unarchive:
+        src: "{{ item.url | replace('#application_version#', item.version) }}"
+        remote_src: true
+        dest: /opt/{{ item.name }}/
+        extra_opts: >
+          {{ [] if '.zip' in item.url or (item.no_strip is defined and item.no_strip)
+          else ['--strip-components=1', '--show-stored-names'] }}
+      when: item.is_archive is defined and item.is_archive
+
+    - name: Install packages dependencies
+      ansible.builtin.apt:
+        name: "{{ item.packages_dependencies }}"
+      when: item.is_compiled is defined and item.is_compiled and item.packages_dependencies is defined
+
+    - name: Build binaries from application source
+      ansible.builtin.shell:
+        chdir: /opt/{{ item.name }}
+        cmd: |
+          set -o pipefail #
+          {{ compile_command }}
+        executable: /bin/bash
+      become: false
+      changed_when: false
+      loop: "{{ item.compile_commands }}"
+      loop_control:
+        loop_var: compile_command
+      when: item.is_compiled is defined and item.is_compiled
+
+    - name: Copy downloaded applications into user local bin
+      ansible.builtin.file:
+        src: /opt/{{ item.name }}/{{ binary_file.file }}
+        dest: /usr/local/bin/{{ binary_file.name }}
+        state: link
+      loop: "{{ item.binary_files }}"
+      loop_control:
+        loop_var: binary_file
+
+    - name: Ensure the applications /opt directory backup is deleted
+      ansible.builtin.file:
+        path: /opt/{{ item.name }}.tar.gz
+        state: absent
+
+    - name: Create .installed_version file with application version
+      ansible.builtin.copy:
+        content: "{{ item.version }}"
+        dest: /opt/{{ item.name }}/.installed_version
+        mode: "644"
+
+- name: Install Sub applications
+  when: item.sub_applications is defined and item.sub_applications | length > 0
+  block:
+    - name: Install sub application
+      ansible.builtin.shell:
+        cmd: "{{ sub_app.command }}"
+        executable: /bin/bash
+      become: false
+      changed_when: false
+      loop: "{{ item.sub_applications }}"
+      loop_control:
+        loop_var: sub_app
+
+    - name: Copy sub application binaries into user local bin
+      ansible.builtin.file:
+        src: /opt/{{ item.name }}/{{ sub_app.file }}
+        dest: "{{ user_config_dir.bin }}/{{ sub_app.name }}"
+        state: link
+      loop: "{{ item.sub_applications }}"
+      loop_control:
+        loop_var: sub_app

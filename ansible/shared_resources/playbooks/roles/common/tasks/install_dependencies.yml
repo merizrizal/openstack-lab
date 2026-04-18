@@ -29,14 +29,31 @@
       - ca-certificates
       - tzdata
       - sshpass
-      - jq
       - git
       - zip
       - unzip
     state: present
 
-- name: Install packages dependencies with Snap
-  community.general.snap:
-    name:
-      - yq
-    state: present
+- name: Set application list for installation
+  ansible.builtin.set_fact:
+    applications:
+      - name: yq
+        version: 4.52.5
+        url: https://github.com/mikefarah/yq/releases/download/v#application_version#/yq_linux_amd64
+        binary_files:
+          - name: yq
+            file: yq_linux_amd64
+
+      - name: jq
+        version: 1.8.1
+        url: https://github.com/jqlang/jq/releases/download/jq-#application_version#/jq-linux-amd64
+        binary_files:
+          - name: jq
+            file: jq-linux-amd64
+
+- name: Install applications
+  ansible.builtin.include_tasks:
+    file: install_application.yml
+  loop: "{{ applications }}"
+  loop_control:
+    label: "{{ item.name }}"
