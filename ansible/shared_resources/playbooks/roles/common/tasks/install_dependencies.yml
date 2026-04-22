@@ -51,6 +51,23 @@
           - name: jq
             file: jq-linux-amd64
 
+      - name: nodejs
+        version: 24.14.1
+        url: https://nodejs.org/dist/v#application_version#/node-v#application_version#-linux-x64.tar.xz
+        binary_files:
+          - name: corepack
+            file: bin/corepack
+
+          - name: node
+            file: bin/node
+
+          - name: npm
+            file: bin/npm
+
+          - name: npx
+            file: bin/npx
+        is_archive: true
+
 - name: Install applications
   ansible.builtin.include_tasks:
     file: install_application.yml

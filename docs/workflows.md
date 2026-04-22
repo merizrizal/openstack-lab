@@ -12,9 +12,12 @@ Required baseline:
 Environment bootstrap:
 
 1. Source `envrc` from repository root.
-2. Build base image (`vagrant/base_image`).
-3. Create `br-provider0` bridge (`vagrant/controller/Makefile`).
-4. Bring up VMs from `inventories/local/nodes.yml`.
+   - This exports `ROOT_DIR` and `ANSIBLE_CONFIG`.
+   - It also installs the git hook and verifies Python tooling.
+2. Build the reusable Ubuntu base box from `vagrant/base_image`.
+3. Create `br-provider0` with `make -C vagrant/controller start-provider-network`.
+4. Bring up VMs from `inventories/local/nodes.yml` with `make -C vagrant/controller start-vm`.
+5. If you plan to use downstream OpenStack-hosted labs, keep `generated/` available because `generate_os_client_config` writes cloud configs there.
 
 ## 2) Core Lab Provisioning Sequence
 
@@ -32,6 +35,12 @@ One-shot alternative:
 
 - `deploy_ceph/playbook_deploy.yml`
 
+Notes:
+
+- Default inventory is single-node Ceph through `ceph01` as `ceph_adm`.
+- `playbook_setup_common.yml` only matters when `ceph_common` hosts are enabled.
+- `playbook_openstack_init.yml` exports the Ceph artifacts later consumed by the OpenStack domain.
+
 ### B. OpenStack
 
 Ordered playbooks:
@@ -40,32 +49,56 @@ Ordered playbooks:
 2. `deploy_openstack/playbook_setup_controller.yml`
 3. `deploy_openstack/playbook_setup_compute.yml`
 4. `deploy_openstack/playbook_setup_storage.yml`
-5. (Optional by default setting) `deploy_openstack/playbook_ceph_integration.yml`
+5. `deploy_openstack/playbook_ceph_integration.yml` when `ceph_enabled: true`
+6. Optional: `deploy_openstack/playbook_setup_octavia.yml`
 
 One-shot alternative:
 
 - `deploy_openstack/playbook_deploy.yml`
 
+Notes:
+
+- `ceph_enabled` defaults to `true` in `deploy_openstack/inventories/local/group_vars/all/common.yml`.
+- `playbook_pre_setup.yml` already loads `ceph_common_vars` and the `ceph` role when Ceph is enabled, so the Ceph export step must have happened first.
+- `playbook_deploy.yml` automatically imports `playbook_ceph_integration.yml` when Ceph is enabled, so a manual staged deployment should include it to match the one-shot path.
+
 ### C. OpenStack Bootstrap (tenant resources)
 
-- `bootstrap_openstack/playbook_bootstrap.yml` creates flavors, image, networks/router, and base security group.
+- `bootstrap_openstack/playbook_bootstrap.yml` creates:
+  - flavors
+  - the uploaded base image in Glance
+  - provider and self-service networks
+  - router wiring
+  - an `openstack-lab` security group with common operational ports
+
+Before running it:
+
+1. Copy a qcow2 image to `controller01` with `make -C vagrant/controller copy-image-to-vm IMAGE_PATH=/path/to/image.qcow2`.
+2. By default the copied filename should be `vm_image01.img`, matching `image_name: vm_image01` in `bootstrap_openstack/inventories/local/group_vars/all/common.yml`.
 
 ## 3) Optional Stacks
 
 ### A. Observability (on base lab nodes)
 
-- OpenSearch: `deploy_opensearch/playbook_setup_opensearch.yml`
-- Dashboards: `deploy_opensearch/playbook_setup_opensearch_dashboard.yml`
-- Logstash/Filebeat: `deploy_opensearch/playbook_setup_filebeat.yml`
-- Prometheus/Grafana/exporters: `deploy_prometheus/playbook_setup_prometheus.yml`
-- Node exporter: `deploy_prometheus/playbook_setup_node_exporter.yml`
+- `deploy_opensearch` domain:
+  - OpenSearch on `controller`
+  - OpenSearch Dashboards on `controller`
+  - Filebeat and Logstash-related setup on `controller`, `compute`, and `storage`
+- `deploy_prometheus` domain:
+  - Prometheus, Grafana, OpenStack exporter integration, and OpenSearch datasource setup on `controller`
+  - node exporter on `controller`, `compute`, `storage`, and `ceph_adm`
+
+Operational note:
+
+- Node exporter defaults to port `9200`, not `9100`.
 
 ### B. CI/CD in OpenStack
 
-1. Generate cloud config via `generate_os_client_config local cicd_lab`.
-2. Initialize OpenStack VMs with `bootstrap_openstack/playbook_init_cicd_server.yml`.
-3. Assign floating IPs.
-4. Set `OS_CLIENT_CONFIG_FILE`.
+1. Run `generate_os_client_config local cicd_lab`.
+   - This writes `generated/local_clouds.yml`.
+2. Export `OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`.
+3. Initialize OpenStack VMs with `bootstrap_openstack/playbook_init_cicd_server.yml`.
+4. Assign floating IPs if you need direct access from outside the tenant network.
 5. Run:
    - `cicd_in_openstack/playbook_pre_setup.yml`
    - `cicd_in_openstack/playbook_setup_gitlab.yml`
@@ -74,16 +107,30 @@ One-shot alternative:
    - `cicd_in_openstack/playbook_setup_ci_monitor.yml`
    - `cicd_in_openstack/playbook_setup_node_exporter.yml`
 
+Expected VM set:
+
+- `gitlab_vm01`
+- `jenkins_vm01`
+- `runner_vm01`
+- `ci_monitor_vm01`
+
 ### C. Kubernetes in OpenStack
 
-1. Generate cloud config via `generate_os_client_config local kubernetes_lab`.
-2. Initialize VMs with `bootstrap_openstack/playbook_init_kubernetes.yml`.
-3. Assign floating IPs.
-4. Set `OS_CLIENT_CONFIG_FILE`.
+1. Run `generate_os_client_config local kubernetes_lab`.
+   - This overwrites `generated/local_clouds.yml` with the `kubernetes_lab` cloud entry.
+2. Export `OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml`.
+3. Initialize VMs with `bootstrap_openstack/playbook_init_kubernetes.yml`.
+4. Assign floating IPs if required for external access.
 5. Run:
    - `kubernetes_in_openstack/playbook_pre_setup.yml`
    - `kubernetes_in_openstack/playbook_setup_kubernetes.yml`
    - `kubernetes_in_openstack/playbook_setup_nodes.yml`
+
+Expected VM set:
+
+- `control_plane_vm01`
+- `worker_vm01`
+- `worker_vm02`
 
 ## 4) Day-2 Operations Notes
 
@@ -94,7 +141,9 @@ One-shot alternative:
 3. Networking:
    - Nested virtualization external access needs host NAT configuration for provider subnet.
 4. Dynamic inventory workloads:
-   - CI/CD and Kubernetes domains rely on OpenStack cloud inventory plugin and generated clouds config.
+   - CI/CD and Kubernetes domains rely on the OpenStack inventory plugin plus the generated clouds config referenced by `OS_CLIENT_CONFIG_FILE`.
+5. Bootstrap security group:
+   - `bootstrap_openstack/playbook_bootstrap.yml` opens `22`, `80`, `8080`, `443`, `6443`, `3000`, `9090`, and `9100`, but node exporter defaults to `9200`.
 
 ## 5) Practical Runbook Advice
 

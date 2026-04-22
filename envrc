@@ -38,6 +38,7 @@ check_required_python_module() {
 		exit 1
 	else
 		echo "Python3 pip module is installed."
+		python3 -m pip --version
 	fi
 
 	python3 -m venv --help > /dev/null 2>&1

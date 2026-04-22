@@ -101,13 +101,16 @@ Severity model:
 
 ## Low Findings
 
-1. README has a broken fenced code block in observability section.
+1. Documentation previously under-described repo-critical operator behavior.
    - Evidence:
-     - `README.md:261`
+     - `envrc:1`
+     - `ansible/deploy_prometheus/playbook_setup_prometheus.yml:2`
+     - `ansible/deploy_opensearch/playbook_setup_filebeat.yml:2`
+     - `ansible/deploy_openstack/playbook_deploy.yml:18`
    - Impact:
-     - Markdown rendering confusion and copy/paste errors.
+     - Operators can miss `envrc` side effects, the actual placement of observability services, and the fact that staged OpenStack deployment should include Ceph integration when Ceph is enabled.
    - Recommendation:
-     - Close the fenced block and re-check markdown formatting.
+     - Keep `docs/` tied to implementation details and update workflow docs whenever playbook composition or inventory scope changes.
 
 2. Molecule currently validates variables only, not runtime behavior.
    - Evidence:
@@ -127,7 +130,7 @@ Severity model:
 2. Short term (week 1):
    - Refactor Vagrant provisioning loops to host-scoped logic.
    - Add Ceph/OpenStack preflight checks and explicit dependency guardrails.
-   - Fix README markdown errors.
+   - Keep operator-facing docs synchronized with playbook composition and inventory scope.
 3. Medium term (week 2-4):
    - Add runtime smoke tests in CI (OpenStack, Ceph, Prometheus, OpenSearch).
    - Template architecture-specific values (`amd64` hardcoding).
