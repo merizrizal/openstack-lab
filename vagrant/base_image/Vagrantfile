@@ -24,6 +24,14 @@ Vagrant.configure("2") do |config|
       sudo update-grub
       sudo apt install qemu-guest-agent gcc cloud-init -y
     SHELL
+  elsif base_image_name.include?("almalinux_8")
+    config.vm.box = "almalinux/8"
+    config.vm.box_version = "8.10.20260508"
+    config.vm.provision "shell", inline: <<-SHELL
+      sudo dnf -y --refresh update
+      sudo dnf -y --refresh upgrade
+      sudo dnf install qemu-guest-agent gcc cloud-init -y
+    SHELL
   else
     puts ">>>>> BASE_IMAGE_NAME: #{base_image_name} is not available <<<<<"; \
     exit 1
