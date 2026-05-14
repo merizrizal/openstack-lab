@@ -9,8 +9,12 @@ Vagrant.configure("2") do |config|
     exit 1
   end
 
-  config.ssh.username = "vagrant"
-  config.ssh.password = "vagrant"
+  use_ssh_key = ENV["USE_SSH_KEY"]
+  if use_ssh_key.nil?
+    config.ssh.username = "vagrant"
+    config.ssh.password = "vagrant"
+  end
+
   config.vm.define base_image_name do |d|
     d.vm.synced_folder ".", "/vagrant", disabled: true
   end
@@ -23,6 +27,11 @@ Vagrant.configure("2") do |config|
       DEBIAN_FRONTEND=noninteractive apt -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade -y
       sudo update-grub
       sudo apt install qemu-guest-agent gcc cloud-init -y
+      sudo useradd -m -s /bin/bash vagrant -u 1001 -g sudo
+      echo "vagrant:vagrant" | sudo chpasswd
+      sudo touch /etc/sudoers.d/00-sudo && sudo chmod 440 /etc/sudoers.d/00-sudo
+      echo "%sudo ALL=(ALL) ALL" | sudo tee --append /etc/sudoers.d/00-sudo
+      echo "vagrant ALL=(ALL) NOPASSWD: ALL" | sudo tee --append /etc/sudoers.d/00-sudo
     SHELL
   elsif base_image_name.include?("almalinux")
     config.vm.box = "almalinux/8"
@@ -31,6 +40,12 @@ Vagrant.configure("2") do |config|
       sudo dnf -y --refresh update
       sudo dnf -y --refresh upgrade
       sudo dnf install qemu-guest-agent gcc cloud-init -y
+      sudo groupadd sudo -g 1001
+      sudo useradd -m -s /bin/bash vagrant -u 1001 -g 1001
+      echo "vagrant:vagrant" | sudo chpasswd
+      sudo touch /etc/sudoers.d/00-sudo && sudo chmod 440 /etc/sudoers.d/00-sudo
+      echo "%sudo ALL=(ALL) ALL" | sudo tee --append /etc/sudoers.d/00-sudo
+      echo "vagrant ALL=(ALL) NOPASSWD: ALL" | sudo tee --append /etc/sudoers.d/00-sudo
     SHELL
   else
     puts ">>>>> BASE_IMAGE_NAME: #{base_image_name} is not available <<<<<"; \

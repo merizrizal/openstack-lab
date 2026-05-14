@@ -43,7 +43,8 @@ rebuild-base-image:
 	sudo ./create_box.sh $$image_name.qcow2 $$box_name.box Vagrantfile.add $$image_size_h; \
 	sudo chown $$current_user:$$current_user $$box_name.box; \
 	vagrant box add $$box_name.box --force --name $$box_name; \
-	rm $$box_name.box; rm $$image_name.qcow2;
+	rm $$box_name.box; rm $$image_name.qcow2; \
+	vagrant destroy -f;
 
 rebuild-base-image-ubuntu:
 	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=ubuntu_24
