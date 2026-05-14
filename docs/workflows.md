@@ -69,14 +69,141 @@ Notes:
   - the uploaded base image in Glance
   - provider and self-service networks
   - router wiring
-  - an `openstack-lab` security group with common operational ports
+  - an `openstack_lab` security group with common operational ports
 
 Before running it:
 
 1. Copy a qcow2 image to `controller01` with `make -C vagrant/controller copy-image-to-vm IMAGE_PATH=/path/to/image.qcow2`.
 2. By default the copied filename should be `vm_image01.img`, matching `image_name: vm_image01` in `bootstrap_openstack/inventories/local/group_vars/all/common.yml`.
 
-## 3) Optional Stacks
+## 3) Stage Validation Checkpoints
+
+These checks are not a substitute for full test automation, but they are useful
+after each major stage. Run them from the repository root after `source envrc`
+unless noted otherwise.
+
+### A. After Vagrant VM creation
+
+Confirm Ansible can reach the static lab inventory:
+
+```bash
+cd ansible
+ansible -i deploy_openstack/inventories/local/local.yml all -m ping
+ansible -i deploy_ceph/inventories/local/local.yml all -m ping
+```
+
+Confirm the provider bridge exists on the host:
+
+```bash
+ip addr show br-provider0
+```
+
+### B. After Ceph deployment
+
+Check cluster status on the Ceph admin node:
+
+```bash
+cd ansible
+ansible -i deploy_ceph/inventories/local/local.yml ceph_adm \
+  -b -m command -a "ceph -s"
+```
+
+Confirm OpenStack integration artifacts exist on the Ansible control machine:
+
+```bash
+ls -l /tmp/fetch-ceph.conf \
+  /tmp/fetch-ceph.client.glance.keyring \
+  /tmp/fetch-ceph.client.cinder.keyring
+```
+
+### C. After OpenStack deployment
+
+The OpenStack common role writes admin `OS_*` variables to `/etc/environment`.
+Use a shell module so those values are loaded before running OpenStack CLI
+checks:
+
+```bash
+cd ansible
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack token issue"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack compute service list"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack network agent list"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack volume service list"
+```
+
+### D. After OpenStack bootstrap
+
+Confirm the expected tenant resources exist:
+
+```bash
+cd ansible
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack flavor list"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack image list"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack network list"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a ". /etc/environment; openstack security group rule list openstack_lab"
+```
+
+For a stronger smoke test, boot one disposable instance with the `small` flavor
+and `vm_image01` image, verify network behavior, then delete it.
+
+### E. After observability deployment
+
+Check the local services on `controller01`:
+
+```bash
+cd ansible
+ansible -i deploy_prometheus/inventories/local/local.yml controller \
+  -b -m shell -a "systemctl is-active prometheus grafana-server prometheus_openstack_exporter prometheus_mariadb_exporter"
+
+ansible -i deploy_opensearch/inventories/local/local.yml controller \
+  -b -m shell -a "systemctl is-active opensearch dashboards filebeat logstash"
+```
+
+Confirm node exporter is reachable on the repository default port:
+
+```bash
+ansible -i deploy_prometheus/inventories/local/local.yml all \
+  -b -m shell -a "curl -fsS http://127.0.0.1:9200/metrics >/dev/null"
+```
+
+### F. Before downstream CI/CD or Kubernetes playbooks
+
+Confirm the generated clouds config exists and that dynamic inventory can see
+the OpenStack-hosted VMs:
+
+```bash
+test -f "$ROOT_DIR/generated/local_clouds.yml"
+export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml
+
+cd ansible
+```
+
+For the CI/CD lab after `generate_os_client_config local cicd_lab`:
+
+```bash
+ansible-inventory -i cicd_in_openstack/inventories/local/openstack.yml --graph
+```
+
+For the Kubernetes lab after `generate_os_client_config local kubernetes_lab`:
+
+```bash
+ansible-inventory -i kubernetes_in_openstack/inventories/local/openstack.yml --graph
+```
+
+## 4) Optional Stacks
 
 ### A. Observability (on base lab nodes)
 
@@ -132,7 +259,7 @@ Expected VM set:
 - `worker_vm01`
 - `worker_vm02`
 
-## 4) Day-2 Operations Notes
+## 5) Day-2 Operations Notes
 
 1. Re-running playbooks:
    - Most tasks are designed for repeat runs, but many shell/command tasks force `changed_when: false`, which weakens drift visibility.
@@ -145,7 +272,7 @@ Expected VM set:
 5. Bootstrap security group:
    - `bootstrap_openstack/playbook_bootstrap.yml` opens `22`, `80`, `8080`, `443`, `6443`, `3000`, `9090`, and `9100`, but node exporter defaults to `9200`.
 
-## 5) Practical Runbook Advice
+## 6) Practical Runbook Advice
 
 1. Keep a strict order:
    - Vagrant base -> Ceph -> OpenStack -> OpenStack bootstrap -> optional stacks.

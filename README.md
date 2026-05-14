@@ -17,6 +17,17 @@ Learning materials are primarily sourced from the official OpenStack documentati
 
 ---
 
+## Documentation Map
+
+Start with the repository-backed docs when learning or changing this project:
+
+* `docs/base-knowledge.md` explains the project mental model, node roles, networks, service responsibilities, and where to edit common settings.
+* `docs/architecture.md` documents the current topology, Ansible domains, dependency graph, and validation architecture.
+* `docs/workflows.md` provides deployment and day-2 operational runbooks.
+* `docs/findings-and-recommendations.md` and `docs/quality-assessment.md` capture known risks, testing posture, and improvement priorities.
+
+---
+
 ## Architecture Summary
 
 * Host OS: Ubuntu
