@@ -15,7 +15,7 @@ Vagrant.configure("2") do |config|
     d.vm.synced_folder ".", "/vagrant", disabled: true
   end
 
-  if base_image_name.include?("ubuntu_24")
+  if base_image_name.include?("ubuntu")
     config.vm.box = "bento/ubuntu-24.04"
     config.vm.box_version = "202508.03.0"
     config.vm.provision "shell", inline: <<-SHELL
@@ -24,7 +24,7 @@ Vagrant.configure("2") do |config|
       sudo update-grub
       sudo apt install qemu-guest-agent gcc cloud-init -y
     SHELL
-  elsif base_image_name.include?("almalinux_8")
+  elsif base_image_name.include?("almalinux")
     config.vm.box = "almalinux/8"
     config.vm.box_version = "8.10.20260508"
     config.vm.provision "shell", inline: <<-SHELL

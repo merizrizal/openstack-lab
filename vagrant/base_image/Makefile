@@ -20,7 +20,7 @@ rebuild-base-image:
 	fi;
 	@$(MAKE) teardown-vm start-vm
 	@sleep 5
-	@if [[ "$$BASE_IMAGE_NAME" == "ubuntu_24" ]]; then \
+	@if [[ "$$BASE_IMAGE_NAME" == *"ubuntu"* ]]; then \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo sed -i 's/^FallbackDNS=.*/FallbackDNS=8.8.8.8/g' /etc/systemd/resolved.conf"; \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo sed -i 's/^DNSSEC=.*/DNSSEC=8.8.8.8/g' /etc/systemd/resolved.conf"; \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo systemctl restart systemd-resolved"; \
@@ -49,7 +49,11 @@ rebuild-base-image-ubuntu:
 	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=ubuntu_24
 	@$(MAKE) teardown-vm BASE_IMAGE_NAME=ubuntu_24
 
-rebuild-base-image-ubuntu-from-file:
+rebuild-base-image-almalinux:
+	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=almalinux_8
+	@$(MAKE) teardown-vm BASE_IMAGE_NAME=almalinux_8
+
+rebuild-base-image-from-file:
 	@if [ -z "$$BASE_IMAGE_NAME" ]; then \
 		echo ">>>>> BASE_IMAGE_NAME need to be provided <<<<<"; \
 		echo "BASE_IMAGE_NAME=this_name"; \
@@ -72,7 +76,7 @@ rebuild-base-image-ubuntu-from-file:
 	rm $$box_name.box;
 
 check-base-image:
-	@image=`(vagrant box list | grep ubuntu_24 | grep base)`; \
+	@image=`(vagrant box list | grep -E 'ubuntu|almalinux' | grep base)`; \
 	if [ -z "$$image" ]; then \
 		echo ">>>>> Base image is not found. Run make rebuild-base-image <<<<<"; \
 		exit 1; \
