@@ -46,9 +46,9 @@
     cmd: sudo -u cinder cinder-manage db sync
   changed_when: false
 
-- name: Start and enable Nova API
+- name: Start and enable Nova API in Apache
   ansible.builtin.service:
-    name: nova-api
+    name: apache2
     state: restarted
     enabled: true
 

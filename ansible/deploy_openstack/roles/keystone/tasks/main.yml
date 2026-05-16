@@ -49,6 +49,12 @@
     block: ServerName {{ controller01_host_addr }}
     insertafter: EOF
 
+- name: Create WSGI file symlink to /usr/bin/keystone-wsgi-public
+  ansible.builtin.file:
+    src: /usr/lib/python3/dist-packages/keystone/wsgi/api.py
+    dest: /usr/bin/keystone-wsgi-public
+    state: link
+
 - name: Start and enable Apache2
   ansible.builtin.service:
     name: apache2
