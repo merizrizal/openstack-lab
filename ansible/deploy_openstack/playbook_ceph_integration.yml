@@ -3,7 +3,7 @@
   hosts: controller
   become: true
   vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - "{{ var_file_path }}"
   roles:
     - role: ceph_common_vars
   tasks:
@@ -21,7 +21,7 @@
   hosts: storage
   become: true
   vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - "{{ var_file_path }}"
   roles:
     - role: ceph_common_vars
   tasks:
@@ -34,7 +34,7 @@
   hosts: compute
   become: true
   vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - "{{ var_file_path }}"
   roles:
     - role: ceph_common_vars
   tasks:
