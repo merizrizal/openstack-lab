@@ -20,15 +20,24 @@ rebuild-base-image:
 	fi;
 	@$(MAKE) teardown-vm start-vm
 	@sleep 5
-	@if [[ "$$BASE_IMAGE_NAME" == *"ubuntu"* ]]; then \
+	@if [[ "$$BASE_IMAGE_NAME" == "almalinux" ]]; then \
+		vagrant ssh $$BASE_IMAGE_NAME -c "sudo dnf install -y openssh"; \
+		vagrant ssh $$BASE_IMAGE_NAME -c "sudo sed -i 's/^#MaxSessions.*/MaxSessions 500/g' /etc/ssh/sshd_config"; \
+	fi
+	@if [[ "$$BASE_IMAGE_NAME" == "ubuntu" ]]; then \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo sed -i 's/^FallbackDNS=.*/FallbackDNS=8.8.8.8/g' /etc/systemd/resolved.conf"; \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo sed -i 's/^DNSSEC=.*/DNSSEC=8.8.8.8/g' /etc/systemd/resolved.conf"; \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo systemctl restart systemd-resolved"; \
 		vagrant upload ./netplan-config.cfg /home/vagrant/network-config.cfg $$BASE_IMAGE_NAME; \
 		vagrant ssh $$BASE_IMAGE_NAME -c "sudo cp /home/vagrant/network-config.cfg /etc/cloud/cloud.cfg.d/99-network-config.cfg"; \
-		vagrant ssh $$BASE_IMAGE_NAME -c "sudo cloud-init clean"; \
 	fi
-	@sleep 5 && vagrant halt; \
+	@vagrant ssh $$BASE_IMAGE_NAME -c "sudo cloud-init clean"; \
+	vagrant ssh $$BASE_IMAGE_NAME -c "sudo mkdir -p /etc/ssh/sshd_config.d"; \
+	vagrant ssh $$BASE_IMAGE_NAME -c "sudo touch /etc/ssh/sshd_config.d/99-override.conf"; \
+	vagrant ssh $$BASE_IMAGE_NAME -c "echo 'PasswordAuthentication yes' | sudo tee --append /etc/ssh/sshd_config.d/99-override.conf"; \
+	vagrant ssh $$BASE_IMAGE_NAME -c \
+	"curl -fsSL https://raw.githubusercontent.com/hashicorp/vagrant/main/keys/vagrant.pub | tee --append /home/vagrant/.ssh/authorized_keys"; \
+	sleep 5 && vagrant halt; \
 	image_name=base_image_$(BASE_IMAGE_NAME); \
 	image_path=`(virsh domblklist --domain $$image_name | awk '/vda/{print $$2}')`; \
 	echo Found base image path: $$image_path; \
@@ -39,7 +48,7 @@ rebuild-base-image:
 	echo Image size = $$image_size; \
 	image_size_h=`(qemu-img info --output=json $$image_name.qcow2 | jq -r '."virtual-size"' | awk '{s=int($$1)/(1024^3); print (s == int(s)) ? s : int(s)+1 }')`; \
 	echo Human readable image size = $$image_size_h GB; \
-	box_name=$(BASE_IMAGE_NAME)_base; \
+	box_name=oslab_$(BASE_IMAGE_NAME)_base; \
 	sudo ./create_box.sh $$image_name.qcow2 $$box_name.box Vagrantfile.add $$image_size_h; \
 	sudo chown $$current_user:$$current_user $$box_name.box; \
 	vagrant box add $$box_name.box --force --name $$box_name; \
@@ -47,12 +56,17 @@ rebuild-base-image:
 	vagrant destroy -f;
 
 rebuild-base-image-ubuntu:
-	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=ubuntu_24
-	@$(MAKE) teardown-vm BASE_IMAGE_NAME=ubuntu_24
+	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=ubuntu
+	@$(MAKE) teardown-vm BASE_IMAGE_NAME=ubuntu
 
-rebuild-base-image-almalinux:
-	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=almalinux_8
-	@$(MAKE) teardown-vm BASE_IMAGE_NAME=almalinux_8
+rebuild-base-image-enterprise-linux:
+	@if [ -z "$$VERSION" ]; then \
+		echo ">>>>> VERSION need to be provided <<<<<"; \
+		echo "Example VERSION=8"; \
+		exit 1; \
+	fi;
+	@$(MAKE) rebuild-base-image BASE_IMAGE_NAME=almalinux_$$VERSION
+	@$(MAKE) teardown-vm BASE_IMAGE_NAME=almalinux_$$VERSION
 
 rebuild-base-image-from-file:
 	@if [ -z "$$BASE_IMAGE_NAME" ]; then \
@@ -71,13 +85,13 @@ rebuild-base-image-from-file:
 	echo Image size = $$image_size; \
 	image_size_h=`(qemu-img info --output=json $$IMAGE_FILE | jq -r '."virtual-size"' | awk '{s=int($$1)/(1024^3); print (s == int(s)) ? s : int(s)+1 }')`; \
 	echo Human readable image size = $$image_size_h GB; \
-	box_name=$(BASE_IMAGE_NAME)_base; \
+	box_name=oslab_$(BASE_IMAGE_NAME)_base; \
 	./create_box.sh $$IMAGE_FILE $$box_name.box Vagrantfile.add $$image_size_h; \
 	vagrant box add $$box_name.box --force --name $$box_name; \
 	rm $$box_name.box;
 
 check-base-image:
-	@image=`(vagrant box list | grep -E 'ubuntu|almalinux' | grep base)`; \
+	@image=`(vagrant box list | grep -E 'ubuntu|almalinux' | grep 'base')`; \
 	if [ -z "$$image" ]; then \
 		echo ">>>>> Base image is not found. Run make rebuild-base-image <<<<<"; \
 		exit 1; \

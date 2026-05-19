@@ -3,7 +3,7 @@
   hosts: ceph_adm
   become: true
   vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - "{{ var_file_path }}"
   tasks:
     - name: Add other Ceph nodes to the cluster
       ansible.builtin.include_role:

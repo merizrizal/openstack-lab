@@ -69,13 +69,15 @@
     enabled: true
 
 - name: Start and enable all Neutron services
+  ansible.builtin.include_role:
+    name: neutron
+    tasks_from: enable_service
+
+- name: Start and enable Neutron L3 agent services
   ansible.builtin.service:
     name: "{{ item }}"
     state: restarted
     enabled: true
   loop:
     - neutron-rpc-server
-    - neutron-openvswitch-agent
-    - neutron-dhcp-agent
-    - neutron-metadata-agent
     - neutron-l3-agent

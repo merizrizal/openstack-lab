@@ -5,12 +5,12 @@ Vagrant.configure("2") do |config|
   base_image_name = ENV["BASE_IMAGE_NAME"]
   if base_image_name.nil?
     puts ">>>>> BASE_IMAGE_NAME need to be provided <<<<<"; \
-    puts "Add BASE_IMAGE_NAME=this_name to the command"; \
+		puts "Add BASE_IMAGE_NAME=this_name to the command"; \
     exit 1
   end
 
-  use_ssh_key = ENV["USE_SSH_KEY"]
-  if use_ssh_key.nil?
+  use_ssh_password = ENV["USE_SSH_PASSWORD"]
+  if !use_ssh_password.nil?
     config.ssh.username = "vagrant"
     config.ssh.password = "vagrant"
   end
@@ -19,36 +19,58 @@ Vagrant.configure("2") do |config|
     d.vm.synced_folder ".", "/vagrant", disabled: true
   end
 
-  if base_image_name.include?("ubuntu")
+  if base_image_name.include?("almalinux")
+    version = ENV["VERSION"]
+    if version.nil?
+      puts ">>>>> VERSION need to be provided <<<<<"; \
+      puts "Example VERSION=8"; \
+      exit 1
+    end
+
+    box_version = {
+      "8": "8.10.20260508",
+      "9": "9.7.20260508"
+    }
+
+    config.vm.box = "almalinux/#{version}"
+    config.vm.box_version = box_version[version]
+    config.vm.provision "shell", inline: <<-SHELL
+      echo "fastestmirror=True" | sudo tee --append /etc/dnf/dnf.conf
+      sudo dnf clean all
+      sudo dnf -y --refresh update
+      sudo dnf -y --refresh upgrade
+      sudo dnf -y install gcc make firewalld tuned nc qemu-guest-agent cloud-init cloud-utils-growpart java-1.8.0-openjdk
+      systemctl enable --now firewalld
+      systemctl enable --now tuned
+    SHELL
+  elsif base_image_name.include?("ubuntu")
     config.vm.box = "bento/ubuntu-24.04"
     config.vm.box_version = "202508.03.0"
+
+    box_name = ENV["BOX_NAME"]
+    if !box_name.nil?
+      config.vm.box = box_name
+      config.vm.box_version = ""
+    end
+
     config.vm.provision "shell", inline: <<-SHELL
       sudo apt update
       DEBIAN_FRONTEND=noninteractive apt -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade -y
       sudo update-grub
-      sudo apt install qemu-guest-agent gcc cloud-init -y
-      sudo useradd -m -s /bin/bash vagrant -u 1001 -g sudo
-      echo "vagrant:vagrant" | sudo chpasswd
-      sudo touch /etc/sudoers.d/00-sudo && sudo chmod 440 /etc/sudoers.d/00-sudo
-      echo "%sudo ALL=(ALL) ALL" | sudo tee --append /etc/sudoers.d/00-sudo
-      echo "vagrant ALL=(ALL) NOPASSWD: ALL" | sudo tee --append /etc/sudoers.d/00-sudo
-    SHELL
-  elsif base_image_name.include?("almalinux")
-    config.vm.box = "almalinux/8"
-    config.vm.box_version = "8.10.20260508"
-    config.vm.provision "shell", inline: <<-SHELL
-      sudo dnf -y --refresh update
-      sudo dnf -y --refresh upgrade
-      sudo dnf install qemu-guest-agent gcc cloud-init -y
-      sudo groupadd sudo -g 1001
-      sudo useradd -m -s /bin/bash vagrant -u 1001 -g 1001
-      echo "vagrant:vagrant" | sudo chpasswd
-      sudo touch /etc/sudoers.d/00-sudo && sudo chmod 440 /etc/sudoers.d/00-sudo
-      echo "%sudo ALL=(ALL) ALL" | sudo tee --append /etc/sudoers.d/00-sudo
-      echo "vagrant ALL=(ALL) NOPASSWD: ALL" | sudo tee --append /etc/sudoers.d/00-sudo
+      sudo apt install gcc make qemu-guest-agent gcc cloud-init -y
     SHELL
   else
     puts ">>>>> BASE_IMAGE_NAME: #{base_image_name} is not available <<<<<"; \
     exit 1
   end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    sudo groupadd sudoaccess
+    sudo touch /etc/sudoers.d/00-sudoaccess
+    sudo chmod 440 /etc/sudoers.d/00-sudoaccess
+    echo "%sudoaccess ALL=(ALL) ALL" | sudo tee --append /etc/sudoers.d/00-sudoaccess
+    sudo useradd -m -s /bin/bash ansible_sys_user
+    echo "ansible_sys_user:ansible_sys_password" | sudo chpasswd
+    sudo usermod -aG sudoaccess ansible_sys_user
+  SHELL
 end
