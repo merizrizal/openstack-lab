@@ -88,7 +88,9 @@ rebuild-base-image-from-file:
 	box_name=oslab_$(BASE_IMAGE_NAME)_base; \
 	./create_box.sh $$IMAGE_FILE $$box_name.box Vagrantfile.add $$image_size_h; \
 	vagrant box add $$box_name.box --force --name $$box_name; \
-	rm $$box_name.box;
+	rm $$box_name.box; \
+	BASE_IMAGE_NAME=$$BASE_IMAGE_NAME BOX_NAME=$$box_name $(MAKE) rebuild-base-image; \
+	$(MAKE) teardown-vm;
 
 check-base-image:
 	@image=`(vagrant box list | grep -E 'ubuntu|almalinux' | grep 'base')`; \

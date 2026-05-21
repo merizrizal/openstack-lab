@@ -49,6 +49,19 @@
       - nova-scheduler
     state: present
 
+- name: Configure Nova metadata API in Apache
+  ansible.builtin.template:
+    src: metadata_api.conf.j2
+    dest: /etc/apache2/sites-available/nova-metadata.conf
+    mode: "644"
+
+- name: Enable Nova metadata API in Apache
+  ansible.builtin.command:
+    cmd: a2ensite nova-metadata.conf
+  register: enable_nova_metadata
+  changed_when: false
+  failed_when: enable_nova_metadata.rc != 0 and "already enabled" not in enable_nova_metadata.stderr
+
 - name: Setup configuration
   ansible.builtin.include_tasks:
     file: configure.yml
