@@ -62,20 +62,22 @@
       --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head
   changed_when: false
 
-- name: Start and enable Nova API
+- name: Start and enable Nova API and Neutron server in Apache
   ansible.builtin.service:
-    name: nova-api
+    name: apache2
     state: restarted
     enabled: true
 
-- name: Start and enable Neutron server
-  ansible.builtin.service:
-    name: neutron-server
-    state: restarted
-    enabled: true
+- name: Start and enable all Neutron services
+  ansible.builtin.include_role:
+    name: neutron
+    tasks_from: enable_service
 
-- name: Start and enable Neutron L3 agent
+- name: Start and enable Neutron L3 agent services
   ansible.builtin.service:
-    name: neutron-l3-agent
+    name: "{{ item }}"
     state: restarted
     enabled: true
+  loop:
+    - neutron-rpc-server
+    - neutron-l3-agent

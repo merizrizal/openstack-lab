@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - "{{ var_file_path }}"
   roles:
     - role: common
 

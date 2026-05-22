@@ -16,3 +16,8 @@
     name: nova-compute
     state: restarted
     enabled: true
+
+- name: Start and enable all Neutron services
+  ansible.builtin.include_role:
+    name: neutron
+    tasks_from: enable_service

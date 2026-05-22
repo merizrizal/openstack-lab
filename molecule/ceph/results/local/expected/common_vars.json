@@ -1,7 +1,7 @@
 {
-    "ansible_password": "vagrant",
-    "ansible_sudo_pass": "vagrant",
-    "ansible_user": "vagrant",
+    "ansible_password": "ansible_sys_password",
+    "ansible_sudo_pass": "ansible_sys_password",
+    "ansible_user": "ansible_sys_user",
     "ceph01": {
         "additional_disks": [
             {

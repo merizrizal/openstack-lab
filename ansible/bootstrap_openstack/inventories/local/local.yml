@@ -3,6 +3,7 @@ lab:
   vars:
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
     target_env: local
+    var_file_path: "{{ (root_dir | default(playbook_dir | dirname)) ~ '/inventories/' ~ (target_env | default('local')) ~ '/nodes.yml' }}"
   children:
     controller:
       hosts:

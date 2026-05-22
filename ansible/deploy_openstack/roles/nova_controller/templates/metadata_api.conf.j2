@@ -1,0 +1,27 @@
+Listen 8775
+
+<VirtualHost *:8775>
+    WSGIScriptAlias / /usr/bin/nova-metadata-wsgi
+    WSGIDaemonProcess nova-metadata processes=5 threads=1 user=nova group=nova display-name=%{GROUP}
+    WSGIProcessGroup nova-metadata
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
+    LimitRequestBody 114688
+
+    <IfVersion >= 2.4>
+      ErrorLogFormat "%{cu}t %M"
+    </IfVersion>
+
+    ErrorLog /var/log/apache2/nova_metadata_error.log
+    CustomLog /var/log/apache2/nova_metadata_access.log combined
+
+    <Directory /usr/bin>
+        <IfVersion >= 2.4>
+            Require all granted
+        </IfVersion>
+        <IfVersion < 2.4>
+            Order allow,deny
+            Allow from all
+        </IfVersion>
+    </Directory>
+</VirtualHost>

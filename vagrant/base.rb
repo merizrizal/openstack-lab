@@ -7,8 +7,12 @@ def setup_vm(component, config, box_name, shell_command)
   inventories = get_inventories(component)
 
   config.vm.box = box_name
-  config.ssh.username = "vagrant"
-  config.ssh.password = "vagrant"
+
+  use_ssh_password = ENV["USE_SSH_PASSWORD"]
+  if !use_ssh_password.nil?
+    config.ssh.username = "vagrant"
+    config.ssh.password = "vagrant"
+  end
 
   customize_vms(config, inventories)
   resize_disk(config)

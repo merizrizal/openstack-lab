@@ -6,12 +6,12 @@ require_relative "../base"
 Vagrant.configure("2") do |config|
   base_image_name = ENV["BASE_IMAGE_NAME"]
   if base_image_name.nil?
-    base_image_name = "ubuntu_24_base"
+    base_image_name = "ubuntu"
   end
 
   cmds = <<-SHELL
     echo Execute provision
   SHELL
 
-  setup_vm("local/nodes.yml", config, base_image_name, cmds)
+  setup_vm("local/nodes.yml", config, "oslab_#{base_image_name}_base", cmds)
 end
