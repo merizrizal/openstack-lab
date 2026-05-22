@@ -8,7 +8,7 @@
         "all"
     ],
     "ansible_ssh_common_args": "-o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no -o \"PubkeyAuthentication=no\"",
-    "ceph_admin_password": "vagrant",
+    "ceph_admin_password": "adminpass",
     "ceph_admin_user": "admin",
     "ceph_common_nodes": [],
     "group_names": [
@@ -20,5 +20,6 @@
     "inventory_hostname": "ceph01",
     "inventory_hostname_short": "ceph01",
     "is_single_node": true,
-    "target_env": "local"
+    "target_env": "local",
+    "var_file_path": "$ROOT_DIR/inventories/local/nodes.yml"
 }
