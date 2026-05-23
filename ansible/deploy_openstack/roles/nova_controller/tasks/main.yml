@@ -49,9 +49,23 @@
       - nova-scheduler
     state: present
 
+- name: Create WSGI file symlink to /usr/bin/nova-api-wsgi
+  ansible.builtin.file:
+    src: /usr/lib/python3/dist-packages/nova/wsgi/osapi_compute.py
+    dest: /usr/bin/nova-api-wsgi
+    state: link
+    force: true
+
+- name: Create WSGI file symlink to /usr/bin/nova-metadata-wsgi
+  ansible.builtin.file:
+    src: /usr/lib/python3/dist-packages/nova/wsgi/metadata.py
+    dest: /usr/bin/nova-metadata-wsgi
+    state: link
+    force: true
+
 - name: Configure Nova metadata API in Apache
-  ansible.builtin.template:
-    src: metadata_api.conf.j2
+  ansible.builtin.copy:
+    src: metadata_api.conf
     dest: /etc/apache2/sites-available/nova-metadata.conf
     mode: "644"
 

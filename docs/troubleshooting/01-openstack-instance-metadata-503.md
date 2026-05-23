@@ -55,7 +55,9 @@ storage01
 
 ### 2. Check branch changes related to the upgrade
 
-Compare the upgrade branch against `main`:
+When investigating an upgrade branch, compare it against its base branch. During
+the original Gazpacho troubleshooting this was done against `main` before the
+upgrade branch was merged:
 
 ```bash
 git diff main...HEAD --stat
@@ -226,7 +228,7 @@ controller role.
 
 Files changed:
 
-- `ansible/deploy_openstack/roles/nova_controller/templates/metadata_api.conf.j2`
+- `ansible/deploy_openstack/roles/nova_controller/files/metadata_api.conf`
 - `ansible/deploy_openstack/roles/nova_controller/tasks/main.yml`
 
 The new Apache site listens on `8775` and serves:

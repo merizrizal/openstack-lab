@@ -23,7 +23,7 @@ Current test scope:
 Missing coverage areas:
 
 - No service-level smoke tests (Keystone token issuance, Nova list, Cinder list, etc.).
-- No integration assertions for network reachability or endpoint availability.
+- No integration assertions for network reachability, endpoint availability, or guest metadata reachability.
 - No workload scenario tests for CI/CD and Kubernetes flows.
 
 Net effect:
@@ -80,7 +80,7 @@ Main scaling constraints are:
 ## 7) Recommended Quality Upgrades
 
 1. Add smoke test playbooks:
-   - OpenStack API checks, Ceph health checks, Prometheus target health, OpenSearch health.
+   - OpenStack API checks, Nova metadata API checks on `8775`, Ceph health checks, Prometheus target health, OpenSearch health.
 2. Add minimal end-to-end workload tests:
    - Boot one VM in OpenStack, verify network attach, volume attach, and delete.
 3. Adopt secret abstraction:

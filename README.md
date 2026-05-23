@@ -34,6 +34,7 @@ Start with the repository-backed docs when learning or changing this project:
 * Hypervisor: Libvirt + KVM
 * VM provisioning: Vagrant
 * Configuration management: Ansible
+* OpenStack release: Gazpacho / 2026.1 (`cloud-archive:gazpacho`)
 * Storage backend: Ceph
 * Observability: OpenSearch, Prometheus, Grafana stack
 * Optional workloads:
@@ -95,6 +96,10 @@ python3 -m pip install -r requirements.txt
    - Node exporter in this repository listens on `9200`.
    - Ensure your security groups allow `tcp/9200` when scraping from external monitor VMs (for example CI monitor).
 
+5. **OpenStack API placement on Gazpacho**
+   - Keystone, Nova, Cinder, Placement, Neutron, and Horizon are served through Apache where the Ubuntu Gazpacho packages expect it.
+   - Nova metadata API is exposed separately on `tcp/8775` through `nova-metadata-wsgi`; Neutron metadata agent proxies guest metadata requests there.
+
 ---
 
 ## Environment Preparation
@@ -117,7 +122,7 @@ python3 -m pip install -r requirements.txt
    make -C base_image/ rebuild-base-image-ubuntu
    ```
 
-   This creates a reusable Vagrant box for:
+   This creates the default reusable Vagrant box, `oslab_ubuntu_base`, for:
 
    * Controller node
    * Compute nodes
@@ -407,7 +412,7 @@ This deploys GitLab, Jenkins, Runner, and Prometheus on OpenStack.
 
    * URL: OpenStack Dashboard
    * User: `admin`
-   * Password: `vagrant`
+   * Password: `platformpass`
 
 5. Export cloud config:
 
@@ -484,7 +489,7 @@ This provisions a **kubeadm-based Kubernetes cluster** on OpenStack.
 
    * URL: OpenStack Dashboard
    * User: `admin`
-   * Password: `vagrant`
+   * Password: `platformpass`
 
 5. Export cloud config:
 
@@ -529,6 +534,10 @@ This provisions a **kubeadm-based Kubernetes cluster** on OpenStack.
 
 4. **CI monitor cannot scrape node exporter**
    - Verify node exporter service is running and that `tcp/9200` is allowed in associated OpenStack security groups.
+
+5. **Instance cloud-init gets metadata `503` from `169.254.169.254`**
+   - Check `docs/troubleshooting/01-openstack-instance-metadata-503.md`.
+   - Verify Apache is listening on `tcp/8775` for Nova metadata API.
 
 ---
 

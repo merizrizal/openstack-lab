@@ -74,9 +74,9 @@ The OpenStack domain is split by host role:
 | Keystone | Identity, tokens, service catalog | `controller01` |
 | Glance | VM image catalog and image storage integration | `controller01` |
 | Placement | Resource tracking for Nova scheduling | `controller01` |
-| Nova controller services | Compute API, scheduler, conductor, cell discovery | `controller01` |
+| Nova controller services | Compute API, metadata API, scheduler, conductor, cell discovery | `controller01` |
 | Nova compute | Hypervisor-side VM lifecycle | `compute01`, `compute02` |
-| Neutron controller services | Networking API, L3/DHCP/metadata/ML2 configuration | `controller01` |
+| Neutron controller services | Networking API, RPC server, L3/DHCP/metadata/ML2 configuration | `controller01` |
 | Neutron compute agent | Open vSwitch and local network plumbing | `compute01`, `compute02` |
 | Horizon | Web dashboard | `controller01` |
 | Cinder controller services | Block storage API and scheduler | `controller01` |
@@ -85,6 +85,23 @@ The OpenStack domain is split by host role:
 
 OpenStack packages are configured through the Ubuntu Cloud Archive repository
 value in `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml`.
+The current implementation uses `cloud-archive:gazpacho` for OpenStack Gazpacho /
+2026.1.
+
+On Gazpacho, several OpenStack APIs are served through Apache WSGI. Nova
+metadata is separate from the Nova compute API:
+
+| API | Default port | Implementation detail |
+| --- | --- | --- |
+| Nova compute API | `8774` | Apache site from the `nova-api` package |
+| Nova metadata API | `8775` | Repository-managed Apache site for `/usr/bin/nova-metadata-wsgi` |
+| Neutron API | `9696` | Apache site from the `neutron-server` package plus `neutron-rpc-server` |
+
+Guest cloud-init metadata calls follow this path:
+
+```text
+guest 169.254.169.254 -> Neutron metadata agent -> Nova metadata API on controller01:8775
+```
 
 ## 5) Ceph Integration Model
 
@@ -144,12 +161,16 @@ The custom callback plugin from `merizrizal.utils` is enabled in `ansible.cfg`.
 Fresh machines need that collection installed before normal playbook output will
 work as configured.
 
+The default OpenStack and Ceph inventories use the base-image-created
+`ansible_sys_user` account. Some downstream or bootstrap domains still use the
+`vagrant` account where their inventories have not been migrated.
+
 ## 8) Repository Map
 
 | Path | Purpose |
 | --- | --- |
 | `inventories/local/nodes.yml` | Base VM topology and sizing |
-| `vagrant/base_image/` | Build a reusable Ubuntu Vagrant box |
+| `vagrant/base_image/` | Build reusable Ubuntu and AlmaLinux Vagrant boxes |
 | `vagrant/controller/` | Create bridge network, start lab VMs, copy images to controller |
 | `ansible/deploy_ceph/` | Deploy Ceph and export OpenStack integration artifacts |
 | `ansible/deploy_openstack/` | Deploy core OpenStack services |
@@ -187,6 +208,9 @@ After each major stage, validate the running system:
 - OpenStack services: `openstack compute service list`,
   `openstack network agent list`, and `openstack volume service list` should
   show expected services as up.
+- OpenStack metadata: `curl -sS -i http://127.0.0.1:8775/openstack` on
+  `controller01` should return a Nova metadata response rather than connection
+  refused.
 - OpenStack tenant path: boot a small test instance, attach network, confirm
   metadata/network reachability, then delete it.
 - Observability: Prometheus targets should be up, Grafana should load, and

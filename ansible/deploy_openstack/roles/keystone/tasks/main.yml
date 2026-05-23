@@ -54,6 +54,7 @@
     src: /usr/lib/python3/dist-packages/keystone/wsgi/api.py
     dest: /usr/bin/keystone-wsgi-public
     state: link
+    force: true
 
 - name: Start and enable Apache2
   ansible.builtin.service:

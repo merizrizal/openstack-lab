@@ -13,9 +13,9 @@ Severity model:
 
 1. Plaintext credentials and tokens are committed in inventories.
    - Evidence:
-     - `ansible/cicd_in_openstack/inventories/local/group_vars/all/common_secret.yml:6`
+     - `ansible/cicd_in_openstack/inventories/local/group_vars/all/common_secret.yml:7`
      - `ansible/deploy_openstack/inventories/local/group_vars/all/common_secret.yml:6`
-     - `ansible/deploy_opensearch/inventories/local/group_vars/all/common_secret.yml:9`
+     - `ansible/deploy_opensearch/inventories/local/group_vars/all/common_secret.yml:10`
    - Impact:
      - Credential leakage risk, accidental reuse risk, and low barrier for lateral movement in shared environments.
    - Recommendation:
@@ -42,8 +42,8 @@ Severity model:
 
 2. Vagrant provisioning logic applies host/provision loops to every machine.
    - Evidence:
-     - `vagrant/base.rb:108`
-     - `vagrant/base.rb:121`
+     - `vagrant/base.rb:112`
+     - `vagrant/base.rb:125`
    - Impact:
      - Repeated and incorrect provisioning commands per machine; possible duplicated `/etc/hosts` entries and wrong role-specific bootstrap commands.
    - Recommendation:
@@ -93,7 +93,7 @@ Severity model:
 3. Custom callback plugin is required by default ansible config.
    - Evidence:
      - `ansible.cfg:5`
-     - README lists external collection dependency: `README.md:56`
+     - README lists external collection dependency: `README.md:69`
    - Impact:
      - Fresh setups fail if collection is missing.
    - Recommendation:
@@ -106,7 +106,7 @@ Severity model:
      - `envrc:1`
      - `ansible/deploy_prometheus/playbook_setup_prometheus.yml:2`
      - `ansible/deploy_opensearch/playbook_setup_filebeat.yml:2`
-     - `ansible/deploy_openstack/playbook_deploy.yml:18`
+     - `ansible/deploy_openstack/playbook_deploy.yml:26`
    - Impact:
      - Operators can miss `envrc` side effects, the actual placement of observability services, and the fact that staged OpenStack deployment should include Ceph integration when Ceph is enabled.
    - Recommendation:

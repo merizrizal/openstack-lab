@@ -8,6 +8,7 @@ Required baseline:
 - Vagrant + libvirt provider.
 - Ansible and Python deps (`requirements.txt`).
 - `yq`, build tools, and custom collection referenced by README.
+- Default OpenStack release: Gazpacho / 2026.1 from `cloud-archive:gazpacho`.
 
 Environment bootstrap:
 
@@ -135,6 +136,16 @@ ansible -i deploy_openstack/inventories/local/local.yml controller \
 
 ansible -i deploy_openstack/inventories/local/local.yml controller \
   -b -m shell -a ". /etc/environment; openstack volume service list"
+```
+
+Confirm Apache-served API listeners that matter for boot and metadata:
+
+```bash
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a "ss -ltnp | egrep ':8774|:8775|:9696'"
+
+ansible -i deploy_openstack/inventories/local/local.yml controller \
+  -b -m shell -a "curl -sS -i --max-time 3 http://127.0.0.1:8775/openstack"
 ```
 
 ### D. After OpenStack bootstrap
@@ -271,6 +282,9 @@ Expected VM set:
    - CI/CD and Kubernetes domains rely on the OpenStack inventory plugin plus the generated clouds config referenced by `OS_CLIENT_CONFIG_FILE`.
 5. Bootstrap security group:
    - `bootstrap_openstack/playbook_bootstrap.yml` opens `22`, `80`, `8080`, `443`, `6443`, `3000`, `9090`, and `9100`, but node exporter defaults to `9200`.
+6. Guest metadata path:
+   - Cloud-init requests to `169.254.169.254` are proxied by Neutron metadata agent to Nova metadata API on `controller01:8775`.
+   - If tenant VMs show metadata `503`, check `docs/troubleshooting/01-openstack-instance-metadata-503.md`.
 
 ## 6) Practical Runbook Advice
 

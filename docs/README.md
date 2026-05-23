@@ -19,6 +19,8 @@ Recommended reading order:
    - Prioritized findings, risks, and practical remediation roadmap.
 6. `docs/documentation-audit.md`
    - Documentation discrepancies found while reconciling `docs/` with the current repo implementation.
+7. `docs/troubleshooting/`
+   - Incident-style troubleshooting notes for known operational failures and their validated fixes.
 
 ## Scope
 
@@ -28,3 +30,4 @@ The analysis covers:
 - Host inventories, group vars, shared roles, and service-level configuration behavior.
 - Operational risks, security posture, and consistency gaps.
 - Lab fundamentals for new contributors and operators who need to understand how the pieces fit before running playbooks.
+- Troubleshooting records for failures observed while upgrading or operating the lab.

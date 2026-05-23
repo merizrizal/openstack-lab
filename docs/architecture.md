@@ -59,7 +59,7 @@ Network model:
 Major domains under `ansible/`:
 
 1. `deploy_openstack/`
-   - Core OpenStack services (Keystone, Glance, Placement, Nova, Neutron, Horizon, Cinder, optional Octavia).
+   - Core OpenStack Gazpacho / 2026.1 services (Keystone, Glance, Placement, Nova, Neutron, Horizon, Cinder, optional Octavia).
 2. `deploy_ceph/`
    - Ceph bootstrap via `cephadm`, host enrollment, OSD setup, and OpenStack key material export.
 3. `deploy_opensearch/`
@@ -102,11 +102,13 @@ Important hidden coupling:
 - OpenStack pre-setup enables Ceph path by default (`ceph_enabled: true`) and copies Ceph config from `/tmp/fetch-ceph.conf`.
 - That file is produced by Ceph-side fetch tasks, so Ceph initialization effectively precedes OpenStack in default mode.
 - Step-by-step OpenStack deployment also needs `playbook_ceph_integration.yml` if Ceph remains enabled, because the one-shot deploy imports it conditionally.
+- Guest metadata depends on both Neutron metadata agent and Nova metadata API. In the current Gazpacho implementation, Nova metadata is exposed through Apache on `controller01:8775` using `/usr/bin/nova-metadata-wsgi`.
 - CI/CD and Kubernetes domains depend on generated clouds config files under `generated/` and on the OpenStack inventory plugin grouping hosts as expected.
 
 Operational placement of major services is:
 
 - OpenStack control-plane services on `controller01`
+- Apache-served OpenStack APIs on `controller01`, including Keystone `5000`, Nova compute `8774`, Nova metadata `8775`, Cinder `8776`, Placement `8778`, and Neutron `9696`
 - Nova/Neutron agents on `compute01` and `compute02`
 - Cinder-volume on `storage01`
 - Ceph admin and OSD on `ceph01` in the default topology
