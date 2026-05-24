@@ -6,6 +6,7 @@
     root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
     target_env: "{{ lookup('ansible.builtin.env', 'TARGET_ENV') }}"
     excluded_vars:
+      - ^_raw_params$
       - ^molecule
       - ^ansible_config_file$
       - ^ansible_facts$

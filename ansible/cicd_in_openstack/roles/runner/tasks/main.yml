@@ -9,9 +9,9 @@
 - name: Install Gitlab Runner
   ansible.builtin.include_tasks:
     file: gitlab.yml
-  when: '"gitlab" in runner_agent'
+  when: "'gitlab' in runner_agent"
 
 - name: Install Jenkins Runner
   ansible.builtin.include_tasks:
     file: jenkins.yml
-  when: '"jenkins" in runner_agent'
+  when: "'jenkins' in runner_agent"

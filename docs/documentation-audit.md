@@ -20,6 +20,9 @@ This note captures documentation mismatches found while reconciling `docs/` with
 4. Added concrete stage validation checkpoints to the workflow guide.
    - `docs/workflows.md` now includes checks after Vagrant, Ceph, OpenStack, OpenStack bootstrap, observability, and dynamic-inventory lab setup.
    - This closes the previous gap where validation advice was mostly conceptual.
+   - The workflow guide now also separates Molecule variable validation
+     (`molecule check`) from runtime smoke verification (`molecule test`), with
+     end-to-end workload verification kept opt-in.
 
 5. `envrc` does more than export variables.
    - It sets `ROOT_DIR` and `ANSIBLE_CONFIG`, installs the git hook from `githooks/`, checks for Python 3.11-3.14, verifies `pip` and `venv`, and exposes `generate_os_client_config`.
@@ -47,9 +50,11 @@ This note captures documentation mismatches found while reconciling `docs/` with
 
 ## Still True After Review
 
-1. Ceph remains enabled by default for the OpenStack domain.
+1. Ceph is now disabled by default for the OpenStack domain; enable it explicitly with `ceph_enabled: true` when testing the Ceph-backed storage path.
 2. Node exporter still defaults to port `9200`.
-3. CI only validates inventory-variable contracts through Molecule, not full runtime behavior.
+3. Default CI only validates inventory-variable contracts through Molecule
+   `check`; Molecule `test` now runs smoke checks by default for deployed lab
+   environments, while end-to-end runtime checks remain opt-in.
 4. OpenStack and Ceph local inventories now use `ansible_sys_user`, while several bootstrap/downstream domains still use the `vagrant` account.
 
 ## Remaining Documentation Opportunities

@@ -49,16 +49,16 @@ Severity model:
    - Recommendation:
      - Scope provisioning to current machine host context, not full inventory loops.
 
-3. OpenStack pre-setup depends on Ceph artifacts in `/tmp` while Ceph is enabled by default.
+3. OpenStack pre-setup depends on Ceph artifacts in `/tmp` when Ceph is enabled.
    - Evidence:
-     - Default enable: `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml:12`
+     - Optional enable flag: `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml:12`
      - Ceph role in pre-setup: `ansible/deploy_openstack/playbook_pre_setup.yml:13`
      - Artifact path default: `ansible/shared_resources/playbooks/roles/ceph_common_vars/defaults/main.yml:5`
      - Artifact consumption: `ansible/deploy_openstack/roles/ceph/tasks/main.yml:8`
    - Impact:
-     - OpenStack pre-setup can fail if Ceph export phase was not run previously.
+     - OpenStack pre-setup can fail if `ceph_enabled: true` and the Ceph export phase was not run previously.
    - Recommendation:
-     - Add explicit preflight checks and clearer failure messaging; optionally disable Ceph by default.
+     - Add explicit preflight checks and clearer failure messaging for the optional Ceph path.
 
 4. Kubernetes containerd config is hardcoded to `linux/amd64`.
    - Evidence:
@@ -112,14 +112,20 @@ Severity model:
    - Recommendation:
      - Keep `docs/` tied to implementation details and update workflow docs whenever playbook composition or inventory scope changes.
 
-2. Molecule currently validates variables only, not runtime behavior.
+2. Molecule separates variable validation from runtime behavior checks.
    - Evidence:
-     - `molecule/config.yml:26`
+     - `molecule/config.yml:28`
      - `molecule/vars_validation.yml:2`
+     - `molecule/verify.yml:2`
+     - `molecule/openstack/tasks/smoke_verify.yml:1`
+     - `molecule/openstack/tasks/e2e_workload_verify.yml:1`
+     - `molecule/ceph/tasks/smoke_verify.yml:1`
    - Impact:
-     - Regressions in service behavior may pass CI unnoticed.
+     - Regressions in service behavior may pass the default Molecule `check` path unless Molecule `test` is run against a deployed lab.
    - Recommendation:
-     - Add functional verify tasks (API health, service status, endpoint checks).
+     - Run Molecule `test` against deployed lab runners when smoke runtime validation is required.
+     - Run OpenStack end-to-end workload verification with `MOLECULE_E2E_VERIFY=true` through Molecule `test` after bootstrap resources exist.
+     - Keep the smoke task fast and mostly read-only so it can run before the deeper workload test; use the OpenStack scenario for API and integration checks and the Ceph scenario for cluster health checks.
 
 ## Prioritized Remediation Roadmap
 
@@ -132,7 +138,7 @@ Severity model:
    - Add Ceph/OpenStack preflight checks and explicit dependency guardrails.
    - Keep operator-facing docs synchronized with playbook composition and inventory scope.
 3. Medium term (week 2-4):
-   - Add runtime smoke tests in CI (OpenStack, Ceph, Prometheus, OpenSearch).
+   - Run Molecule `test` smoke checks on deployed lab runners where available.
    - Template architecture-specific values (`amd64` hardcoding).
    - Move static Jenkins node definitions to data-driven inventory templates.
 

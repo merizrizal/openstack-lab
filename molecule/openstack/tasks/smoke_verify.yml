@@ -1,0 +1,322 @@
+---
+- name: Set OpenStack CLI environment for smoke verification
+  ansible.builtin.set_fact:
+    molecule_openstack_auth_env:
+      OS_AUTH_URL: http://{{ controller01_host_addr }}:5000/v3
+      OS_IDENTITY_API_VERSION: "3"
+      OS_INTERFACE: public
+      OS_PASSWORD: "{{ os_keystone_password }}"
+      OS_PROJECT_DOMAIN_NAME: Default
+      OS_PROJECT_NAME: admin
+      OS_REGION_NAME: RegionOne
+      OS_USER_DOMAIN_NAME: Default
+      OS_USERNAME: admin
+  when: "'controller' in group_names"
+  no_log: true
+
+- name: Check OpenStack API listener ports
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ item.port }}"
+    timeout: 5
+  loop:
+    - name: Keystone
+      port: 5000
+    - name: Nova compute API
+      port: 8774
+    - name: Nova metadata API
+      port: 8775
+    - name: Cinder API
+      port: 8776
+    - name: Placement API
+      port: 8778
+    - name: Neutron API
+      port: 9696
+  loop_control:
+    label: "{{ item.name }}:{{ item.port }}"
+  when: "'controller' in group_names"
+
+- name: Check Keystone token issuance
+  ansible.builtin.command:
+    argv:
+      - openstack
+      - token
+      - issue
+      - -f
+      - value
+      - -c
+      - id
+  environment: "{{ molecule_openstack_auth_env }}"
+  register: molecule_keystone_token
+  changed_when: false
+  when: "'controller' in group_names"
+
+- name: Assert Keystone returned a token id
+  ansible.builtin.assert:
+    that:
+      - molecule_keystone_token.stdout | length > 0
+    fail_msg: Keystone token issuance returned an empty token id.
+  when: "'controller' in group_names"
+
+- name: Check OpenStack service catalog endpoints
+  ansible.builtin.command:
+    argv:
+      - openstack
+      - endpoint
+      - list
+      - --service
+      - "{{ item.service }}"
+      - -f
+      - value
+      - -c
+      - URL
+  environment: "{{ molecule_openstack_auth_env }}"
+  loop:
+    - service: identity
+      expected_port: 5000
+    - service: compute
+      expected_port: 8774
+    - service: placement
+      expected_port: 8778
+    - service: network
+      expected_port: 9696
+    - service: volumev3
+      expected_port: 8776
+  loop_control:
+    label: "{{ item.service }}"
+  register: molecule_endpoint_checks
+  changed_when: false
+  when: "'controller' in group_names"
+
+- name: Assert OpenStack service catalog endpoints are reachable in catalog
+  ansible.builtin.assert:
+    that:
+      - item.stdout | length > 0
+      - (':' ~ item.item.expected_port) in item.stdout
+    fail_msg: Service {{ item.item.service }} endpoint is missing or does not include port {{ item.item.expected_port }}.
+  loop: "{{ molecule_endpoint_checks.results }}"
+  loop_control:
+    label: "{{ item.item.service }}"
+  when: "'controller' in group_names"
+
+- name: Check Nova service health
+  ansible.builtin.command:
+    argv:
+      - openstack
+      - compute
+      - service
+      - list
+      - -f
+      - json
+  environment: "{{ molecule_openstack_auth_env }}"
+  register: molecule_nova_services
+  changed_when: false
+  when: "'controller' in group_names"
+
+- name: Assert Nova services are up and enabled
+  ansible.builtin.assert:
+    that:
+      - molecule_nova_service_items | length > 0
+      - molecule_nova_service_items | selectattr('State', 'ne', 'up') | list | length == 0
+      - molecule_nova_service_items | selectattr('Status', 'ne', 'enabled') | list | length == 0
+    fail_msg: "Nova service health check failed: {{ molecule_nova_services.stdout }}"
+  vars:
+    molecule_nova_service_items: "{{ molecule_nova_services.stdout | from_json }}"
+  when: "'controller' in group_names"
+
+- name: Check Neutron agent health
+  ansible.builtin.command:
+    argv:
+      - openstack
+      - network
+      - agent
+      - list
+      - -f
+      - json
+  environment: "{{ molecule_openstack_auth_env }}"
+  register: molecule_neutron_agents
+  changed_when: false
+  when: "'controller' in group_names"
+
+- name: Assert Neutron agents are alive and up
+  ansible.builtin.assert:
+    that:
+      - molecule_neutron_agent_items | length > 0
+    fail_msg: "Neutron agent health check failed: {{ molecule_neutron_agents.stdout }}"
+  vars:
+    molecule_neutron_agent_items: "{{ molecule_neutron_agents.stdout | from_json }}"
+  when: "'controller' in group_names"
+
+- name: Assert each Neutron agent is alive and up
+  ansible.builtin.assert:
+    that:
+      - (item.get('Alive', '') | string | lower) in molecule_neutron_alive_values
+      - (item.get('State', '') | string | lower) in molecule_neutron_state_values
+    fail_msg: "Neutron agent is not healthy: {{ item }}"
+  vars:
+    molecule_neutron_agent_items: "{{ molecule_neutron_agents.stdout | from_json }}"
+    molecule_neutron_alive_values:
+      - ":-)"
+      - "true"
+      - up
+      - alive
+      - "yes"
+    molecule_neutron_state_values:
+      - up
+      - "true"
+      - enabled
+  loop: "{{ molecule_neutron_agent_items }}"
+  loop_control:
+    label: "{{ item.get('Host', item.get('host', item.get('ID', 'unknown'))) }} {{ item.get('Agent Type', item.get('Binary', 'agent')) }}"
+  when: "'controller' in group_names"
+
+- name: Check Cinder service health
+  ansible.builtin.command:
+    argv:
+      - openstack
+      - volume
+      - service
+      - list
+      - -f
+      - json
+  environment: "{{ molecule_openstack_auth_env }}"
+  register: molecule_cinder_services
+  changed_when: false
+  when: "'controller' in group_names"
+
+- name: Assert Cinder services are up and enabled
+  ansible.builtin.assert:
+    that:
+      - molecule_cinder_service_items | length > 0
+      - molecule_cinder_service_items | selectattr('State', 'ne', 'up') | list | length == 0
+      - molecule_cinder_service_items | selectattr('Status', 'ne', 'enabled') | list | length == 0
+    fail_msg: "Cinder service health check failed: {{ molecule_cinder_services.stdout }}"
+  vars:
+    molecule_cinder_service_items: "{{ molecule_cinder_services.stdout | from_json }}"
+  when: "'controller' in group_names"
+
+- name: Check Nova metadata API response
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8775/openstack
+    method: GET
+    return_content: false
+    status_code:
+      - 200
+      - 300
+      - 400
+      - 404
+  register: molecule_metadata_api
+  when: "'controller' in group_names"
+
+- name: Assert Nova metadata API does not return 503
+  ansible.builtin.assert:
+    that:
+      - molecule_metadata_api.status | int != 503
+    fail_msg: Nova metadata API returned 503 on controller localhost.
+  when: "'controller' in group_names"
+
+- name: Check OpenStack Ceph integration files when Ceph is enabled
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  vars:
+    molecule_openstack_ceph_files: >-
+      {{
+        ['/etc/ceph/ceph.conf']
+        + (['/etc/ceph/ceph.client.glance.keyring'] if 'controller' in group_names else [])
+        + (['/etc/ceph/ceph.client.cinder.keyring'] if ('compute' in group_names or 'storage' in group_names) else [])
+      }}
+  loop: "{{ molecule_openstack_ceph_files }}"
+  register: molecule_openstack_ceph_file_stats
+  when:
+    - ceph_enabled | default(false) | bool
+    - molecule_openstack_ceph_files | length > 0
+
+- name: Assert OpenStack Ceph integration files are present
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Expected Ceph integration file is missing: {{ item.item }}"
+  loop: "{{ molecule_openstack_ceph_file_stats.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - ceph_enabled | default(false) | bool
+
+- name: Check whether Prometheus is deployed
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - prometheus
+  register: molecule_prometheus_service
+  changed_when: false
+  failed_when: false
+  when: "'controller' in group_names"
+
+- name: Check Prometheus readiness when deployed
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9090/-/ready
+    method: GET
+    status_code: 200
+    return_content: false
+  when:
+    - "'controller' in group_names"
+    - molecule_prometheus_service.rc == 0
+
+- name: Check Prometheus active target health when deployed
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9090/api/v1/targets?state=active
+    method: GET
+    status_code: 200
+    return_content: true
+  register: molecule_prometheus_targets
+  when:
+    - "'controller' in group_names"
+    - molecule_prometheus_service.rc == 0
+
+- name: Assert Prometheus active targets are up
+  ansible.builtin.assert:
+    that:
+      - molecule_prometheus_targets.json.status == 'success'
+      - molecule_prometheus_active_targets | selectattr('health', 'ne', 'up') | list | length == 0
+    fail_msg: "Prometheus has unhealthy active targets: {{ molecule_prometheus_targets.json.data.activeTargets | default([]) }}"
+  vars:
+    molecule_prometheus_active_targets: "{{ molecule_prometheus_targets.json.data.activeTargets | default([]) }}"
+  when:
+    - "'controller' in group_names"
+    - molecule_prometheus_service.rc == 0
+
+- name: Check whether OpenSearch is deployed
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - opensearch
+  register: molecule_opensearch_service
+  changed_when: false
+  failed_when: false
+  when: "'controller' in group_names"
+
+- name: Check OpenSearch cluster health when deployed
+  ansible.builtin.uri:
+    url: https://127.0.0.1:{{ molecule_opensearch_api_port | default(9920) }}/_cluster/health
+    method: GET
+    user: "{{ molecule_opensearch_user | default('admin') }}"
+    password: "{{ molecule_opensearch_password | default('admin12345') }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    return_content: true
+  register: molecule_opensearch_health
+  when:
+    - "'controller' in group_names"
+    - molecule_opensearch_service.rc == 0
+
+- name: Assert OpenSearch health is acceptable
+  ansible.builtin.assert:
+    that:
+      - molecule_opensearch_health.json.status in molecule_opensearch_accepted_health_states | default(['green', 'yellow'])
+    fail_msg: "OpenSearch health is not acceptable: {{ molecule_opensearch_health.json }}"
+  when:
+    - "'controller' in group_names"
+    - molecule_opensearch_service.rc == 0

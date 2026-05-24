@@ -18,8 +18,8 @@
   changed_when: false
   failed_when: >
     prepare_volume.stderr is defined and
-    prepare_volume.stderr != "" and
-    "already exists" not in prepare_volume.stderr
+    prepare_volume.stderr != '' and
+    'already exists' not in prepare_volume.stderr
 
 - name: Reconfigure lvm.conf - set devices/filter
   ansible.builtin.replace:
