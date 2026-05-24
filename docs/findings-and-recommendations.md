@@ -49,16 +49,16 @@ Severity model:
    - Recommendation:
      - Scope provisioning to current machine host context, not full inventory loops.
 
-3. OpenStack pre-setup depends on Ceph artifacts in `/tmp` while Ceph is enabled by default.
+3. OpenStack pre-setup depends on Ceph artifacts in `/tmp` when Ceph is enabled.
    - Evidence:
-     - Default enable: `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml:12`
+     - Optional enable flag: `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml:12`
      - Ceph role in pre-setup: `ansible/deploy_openstack/playbook_pre_setup.yml:13`
      - Artifact path default: `ansible/shared_resources/playbooks/roles/ceph_common_vars/defaults/main.yml:5`
      - Artifact consumption: `ansible/deploy_openstack/roles/ceph/tasks/main.yml:8`
    - Impact:
-     - OpenStack pre-setup can fail if Ceph export phase was not run previously.
+     - OpenStack pre-setup can fail if `ceph_enabled: true` and the Ceph export phase was not run previously.
    - Recommendation:
-     - Add explicit preflight checks and clearer failure messaging; optionally disable Ceph by default.
+     - Add explicit preflight checks and clearer failure messaging for the optional Ceph path.
 
 4. Kubernetes containerd config is hardcoded to `linux/amd64`.
    - Evidence:

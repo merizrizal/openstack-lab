@@ -50,7 +50,7 @@ This note captures documentation mismatches found while reconciling `docs/` with
 
 ## Still True After Review
 
-1. Ceph remains enabled by default for the OpenStack domain.
+1. Ceph is now disabled by default for the OpenStack domain; enable it explicitly with `ceph_enabled: true` when testing the Ceph-backed storage path.
 2. Node exporter still defaults to port `9200`.
 3. Default CI only validates inventory-variable contracts through Molecule
    `check`; Molecule `test` now runs smoke checks by default for deployed lab

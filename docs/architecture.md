@@ -5,7 +5,7 @@
 This repository is a lab platform to provision and operate:
 
 - Core OpenStack (controller, compute, storage).
-- Ceph storage backend integration.
+- Optional Ceph storage backend integration.
 - Observability stack (OpenSearch, Prometheus, Grafana).
 - Optional OpenStack-hosted CI/CD lab (GitLab, Jenkins, runner, telemetry).
 - Optional OpenStack-hosted Kubernetes lab (kubeadm-based).
@@ -93,8 +93,8 @@ Inventory boundaries are explicit and matter operationally:
 Recommended dependency order implemented in playbooks:
 
 1. Build base image + spin VMs with Vagrant.
-2. Deploy Ceph (`deploy_ceph/*`) and export keyrings/config.
-3. Deploy OpenStack (`deploy_openstack/*`) with Ceph integration.
+2. Optional: deploy Ceph (`deploy_ceph/*`) and export keyrings/config when using `ceph_enabled: true`.
+3. Deploy OpenStack (`deploy_openstack/*`) with local storage by default, or with Ceph integration when explicitly enabled.
 4. Bootstrap OpenStack resources (`bootstrap_openstack/playbook_bootstrap.yml`).
 5. Deploy optional stacks:
    - Observability (`deploy_opensearch`, `deploy_prometheus`).
@@ -103,9 +103,9 @@ Recommended dependency order implemented in playbooks:
 
 Important hidden coupling:
 
-- OpenStack pre-setup enables Ceph path by default (`ceph_enabled: true`) and copies Ceph config from `/tmp/fetch-ceph.conf`.
-- That file is produced by Ceph-side fetch tasks, so Ceph initialization effectively precedes OpenStack in default mode.
-- Step-by-step OpenStack deployment also needs `playbook_ceph_integration.yml` if Ceph remains enabled, because the one-shot deploy imports it conditionally.
+- OpenStack pre-setup skips the Ceph path by default (`ceph_enabled: false`).
+- When `ceph_enabled: true`, OpenStack copies Ceph config from `/tmp/fetch-ceph.conf`; that file is produced by Ceph-side fetch tasks, so Ceph initialization must precede OpenStack in Ceph-backed mode.
+- Step-by-step OpenStack deployment also needs `playbook_ceph_integration.yml` if Ceph is enabled, because the one-shot deploy imports it conditionally.
 - Guest metadata depends on both Neutron metadata agent and Nova metadata API. In the current Gazpacho implementation, Nova metadata is exposed through Apache on `controller01:8775` using `/usr/bin/nova-metadata-wsgi`.
 - CI/CD and Kubernetes domains depend on generated clouds config files under `generated/` and on the OpenStack inventory plugin grouping hosts as expected.
 

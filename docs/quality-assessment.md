@@ -73,7 +73,7 @@ Strengths:
 
 Weak points:
 
-- Multiple hidden couplings (Ceph artifacts consumed from `/tmp`, generated cloud config dependencies).
+- Multiple hidden couplings (optional Ceph artifacts consumed from `/tmp`, generated cloud config dependencies).
 - Some static assumptions that can break portability (hardcoded network, architecture-specific values).
 
 ## 6) Maintainability View

@@ -15,8 +15,9 @@ main layers:
      memory, CPU, disk size, and node purpose.
 2. Infrastructure services:
    - Ansible installs Ceph and OpenStack services on the Vagrant VMs.
-   - Ceph provides the default storage backend for OpenStack image, compute,
-     and volume workflows.
+   - OpenStack uses Glance file storage and Cinder LVM by default.
+   - Ceph can optionally provide RBD-backed image, compute, and volume
+     workflows when `ceph_enabled: true`.
 3. OpenStack-hosted labs:
    - After OpenStack works, Ansible can create tenant VMs inside OpenStack for
      CI/CD and Kubernetes labs.
@@ -26,8 +27,11 @@ main layers:
 The most important dependency chain is:
 
 ```text
-host tools -> Vagrant VMs -> Ceph -> OpenStack -> OpenStack bootstrap -> optional labs
+host tools -> Vagrant VMs -> OpenStack -> OpenStack bootstrap -> optional labs
 ```
+
+When Ceph integration is enabled, insert Ceph deployment before OpenStack so the
+OpenStack playbooks can consume exported Ceph artifacts.
 
 ## 2) Default Node Roles
 
@@ -105,15 +109,16 @@ guest 169.254.169.254 -> Neutron metadata agent -> Nova metadata API on controll
 
 ## 5) Ceph Integration Model
 
-Ceph is enabled by default for OpenStack with:
+Ceph is disabled by default for OpenStack with:
 
 ```yaml
-ceph_enabled: true
+ceph_enabled: false
 ```
 
-The Ceph deployment prepares OpenStack-facing artifacts and fetches them to the
-machine running Ansible. The OpenStack playbooks later consume those files from
-`/tmp`:
+With this default, Glance uses file storage and Cinder uses the local LVM
+backend. When `ceph_enabled: true`, the Ceph deployment prepares
+OpenStack-facing artifacts and fetches them to the machine running Ansible. The
+OpenStack playbooks later consume those files from `/tmp`:
 
 | Artifact | Default local path | Consumer |
 | --- | --- | --- |
@@ -122,9 +127,9 @@ machine running Ansible. The OpenStack playbooks later consume those files from
 | Cinder keyring | `/tmp/fetch-ceph.client.cinder.keyring` | Cinder and Nova integration |
 | Ceph public key | `/tmp/fetch-ceph.pub` | Multi-node Ceph host enrollment |
 
-Because of this coupling, default OpenStack deployment expects Ceph deployment
-and `deploy_ceph/playbook_openstack_init.yml` to run first. If you do not want
-Ceph, set `ceph_enabled: false` before running OpenStack playbooks.
+Because of this coupling, Ceph-enabled OpenStack deployment expects Ceph
+deployment and `deploy_ceph/playbook_openstack_init.yml` to run first. Leave
+`ceph_enabled: false` for the default local storage path.
 
 ## 6) Inventory and Variable Boundaries
 

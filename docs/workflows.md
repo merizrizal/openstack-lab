@@ -22,7 +22,11 @@ Environment bootstrap:
 
 ## 2) Core Lab Provisioning Sequence
 
-### A. Ceph
+### A. Optional Ceph Storage Backend
+
+Ceph is optional for the default lab. Run this stage before OpenStack only when
+you plan to enable Ceph-backed Glance, Cinder, and Nova integration with
+`ceph_enabled: true`.
 
 Ordered playbooks:
 
@@ -59,8 +63,9 @@ One-shot alternative:
 
 Notes:
 
-- `ceph_enabled` defaults to `true` in `deploy_openstack/inventories/local/group_vars/all/common.yml`.
-- `playbook_pre_setup.yml` already loads `ceph_common_vars` and the `ceph` role when Ceph is enabled, so the Ceph export step must have happened first.
+- `ceph_enabled` defaults to `false` in `deploy_openstack/inventories/local/group_vars/all/common.yml`.
+- With the default setting, OpenStack uses Glance file storage and Cinder LVM and does not require the Ceph stage.
+- When Ceph is enabled, `playbook_pre_setup.yml` loads `ceph_common_vars` and the `ceph` role, so the Ceph export step must have happened first.
 - `playbook_deploy.yml` automatically imports `playbook_ceph_integration.yml` when Ceph is enabled, so a manual staged deployment should include it to match the one-shot path.
 
 ### C. OpenStack Bootstrap (tenant resources)
@@ -101,7 +106,8 @@ ip addr show br-provider0
 
 ### B. After Ceph deployment
 
-Check cluster status on the Ceph admin node:
+Run these checks only when the optional Ceph stage was deployed. Check cluster
+status on the Ceph admin node:
 
 ```bash
 cd ansible
@@ -304,7 +310,7 @@ Expected VM set:
 1. Re-running playbooks:
    - Most tasks are designed for repeat runs, but many shell/command tasks force `changed_when: false`, which weakens drift visibility.
 2. Ceph/OpenStack coupling:
-   - If Ceph artifacts in `/tmp/fetch-ceph*` are missing, OpenStack Ceph integration path fails.
+   - If `ceph_enabled: true` and Ceph artifacts in `/tmp/fetch-ceph*` are missing, OpenStack Ceph integration path fails.
 3. Networking:
    - Nested virtualization external access needs host NAT configuration for provider subnet.
 4. Dynamic inventory workloads:
@@ -318,7 +324,8 @@ Expected VM set:
 ## 6) Practical Runbook Advice
 
 1. Keep a strict order:
-   - Vagrant base -> Ceph -> OpenStack -> OpenStack bootstrap -> optional stacks.
+   - Default path: Vagrant base -> OpenStack -> OpenStack bootstrap -> optional stacks.
+   - Ceph path: Vagrant base -> Ceph -> OpenStack with Ceph enabled -> OpenStack bootstrap -> optional stacks.
 2. Validate immediately after each stage:
    - Service health, API endpoint checks, and basic smoke tests (e.g., boot test instance).
 3. Persist artifacts:

@@ -35,7 +35,7 @@ Start with the repository-backed docs when learning or changing this project:
 * VM provisioning: Vagrant
 * Configuration management: Ansible
 * OpenStack release: Gazpacho / 2026.1 (`cloud-archive:gazpacho`)
-* Storage backend: Ceph
+* Storage backend: Glance file storage and Cinder LVM by default; optional Ceph/RBD integration
 * Observability: OpenSearch, Prometheus, Grafana stack
 * Optional workloads:
 
@@ -80,13 +80,15 @@ python3 -m pip install -r requirements.txt
 ## Important Notes Before Deploy
 
 1. **Recommended deployment order**
-   - Vagrant VM setup -> Ceph deployment -> OpenStack deployment -> OpenStack bootstrap -> optional stacks (observability, CI/CD, Kubernetes).
+   - Default path: Vagrant VM setup -> OpenStack deployment -> OpenStack bootstrap -> optional stacks (observability, CI/CD, Kubernetes).
+   - Ceph path: Vagrant VM setup -> Ceph deployment -> OpenStack deployment with Ceph enabled -> OpenStack bootstrap -> optional stacks.
 
-2. **Ceph is enabled by default in OpenStack playbooks**
-   - `deploy_openstack` has `ceph_enabled: true` by default.
-   - Run Ceph playbooks first so Ceph artifacts are available for OpenStack integration.
-   - If you want to skip Ceph, set `ceph_enabled: false` in:
+2. **Ceph is disabled by default in OpenStack playbooks**
+   - `deploy_openstack` has `ceph_enabled: false` by default.
+   - The default OpenStack deployment uses Glance file storage and the Cinder LVM backend.
+   - If you want Ceph-backed Glance, Cinder, and Nova integration, set `ceph_enabled: true` in:
      `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml`.
+   - Run Ceph playbooks first when Ceph is enabled so Ceph artifacts are available for OpenStack integration.
 
 3. **Credentials in repository are insecure defaults**
    - Files under `ansible/**/group_vars/*secret*.yml` use static sample credentials.
@@ -152,6 +154,9 @@ python3 -m pip install -r requirements.txt
 
 ## Ceph Provisioning
 
+Ceph provisioning is optional for the default lab. Run it when you want the
+OpenStack deployment to use Ceph/RBD by setting `ceph_enabled: true`.
+
 All Ceph provisioning is done using Ansible.
 
 1. Load environment variables and navigate to Ansible:
@@ -211,8 +216,8 @@ ansible-playbook -i deploy_ceph/inventories/local/local.yml \
 
 ## OpenStack Provisioning
 
-> **Important:** Run Ceph provisioning first unless you explicitly disable Ceph integration in
-> `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml`.
+> **Important:** Ceph integration is disabled by default. Run Ceph provisioning first only when
+> `ceph_enabled: true` in `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml`.
 
 1. Load environment variables and navigate to Ansible:
 
@@ -249,6 +254,13 @@ ansible-playbook -i deploy_ceph/inventories/local/local.yml \
      ```bash
      ansible-playbook -i deploy_openstack/inventories/local/local.yml \
        deploy_openstack/playbook_setup_storage.yml
+     ```
+
+   * Ceph integration, only when `ceph_enabled: true`:
+
+     ```bash
+     ansible-playbook -i deploy_openstack/inventories/local/local.yml \
+       deploy_openstack/playbook_ceph_integration.yml
      ```
 
 ### One-step OpenStack deployment
@@ -523,7 +535,8 @@ This provisions a **kubeadm-based Kubernetes cluster** on OpenStack.
 ## Troubleshooting
 
 1. **OpenStack pre-setup fails on Ceph files in `/tmp/fetch-ceph*`**
-   - Run Ceph deployment first (`deploy_ceph/playbook_deploy.yml`), or disable Ceph with `ceph_enabled: false`.
+   - This path is only expected when `ceph_enabled: true`.
+   - Run Ceph deployment first (`deploy_ceph/playbook_deploy.yml`), or return to the default local storage path with `ceph_enabled: false`.
 
 2. **Ansible fails with callback plugin error**
    - Install `merizrizal.utils` collection, then rerun playbook.
