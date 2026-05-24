@@ -1,0 +1,41 @@
+---
+- name: Run Molecule runtime verification
+  hosts: all
+  gather_facts: false
+  vars:
+    ceph_enabled: "{{ lookup('ansible.builtin.env', 'CEPH_ENABLED') | default('false', true) | bool }}"
+    molecule_run_e2e_verify: "{{ lookup('ansible.builtin.env', 'MOLECULE_E2E_VERIFY') | default('false', true) | bool }}"
+  tasks:
+    - name: Find scenario smoke verification tasks
+      ansible.builtin.set_fact:
+        smoke_verify_tasks_file: "{{ lookup('ansible.builtin.first_found', smoke_verify_lookup, errors='ignore') }}"
+      vars:
+        smoke_verify_lookup:
+          files:
+            - smoke_verify.yml
+          paths:
+            - "{{ molecule_scenario_directory }}/tasks"
+
+    - name: Run scenario smoke verification tasks
+      ansible.builtin.include_tasks:
+        file: "{{ smoke_verify_tasks_file }}"
+      when:
+        - smoke_verify_tasks_file | default('') | length > 0
+
+    - name: Find optional scenario end-to-end verification tasks
+      ansible.builtin.set_fact:
+        e2e_verify_tasks_file: "{{ lookup('ansible.builtin.first_found', e2e_verify_lookup, errors='ignore') }}"
+      vars:
+        e2e_verify_lookup:
+          files:
+            - e2e_workload_verify.yml
+          paths:
+            - "{{ molecule_scenario_directory }}/tasks"
+      when: molecule_run_e2e_verify
+
+    - name: Run optional scenario end-to-end verification tasks
+      ansible.builtin.include_tasks:
+        file: "{{ e2e_verify_tasks_file }}"
+      when:
+        - molecule_run_e2e_verify
+        - e2e_verify_tasks_file | default('') | length > 0

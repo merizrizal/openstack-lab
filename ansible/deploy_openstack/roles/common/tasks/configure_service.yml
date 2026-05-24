@@ -33,7 +33,7 @@
 - name: Create public component service API endpoints
   ansible.builtin.command:
     cmd: openstack endpoint create --region RegionOne {{ service_name }} public {{ service_endpoint_url }}
-  when: public_endpoint.stdout is defined and public_endpoint.stdout == ""
+  when: public_endpoint.stdout is defined and public_endpoint.stdout == ''
   changed_when: true
 
 - name: Check internal component service API endpoints
@@ -48,7 +48,7 @@
 - name: Create internal component service API endpoints
   ansible.builtin.command:
     cmd: openstack endpoint create --region RegionOne {{ service_name }} internal {{ service_endpoint_url }}
-  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ""
+  when: internal_endpoint.stdout is defined and internal_endpoint.stdout == ''
   changed_when: true
 
 - name: Check admin component service API endpoints
@@ -63,5 +63,5 @@
 - name: Create admin component service API endpoints
   ansible.builtin.command:
     cmd: openstack endpoint create --region RegionOne {{ service_name }} admin {{ service_endpoint_url }}
-  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ""
+  when: admin_endpoint.stdout is defined and admin_endpoint.stdout == ''
   changed_when: true

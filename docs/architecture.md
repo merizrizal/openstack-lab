@@ -21,7 +21,11 @@ Primary entrypoint is `README.md` with Vagrant-first VM creation and Ansible-fir
 3. Workload layer:
    - OpenStack bootstraps tenant resources and then launches CI/CD and Kubernetes VMs via OpenStack APIs.
 4. Validation layer:
-   - Molecule validates inventory variable contracts, not full functional end-to-end behavior.
+   - Molecule `check` validates inventory variable contracts through
+     `molecule/vars_validation.yml`.
+   - Molecule `test` runs smoke runtime verification through
+     `molecule/verify.yml` by default, with end-to-end verification available
+     behind an opt-in flag.
 
 There is also a shell bootstrap layer in `envrc`:
 
@@ -129,7 +133,14 @@ Local quality gate:
 
 Validation behavior:
 
-- Molecule verifies inventory variable snapshots against checked-in expected JSON, not service reachability or runtime correctness.
+- `make validate-openstack` and `make validate-ceph` run `molecule check`.
+  The `check_sequence` calls `molecule/vars_validation.yml` directly and
+  verifies inventory variable snapshots against checked-in expected JSON.
+- `make test-openstack` and `make test-ceph` run `molecule test`. The
+  `test_sequence` calls `molecule/verify.yml`, which loads scenario smoke checks
+  from `molecule/<scenario>/tasks/smoke_verify.yml` by default.
+- `MOLECULE_E2E_VERIFY=true` enables the OpenStack workload lifecycle test from
+  `molecule/openstack/tasks/e2e_workload_verify.yml`.
 
 ## 7) Engineering Perspective
 

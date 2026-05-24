@@ -1,0 +1,261 @@
+---
+- name: Set OpenStack CLI environment for end-to-end verification
+  ansible.builtin.set_fact:
+    molecule_openstack_auth_env:
+      OS_AUTH_URL: http://{{ controller01_host_addr }}:5000/v3
+      OS_IDENTITY_API_VERSION: "3"
+      OS_INTERFACE: public
+      OS_PASSWORD: "{{ os_keystone_password }}"
+      OS_PROJECT_DOMAIN_NAME: Default
+      OS_PROJECT_NAME: admin
+      OS_REGION_NAME: RegionOne
+      OS_USER_DOMAIN_NAME: Default
+      OS_USERNAME: admin
+    molecule_e2e_run_id: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_lowercase,digits length=8') }}"
+  when: "'controller' in group_names"
+  no_log: true
+
+- name: Set OpenStack end-to-end resource names
+  ansible.builtin.set_fact:
+    molecule_e2e_server_name: "{{ molecule_e2e_name_prefix | default('molecule-e2e') }}-{{ molecule_e2e_run_id }}"
+    molecule_e2e_volume_name: "{{ molecule_e2e_name_prefix | default('molecule-e2e') }}-volume-{{ molecule_e2e_run_id }}"
+    molecule_e2e_image_name: "{{ molecule_e2e_image | default(lookup('ansible.builtin.env', 'MOLECULE_E2E_IMAGE') | default('vm_image01', true)) }}"
+    molecule_e2e_flavor_name: "{{ molecule_e2e_flavor | default(lookup('ansible.builtin.env', 'MOLECULE_E2E_FLAVOR') | default('small', true)) }}"
+    molecule_e2e_network_name: "{{ molecule_e2e_network | default(lookup('ansible.builtin.env', 'MOLECULE_E2E_NETWORK') | default('private', true)) }}"
+    molecule_e2e_security_group_name: >-
+      {{ molecule_e2e_security_group |
+      default(lookup('ansible.builtin.env', 'MOLECULE_E2E_SECURITY_GROUP') |
+      default('openstack_lab', true)) }}"
+    molecule_e2e_volume_size: "{{ molecule_e2e_volume_size_gb | default(lookup('ansible.builtin.env', 'MOLECULE_E2E_VOLUME_SIZE_GB') | default('1', true)) }}"
+  when: "'controller' in group_names"
+
+- name: Run OpenStack end-to-end workload lifecycle
+  when: "'controller' in group_names"
+  block:
+    - name: Validate OpenStack end-to-end prerequisites
+      ansible.builtin.command:
+        argv: "{{ item.argv }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      loop:
+        - label: image {{ molecule_e2e_image_name }}
+          argv:
+            - openstack
+            - image
+            - show
+            - "{{ molecule_e2e_image_name }}"
+            - -f
+            - value
+        - label: flavor {{ molecule_e2e_flavor_name }}
+          argv:
+            - openstack
+            - flavor
+            - show
+            - "{{ molecule_e2e_flavor_name }}"
+            - -f
+            - value
+        - label: network {{ molecule_e2e_network_name }}
+          argv:
+            - openstack
+            - network
+            - show
+            - "{{ molecule_e2e_network_name }}"
+            - -f
+            - value
+        - label: security group {{ molecule_e2e_security_group_name }}
+          argv:
+            - openstack
+            - security
+            - group
+            - show
+            - "{{ molecule_e2e_security_group_name }}"
+            - -f
+            - value
+      loop_control:
+        label: "{{ item.label }}"
+      changed_when: false
+
+    - name: Boot OpenStack end-to-end test instance
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - server
+          - create
+          - -f
+          - json
+          - --image
+          - "{{ molecule_e2e_image_name }}"
+          - --flavor
+          - "{{ molecule_e2e_flavor_name }}"
+          - --network
+          - "{{ molecule_e2e_network_name }}"
+          - --security-group
+          - "{{ molecule_e2e_security_group_name }}"
+          - --wait
+          - "{{ molecule_e2e_server_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_server_create
+      changed_when: true
+
+    - name: Show OpenStack end-to-end test instance
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - server
+          - show
+          - "{{ molecule_e2e_server_name }}"
+          - -f
+          - json
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_server_show
+      changed_when: false
+
+    - name: Assert OpenStack end-to-end test instance is active and attached to network
+      ansible.builtin.assert:
+        that:
+          - molecule_e2e_server_json.status == 'ACTIVE'
+          - molecule_e2e_network_name in molecule_e2e_server_json.addresses
+        fail_msg: "OpenStack test instance is not active or lacks network attachment: {{ molecule_e2e_server_show.stdout }}"
+      vars:
+        molecule_e2e_server_json: "{{ molecule_e2e_server_show.stdout | from_json }}"
+
+    - name: Wait before reading guest console metadata output
+      ansible.builtin.pause:
+        seconds: "{{ molecule_e2e_console_wait_seconds | default(30) }}"
+
+    - name: Read OpenStack end-to-end instance console log
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - console
+          - log
+          - show
+          - "{{ molecule_e2e_server_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_console_log
+      changed_when: false
+
+    - name: Assert guest console does not show metadata 503 failures
+      ansible.builtin.assert:
+        that:
+          - >-
+            molecule_e2e_console_log.stdout is not search(molecule_e2e_metadata_failure_regex |
+            default('Endpoint returned a 503 error|169\\.254\\.169\\.254/openstack.*503|metadata.*503'))
+        fail_msg: "Guest console shows OpenStack metadata failure: {{ molecule_e2e_console_log.stdout }}"
+
+    - name: Create OpenStack end-to-end test volume
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - volume
+          - create
+          - -f
+          - json
+          - --size
+          - "{{ molecule_e2e_volume_size }}"
+          - --wait
+          - "{{ molecule_e2e_volume_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_volume_create
+      changed_when: true
+
+    - name: Attach OpenStack end-to-end test volume
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - server
+          - add
+          - volume
+          - "{{ molecule_e2e_server_name }}"
+          - "{{ molecule_e2e_volume_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_volume_attach
+      changed_when: true
+
+    - name: Wait for OpenStack end-to-end test volume to attach
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - volume
+          - show
+          - "{{ molecule_e2e_volume_name }}"
+          - -f
+          - value
+          - -c
+          - status
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_volume_status
+      changed_when: false
+      retries: "{{ molecule_e2e_volume_retries | default(20) }}"
+      delay: "{{ molecule_e2e_volume_delay | default(6) }}"
+      until: molecule_e2e_volume_status.stdout == 'in-use'
+
+    - name: Detach OpenStack end-to-end test volume
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - server
+          - remove
+          - volume
+          - "{{ molecule_e2e_server_name }}"
+          - "{{ molecule_e2e_volume_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_volume_detach
+      changed_when: true
+
+    - name: Wait for OpenStack end-to-end test volume to detach
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - volume
+          - show
+          - "{{ molecule_e2e_volume_name }}"
+          - -f
+          - value
+          - -c
+          - status
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_volume_detached_status
+      changed_when: false
+      retries: "{{ molecule_e2e_volume_retries | default(20) }}"
+      delay: "{{ molecule_e2e_volume_delay | default(6) }}"
+      until: molecule_e2e_volume_detached_status.stdout == 'available'
+  always:
+    - name: Remove OpenStack end-to-end test volume attachment if present
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - server
+          - remove
+          - volume
+          - "{{ molecule_e2e_server_name }}"
+          - "{{ molecule_e2e_volume_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_cleanup_detach
+      changed_when: molecule_e2e_cleanup_detach.rc == 0
+      failed_when: false
+
+    - name: Delete OpenStack end-to-end test server
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - server
+          - delete
+          - --wait
+          - "{{ molecule_e2e_server_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_cleanup_server
+      changed_when: molecule_e2e_cleanup_server.rc == 0
+      failed_when: false
+
+    - name: Delete OpenStack end-to-end test volume
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - volume
+          - delete
+          - --force
+          - "{{ molecule_e2e_volume_name }}"
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_cleanup_volume
+      changed_when: molecule_e2e_cleanup_volume.rc == 0
+      failed_when: false

@@ -17,7 +17,7 @@
     - name: Check if the OS distribution is Ubuntu
       ansible.builtin.fail:
         msg: The OS distribution is not Ubuntu, go to rescue block
-      when: '"Ubuntu" not in ansible_facts["distribution"]'
+      when: "'Ubuntu' not in ansible_facts['distribution']"
 
     - name: Create directory for Docker's GPG key
       ansible.builtin.file:

@@ -12,24 +12,33 @@
    - GitHub and GitLab pipelines both enforce linting and molecule variable checks.
 5. Inventory contract testing:
    - Molecule snapshot validation guards accidental variable-schema drift.
+6. Runtime verification:
+   - Molecule `test` runs smoke checks by default and can run the OpenStack
+     workload lifecycle against a deployed lab when enabled.
 
 ## 2) Testing Posture
 
 Current test scope:
 
 - Linting with `ansible-lint`.
-- Molecule variable validation against expected JSON snapshots.
+- Molecule `check` variable validation against expected JSON snapshots.
+- Molecule `test` runtime smoke verification for deployed lab environments.
+- Optional OpenStack end-to-end workload verification with
+  `MOLECULE_E2E_VERIFY=true`.
 
 Missing coverage areas:
 
-- No service-level smoke tests (Keystone token issuance, Nova list, Cinder list, etc.).
-- No integration assertions for network reachability, endpoint availability, or guest metadata reachability.
+- Default CI runs the Molecule `check` path, not the Molecule `test` runtime
+  path, because it does not deploy a live lab.
+- Runtime assertions for network reachability, endpoint availability, and guest
+  metadata reachability require a deployed lab and Molecule `test`.
 - No workload scenario tests for CI/CD and Kubernetes flows.
 
 Net effect:
 
 - High confidence in inventory-variable shape.
-- Moderate/low confidence in runtime system behavior after refactors.
+- Moderate/low confidence in runtime system behavior after refactors unless
+  Molecule `test` runtime verification is run against a deployed lab.
 
 ## 3) Idempotency and Drift Visibility
 
@@ -79,10 +88,16 @@ Main scaling constraints are:
 
 ## 7) Recommended Quality Upgrades
 
-1. Add smoke test playbooks:
-   - OpenStack API checks, Nova metadata API checks on `8775`, Ceph health checks, Prometheus target health, OpenSearch health.
-2. Add minimal end-to-end workload tests:
-   - Boot one VM in OpenStack, verify network attach, volume attach, and delete.
+1. Use Molecule smoke verification after deployment:
+   - Run Molecule `test` against a live lab inventory.
+   - Current OpenStack coverage includes Keystone token issuance, service catalog endpoint reachability, Nova/Neutron/Cinder service status, Apache listener checks for OpenStack APIs, Nova metadata API checks on `8775`, Ceph integration file checks when enabled, Prometheus target health, and OpenSearch health.
+   - Current Ceph coverage includes cluster health, OSD status, and orchestrator host registration.
+   - Keep smoke tests read-only where possible and fail with targeted messages that identify the failed service or endpoint.
+2. Use Molecule end-to-end workload verification after OpenStack bootstrap:
+   - Enable with `MOLECULE_E2E_VERIFY=true` via Molecule `test` after image,
+     flavor, network, and security group bootstrap resources exist.
+   - Current coverage boots one small VM in OpenStack, waits for `ACTIVE`, verifies tenant network attachment, checks the console log for metadata `503` failures, attaches and detaches a small Cinder volume, then deletes all test resources.
+   - The workload test uses unique resource names and cleanup blocks so failed runs do not leave stale instances or volumes behind.
 3. Adopt secret abstraction:
    - Vault/SOPS with CI secret injection for non-lab environments.
 4. Add architecture/port consistency tests:

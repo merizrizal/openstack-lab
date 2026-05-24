@@ -180,7 +180,7 @@ The default OpenStack and Ceph inventories use the base-image-created
 | `ansible/cicd_in_openstack/` | Configure GitLab, Jenkins, runner, and CI monitor inside OpenStack VMs |
 | `ansible/kubernetes_in_openstack/` | Configure a kubeadm Kubernetes cluster inside OpenStack VMs |
 | `ansible/shared_resources/` | Shared roles and downstream lab VM definitions |
-| `molecule/` | Inventory-variable validation scenarios |
+| `molecule/` | Molecule variable validation, smoke verification, and end-to-end verification scenarios |
 | `docs/` | Architecture, workflows, quality notes, findings, and this base guide |
 
 ## 9) Editing Guide for Common Changes
@@ -198,8 +198,19 @@ The default OpenStack and Ceph inventories use the base-image-created
 
 ## 10) Validation Mindset
 
-Molecule in this repository validates inventory variable shape. It does not
-prove that OpenStack, Ceph, networking, or downstream workloads are healthy.
+Molecule has two validation paths in this repository:
+
+- `molecule check` validates inventory variable shape through
+  `molecule/vars_validation.yml`. The Makefile exposes this as
+  `make validate-openstack` and `make validate-ceph`.
+- `molecule test` runs runtime verification through `molecule/verify.yml`.
+  The Makefile exposes this as `make test-openstack` and
+  `make test-ceph`. Smoke checks run by default in this path when the
+  scenario has `smoke_verify.yml`; OpenStack end-to-end workload verification is
+  opt-in with `MOLECULE_E2E_VERIFY=true`.
+
+The default CI-oriented validation path still does not deploy the lab by itself,
+so treat smoke and end-to-end checks as deployed-lab verification.
 
 After each major stage, validate the running system:
 

@@ -23,10 +23,10 @@ ansible:
     cleanup: $ROOT_DIR/molecule/cleanup.yml
     prepare:
     side_effect:
-    verify: $ROOT_DIR/molecule/vars_validation.yml
+    verify: $ROOT_DIR/molecule/verify.yml
 scenario:
-  test_sequence:
-    - verify
+  check_sequence:
+    - verify $ROOT_DIR/molecule/vars_validation.yml
     - cleanup
   create_sequence:
     - create
@@ -34,5 +34,7 @@ scenario:
     - converge
   destroy_sequence:
     - destroy
+  test_sequence:
+    - verify
 verifier:
   name: ansible

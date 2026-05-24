@@ -1,0 +1,68 @@
+---
+- name: Check Ceph cluster health
+  ansible.builtin.command:
+    argv:
+      - ceph
+      - health
+      - --format
+      - json
+  become: true
+  register: molecule_ceph_health
+  changed_when: false
+  when: "'ceph_adm' in group_names"
+
+- name: Assert Ceph cluster health is acceptable
+  ansible.builtin.assert:
+    that:
+      - molecule_ceph_health_json.status in molecule_ceph_accepted_health_states | default(['HEALTH_OK', 'HEALTH_WARN'])
+    fail_msg: "Ceph health is not acceptable: {{ molecule_ceph_health.stdout }}"
+  vars:
+    molecule_ceph_health_json: "{{ molecule_ceph_health.stdout | from_json }}"
+  when: "'ceph_adm' in group_names"
+
+- name: Check Ceph OSD status
+  ansible.builtin.command:
+    argv:
+      - ceph
+      - osd
+      - stat
+      - --format
+      - json
+  become: true
+  register: molecule_ceph_osd_stat
+  changed_when: false
+  when: "'ceph_adm' in group_names"
+
+- name: Assert Ceph OSDs are present, up, and in
+  ansible.builtin.assert:
+    that:
+      - molecule_ceph_osd_json.num_osds | int > 0
+      - molecule_ceph_osd_json.num_up_osds | int == molecule_ceph_osd_json.num_osds | int
+      - molecule_ceph_osd_json.num_in_osds | int == molecule_ceph_osd_json.num_osds | int
+    fail_msg: "Ceph OSD status is not healthy: {{ molecule_ceph_osd_stat.stdout }}"
+  vars:
+    molecule_ceph_osd_json: "{{ molecule_ceph_osd_stat.stdout | from_json }}"
+  when: "'ceph_adm' in group_names"
+
+- name: Check Ceph orchestrator hosts
+  ansible.builtin.command:
+    argv:
+      - ceph
+      - orch
+      - host
+      - ls
+      - --format
+      - json
+  become: true
+  register: molecule_ceph_hosts
+  changed_when: false
+  when: "'ceph_adm' in group_names"
+
+- name: Assert Ceph orchestrator has registered hosts
+  ansible.builtin.assert:
+    that:
+      - molecule_ceph_host_items | length > 0
+    fail_msg: "Ceph orchestrator host list is empty: {{ molecule_ceph_hosts.stdout }}"
+  vars:
+    molecule_ceph_host_items: "{{ molecule_ceph_hosts.stdout | from_json }}"
+  when: "'ceph_adm' in group_names"

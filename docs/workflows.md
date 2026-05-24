@@ -214,6 +214,35 @@ For the Kubernetes lab after `generate_os_client_config local kubernetes_lab`:
 ansible-inventory -i kubernetes_in_openstack/inventories/local/openstack.yml --graph
 ```
 
+### G. Molecule validation gates
+
+Molecule has two separate paths:
+
+- `molecule check` runs inventory variable validation through
+  `molecule/vars_validation.yml`.
+- `molecule test` runs runtime smoke verification through `molecule/verify.yml`.
+
+Run the variable validation gates without needing a deployed runtime smoke test:
+
+```bash
+make validate-openstack
+make validate-ceph
+```
+
+After the lab is deployed, run smoke verification through Molecule `test`:
+
+```bash
+make test-openstack
+make test-ceph
+```
+
+After OpenStack bootstrap creates the image, flavor, network, and security group,
+run the OpenStack workload lifecycle test:
+
+```bash
+MOLECULE_E2E_VERIFY=true make test-openstack
+```
+
 ## 4) Optional Stacks
 
 ### A. Observability (on base lab nodes)
