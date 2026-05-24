@@ -25,7 +25,7 @@
     molecule_e2e_security_group_name: >-
       {{ molecule_e2e_security_group |
       default(lookup('ansible.builtin.env', 'MOLECULE_E2E_SECURITY_GROUP') |
-      default('openstack_lab', true)) }}"
+      default('openstack_lab', true)) }}
     molecule_e2e_volume_size: "{{ molecule_e2e_volume_size_gb | default(lookup('ansible.builtin.env', 'MOLECULE_E2E_VOLUME_SIZE_GB') | default('1', true)) }}"
   when: "'controller' in group_names"
 
@@ -152,11 +152,28 @@
           - json
           - --size
           - "{{ molecule_e2e_volume_size }}"
-          - --wait
           - "{{ molecule_e2e_volume_name }}"
       environment: "{{ molecule_openstack_auth_env }}"
       register: molecule_e2e_volume_create
       changed_when: true
+
+    - name: Wait for OpenStack end-to-end test volume to be available
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - volume
+          - show
+          - "{{ molecule_e2e_volume_name }}"
+          - -f
+          - value
+          - -c
+          - status
+      environment: "{{ molecule_openstack_auth_env }}"
+      register: molecule_e2e_volume_status_available
+      changed_when: false
+      retries: "{{ molecule_e2e_volume_retries | default(15) }}"
+      delay: "{{ molecule_e2e_volume_delay | default(5) }}"
+      until: molecule_e2e_volume_status_available.stdout == 'available'
 
     - name: Attach OpenStack end-to-end test volume
       ansible.builtin.command:
