@@ -41,7 +41,7 @@
       journalctl -u jenkins | tail -n 1
     executable: /bin/bash
   register: jenkins_service_log
-  until: jenkins_service_log.stdout is defined and "Started jenkins.service" in jenkins_service_log.stdout
+  until: jenkins_service_log.stdout is defined and 'started jenkins.service' in (jenkins_service_log.stdout | lower)
   retries: 10
   changed_when: false
 
@@ -94,6 +94,6 @@
       journalctl -u jenkins | tail -n 1
     executable: /bin/bash
   register: jenkins_service_log
-  until: jenkins_service_log.stdout is defined and "Started jenkins.service" in jenkins_service_log.stdout
+  until: jenkins_service_log.stdout is defined and 'started jenkins.service' in (jenkins_service_log.stdout | lower)
   retries: 10
   changed_when: false

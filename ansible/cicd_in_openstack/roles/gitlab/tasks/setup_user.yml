@@ -11,9 +11,9 @@
       EOF
     executable: /bin/bash
   register: change_root_password
-  changed_when: "'true' in change_root_password.stdout"
+  changed_when: "'true' in (change_root_password.stdout | lower)"
   failed_when: >
-    'false' in change_root_password.stdout or 'ERROR' in change_root_password.stdout or 'error' in change_root_password.stdout or
+    'false' in (change_root_password.stdout | lower) or 'error' in (change_root_password.stdout | lower) or
     (change_root_password.stderr is defined and change_root_password.stderr != '' and change_root_password.rc != 0)
 
 - name: Create root PAT
@@ -31,10 +31,10 @@
       EOF
     executable: /bin/bash
   register: create_root_pat
-  changed_when: "'true' in create_root_pat.stdout and 'duplicate key value' not in create_root_pat.stdout"
+  changed_when: "'true' in (create_root_pat.stdout | lower) and 'duplicate key value' not in (create_root_pat.stdout | lower)"
   failed_when: >
-    'false' in create_root_pat.stdout or
-    (('ERROR' in create_root_pat.stdout or 'error' in create_root_pat.stdout) and 'duplicate key value' not in create_root_pat.stdout) or
+    'false' in (create_root_pat.stdout | lower) or
+    ('error' in (create_root_pat.stdout | lower) and 'duplicate key value' not in (create_root_pat.stdout | lower)) or
     (create_root_pat.stderr is defined and create_root_pat.stderr != '' and create_root_pat.rc != 0)
 
 - name: Create standard user
@@ -55,5 +55,5 @@
   changed_when: create_standard_user.json.id is defined
   failed_when: >
     (create_standard_user.status != 200 and create_standard_user.status != 201 and
-    create_standard_user.json.message is defined and 'has already been taken' not in create_standard_user.json.message) or
-    (create_standard_user.msg is defined and 'Connection refused' in create_standard_user.msg)
+    create_standard_user.json.message is defined and 'has already been taken' not in (create_standard_user.json.message | lower)) or
+    (create_standard_user.msg is defined and 'connection refused' in (create_standard_user.msg | lower))

@@ -7,13 +7,13 @@
 - name: Configure OpenStack host setting
   ansible.builtin.lineinfile:
     path: /etc/openstack-dashboard/local_settings.py
-    regexp: "^OPENSTACK_HOST ="
+    regexp: ^OPENSTACK_HOST =
     line: OPENSTACK_HOST = "{{ controller01.mgmtnet_ip_address }}"
 
 - name: Configure OpenStack Keystone url
   ansible.builtin.lineinfile:
     path: /etc/openstack-dashboard/local_settings.py
-    regexp: "^OPENSTACK_KEYSTONE_URL ="
+    regexp: ^OPENSTACK_KEYSTONE_URL =
     line: OPENSTACK_KEYSTONE_URL = "http://{{ controller01_host_addr }}:5000/identity/v3"
 
 - name: Configure OpenStack Keystone
@@ -27,13 +27,13 @@
 # - name: Configure OpenStack allowed host setting
 #   ansible.builtin.lineinfile:
 #     path: /etc/openstack-dashboard/local_settings.py
-#     regexp: "^ALLOWED_HOSTS ="
+#     regexp: ^ALLOWED_HOSTS =
 #     line: ALLOWED_HOSTS = [{{ controller01_host_addr }}]
 
 - name: Configure memcached session
   ansible.builtin.replace:
     path: /etc/openstack-dashboard/local_settings.py
-    regexp: "^(CACHES =.*)(\n(.*))*?\n*(# Send email to the console by default).*"
+    regexp: ^(CACHES =.*)(\n(.*))*?\n*(# Send email to the console by default).*
     replace: "{{ lookup('ansible.builtin.template', 'memcached_session.conf.j2') }}"
 
 - name: Prepare OpenStack Horizon to start

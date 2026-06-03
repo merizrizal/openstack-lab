@@ -2,13 +2,13 @@
 - name: Reconfigure cinder.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/cinder/cinder.conf
-    regexp: "^\\[database\\](\n(.*))?"
+    regexp: ^\[database\](\n(.*))?
     replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Reconfigure cinder.conf - set default
   ansible.builtin.replace:
     path: /etc/cinder/cinder.conf
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(enabled_backends = lvm).*"
+    regexp: ^\[DEFAULT\](\n(.*))*?\n*(enabled_backends = lvm).*
     replace: "{{ lookup('ansible.builtin.template', 'default.conf.j2') }}"
 
 - name: Configure cinder.conf - set Keystone authtoken

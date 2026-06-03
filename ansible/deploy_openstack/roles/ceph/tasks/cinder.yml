@@ -8,5 +8,5 @@
 - name: Reconfigure cinder.conf - set default - apply ceph
   ansible.builtin.replace:
     path: /etc/cinder/cinder.conf
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(#enabled_backends = lvm).*"
+    regexp: ^\[DEFAULT\](\n(.*))*?\n*(#enabled_backends = lvm).*
     replace: "{{ lookup('ansible.builtin.template', 'cinder_default.conf.j2') }}"

@@ -3,7 +3,7 @@
   ansible.builtin.command:
     cmd: grafana-cli plugins install grafana-opensearch-datasource
   register: grafana_opensearch_plugin
-  changed_when: grafana_opensearch_plugin.stdout is defined and 'already installed' not in grafana_opensearch_plugin.stdout
+  changed_when: grafana_opensearch_plugin.stdout is defined and 'already installed' not in (grafana_opensearch_plugin.stdout | lower)
 
 - name: Provision OpenSearch datasource
   ansible.builtin.include_role:
