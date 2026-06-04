@@ -3,7 +3,7 @@
   ansible.builtin.command:
     cmd: add-apt-repository -y {{ openstack_repo }}
   register: add_repo_result
-  changed_when: add_repo_result.stdout is defined and 'Found existing' not in add_repo_result.stdout
+  changed_when: add_repo_result.stdout is defined and 'found existing' not in (add_repo_result.stdout | lower)
 
 - name: Do apt upgrade
   ansible.builtin.apt:

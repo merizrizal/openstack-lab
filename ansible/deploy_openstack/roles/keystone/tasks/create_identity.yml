@@ -8,10 +8,10 @@
   failed_when:
     - service_project.rc != 0
     - service_project.stderr is defined
-    - '"No project with a name or ID" not in service_project.stderr'
+    - "'no project found' not in (service_project.stderr | lower)"
 
 - name: Create the service project
   ansible.builtin.command:
     cmd: openstack project create --domain default --description "Service Project" service
-  when: service_project.stderr is defined and "No project with a name or ID" in service_project.stderr
+  when: service_project.stderr is defined and 'no project found' in (service_project.stderr | lower)
   changed_when: true

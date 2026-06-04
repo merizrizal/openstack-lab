@@ -2,5 +2,5 @@
 - name: Reconfigure l3_agent.ini - set default
   ansible.builtin.replace:
     path: /etc/neutron/l3_agent.ini
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# From neutron.base.agent).*"
+    regexp: ^\[DEFAULT\](\n(.*))*?\n*(# From neutron.base.agent).*
     replace: "{{ lookup('ansible.builtin.file', 'l3_agent_default.conf') }}"

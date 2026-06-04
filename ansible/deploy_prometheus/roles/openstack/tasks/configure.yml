@@ -13,4 +13,4 @@
   ansible.builtin.command:
     cmd: rabbitmq-plugins enable rabbitmq_prometheus
   register: enable_rabbitmq_prometheus
-  changed_when: enable_rabbitmq_prometheus.stdout is defined and 'Plugin configuration unchanged' not in enable_rabbitmq_prometheus.stdout
+  changed_when: enable_rabbitmq_prometheus.stdout is defined and 'plugin configuration unchanged' not in (enable_rabbitmq_prometheus.stdout | lower)

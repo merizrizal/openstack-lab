@@ -67,7 +67,7 @@
   when: >
     not runner_config_file.stat.exists or
     (runner_availability.stdout is defined and runner_availability.stdout == '')
-  changed_when: register_gitlab_runner.stderr is defined and 'has already been registered' not in register_gitlab_runner.stderr
+  changed_when: register_gitlab_runner.stderr is defined and 'has already been registered' not in (register_gitlab_runner.stderr | lower)
 
 - name: Create workspace directory for runner
   ansible.builtin.file:

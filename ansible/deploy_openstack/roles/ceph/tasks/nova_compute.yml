@@ -17,7 +17,7 @@
   ansible.builtin.command:
     cmd: virsh secret-define --file /tmp/libvirt_secret.xml
   register: virsh_secret_define
-  changed_when: virsh_secret_define.stdout is defined and 'created' in virsh_secret_define.stdout
+  changed_when: virsh_secret_define.stdout is defined and 'created' in (virsh_secret_define.stdout | lower)
 
 - name: Set Libvirt secret value
   ansible.builtin.shell:
@@ -26,12 +26,12 @@
       virsh secret-set-value --secret {{ libvirt_secret_uuid }} --base64 $(cat /etc/ceph/ceph.client.cinder.keyring | grep key | awk '{print $NF}')
     executable: /bin/bash
   register: virsh_secret_set_value
-  changed_when: virsh_secret_set_value.stdout is defined and 'value set' in virsh_secret_set_value.stdout
+  changed_when: virsh_secret_set_value.stdout is defined and 'value set' in (virsh_secret_set_value.stdout | lower)
 
 - name: Reconfigure nova.conf - set libvirt
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
-    regexp: "^\\[libvirt\\](\n(.*))*?\n*(# Libvirt options allows cloud administrator).*"
+    regexp: ^\[libvirt\](\n(.*))*?\n*(# Libvirt options allows cloud administrator).*
     replace: "{{ lookup('ansible.builtin.template', 'nova_compute_libvirt.conf.j2') }}"
 
 - name: Start and enable Nova compute

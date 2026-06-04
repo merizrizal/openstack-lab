@@ -10,13 +10,13 @@
 - name: Reconfigure glance-api.conf - set default
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[DEFAULT\\](\n(.*))*?\n*(# Allow limited access to).*"
+    regexp: ^\[DEFAULT\](\n(.*))*?\n*(# Allow limited access to).*
     replace: "{{ lookup('ansible.builtin.file', 'glance_default.conf') }}"
 
 - name: Reconfigure glance-api.conf - set Ceph in glance store
   ansible.builtin.replace:
     path: /etc/glance/glance-api.conf
-    regexp: "^\\[glance_store\\](\n(.*))*?\n*(# The store identifier for the default backend).*"
+    regexp: ^\[glance_store\](\n(.*))*?\n*(# The store identifier for the default backend).*
     replace: "{{ lookup('ansible.builtin.file', 'glance_ceph.conf') }}"
 
 - name: Start and enable Glance API

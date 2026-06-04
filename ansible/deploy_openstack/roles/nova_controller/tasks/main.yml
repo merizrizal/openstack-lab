@@ -74,7 +74,7 @@
     cmd: a2ensite nova-metadata.conf
   register: enable_nova_metadata
   changed_when: false
-  failed_when: enable_nova_metadata.rc != 0 and "already enabled" not in enable_nova_metadata.stderr
+  failed_when: enable_nova_metadata.rc != 0 and 'already enabled' not in (enable_nova_metadata.stderr | lower)
 
 - name: Setup configuration
   ansible.builtin.include_tasks:
@@ -89,14 +89,14 @@
   ansible.builtin.command:
     cmd: sudo -u nova nova-manage cell_v2 map_cell0
   register: register_cell0
-  changed_when: register_cell0.stdout is defined and "is already setup" not in register_cell0.stdout
+  changed_when: register_cell0.stdout is defined and 'is already setup' not in (register_cell0.stdout | lower)
 
 - name: Create the cell1 cell
   ansible.builtin.command:
     cmd: sudo -u nova nova-manage cell_v2 create_cell --name=cell1
   register: create_cell1
-  changed_when: create_cell1.stdout is defined and "combination already exists" not in create_cell1.stdout
-  failed_when: create_cell1.rc != 0 and "combination already exists" not in create_cell1.stdout
+  changed_when: create_cell1.stdout is defined and 'combination already exists' not in (create_cell1.stdout | lower)
+  failed_when: create_cell1.rc != 0 and 'combination already exists' not in (create_cell1.stdout | lower)
 
 - name: Populate the nova database
   ansible.builtin.command:

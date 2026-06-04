@@ -19,12 +19,12 @@
   failed_when: >
     prepare_volume.stderr is defined and
     prepare_volume.stderr != '' and
-    'already exists' not in prepare_volume.stderr
+    'already exists' not in (prepare_volume.stderr | lower)
 
 - name: Reconfigure lvm.conf - set devices/filter
   ansible.builtin.replace:
     path: /etc/lvm/lvm.conf
-    regexp: "^(devices {)(\n(.*))*?\n*(# Configuration option devices/dir.).*"
+    regexp: ^(devices {)(\n(.*))*?\n*(# Configuration option devices/dir.).*
     replace: "{{ lookup('ansible.builtin.template', 'lvm_devices_filter.conf.j2') }}"
 
 - name: Set facts

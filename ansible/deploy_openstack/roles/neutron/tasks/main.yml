@@ -18,7 +18,7 @@
 - name: Reconfigure Nova - set neutron
   ansible.builtin.replace:
     path: /etc/nova/nova.conf
-    regexp: "^\\[neutron\\](\n(.*))*?\n*(# Configuration options for neutron).*"
+    regexp: ^\[neutron\](\n(.*))*?\n*(# Configuration options for neutron).*
     replace: "{{ lookup('ansible.builtin.template', 'nova_neutron.conf.j2') }}"
 
 - name: Add br-prvdr
@@ -30,7 +30,7 @@
   register: add_br_prvdr
   failed_when: >
     add_br_prvdr.stderr is defined and add_br_prvdr.stderr != ''
-    and 'already exists' is not in add_br_prvdr.stderr
+    and 'already exists' not in (add_br_prvdr.stderr | lower)
   changed_when: add_br_prvdr.rc == 0 and add_br_prvdr.stderr is defined and add_br_prvdr.stderr == ''
 
 - name: Re-configure provider interface

@@ -8,10 +8,10 @@
   failed_when:
     - service_component.rc != 0
     - service_component.stderr is defined
-    - '"No service with a type, name or ID" not in service_component.stderr'
+    - "'no service with a type, name or id' not in (service_component.stderr | lower)"
 
 - name: Create the component service entity
   ansible.builtin.command:
     cmd: openstack service create --name {{ os_component_name }} --description "{{ service.description }}" {{ service.name }}
-  when: service_component.stderr is defined and "No service with a type, name or ID" in service_component.stderr
+  when: service_component.stderr is defined and 'no service with a type, name or id' in (service_component.stderr | lower)
   changed_when: true
