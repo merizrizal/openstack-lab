@@ -28,13 +28,13 @@
     - name: Reconfigure nova.conf - set VNC
       ansible.builtin.replace:
         path: /etc/nova/nova.conf
-        regexp: ^\[vnc\](\n(.*))*?\n*(# Virtual Network Computer \\(VNC\\)).*
+        regexp: ^\[vnc\](\n(.*))*?\n*(# Virtual Network Computer \(VNC\)).*
         replace: "{{ lookup('ansible.builtin.template', 'vnc.conf.j2') }}"
   rescue:
     - name: Reconfigure nova.conf - set VNC
       ansible.builtin.replace:
         path: /etc/nova/nova.conf
-        regexp: ^\[vnc\](\n(.*))*?\n*(# Virtual Network Computer \\(VNC\\)).*
+        regexp: ^\[vnc\](\n(.*))*?\n*(# Virtual Network Computer \(VNC\)).*
         replace: "{{ lookup('ansible.builtin.file', 'vnc.conf') }}"
 
 - name: Reconfigure nova.conf - set Glance

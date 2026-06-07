@@ -2,7 +2,7 @@
 - name: Reconfigure placement.conf - set MySQL MariaDB connection database
   ansible.builtin.replace:
     path: /etc/placement/placement.conf
-    regexp: ^\[placement_database\](\n(.*))*?\n*(# The \\*Placement API Database\\*).*
+    regexp: ^\[placement_database\](\n(.*))*?\n*(# The \*Placement API Database\*).*
     replace: "{{ lookup('ansible.builtin.template', 'database.conf.j2') }}"
 
 - name: Reconfigure placement.conf - set API
