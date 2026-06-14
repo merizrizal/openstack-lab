@@ -10,6 +10,7 @@
     image: "{{ image_name }}"
     flavor: "{{ server_flavor }}"
     boot_from_volume: true
+    terminate_volume: true
     volume_size: "{{ server_volume_size }}"
     security_groups:
       - "{{ security_group_name }}"
@@ -25,6 +26,10 @@
       create_hostname_file: true
       fqdn: {{ server_hostname }}.example.com
       prefer_fqdn_over_hostname: true
+      runcmd:
+        - [ "touch", "/etc/deployment-info" ]
+        - [ "sh", "-c", "echo 'Deployment with Ansible has been completed' | tee -a /etc/deployment-info /dev/console" ]
+        - [ "sh", "-c", "echo 'Printed to the console' | tee -a /dev/console" ]
   vars:
     server_hostname: "{{ server_name | replace('_', '-') }}"
   when: server_info.servers is defined and server_info.servers | length == 0
