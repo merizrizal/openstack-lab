@@ -50,6 +50,15 @@ ceph01:
     - size: 300
       name: vdb
 
+assistant01:
+  environment: assistant
+  mgmtnet_ip_address: 192.168.121.20
+  provider_ip_address: 192.168.123.20
+  hostname: assistant01.local
+  memory: 4096
+  cpus: 2
+  disks: 25
+
 # ceph02:
 #   environment: ceph
 #   mgmtnet_ip_address: 192.168.121.10

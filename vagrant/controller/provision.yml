@@ -2,3 +2,5 @@ controller: |
   echo "Provision on controller node"
 compute: |
   echo "Provision on compute node"
+assistant: |
+  echo "Provision on assistant node"

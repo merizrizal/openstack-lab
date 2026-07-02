@@ -10,6 +10,11 @@ Target outcome:
 separate assistant runtime -> management reachability verified -> diagnostic workspace prepared -> no privileged credentials installed
 ```
 
+Status note:
+
+- [x] Initial runtime foundation notes created at `docs/ai-ops/runtime/README.md`.
+- [ ] Actual assistant runtime creation/designation, reachability verification, tool installation, and runtime-local workspace creation remain pending.
+
 ## 01.2 Estimate
 
 Total estimate:
@@ -57,10 +62,10 @@ Estimate:
 
 Tasks:
 
-- [ ] Decide whether the assistant runtime runs outside OpenStack on the lab hypervisor, inside OpenStack as a tenant VM, or on another routed machine.
-- [ ] Record the chosen placement and reason in AI-OPS notes.
+- [x] Decide whether the assistant runtime runs outside OpenStack on the lab hypervisor, inside OpenStack as a tenant VM, or on another routed machine.
+- [x] Record the chosen placement and reason in AI-OPS notes.
 - [ ] Confirm the runtime is not part of the OpenStack control plane and does not host Keystone, Nova, Neutron, Glance, Cinder, Ceph, OpenSearch, Prometheus, or Grafana services.
-- [ ] Record expected network path to Keystone and other future management endpoints.
+- [x] Record expected network path to Keystone and other future management endpoints.
 
 Done when:
 
@@ -118,7 +123,7 @@ Estimate:
 Tasks:
 
 - [ ] Create a workspace with separate areas for approved scripts, diagnostic outputs, runbooks, credential profiles, audit logs, and future MCP code.
-- [ ] Add a short workspace README explaining the boundary between scripts, diagnostics, credentials, runbooks, and audit logs.
+- [x] Add a short workspace README explaining the boundary between scripts, diagnostics, credentials, runbooks, and audit logs.
 - [ ] Ensure credential storage locations are present but empty until Phase 02.
 - [ ] Ensure diagnostic output and audit directories are writable by the runtime user.
 
@@ -137,15 +142,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Document that the runtime must not contain admin OpenStack credentials.
-- [ ] Document that the runtime must not contain root SSH to OpenStack nodes.
-- [ ] Document that the runtime must not contain database, RabbitMQ, or unrestricted service credentials.
-- [ ] Document that the runtime must not expose generic shell execution to AI.
-- [ ] Document rollback behavior for this phase: remove the runtime or disconnect it from management access.
+- [x] Document that the runtime must not contain admin OpenStack credentials.
+- [x] Document that the runtime must not contain root SSH to OpenStack nodes.
+- [x] Document that the runtime must not contain database, RabbitMQ, or unrestricted service credentials.
+- [x] Document that the runtime must not expose generic shell execution to AI.
+- [x] Document rollback behavior for this phase: remove the runtime or disconnect it from management access.
 
 Done when:
 
-- [ ] The runtime notes include a clear “not allowed here” section matching the PRD safety boundary.
+- [x] The runtime notes include a clear “not allowed here” section matching the PRD safety boundary.
 
 ## 01.6 Phase Definition of Done
 
@@ -154,7 +159,7 @@ This phase is done when:
 - [ ] A separate assistant runtime exists or is designated.
 - [ ] Keystone/controller management reachability is verified.
 - [ ] Baseline diagnostic tooling is installed and version-checked.
-- [ ] Workspace conventions are documented.
+- [x] Workspace conventions are documented.
 - [ ] No privileged OpenStack, SSH, database, or message-bus credentials are installed.
 - [ ] The implementation can proceed to credential setup without ambiguity.
 
