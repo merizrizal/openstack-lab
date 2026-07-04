@@ -13,10 +13,11 @@
   ansible.builtin.include_tasks:
     file: workspace.yml
 
+- name: Manage AI-OPS OpenStack profile
+  ansible.builtin.include_tasks:
+    file: credentials.yml
+  when: ai_ops_runtime_manage_openstack_profile | bool
+
 - name: Install baseline AI-OPS runtime packages
   ansible.builtin.include_tasks:
     file: tooling.yml
-
-- name: Capture AI-OPS runtime evidence
-  ansible.builtin.include_tasks:
-    file: evidence.yml
