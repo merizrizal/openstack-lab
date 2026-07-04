@@ -1,0 +1,47 @@
+---
+- name: Create AI-OPS runtime workspace root
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure AI-OPS runtime group exists
+  ansible.builtin.group:
+    name: "{{ ai_ops_runtime_group }}"
+    system: true
+    state: present
+
+- name: Ensure AI-OPS runtime user exists
+  ansible.builtin.user:
+    name: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+    state: present
+
+- name: Create AI-OPS runtime workspace directories
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_root }}/{{ item.path }}"
+    state: directory
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "{{ ai_ops_runtime_directory_mode }}"
+  loop: "{{ ai_ops_runtime_directories }}"
+
+- name: Check Phase 01 credential profile directory contents
+  ansible.builtin.find:
+    paths: "{{ ai_ops_runtime_root }}/credentials/profiles"
+    file_type: any
+    hidden: true
+    recurse: false
+  register: ai_ops_runtime_credential_profiles
+
+- name: Assert Phase 01 credential profile directory remains empty
+  ansible.builtin.assert:
+    that:
+      - ai_ops_runtime_credential_profiles.matched == 0
+    fail_msg: "Phase 01 must not create credential profiles under {{ ai_ops_runtime_root }}/credentials/profiles."
+    success_msg: "Phase 01 credential profile directory exists and is empty."

@@ -14,7 +14,7 @@ ansible-sanity-test-lint:
     - ansible-lint --fix --config-file ./.ansible-lint ansible/* inventories/*
   parallel:
     matrix:
-      - VERSION: ["3.11", "3.12"]
+      - VERSION: ["3.12", "3.13", "3.14"]
 
 ansible-inventory-validation-test-molecule:
   image: python:$VERSION
@@ -29,4 +29,4 @@ ansible-inventory-validation-test-molecule:
     - make validate-ceph
   parallel:
     matrix:
-      - VERSION: ["3.11", "3.12"]
+      - VERSION: ["3.12", "3.13", "3.14"]

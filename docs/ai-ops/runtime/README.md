@@ -11,7 +11,7 @@ Recorded on 2026-07-02:
 - Phase 01 uses a manually designated assistant runtime outside the OpenStack control plane.
 - Preferred host class: a small VM on the lab hypervisor or another routed management host.
 - Management path: the `192.168.121.0/24` management network to `controller01` APIs.
-- `assistant01` remains optional for later repository-managed automation and is not required for Phase 01.
+- `assistant01` was later selected and bootstrapped as the repository-managed Phase 01 runtime; evidence is recorded in `docs/ai-ops/runtime/phase01-runtime-evidence-2026-07-04.md`.
 
 ## Runtime Placement
 
@@ -121,15 +121,17 @@ Operators may administer the runtime manually. AI-facing tools must remain deny-
 
 Record the actual evidence before checking Phase 01 complete:
 
-- [ ] Runtime exists or is explicitly designated.
-- [ ] Runtime is not an OpenStack controller, compute, storage, Ceph, database, message-bus, or observability service node.
-- [ ] Runtime can resolve or reach the Keystone endpoint on the management path.
-- [ ] Runtime can reach the controller management address.
-- [ ] Runtime does not require tenant-network access for the first milestone.
-- [ ] Baseline tool versions are recorded.
-- [ ] Workspace directories exist and are writable by the runtime user where required.
-- [ ] `credentials/profiles/` exists but contains no credentials until Phase 02.
-- [ ] No privileged OpenStack, SSH, database, RabbitMQ, or service credentials are installed.
+- [x] Runtime exists or is explicitly designated.
+- [x] Runtime is not an OpenStack controller, compute, storage, Ceph, database, message-bus, or observability service node.
+- [x] Runtime can resolve or reach the Keystone endpoint on the management path.
+- [x] Runtime can reach the controller management address.
+- [x] Runtime does not require tenant-network access for the first milestone.
+- [x] Baseline tool versions are recorded.
+- [x] Workspace directories exist and are writable by the runtime user where required.
+- [x] `credentials/profiles/` exists but contains no credentials until Phase 02.
+- [x] No privileged OpenStack, SSH, database, RabbitMQ, or service credentials are installed.
+
+Evidence: `docs/ai-ops/runtime/phase01-runtime-evidence-2026-07-04.md`.
 
 ## Rollback
 

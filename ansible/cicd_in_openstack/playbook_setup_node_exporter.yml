@@ -3,7 +3,7 @@
   hosts: gitlab*, jenkins*, runner*
   become: true
   vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
   tasks:
     - name: Call telemetry node_exporter role
       ansible.builtin.include_role:

@@ -3,7 +3,7 @@
   hosts: all
   gather_facts: false
   vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
     target_env: "{{ lookup('ansible.builtin.env', 'TARGET_ENV') }}"
     excluded_vars:
       - ^_raw_params$
