@@ -19,10 +19,7 @@ ai_ops_runtime_packages:
   - python3-venv
   - python3-pip
   - openssh-client
-  - curl
-  - jq
   - ripgrep
-  - git
 ai_ops_runtime_venv_path: "{{ ai_ops_runtime_root }}/.venv"
 ai_ops_runtime_python_bootstrap_packages:
   - pip
@@ -31,7 +28,7 @@ ai_ops_runtime_python_bootstrap_packages:
 ai_ops_runtime_python_packages:
   - openstackclient
   - openstacksdk
-ai_ops_runtime_evidence_path: "{{ ai_ops_runtime_root }}/diagnostics/summaries/phase01-runtime-evidence-{{ ansible_date_time.date }}.md"
+ai_ops_runtime_evidence_path: "{{ ai_ops_runtime_root }}/diagnostics/summaries/phase01-runtime-evidence-{{ ansible_facts['date_time'].date }}.md"
 ai_ops_runtime_evidence_workspace_paths:
   - "{{ ai_ops_runtime_root }}"
   - "{{ ai_ops_runtime_root }}/scripts/approved"

@@ -34,7 +34,7 @@
 
       ## Metadata
 
-      - Date: {{ ansible_date_time.iso8601 }}
+      - Date: {{ ansible_facts['date_time'].iso8601 }}
       - Runtime host: {{ inventory_hostname }}
       - Workspace root: {{ ai_ops_runtime_root }}
       - Evidence path: {{ ai_ops_runtime_evidence_path }}

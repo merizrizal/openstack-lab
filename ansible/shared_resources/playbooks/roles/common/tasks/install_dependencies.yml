@@ -38,21 +38,21 @@
   ansible.builtin.set_fact:
     applications:
       - name: yq
-        version: 4.52.5
+        version: 4.53.3
         url: https://github.com/mikefarah/yq/releases/download/v#application_version#/yq_linux_amd64
         binary_files:
           - name: yq
             file: yq_linux_amd64
 
       - name: jq
-        version: 1.8.1
+        version: 1.8.2
         url: https://github.com/jqlang/jq/releases/download/jq-#application_version#/jq-linux-amd64
         binary_files:
           - name: jq
             file: jq-linux-amd64
 
       - name: nodejs
-        version: 24.14.1
+        version: 24.18.0
         url: https://nodejs.org/dist/v#application_version#/node-v#application_version#-linux-x64.tar.xz
         binary_files:
           - name: corepack
