@@ -3,7 +3,7 @@
   hosts: control_plane*
   become: true
   vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
   tasks:
     - name: Control plane
       ansible.builtin.include_role:
@@ -14,7 +14,7 @@
   hosts: workers*
   become: true
   vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
   tasks:
     - name: Control plane
       ansible.builtin.include_role:

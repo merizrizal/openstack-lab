@@ -1,0 +1,22 @@
+---
+- name: Assert AI-OPS runtime target scope is assistant01 only
+  ansible.builtin.assert:
+    that:
+      - "'assistant01' in groups['assistant']"
+      - "groups['assistant'] | length == 1"
+      - "inventory_hostname == 'assistant01'"
+      - "assistant01.environment == 'assistant'"
+    fail_msg: "AI-OPS runtime bootstrap must target only assistant01 in the assistant group."
+    success_msg: "AI-OPS runtime bootstrap target scope is assistant01 only."
+
+- name: Create AI-OPS runtime workspace
+  ansible.builtin.include_tasks:
+    file: workspace.yml
+
+- name: Install baseline AI-OPS runtime packages
+  ansible.builtin.include_tasks:
+    file: tooling.yml
+
+- name: Capture AI-OPS runtime evidence
+  ansible.builtin.include_tasks:
+    file: evidence.yml

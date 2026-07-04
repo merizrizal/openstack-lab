@@ -1,7 +1,7 @@
 ---
 lab:
   vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
     target_env: local
   children:
     controller:

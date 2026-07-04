@@ -8,6 +8,15 @@
         "all"
     ],
     "ansible_ssh_common_args": "-o \"UserKnownHostsFile=/dev/null\" -o StrictHostKeyChecking=no -o \"PubkeyAuthentication=no\"",
+    "assistant01": {
+        "cpus": 2,
+        "disks": 25,
+        "environment": "assistant",
+        "hostname": "assistant01.local",
+        "memory": 4096,
+        "mgmtnet_ip_address": "192.168.121.20",
+        "provider_ip_address": "192.168.123.20"
+    },
     "cinder_password": "platformpass",
     "group_names": [
         "lab",

@@ -14,7 +14,7 @@ start-vm:
 	{ \
 		for node in $$nodes; do \
 			if [[ -z "$$WITH_CEPH" && "$$node" == *"ceph"* ]]; then \
-				break; \
+				continue; \
 			fi; \
 			$(MAKE) spin-up-vm VM=$$node; \
 		done; \

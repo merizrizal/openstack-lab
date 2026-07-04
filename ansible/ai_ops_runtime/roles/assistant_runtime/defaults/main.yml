@@ -1,0 +1,87 @@
+---
+ai_ops_runtime_root: /opt/openstack-ai-ops
+ai_ops_runtime_user: assistant
+ai_ops_runtime_group: assistant
+ai_ops_runtime_directory_mode: "0755"
+ai_ops_runtime_directories:
+  - path: scripts
+  - path: scripts/approved
+  - path: diagnostics
+  - path: diagnostics/raw
+  - path: diagnostics/summaries
+  - path: runbooks
+  - path: credentials
+  - path: credentials/profiles
+  - path: audit
+  - path: mcp
+ai_ops_runtime_packages:
+  - python3
+  - python3-venv
+  - python3-pip
+  - openssh-client
+  - curl
+  - jq
+  - ripgrep
+  - git
+ai_ops_runtime_venv_path: "{{ ai_ops_runtime_root }}/.venv"
+ai_ops_runtime_python_bootstrap_packages:
+  - pip
+  - setuptools
+  - wheel
+ai_ops_runtime_python_packages:
+  - openstackclient
+  - openstacksdk
+ai_ops_runtime_evidence_path: "{{ ai_ops_runtime_root }}/diagnostics/summaries/phase01-runtime-evidence-{{ ansible_date_time.date }}.md"
+ai_ops_runtime_evidence_workspace_paths:
+  - "{{ ai_ops_runtime_root }}"
+  - "{{ ai_ops_runtime_root }}/scripts/approved"
+  - "{{ ai_ops_runtime_root }}/diagnostics/raw"
+  - "{{ ai_ops_runtime_root }}/diagnostics/summaries"
+  - "{{ ai_ops_runtime_root }}/runbooks"
+  - "{{ ai_ops_runtime_root }}/credentials/profiles"
+  - "{{ ai_ops_runtime_root }}/audit"
+  - "{{ ai_ops_runtime_root }}/mcp"
+ai_ops_runtime_evidence_commands:
+  - label: Python 3
+    argv:
+      - python3
+      - --version
+  - label: Virtualenv Python
+    argv:
+      - "{{ ai_ops_runtime_venv_path }}/bin/python"
+      - --version
+  - label: Virtualenv pip
+    argv:
+      - "{{ ai_ops_runtime_venv_path }}/bin/python"
+      - -m
+      - pip
+      - --version
+  - label: OpenStack CLI
+    argv:
+      - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+      - --version
+  - label: OpenStack SDK import
+    argv:
+      - "{{ ai_ops_runtime_venv_path }}/bin/python"
+      - -c
+      - "import openstack; import openstack.version; print(openstack.version.__version__)"
+  - label: SSH client
+    argv:
+      - ssh
+      - -V
+  - label: curl
+    argv:
+      - curl
+      - --version
+  - label: jq
+    argv:
+      - jq
+      - --version
+  - label: ripgrep
+    argv:
+      - rg
+      - --version
+  - label: Git
+    argv:
+      - git
+      - --version

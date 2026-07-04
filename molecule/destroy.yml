@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: false
   vars:
-    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') }}"
+    root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
     scenario: "{{ lookup('ansible.builtin.env', 'SCENARIO') }}"
   tasks:
     - name: Destroy
