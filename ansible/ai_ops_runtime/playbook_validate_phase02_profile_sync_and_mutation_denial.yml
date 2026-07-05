@@ -1,0 +1,261 @@
+---
+- name: Validate AI-OPS Phase 02 profile sync and mutation denial
+  hosts: assistant
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/assistant_runtime/defaults/main.yml"
+  vars:
+    ai_ops_validation_root_dir: "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}"
+    ai_ops_validation_profile_source_dir: "{{ ai_ops_validation_root_dir }}/generated"
+    ai_ops_validation_source_clouds_file: "{{ ai_ops_validation_profile_source_dir }}/clouds.yaml"
+    ai_ops_validation_source_secure_file: "{{ ai_ops_validation_profile_source_dir }}/secure.yaml"
+    ai_ops_validation_profile_dir: "{{ ai_ops_runtime_root }}/credentials/profiles"
+    ai_ops_validation_deployed_clouds_file: "{{ ai_ops_validation_profile_dir }}/clouds.yaml"
+    ai_ops_validation_deployed_secure_file: "{{ ai_ops_validation_profile_dir }}/secure.yaml"
+    ai_ops_validation_evidence_path: >-
+      {{ ai_ops_runtime_root }}/diagnostics/summaries/phase02-profile-sync-and-mutation-denial-evidence-{{ ansible_facts['date_time'].date }}.md"
+    ai_ops_validation_probe_suffix: "{{ ansible_facts['date_time'].iso8601_basic_short }}Z"
+    ai_ops_validation_probe_env:
+      OS_CLIENT_CONFIG_FILE: "{{ ai_ops_validation_deployed_clouds_file }}"
+      OS_CLOUD: "{{ ai_ops_runtime_openstack_profile_name }}"
+    ai_ops_validation_network_probe_name: "aiops-deny-probe-net-{{ ai_ops_validation_probe_suffix }}"
+    ai_ops_validation_security_group_probe_name: "aiops-deny-probe-sg-{{ ai_ops_validation_probe_suffix }}"
+  tasks:
+    - name: Inspect local generated profile source files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ ai_ops_validation_source_clouds_file }}"
+        - "{{ ai_ops_validation_source_secure_file }}"
+      delegate_to: localhost
+      become: false
+      register: ai_ops_validation_source_profile_stats
+
+    - name: Inspect deployed runtime profile files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ ai_ops_validation_profile_dir }}"
+        - "{{ ai_ops_validation_deployed_clouds_file }}"
+        - "{{ ai_ops_validation_deployed_secure_file }}"
+      register: ai_ops_validation_deployed_profile_stats
+
+    - name: Assert deployed runtime profile matches current generated source
+      ansible.builtin.assert:
+        that:
+          - ai_ops_validation_source_profile_stats.results[0].stat.exists
+          - ai_ops_validation_source_profile_stats.results[0].stat.isreg
+          - ai_ops_validation_source_profile_stats.results[1].stat.exists
+          - ai_ops_validation_source_profile_stats.results[1].stat.isreg
+          - ai_ops_validation_deployed_profile_stats.results[0].stat.exists
+          - ai_ops_validation_deployed_profile_stats.results[0].stat.isdir
+          - (ai_ops_validation_deployed_profile_stats.results[0].stat.mode | string) in ['0700', '700']
+          - ai_ops_validation_deployed_profile_stats.results[1].stat.exists
+          - ai_ops_validation_deployed_profile_stats.results[1].stat.isreg
+          - (ai_ops_validation_deployed_profile_stats.results[1].stat.mode | string) in ['0600', '600']
+          - ai_ops_validation_deployed_profile_stats.results[2].stat.exists
+          - ai_ops_validation_deployed_profile_stats.results[2].stat.isreg
+          - (ai_ops_validation_deployed_profile_stats.results[2].stat.mode | string) in ['0600', '600']
+          - ai_ops_validation_deployed_profile_stats.results[1].stat.checksum == ai_ops_validation_source_profile_stats.results[0].stat.checksum
+          - ai_ops_validation_deployed_profile_stats.results[2].stat.checksum == ai_ops_validation_source_profile_stats.results[1].stat.checksum
+        fail_msg: >-
+          The deployed runtime profile on {{ inventory_hostname }} does not match the current
+          generated source under {{ ai_ops_validation_profile_source_dir }}.
+        success_msg: "The deployed runtime profile matches the current generated source."
+
+    - name: Read deployed clouds.yaml for non-secret metadata
+      ansible.builtin.slurp:
+        src: "{{ ai_ops_validation_deployed_clouds_file }}"
+      register: ai_ops_validation_deployed_clouds_content
+      no_log: true
+
+    - name: Parse deployed clouds.yaml for non-secret metadata
+      ansible.builtin.set_fact:
+        ai_ops_validation_deployed_clouds_data: "{{ ai_ops_validation_deployed_clouds_content.content | b64decode | from_yaml }}"
+      no_log: true
+
+    - name: Run network create mutation probe
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - network
+          - create
+          - "{{ ai_ops_validation_network_probe_name }}"
+          - -f
+          - json
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_network_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Attempt cleanup for unexpectedly created probe network
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - network
+          - delete
+          - "{{ ai_ops_validation_network_probe_name }}"
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_network_cleanup
+      changed_when: false
+      failed_when: false
+      when: ai_ops_validation_network_probe.rc == 0
+
+    - name: Run security group create mutation probe when network probe was denied
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - security
+          - group
+          - create
+          - "{{ ai_ops_validation_security_group_probe_name }}"
+          - -f
+          - json
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_security_group_probe
+      changed_when: false
+      failed_when: false
+      when: ai_ops_validation_network_probe.rc != 0
+
+    - name: Attempt cleanup for unexpectedly created probe security group
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - security
+          - group
+          - delete
+          - "{{ ai_ops_validation_security_group_probe_name }}"
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_security_group_cleanup
+      changed_when: false
+      failed_when: false
+      when:
+        - ai_ops_validation_network_probe.rc != 0
+        - ai_ops_validation_security_group_probe.rc == 0
+
+    - name: Report mutation probe return codes
+      ansible.builtin.debug:
+        msg:
+          - "network create rc={{ ai_ops_validation_network_probe.rc }}"
+          - "security group create rc={{ ai_ops_validation_security_group_probe.rc | default('not-run') }}"
+
+    - name: Write AI-OPS Phase 02 profile sync and mutation denial evidence summary
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_validation_evidence_path }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0644"
+        content: |
+          # Phase 02 Profile Sync and Mutation Denial Evidence Snapshot
+
+          Generated by `ansible/ai_ops_runtime/playbook_validate_phase02_profile_sync_and_mutation_denial.yml`.
+
+          ## Metadata
+
+          - Date: {{ ansible_facts['date_time'].iso8601 }}
+          - Runtime host: {{ inventory_hostname }}
+          - Profile source directory: {{ ai_ops_validation_profile_source_dir }}
+          - Runtime profile directory: {{ ai_ops_validation_profile_dir }}
+          - Evidence path: {{ ai_ops_validation_evidence_path }}
+          - Profile name: {{ ai_ops_runtime_openstack_profile_name }}
+          - Probe suffix: {{ ai_ops_validation_probe_suffix }}
+
+          ## Profile Sync Verification
+
+          - Source clouds.yaml: {{ ai_ops_validation_source_profile_stats.results[0].item }}
+            - exists={{ ai_ops_validation_source_profile_stats.results[0].stat.exists | default(false) }}
+            - checksum={{ ai_ops_validation_source_profile_stats.results[0].stat.checksum | default('missing') }}
+          - Source secure.yaml: {{ ai_ops_validation_source_profile_stats.results[1].item }}
+            - exists={{ ai_ops_validation_source_profile_stats.results[1].stat.exists | default(false) }}
+            - checksum={{ ai_ops_validation_source_profile_stats.results[1].stat.checksum | default('missing') }}
+          - Deployed profile directory: {{ ai_ops_validation_deployed_profile_stats.results[0].item }}
+            - exists={{ ai_ops_validation_deployed_profile_stats.results[0].stat.exists | default(false) }}
+            - directory={{ ai_ops_validation_deployed_profile_stats.results[0].stat.isdir | default(false) }}
+            - owner={{ ai_ops_validation_deployed_profile_stats.results[0].stat.pw_name | default('unknown') }}
+            - group={{ ai_ops_validation_deployed_profile_stats.results[0].stat.gr_name | default('unknown') }}
+            - mode={{ ai_ops_validation_deployed_profile_stats.results[0].stat.mode | default('unknown') }}
+          - Deployed clouds.yaml: {{ ai_ops_validation_deployed_profile_stats.results[1].item }}
+            - exists={{ ai_ops_validation_deployed_profile_stats.results[1].stat.exists | default(false) }}
+            - owner={{ ai_ops_validation_deployed_profile_stats.results[1].stat.pw_name | default('unknown') }}
+            - group={{ ai_ops_validation_deployed_profile_stats.results[1].stat.gr_name | default('unknown') }}
+            - mode={{ ai_ops_validation_deployed_profile_stats.results[1].stat.mode | default('unknown') }}
+            - checksum={{ ai_ops_validation_deployed_profile_stats.results[1].stat.checksum | default('missing') }}
+          - Deployed secure.yaml: {{ ai_ops_validation_deployed_profile_stats.results[2].item }}
+            - exists={{ ai_ops_validation_deployed_profile_stats.results[2].stat.exists | default(false) }}
+            - owner={{ ai_ops_validation_deployed_profile_stats.results[2].stat.pw_name | default('unknown') }}
+            - group={{ ai_ops_validation_deployed_profile_stats.results[2].stat.gr_name | default('unknown') }}
+            - mode={{ ai_ops_validation_deployed_profile_stats.results[2].stat.mode | default('unknown') }}
+            - checksum={{ ai_ops_validation_deployed_profile_stats.results[2].stat.checksum | default('missing') }}
+
+          ## Deployed Profile Metadata
+
+          - auth_url: redacted
+          - username: {{ ai_ops_validation_deployed_clouds_data.clouds[ai_ops_runtime_openstack_profile_name].auth.username | default('unknown') }}
+          - project_name: {{ ai_ops_validation_deployed_clouds_data.clouds[ai_ops_runtime_openstack_profile_name].auth.project_name | default('unknown') }}
+          - user_domain_name: {{ ai_ops_validation_deployed_clouds_data.clouds[ai_ops_runtime_openstack_profile_name].auth.user_domain_name | default('unknown') }}
+          - project_domain_name: {{ ai_ops_validation_deployed_clouds_data.clouds[ai_ops_runtime_openstack_profile_name].auth.project_domain_name | default('unknown') }}
+
+          ## Mutation Probe Results
+
+          ### network create
+
+          - command class: `openstack network create {{ ai_ops_validation_network_probe_name }} -f json`
+          - return code: {{ ai_ops_validation_network_probe.rc }}
+          - stdout:
+
+            ```text
+          {{ ai_ops_validation_network_probe.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ ai_ops_validation_network_probe.stderr | default('') | indent(6, true) }}
+            ```
+
+          - cleanup attempted: {{ 'yes' if ai_ops_validation_network_probe.rc == 0 else 'no' }}
+          - cleanup return code: {{ ai_ops_validation_network_cleanup.rc | default('not-run') }}
+          - cleanup stderr:
+
+            ```text
+          {{ ai_ops_validation_network_cleanup.stderr | default('') | indent(6, true) }}
+            ```
+
+          ### security group create
+
+          - command class: `openstack security group create {{ ai_ops_validation_security_group_probe_name }} -f json`
+          - executed: {{ 'yes' if ai_ops_validation_network_probe.rc != 0 else 'no' }}
+          - return code: {{ ai_ops_validation_security_group_probe.rc | default('not-run') }}
+          - stdout:
+
+            ```text
+          {{ ai_ops_validation_security_group_probe.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ ai_ops_validation_security_group_probe.stderr | default('') | indent(6, true) }}
+            ```
+
+          - cleanup attempted: {{ 'yes' if (ai_ops_validation_network_probe.rc != 0 and (ai_ops_validation_security_group_probe.rc | default(-1)) == 0) else 'no' }}
+          - cleanup return code: {{ ai_ops_validation_security_group_cleanup.rc | default('not-run') }}
+          - cleanup stderr:
+
+            ```text
+          {{ ai_ops_validation_security_group_cleanup.stderr | default('') | indent(6, true) }}
+            ```
+
+          ## Validation Outcome
+
+          - Profile sync check: passed
+          - Network create denied: {{ 'yes' if ai_ops_validation_network_probe.rc != 0 else 'no' }}
+          - Security group create denied: {{ 'yes' if (ai_ops_validation_network_probe.rc != 0 and (ai_ops_validation_security_group_probe.rc | default(-1)) != 0) else 'no' }}
+          - Overall outcome: {{ 'pass' if (ai_ops_validation_network_probe.rc != 0 and (ai_ops_validation_security_group_probe.rc | default(-1)) != 0) else 'fail' }}
+
+          ## Boundary Notes
+
+          - Credential file content, token output, passwords, and private keys are not written by this evidence summary.
+          - If a mutation unexpectedly succeeds, cleanup is attempted immediately using the same runtime credential and the result is recorded here.

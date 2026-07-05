@@ -5,6 +5,33 @@
   vars_files:
     - "{{ var_file_path }}"
   tasks:
+    - name: Check AI-OPS project-reader target project exists
+      openstack.cloud.project_info:
+        name: "{{ ai_ops_project_reader_project_name }}"
+      register: ai_ops_project_reader_project
+      when: ai_ops_project_reader_manage | bool
+
+    - name: Create AI-OPS project-reader role
+      openstack.cloud.identity_role:
+        name: "{{ ai_ops_project_reader_role_name }}"
+      register: ai_ops_project_reader_role
+      when: ai_ops_project_reader_manage | bool
+
+    - name: Create AI-OPS project-reader user when missing
+      openstack.cloud.identity_user:
+        name: "{{ ai_ops_project_reader_user_name }}"
+        password: "{{ ai_ops_project_reader_password }}"
+        domain: "{{ ai_ops_project_reader_domain_name }}"
+        description: AI-OPS project reader
+        state: present
+      no_log: true
+
+    - name: Assign AI-OPS project-reader role on target project
+      openstack.cloud.role_assignment:
+        user: "{{ ai_ops_project_reader_user_name }}"
+        project: "{{ ai_ops_project_reader_project_name }}"
+        role: "{{ ai_ops_project_reader_role_name }}"
+
     - name: Create small flavor with 2048MB RAM, 2 vCPU, 15GB disk
       openstack.cloud.compute_flavor:
         state: present

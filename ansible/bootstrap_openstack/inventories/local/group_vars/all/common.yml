@@ -2,6 +2,12 @@
 ansible_connection: ssh
 ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no -o "PubkeyAuthentication=no"
 
+ai_ops_project_reader_manage: true
+ai_ops_project_reader_user_name: aiops-project-reader
+ai_ops_project_reader_project_name: admin
+ai_ops_project_reader_domain_name: default
+ai_ops_project_reader_role_name: reader
+
 image_name: vm_image01
 provider_network_name: provider
 self_service_network_name: private

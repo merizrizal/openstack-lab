@@ -4,9 +4,11 @@ This runbook documents the Phase 02 project-reader credential boundary for `assi
 
 ## Current operator decisions
 
-- Target project: default project
-- Target domain: default domain
-- Role name: `aiops-readonly`
+These values must stay aligned with `ansible/bootstrap_openstack/inventories/local/group_vars/all/common.yml`.
+
+- Target project: `admin`
+- Target domain: `default`
+- Role name: `reader`
 - Application credentials: not supported in this lab at present
 - Profile shape: `clouds.yaml` + `secure.yaml`
 - Phase 02 mode: hybrid
