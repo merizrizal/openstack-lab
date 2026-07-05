@@ -19,6 +19,13 @@ Total estimate:
 9-18 focused hours
 ```
 
+Current evidence-backed status (2026-07-05):
+
+- Checked items below are supported by:
+  - `docs/ai-ops/runtime/credential-boundary-runbook.md`
+  - `docs/ai-ops/runtime/phase02-credential-boundary-evidence-2026-07-05.md`
+- Remaining open items are explicit non-secret credential owner/creation metadata and any later decision to add a separate operator-reader profile.
+
 ## 02.3 Scope
 
 Included:
@@ -57,14 +64,14 @@ Estimate:
 
 Tasks:
 
-- [ ] Select the initial OpenStack project that the AI-OPS project-reader credential should inspect.
+- [x] Select the initial OpenStack project that the AI-OPS project-reader credential should inspect.
 - [ ] Record why this project is appropriate for the first MVP diagnostics.
-- [ ] Identify which commands are expected to work with project-reader scope.
+- [x] Identify which commands are expected to work with project-reader scope.
 - [ ] Identify which operator-level commands are expected to fail or be deferred.
 
 Done when:
 
-- [ ] The first credential scope is explicit enough to configure and test.
+- [x] The first credential scope is explicit enough to configure and test.
 
 ### Step 2 - Create Dedicated Read-Only Identity
 
@@ -77,15 +84,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Create or request a dedicated AI-OPS read-only OpenStack user.
-- [ ] Assign the least-privileged reader role available for the selected project.
+- [x] Create or request a dedicated AI-OPS read-only OpenStack user.
+- [x] Assign the least-privileged reader role available for the selected project.
 - [ ] Prefer an application credential when Keystone supports it.
-- [ ] Avoid using any human admin credential, admin-openrc, or member-role credential as the assistant default.
+- [x] Avoid using any human admin credential, admin-openrc, or member-role credential as the assistant default.
 - [ ] Record the non-secret metadata: credential purpose, scope, role, owner, creation date, and rotation expectation.
 
 Done when:
 
-- [ ] A dedicated non-admin diagnostic identity exists and is ready to configure on the assistant runtime.
+- [x] A dedicated non-admin diagnostic identity exists and is ready to configure on the assistant runtime.
 
 ### Step 3 - Configure Protected Cloud Profile
 
@@ -98,15 +105,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Configure a named project-reader cloud profile on the assistant runtime.
-- [ ] Store credential material only in the designated credential area.
-- [ ] Set restrictive directory and file permissions.
-- [ ] Verify credential files are not committed to the repository.
+- [x] Configure a named project-reader cloud profile on the assistant runtime.
+- [x] Store credential material only in the designated credential area.
+- [x] Set restrictive directory and file permissions.
+- [x] Verify credential files are not committed to the repository.
 - [ ] Add a redacted example profile for documentation if useful.
 
 Done when:
 
-- [ ] OpenStack CLI and SDK can locate the profile, and the real secret material remains local and protected.
+- [x] OpenStack CLI and SDK can locate the profile, and the real secret material remains local and protected.
 
 ### Step 4 - Validate Read Access
 
@@ -119,15 +126,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Verify token issuance succeeds with the project-reader profile.
-- [ ] Verify listing project-visible servers succeeds.
-- [ ] Verify listing project-visible networks, subnets, ports, volumes, images, and security groups succeeds where policy allows.
-- [ ] Record any read command that unexpectedly fails.
-- [ ] Distinguish expected policy limitation from configuration error.
+- [x] Verify token issuance succeeds with the project-reader profile.
+- [x] Verify listing project-visible servers succeeds.
+- [x] Verify listing project-visible networks, subnets, ports, volumes, images, and security groups succeeds where policy allows.
+- [x] Record any read command that unexpectedly fails.
+- [x] Distinguish expected policy limitation from configuration error.
 
 Done when:
 
-- [ ] The assistant can inspect enough project-level resources to support the first diagnostic toolbox.
+- [x] The assistant can inspect enough project-level resources to support the first diagnostic toolbox.
 
 ### Step 5 - Validate Mutation Denial
 
@@ -140,15 +147,21 @@ Estimate:
 
 Tasks:
 
-- [ ] Attempt representative create operations using harmless test names and confirm they fail before resource creation.
-- [ ] Attempt representative update operations only where they are safe to test and confirm they fail.
-- [ ] Attempt representative delete operations only against non-existent or safe test targets and confirm authorization denial.
-- [ ] Record exact failure class such as forbidden, not authorized, or policy denial.
-- [ ] Treat any successful mutation as a blocking safety failure.
+- [x] Attempt representative create operations using harmless test names and confirm they fail before resource creation.
+- [x] Attempt representative update operations only where they are safe to test and confirm they fail.
+- [x] Attempt representative delete operations only against non-existent or safe test targets and confirm authorization denial.
+- [x] Record exact failure class such as forbidden, not authorized, or policy denial.
+- [x] Treat any successful mutation as a blocking safety failure.
+
+Current Step 5 status:
+
+- Create denial is evidenced for network create and security-group create.
+- Update denial is evidenced for the tested network update path.
+- Delete denial is evidenced for the tested throwaway security-group target.
 
 Done when:
 
-- [ ] Mutation is empirically blocked for the default AI-OPS credential.
+- [x] Mutation is empirically blocked for the default AI-OPS credential.
 
 ### Step 6 - Document Actual Credential Matrix
 
@@ -161,26 +174,26 @@ Estimate:
 
 Tasks:
 
-- [ ] Document which read commands pass.
-- [ ] Document which mutation commands fail.
-- [ ] Document which operator visibility commands fail or require later operator-reader scope.
-- [ ] Add a rotation/revocation note for the credential.
-- [ ] Add rollback instructions to revoke the credential and remove local profile material.
+- [x] Document which read commands pass.
+- [x] Document which mutation commands fail.
+- [x] Document which operator visibility commands fail or require later operator-reader scope.
+- [x] Add a rotation/revocation note for the credential.
+- [x] Add rollback instructions to revoke the credential and remove local profile material.
 
 Done when:
 
-- [ ] Future tool authors can tell which credential should be used for project-level diagnostics and which capabilities remain deferred.
+- [x] Future tool authors can tell which credential should be used for project-level diagnostics and which capabilities remain deferred.
 
 ## 02.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] A dedicated project-reader credential is configured on the assistant runtime.
-- [ ] The credential can authenticate and inspect project-visible resources.
-- [ ] Representative mutation attempts fail.
-- [ ] Credential files are protected and not committed.
-- [ ] Actual reader-role behavior is documented.
-- [ ] Operator-reader needs are identified but not mixed into the default profile.
+- [x] A dedicated project-reader credential is configured on the assistant runtime.
+- [x] The credential can authenticate and inspect project-visible resources.
+- [x] Representative mutation attempts fail.
+- [x] Credential files are protected and not committed.
+- [x] Actual reader-role behavior is documented.
+- [x] Operator-reader needs are identified but not mixed into the default profile.
 
 ## 02.7 Risks
 

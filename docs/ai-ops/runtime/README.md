@@ -4,6 +4,8 @@ This document records the Phase 01 runtime boundary for the read-only AI-OPS ass
 
 Phase 01 does not install OpenStack credentials, expose AI-controlled shell access, or add remediation automation. It only establishes where the assistant tooling will live and how the workspace should be organized.
 
+Current validated runtime note: after Phase 02, `assistant01` now holds the protected `aiops-project-reader` profile under `/opt/openstack-ai-ops/credentials/profiles/`; see `docs/ai-ops/runtime/credential-boundary-runbook.md` and `docs/ai-ops/runtime/phase02-credential-boundary-evidence-2026-07-05.md`.
+
 ## Placement Decision
 
 Recorded on 2026-07-02:
@@ -77,7 +79,7 @@ Directory intent:
 | `diagnostics/raw/` | Raw command/script output captured by the operator or tool runner. | Writable by runtime user. |
 | `diagnostics/summaries/` | Human/AI-readable summaries derived from raw results. | Writable by runtime user. |
 | `runbooks/` | Manual diagnostic workflow notes. | Documentation only in Phase 01. |
-| `credentials/profiles/` | Future dedicated read-only credential profiles. | Must remain empty until Phase 02. |
+| `credentials/profiles/` | Dedicated read-only credential profiles. | Phase 01 rule: must remain empty. Current validated Phase 02 state on `assistant01`: protected `aiops-project-reader` profile material is present; see `docs/ai-ops/runtime/credential-boundary-runbook.md` and `docs/ai-ops/runtime/phase02-credential-boundary-evidence-2026-07-05.md`. |
 | `audit/` | Future tool-runner audit events. | Writable by runtime user; may be empty until Phase 04. |
 | `mcp/` | Future MCP server/interface code. | Must remain inactive until trusted scripts and runner exist. |
 
@@ -128,7 +130,8 @@ Record the actual evidence before checking Phase 01 complete:
 - [x] Runtime does not require tenant-network access for the first milestone.
 - [x] Baseline tool versions are recorded.
 - [x] Workspace directories exist and are writable by the runtime user where required.
-- [x] `credentials/profiles/` exists but contains no credentials until Phase 02.
+- [x] During Phase 01 validation, `credentials/profiles/` existed but contained no credentials yet.
+- [x] After Phase 02 validation on `assistant01`, `credentials/profiles/` contains only the protected `aiops-project-reader` profile material; see `docs/ai-ops/runtime/credential-boundary-runbook.md` and `docs/ai-ops/runtime/phase02-credential-boundary-evidence-2026-07-05.md`.
 - [x] No privileged OpenStack, SSH, database, RabbitMQ, or service credentials are installed.
 
 Evidence: `docs/ai-ops/runtime/phase01-runtime-evidence-2026-07-04.md`.
