@@ -15,13 +15,17 @@
     ai_ops_validation_deployed_clouds_file: "{{ ai_ops_validation_profile_dir }}/clouds.yaml"
     ai_ops_validation_deployed_secure_file: "{{ ai_ops_validation_profile_dir }}/secure.yaml"
     ai_ops_validation_evidence_path: >-
-      {{ ai_ops_runtime_root }}/diagnostics/summaries/phase02-profile-sync-and-mutation-denial-evidence-{{ ansible_facts['date_time'].date }}.md"
+      {{ ai_ops_runtime_root }}/diagnostics/summaries/phase02-profile-sync-and-mutation-denial-evidence-{{ ansible_facts['date_time'].date }}.md
     ai_ops_validation_probe_suffix: "{{ ansible_facts['date_time'].iso8601_basic_short }}Z"
     ai_ops_validation_probe_env:
       OS_CLIENT_CONFIG_FILE: "{{ ai_ops_validation_deployed_clouds_file }}"
       OS_CLOUD: "{{ ai_ops_runtime_openstack_profile_name }}"
     ai_ops_validation_network_probe_name: "aiops-deny-probe-net-{{ ai_ops_validation_probe_suffix }}"
     ai_ops_validation_security_group_probe_name: "aiops-deny-probe-sg-{{ ai_ops_validation_probe_suffix }}"
+    ai_ops_validation_enable_network_update_probe: true
+    ai_ops_validation_network_update_probe_target_name: aiops-delete-probe-private
+    ai_ops_validation_enable_security_group_delete_probe: true
+    ai_ops_validation_security_group_delete_probe_target_name: aiops-delete-probe-openstack_lab
   tasks:
     - name: Inspect local generated profile source files
       ansible.builtin.stat:
@@ -135,11 +139,158 @@
         - ai_ops_validation_network_probe.rc != 0
         - ai_ops_validation_security_group_probe.rc == 0
 
+    - name: Assert optional network update probe inputs when enabled
+      ansible.builtin.assert:
+        that:
+          - ai_ops_validation_network_update_probe_target_name | length > 0
+        fail_msg: >-
+          Set ai_ops_validation_network_update_probe_target_name to an existing network name
+          when ai_ops_validation_enable_network_update_probe is true.
+      when:
+        - ai_ops_validation_enable_network_update_probe | bool
+        - ai_ops_validation_network_probe.rc != 0
+        - (ai_ops_validation_security_group_probe.rc | default(-1)) != 0
+
+    - name: Read current description from optional network update probe target
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - network
+          - show
+          - "{{ ai_ops_validation_network_update_probe_target_name }}"
+          - -f
+          - value
+          - -c
+          - description
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_network_update_probe_current_description
+      changed_when: false
+      failed_when: false
+      when:
+        - ai_ops_validation_enable_network_update_probe | bool
+        - ai_ops_validation_network_probe.rc != 0
+        - (ai_ops_validation_security_group_probe.rc | default(-1)) != 0
+
+    - name: Run optional safe network update mutation probe
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - network
+          - set
+          - --description
+          - "Updated -{{ ai_ops_validation_network_update_probe_current_description.stdout | default('') }}"
+          - "{{ ai_ops_validation_network_update_probe_target_name }}"
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_network_update_probe
+      changed_when: false
+      failed_when: false
+      when:
+        - ai_ops_validation_enable_network_update_probe | bool
+        - ai_ops_validation_network_probe.rc != 0
+        - (ai_ops_validation_security_group_probe.rc | default(-1)) != 0
+        - (ai_ops_validation_network_update_probe_current_description.rc | default(-1)) == 0
+
+    - name: Assert optional security group delete probe inputs when enabled
+      ansible.builtin.assert:
+        that:
+          - ai_ops_validation_security_group_delete_probe_target_name | length > 0
+          - (ai_ops_validation_security_group_delete_probe_target_name | regex_search('^aiops-delete-probe-')) is not none
+        fail_msg: >-
+          Set ai_ops_validation_security_group_delete_probe_target_name to a pre-created throwaway
+          security group with the prefix aiops-delete-probe- when
+          ai_ops_validation_enable_security_group_delete_probe is true.
+      when:
+        - ai_ops_validation_enable_security_group_delete_probe | bool
+        - ai_ops_validation_network_probe.rc != 0
+        - (ai_ops_validation_security_group_probe.rc | default(-1)) != 0
+
+    - name: Confirm optional security group delete probe target exists
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - security
+          - group
+          - show
+          - "{{ ai_ops_validation_security_group_delete_probe_target_name }}"
+          - -f
+          - json
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_security_group_delete_probe_target_lookup
+      changed_when: false
+      failed_when: false
+      when:
+        - ai_ops_validation_enable_security_group_delete_probe | bool
+        - ai_ops_validation_network_probe.rc != 0
+        - (ai_ops_validation_security_group_probe.rc | default(-1)) != 0
+
+    - name: Run optional explicit security group delete mutation probe
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+          - security
+          - group
+          - delete
+          - "{{ ai_ops_validation_security_group_delete_probe_target_name }}"
+      environment: "{{ ai_ops_validation_probe_env }}"
+      register: ai_ops_validation_security_group_delete_probe
+      changed_when: false
+      failed_when: false
+      when:
+        - ai_ops_validation_enable_security_group_delete_probe | bool
+        - ai_ops_validation_network_probe.rc != 0
+        - (ai_ops_validation_security_group_probe.rc | default(-1)) != 0
+        - (ai_ops_validation_security_group_delete_probe_target_lookup.rc | default(-1)) == 0
+
+    - name: Derive mutation validation outcome facts
+      ansible.builtin.set_fact:
+        ai_ops_validation_base_create_denied: >-
+          {{
+            (ai_ops_validation_network_probe.rc != 0)
+            and ((ai_ops_validation_security_group_probe.rc | default(-1)) != 0)
+          }}
+        ai_ops_validation_optional_network_update_ok: >-
+          {{
+            (not (ai_ops_validation_enable_network_update_probe | bool))
+            or (
+              ((ai_ops_validation_network_update_probe_current_description.rc | default(-1)) == 0)
+              and ((ai_ops_validation_network_update_probe.rc | default(-1)) != 0)
+            )
+          }}
+        ai_ops_validation_optional_security_group_delete_ok: >-
+          {{
+            (not (ai_ops_validation_enable_security_group_delete_probe | bool))
+            or (
+              ((ai_ops_validation_security_group_delete_probe_target_lookup.rc | default(-1)) == 0)
+              and ((ai_ops_validation_security_group_delete_probe.rc | default(-1)) != 0)
+            )
+          }}
+        ai_ops_validation_overall_pass: >-
+          {{
+            (ai_ops_validation_network_probe.rc != 0)
+            and ((ai_ops_validation_security_group_probe.rc | default(-1)) != 0)
+            and (
+              (not (ai_ops_validation_enable_network_update_probe | bool))
+              or (
+                ((ai_ops_validation_network_update_probe_current_description.rc | default(-1)) == 0)
+                and ((ai_ops_validation_network_update_probe.rc | default(-1)) != 0)
+              )
+            )
+            and (
+              (not (ai_ops_validation_enable_security_group_delete_probe | bool))
+              or (
+                ((ai_ops_validation_security_group_delete_probe_target_lookup.rc | default(-1)) == 0)
+                and ((ai_ops_validation_security_group_delete_probe.rc | default(-1)) != 0)
+              )
+            )
+          }}
+
     - name: Report mutation probe return codes
       ansible.builtin.debug:
         msg:
           - "network create rc={{ ai_ops_validation_network_probe.rc }}"
           - "security group create rc={{ ai_ops_validation_security_group_probe.rc | default('not-run') }}"
+          - "optional network update rc={{ ai_ops_validation_network_update_probe.rc | default('not-run') }}"
+          - "optional security group delete rc={{ ai_ops_validation_security_group_delete_probe.rc | default('not-run') }}"
 
     - name: Write AI-OPS Phase 02 profile sync and mutation denial evidence summary
       ansible.builtin.copy:
@@ -248,14 +399,71 @@
           {{ ai_ops_validation_security_group_cleanup.stderr | default('') | indent(6, true) }}
             ```
 
+          ### optional safe network update
+
+          - enabled: {{ 'yes' if (ai_ops_validation_enable_network_update_probe | bool) else 'no' }}
+          - target network: {{ ai_ops_validation_network_update_probe_target_name | default('') }}
+          - target description lookup return code: {{ ai_ops_validation_network_update_probe_current_description.rc | default('not-run') }}
+          - target description lookup stderr:
+
+            ```text
+          {{ ai_ops_validation_network_update_probe_current_description.stderr | default('') | indent(6, true) }}
+            ```
+
+          - command class: `openstack network set --description <current-description> {{ ai_ops_validation_network_update_probe_target_name | default('') }}`
+          - executed: {{ 'yes' if ((ai_ops_validation_enable_network_update_probe | bool) and ((ai_ops_validation_network_update_probe_current_description.rc | default(-1)) == 0)) else 'no' }}
+          - return code: {{ ai_ops_validation_network_update_probe.rc | default('not-run') }}
+          - stdout:
+
+            ```text
+          {{ ai_ops_validation_network_update_probe.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ ai_ops_validation_network_update_probe.stderr | default('') | indent(6, true) }}
+            ```
+
+          ### optional explicit security group delete
+
+          - enabled: {{ 'yes' if (ai_ops_validation_enable_security_group_delete_probe | bool) else 'no' }}
+          - target security group: {{ ai_ops_validation_security_group_delete_probe_target_name | default('') }}
+          - target lookup return code: {{ ai_ops_validation_security_group_delete_probe_target_lookup.rc | default('not-run') }}
+          - target lookup stderr:
+
+            ```text
+          {{ ai_ops_validation_security_group_delete_probe_target_lookup.stderr | default('') | indent(6, true) }}
+            ```
+
+          - command class: `openstack security group delete {{ ai_ops_validation_security_group_delete_probe_target_name | default('') }}`
+          - executed: {{ 'yes' if ((ai_ops_validation_enable_security_group_delete_probe | bool) and ((ai_ops_validation_security_group_delete_probe_target_lookup.rc | default(-1)) == 0)) else 'no' }}
+          - return code: {{ ai_ops_validation_security_group_delete_probe.rc | default('not-run') }}
+          - stdout:
+
+            ```text
+          {{ ai_ops_validation_security_group_delete_probe.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ ai_ops_validation_security_group_delete_probe.stderr | default('') | indent(6, true) }}
+            ```
+
           ## Validation Outcome
 
           - Profile sync check: passed
-          - Network create denied: {{ 'yes' if ai_ops_validation_network_probe.rc != 0 else 'no' }}
-          - Security group create denied: {{ 'yes' if (ai_ops_validation_network_probe.rc != 0 and (ai_ops_validation_security_group_probe.rc | default(-1)) != 0) else 'no' }}
-          - Overall outcome: {{ 'pass' if (ai_ops_validation_network_probe.rc != 0 and (ai_ops_validation_security_group_probe.rc | default(-1)) != 0) else 'fail' }}
+          - Base create probes denied: {{ 'yes' if (ai_ops_validation_base_create_denied | bool) else 'no' }}
+          - Optional network update probe enabled: {{ 'yes' if (ai_ops_validation_enable_network_update_probe | bool) else 'no' }}
+          - Optional network update denied: {{ 'yes' if ((ai_ops_validation_enable_network_update_probe | bool) and (ai_ops_validation_optional_network_update_ok | bool)) else ('no' if (ai_ops_validation_enable_network_update_probe | bool) else 'not-run') }}
+          - Optional security group delete probe enabled: {{ 'yes' if (ai_ops_validation_enable_security_group_delete_probe | bool) else 'no' }}
+          - Optional security group delete denied: {{ 'yes' if ((ai_ops_validation_enable_security_group_delete_probe | bool) and (ai_ops_validation_optional_security_group_delete_ok | bool)) else ('no' if (ai_ops_validation_enable_security_group_delete_probe | bool) else 'not-run') }}
+          - Overall outcome: {{ 'pass' if (ai_ops_validation_overall_pass | bool) else 'fail' }}
 
           ## Boundary Notes
 
           - Credential file content, token output, passwords, and private keys are not written by this evidence summary.
           - If a mutation unexpectedly succeeds, cleanup is attempted immediately using the same runtime credential and the result is recorded here.
+          - Optional network update probing is safe-by-default only when it reuses the target network's current description value.
+          - Optional security group delete probing stays disabled by default and should target only a pre-created throwaway security group with the prefix `aiops-delete-probe-`.

@@ -311,13 +311,64 @@ After re-syncing the runtime profile on `assistant01`, a follow-up verification 
 - Error class: `ForbiddenException`
 - Policy evidence: `rule:create_security_group is disallowed by policy`
 
+### Persistent validation playbook re-run (updated playbook)
+
+After the persistent validation playbook was extended to support optional safe update/delete probes, it was re-run on `assistant01` and wrote:
+
+- `/opt/openstack-ai-ops/diagnostics/summaries/phase02-profile-sync-and-mutation-denial-evidence-2026-07-05.md`
+- Runtime evidence timestamp: `2026-07-05T13:48:31Z`
+- Profile sync verification: passed
+- Base create probes denied: yes
+- Optional network update probe enabled: yes
+- Optional network update denied: yes
+- Optional security group delete probe enabled: yes
+- Optional security group delete denied: yes
+- Overall outcome: pass
+
+The runtime evidence again confirmed:
+
+- deployed `clouds.yaml` checksum matched `generated/clouds.yaml`: `b9fc0b4a47c4372c504ae2792b8241cddc53db1f`
+- deployed `secure.yaml` checksum matched `generated/secure.yaml`: `47058bcfafe5a91cbf937882ad63c66bf6f53b0c`
+- profile metadata remained:
+  - profile name: `aiops-project-reader`
+  - username: `aiops-project-reader`
+  - project_name: `admin`
+  - user_domain_name: `default`
+  - project_domain_name: `default`
+
+The runtime evidence again showed expected denial for:
+
+- `openstack network create aiops-deny-probe-net-20260705T134831Z -f json`
+  - error class: `ForbiddenException`
+  - policy evidence: `rule:create_network is disallowed by policy`
+- `openstack security group create aiops-deny-probe-sg-20260705T134831Z -f json`
+  - error class: `ForbiddenException`
+  - policy evidence: `rule:create_security_group is disallowed by policy`
+- `openstack network set --description <current-description> aiops-delete-probe-private`
+  - error class: `ForbiddenException`
+  - policy evidence: `rule:update_network is disallowed by policy`
+- `openstack security group delete aiops-delete-probe-openstack_lab`
+  - error class: `ForbiddenException`
+  - policy evidence: `rule:delete_security_group is disallowed by policy`
+
+## Deferred Operator-Reader Scope and Rotation Expectation
+
+- The validated default profile remains the project-scoped `aiops-project-reader` credential for the `admin` project only.
+- The following capability classes remain deferred to a separate non-default operator-reader profile and were not validated in Phase 02:
+  - cross-project inventory outside the selected project scope
+  - control-plane service, agent, or hypervisor visibility
+  - host-level diagnostics or SSH-based observer workflows
+- Application credentials are not supported in this lab at present, so the current dedicated credential should be rotated whenever secret material is reissued, on any suspected exposure, after any project/role scope change, and during the next planned operator credential review.
+
 ## Current Status
 
 - The initial Phase 02 failure was caused by the wrong profile content being deployed on `assistant01`.
-- After syncing the dedicated `aiops-project-reader` profile, the tested mutation boundary behaved as intended for the network and security-group create probes.
+- After syncing the dedicated `aiops-project-reader` profile, the tested mutation boundary behaved as intended for the validated create, update, and delete probes.
+- The updated persistent validation playbook was re-run successfully on `assistant01`; profile sync still matched the generated source and all enabled mutation probes denied as expected.
 - Earlier pre-sync probe resources may still require explicit operator/admin cleanup if they remain present.
 
 ## Boundary Notes
 
 - Credential file content, token output, passwords, and private keys are not written by this evidence summary.
 - This note now records both the pre-sync blocking failure and the post-sync recovery validation on 2026-07-05.
+- The default project-reader profile remains the only validated Phase 02 default; any later operator-reader profile must stay separate and non-default.

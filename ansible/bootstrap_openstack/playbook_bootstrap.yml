@@ -32,6 +32,17 @@
         project: "{{ ai_ops_project_reader_project_name }}"
         role: "{{ ai_ops_project_reader_role_name }}"
 
+    - name: Create AI-OPS project-reader self service network
+      openstack.cloud.network:
+        name: "aiops-delete-probe-{{ self_service_network_name }}"
+        shared: true
+        state: present
+
+    - name: Add AI-OPS project-reader security group
+      openstack.cloud.security_group:
+        name: "aiops-delete-probe-{{ security_group_name }}"
+        state: present
+
     - name: Create small flavor with 2048MB RAM, 2 vCPU, 15GB disk
       openstack.cloud.compute_flavor:
         state: present

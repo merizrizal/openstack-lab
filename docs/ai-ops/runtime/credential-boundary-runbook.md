@@ -13,6 +13,7 @@ These values must stay aligned with `ansible/bootstrap_openstack/inventories/loc
 - Profile shape: `clouds.yaml` + `secure.yaml`
 - Phase 02 mode: hybrid
 - Default profile name: `aiops-project-reader`
+- Rotation expectation: rotate the dedicated credential whenever secret material is reissued, on any suspected exposure, after any role/project scope change, and during the next planned operator credential review; record each rotation in a dated evidence note.
 
 ## Purpose
 
@@ -88,6 +89,19 @@ Expected outcomes:
 - equivalent authz failure
 
 Any successful mutation is a blocking safety failure.
+This includes "safe" same-value update probes: if a command such as `openstack network set --description <current-description> ...` returns success, treat that as evidence that update authority is broader than intended even if the effective resource state did not change.
+
+## Deferred operator-reader scope
+
+Phase 02 validates only the default project-scoped `aiops-project-reader` profile for project-visible reads and mutation-denial checks.
+
+The following visibility remains deferred to a separate non-default operator-reader profile and was not validated in Phase 02:
+
+- cross-project inventory outside the selected default project scope
+- control-plane service, agent, or hypervisor visibility such as `openstack compute service list`, `openstack network agent list`, and `openstack hypervisor list`
+- host-level diagnostics or SSH-based observer workflows
+
+Do not widen the default `aiops-project-reader` profile to satisfy these deferred needs.
 
 ## Rollback
 
@@ -109,6 +123,7 @@ Record:
 - profile name and file locations
 - read command pass/fail matrix
 - mutation-denial matrix
-- rollback or revocation action if needed
+- deferred operator-reader-only commands or visibility classes
+- credential rotation expectation and any performed rotation/revocation action
 
 Do not include secrets, tokens, passwords, private keys, or raw unredacted config.
