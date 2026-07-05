@@ -115,6 +115,13 @@
           - Entry count: {{ ai_ops_runtime_evidence_credential_profiles.matched }}
           - Expected Phase 01 state: empty
 
+          ## Tooling Provenance
+
+          - Bootstrap playbook roles: `common` then `assistant_runtime`.
+          - Shared `common` role provides generic operator/runtime tools, including `curl`, `git`, and `jq`.
+          - `assistant_runtime` role provides the AI-OPS workspace, OpenStack profile handling, runtime Python virtual environment, OpenStack CLI/SDK packages, SSH client package, and fast text search package.
+          - Tool versions below are observed on {{ inventory_hostname }} at validation time and may differ from role defaults after later package or role updates.
+
           ## Tool Versions
 
           {% for result in ai_ops_runtime_tool_version_results.results %}
