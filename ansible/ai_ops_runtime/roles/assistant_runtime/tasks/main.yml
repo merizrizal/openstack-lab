@@ -13,6 +13,10 @@
   ansible.builtin.include_tasks:
     file: workspace.yml
 
+- name: Install AI-OPS approved diagnostic scripts
+  ansible.builtin.include_tasks:
+    file: scripts.yml
+
 - name: Manage AI-OPS OpenStack profile
   ansible.builtin.include_tasks:
     file: credentials.yml

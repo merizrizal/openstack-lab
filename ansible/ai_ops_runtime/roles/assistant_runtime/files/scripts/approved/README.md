@@ -19,6 +19,18 @@ OS_CLOUD=aiops-project-reader
 
 Do not use admin, member, service, database, RabbitMQ, SSH, or operator-reader credentials as the default. Operator-reader diagnostics must stay separate and unavailable until a non-default operator-reader profile has been explicitly created, validated, and documented.
 
+## Tool classifications
+
+Project-reader diagnostics may use the default profile and fixed read-only OpenStack calls:
+
+- `project_resource_summary.sh`
+- `server_basic_info.sh`
+- `server_network_info.sh`
+
+Higher-visibility diagnostics are deferred unless separately validated and documented:
+
+- `neutron_agent_health.sh` is unavailable until a non-default operator-reader profile exists. It must not fall back to project-reader.
+
 ## Read-only scope
 
 Approved scripts may perform fixed OpenStack API read operations such as `list` and `show` for project-visible resources where policy allows.
@@ -63,8 +75,13 @@ Before a script is trusted:
 
 1. Review the script for fixed read-only command paths and narrow parameters.
 2. Run shell syntax validation with `bash -n`.
-3. Run the repository-local AI-OPS safety check once available.
-4. Review any static-check false positives manually before approving.
+3. Run the repository-local AI-OPS safety check:
+
+   ```bash
+   scripts/check_ai_ops_diagnostic_safety.sh
+   ```
+
+4. Review any static-check false positives manually before approving. The check scans approved shell scripts only and is a guardrail, not proof of safety.
 5. Validate manually on `assistant01` with the default project-reader profile and record only redacted/non-secret evidence.
 
 Static checks are a guardrail, not a substitute for human review. Any script change that weakens this policy must be treated as a safety-sensitive design change, not a routine implementation edit.

@@ -1,0 +1,385 @@
+---
+- name: Validate AI-OPS Phase 03 diagnostic toolbox
+  hosts: assistant
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/assistant_runtime/defaults/main.yml"
+  vars:
+    ai_ops_phase03_script_dir: "{{ ai_ops_runtime_root }}/scripts/approved"
+    ai_ops_phase03_profile_dir: "{{ ai_ops_runtime_root }}/credentials/profiles"
+    ai_ops_phase03_clouds_file: "{{ ai_ops_phase03_profile_dir }}/clouds.yaml"
+    ai_ops_phase03_secure_file: "{{ ai_ops_phase03_profile_dir }}/secure.yaml"
+    ai_ops_phase03_evidence_path: >-
+      {{ ai_ops_runtime_root }}/diagnostics/summaries/phase03-diagnostic-toolbox-evidence-{{ ansible_facts['date_time'].date }}.md
+    ai_ops_phase03_validation_server_identifier: control_plane_vm01
+    ai_ops_phase03_skip_server_specific_scripts: false
+    ai_ops_phase03_required_paths:
+      - label: approved script directory
+        path: "{{ ai_ops_phase03_script_dir }}"
+        type: directory
+        expected_mode: "0755"
+      - label: toolbox safety README
+        path: "{{ ai_ops_phase03_script_dir }}/README.md"
+        type: file
+        expected_mode: "0644"
+      - label: common helper library
+        path: "{{ ai_ops_phase03_script_dir }}/lib/aiops_common.sh"
+        type: file
+        expected_mode: "0644"
+      - label: project resource summary script
+        path: "{{ ai_ops_phase03_script_dir }}/project_resource_summary.sh"
+        type: file
+        expected_mode: "0755"
+      - label: server basic info script
+        path: "{{ ai_ops_phase03_script_dir }}/server_basic_info.sh"
+        type: file
+        expected_mode: "0755"
+      - label: server network info script
+        path: "{{ ai_ops_phase03_script_dir }}/server_network_info.sh"
+        type: file
+        expected_mode: "0755"
+      - label: neutron agent health script
+        path: "{{ ai_ops_phase03_script_dir }}/neutron_agent_health.sh"
+        type: file
+        expected_mode: "0755"
+      - label: OpenStack CLI
+        path: "{{ ai_ops_runtime_venv_path }}/bin/openstack"
+        type: file
+      - label: OpenStack clouds.yaml
+        path: "{{ ai_ops_phase03_clouds_file }}"
+        type: file
+        expected_mode: "0600"
+      - label: OpenStack secure.yaml
+        path: "{{ ai_ops_phase03_secure_file }}"
+        type: file
+        expected_mode: "0600"
+    ai_ops_phase03_project_reader_scripts:
+      - name: project_resource_summary
+        argv:
+          - "{{ ai_ops_phase03_script_dir }}/project_resource_summary.sh"
+    ai_ops_phase03_server_scripts:
+      - name: server_basic_info
+        argv:
+          - "{{ ai_ops_phase03_script_dir }}/server_basic_info.sh"
+          - "{{ ai_ops_phase03_validation_server_identifier }}"
+      - name: server_network_info
+        argv:
+          - "{{ ai_ops_phase03_script_dir }}/server_network_info.sh"
+          - "{{ ai_ops_phase03_validation_server_identifier }}"
+    ai_ops_phase03_invalid_identifier: "unsafe;identifier"
+    ai_ops_phase03_invalid_input_checks:
+      - name: server_basic_info unsafe identifier rejection
+        argv:
+          - "{{ ai_ops_phase03_script_dir }}/server_basic_info.sh"
+          - "{{ ai_ops_phase03_invalid_identifier }}"
+      - name: server_network_info unsafe identifier rejection
+        argv:
+          - "{{ ai_ops_phase03_script_dir }}/server_network_info.sh"
+          - "{{ ai_ops_phase03_invalid_identifier }}"
+  tasks:
+    - name: Inspect Phase 03 runtime paths
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_phase03_required_paths }}"
+      loop_control:
+        label: "{{ item.label }}"
+      register: ai_ops_phase03_required_path_stats
+
+    - name: Assert Phase 03 approved toolbox is deployed
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_phase03_required_path_stats.results
+            | selectattr('stat.exists', 'equalto', false)
+            | list
+            | length == 0
+          - >-
+            ai_ops_phase03_required_path_stats.results
+            | selectattr('item.type', 'equalto', 'directory')
+            | rejectattr('stat.isdir')
+            | list
+            | length == 0
+          - >-
+            ai_ops_phase03_required_path_stats.results
+            | selectattr('item.type', 'equalto', 'file')
+            | rejectattr('stat.isreg')
+            | list
+            | length == 0
+        fail_msg: "Phase 03 diagnostic toolbox paths are missing or have unexpected types."
+        success_msg: "Phase 03 diagnostic toolbox paths are present."
+
+    - name: Assert Phase 03 runtime path modes
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.item.expected_mode is not defined
+            or (item.stat.mode | string) in [item.item.expected_mode, item.item.expected_mode | regex_replace('^0', '')]
+        fail_msg: >-
+          {{ item.item.label }} has mode {{ item.stat.mode | default('unknown') }},
+          expected {{ item.item.expected_mode | default('not-enforced') }}.
+        success_msg: "{{ item.item.label }} has expected mode."
+      loop: "{{ ai_ops_phase03_required_path_stats.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+
+    - name: Assert a server identifier is available when server-specific checks are enabled
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase03_validation_server_identifier | length > 0
+          - (ai_ops_phase03_validation_server_identifier | regex_search('^[A-Za-z0-9._:-]+$')) is not none
+        fail_msg: >-
+          Set ai_ops_phase03_validation_server_identifier to an existing server name or ID,
+          or set ai_ops_phase03_skip_server_specific_scripts=true for a partial validation.
+        success_msg: "Phase 03 server-specific validation received a safe server identifier."
+      when: not (ai_ops_phase03_skip_server_specific_scripts | bool)
+
+    - name: Discover deployed approved shell scripts
+      ansible.builtin.find:
+        paths: "{{ ai_ops_phase03_script_dir }}"
+        patterns: "*.sh"
+        file_type: file
+        recurse: true
+      register: ai_ops_phase03_shell_scripts
+
+    - name: Run bash syntax checks on deployed approved shell scripts
+      ansible.builtin.command:
+        argv:
+          - bash
+          - -n
+          - "{{ item.path }}"
+      loop: "{{ ai_ops_phase03_shell_scripts.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: ai_ops_phase03_shell_syntax_results
+      changed_when: false
+      failed_when: false
+
+    - name: Assert deployed approved shell scripts parse successfully
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_phase03_shell_syntax_results.results
+            | selectattr('rc', 'ne', 0)
+            | list
+            | length == 0
+        fail_msg: "One or more deployed approved diagnostic scripts failed bash -n."
+        success_msg: "All deployed approved diagnostic scripts passed bash -n."
+
+    - name: Run Phase 03 project-reader diagnostic scripts
+      ansible.builtin.command:
+        argv: "{{ item.argv }}"
+      loop: "{{ ai_ops_phase03_project_reader_scripts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: ai_ops_phase03_project_reader_results
+      changed_when: false
+      failed_when: false
+
+    - name: Run Phase 03 server-specific diagnostic scripts
+      ansible.builtin.command:
+        argv: "{{ item.argv }}"
+      loop: "{{ ai_ops_phase03_server_scripts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: ai_ops_phase03_server_script_results
+      changed_when: false
+      failed_when: false
+      when: not (ai_ops_phase03_skip_server_specific_scripts | bool)
+
+    - name: Assert Phase 03 server-specific diagnostics succeeded
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_phase03_server_script_results.results | default([])
+            | selectattr('rc', 'ne', 0)
+            | list
+            | length == 0
+        fail_msg: "One or more server-specific Phase 03 diagnostics failed for the selected server."
+        success_msg: "Server-specific Phase 03 diagnostics succeeded for the selected server."
+      when: not (ai_ops_phase03_skip_server_specific_scripts | bool)
+
+    - name: Run Phase 03 unsafe identifier rejection checks
+      ansible.builtin.command:
+        argv: "{{ item.argv }}"
+      loop: "{{ ai_ops_phase03_invalid_input_checks }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: ai_ops_phase03_invalid_input_results
+      changed_when: false
+      failed_when: false
+      when: not (ai_ops_phase03_skip_server_specific_scripts | bool)
+
+    - name: Assert unsafe identifiers are rejected before OpenStack invocation
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_phase03_invalid_input_results.results | default([])
+            | selectattr('rc', 'equalto', 0)
+            | list
+            | length == 0
+        fail_msg: "One or more server diagnostics accepted an unsafe identifier."
+        success_msg: "Server diagnostics rejected unsafe identifiers."
+      when: not (ai_ops_phase03_skip_server_specific_scripts | bool)
+
+    - name: Run Phase 03 Neutron agent health availability gate
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_phase03_script_dir }}/neutron_agent_health.sh"
+      register: ai_ops_phase03_neutron_agent_health_result
+      changed_when: false
+      failed_when: false
+
+    - name: Assert Neutron agent health remains unavailable until operator-reader exists
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase03_neutron_agent_health_result.rc != 0
+          - "'unavailable' in ai_ops_phase03_neutron_agent_health_result.stdout"
+        fail_msg: "Neutron agent health must fail closed until a validated operator-reader profile exists."
+        success_msg: "Neutron agent health fails closed with an unavailable status."
+
+    - name: Report Phase 03 diagnostic return codes
+      ansible.builtin.debug:
+        msg:
+          - >-
+            project_resource_summary rc={{ ai_ops_phase03_project_reader_results.results[0].rc | default('not-run') }}
+          - >-
+            server_basic_info rc={{ (ai_ops_phase03_server_script_results.results[0].rc | default('skipped'))
+            if not (ai_ops_phase03_skip_server_specific_scripts | bool) else 'skipped' }}
+          - >-
+            server_network_info rc={{ (ai_ops_phase03_server_script_results.results[1].rc | default('skipped'))
+            if not (ai_ops_phase03_skip_server_specific_scripts | bool) else 'skipped' }}
+          - "neutron_agent_health rc={{ ai_ops_phase03_neutron_agent_health_result.rc }}"
+
+    - name: Write AI-OPS Phase 03 diagnostic toolbox evidence summary
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_phase03_evidence_path }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0644"
+        content: |
+          # Phase 03 Diagnostic Toolbox Evidence Snapshot
+
+          Generated by `ansible/ai_ops_runtime/playbook_validate_phase03_diagnostic_toolbox.yml`.
+
+          ## Metadata
+
+          - Date: {{ ansible_facts['date_time'].iso8601 }}
+          - Runtime host: {{ inventory_hostname }}
+          - Workspace root: {{ ai_ops_runtime_root }}
+          - Approved script directory: {{ ai_ops_phase03_script_dir }}
+          - Evidence path: {{ ai_ops_phase03_evidence_path }}
+          - Default profile name: {{ ai_ops_runtime_openstack_profile_name }}
+          - Server-specific checks skipped: {{ ai_ops_phase03_skip_server_specific_scripts | bool }}
+          - Selected server identifier: {{ ai_ops_phase03_validation_server_identifier if not (ai_ops_phase03_skip_server_specific_scripts | bool) else 'skipped' }}
+
+          ## Runtime Path Checks
+
+          {% for result in ai_ops_phase03_required_path_stats.results %}
+          - {{ result.item.label }}: {{ result.item.path }}
+            - exists={{ result.stat.exists | default(false) }}
+            - directory={{ result.stat.isdir | default(false) }}
+            - file={{ result.stat.isreg | default(false) }}
+            - owner={{ result.stat.pw_name | default('unknown') }}
+            - group={{ result.stat.gr_name | default('unknown') }}
+            - mode={{ result.stat.mode | default('unknown') }}
+            - expected_mode={{ result.item.expected_mode | default('not-enforced') }}
+          {% endfor %}
+
+          ## Shell Syntax Checks
+
+          {% for result in ai_ops_phase03_shell_syntax_results.results %}
+          - {{ result.item.path }}: rc={{ result.rc }}
+          {% endfor %}
+
+          ## Project-Reader Diagnostic Results
+
+          {% for result in ai_ops_phase03_project_reader_results.results %}
+          ### {{ result.item.name }}
+
+          - Return code: {{ result.rc }}
+          - stdout:
+
+            ```text
+          {{ result.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ result.stderr | default('') | indent(6, true) }}
+            ```
+
+          {% endfor %}
+
+          ## Server-Specific Diagnostic Results
+
+          {% if ai_ops_phase03_skip_server_specific_scripts | bool %}
+          Server-specific diagnostics were skipped by operator request.
+          {% else %}
+          {% for result in ai_ops_phase03_server_script_results.results | default([]) %}
+          ### {{ result.item.name }}
+
+          - Return code: {{ result.rc }}
+          - stdout:
+
+            ```text
+          {{ result.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ result.stderr | default('') | indent(6, true) }}
+            ```
+
+          {% endfor %}
+          {% endif %}
+
+          ## Unsafe Identifier Rejection Checks
+
+          {% if ai_ops_phase03_skip_server_specific_scripts | bool %}
+          Unsafe identifier checks were skipped because server-specific diagnostics were skipped.
+          {% else %}
+          {% for result in ai_ops_phase03_invalid_input_results.results | default([]) %}
+          ### {{ result.item.name }}
+
+          - Return code: {{ result.rc }}
+          - stdout:
+
+            ```text
+          {{ result.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ result.stderr | default('') | indent(6, true) }}
+            ```
+
+          {% endfor %}
+          {% endif %}
+
+          ## Neutron Agent Health Gate
+
+          - Return code: {{ ai_ops_phase03_neutron_agent_health_result.rc }}
+          - Expected status: unavailable until a validated non-default operator-reader profile exists
+          - stdout:
+
+            ```text
+          {{ ai_ops_phase03_neutron_agent_health_result.stdout | default('') | indent(6, true) }}
+            ```
+
+          - stderr:
+
+            ```text
+          {{ ai_ops_phase03_neutron_agent_health_result.stderr | default('') | indent(6, true) }}
+            ```
+
+          ## Boundary Notes
+
+          - Credential file content, token output, passwords, and private keys are not written by this evidence summary.
+          - The project-reader scripts are executed as fixed reviewed scripts, not as arbitrary OpenStack command passthrough.
+          - `project_resource_summary.sh` may report section-level unavailability if policy or service state blocks a read-only list operation.
+          - `neutron_agent_health.sh` is expected to fail closed until a separate operator-reader profile is validated.
