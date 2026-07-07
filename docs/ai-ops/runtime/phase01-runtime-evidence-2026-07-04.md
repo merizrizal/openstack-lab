@@ -49,9 +49,15 @@ Captured on `assistant01`:
 - OpenStack SDK: `4.17.0`
 - SSH client: `OpenSSH_9.6p1 Ubuntu-3ubuntu13.16`
 - curl: `curl 8.5.0`
-- JSON parser: `jq-1.7`
+- JSON parser: `jq-1.8.2`
 - Fast text search: `ripgrep 14.1.0`
-- Git: `git version 2.43.0`
+- Git: `git version 2.54.0`
+
+## Tooling Provenance Note
+
+The Phase 01 runtime bootstrap used `ansible/ai_ops_runtime/playbook_setup_assistant_runtime.yml`, which applies the shared `common` role before the `assistant_runtime` role. The shared `common` role provides generic operator/runtime tools such as `curl`, `git`, and `jq`; the `assistant_runtime` role provides the AI-OPS workspace, OpenStack profile handling, runtime Python virtual environment, OpenStack CLI/SDK packages, SSH client package, and fast text search package.
+
+The versions above are observed runtime evidence from `assistant01` on 2026-07-04. They may differ from later role defaults or rerun results after package updates.
 
 OpenStack CLI behavior without credentials was checked with `/opt/openstack-ai-ops/.venv/bin/openstack server list`; it failed with `Missing value auth-url required for auth plugin password`, confirming the client exists and auth is not configured.
 

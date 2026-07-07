@@ -1,0 +1,37 @@
+---
+- name: Ensure AI-OPS approved diagnostic script library directory exists
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_root }}/scripts/approved/lib"
+    state: directory
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "{{ ai_ops_runtime_directory_mode }}"
+
+- name: Install AI-OPS approved diagnostic policy README
+  ansible.builtin.copy:
+    src: scripts/approved/README.md
+    dest: "{{ ai_ops_runtime_root }}/scripts/approved/README.md"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0644"
+
+- name: Install AI-OPS approved diagnostic helper library
+  ansible.builtin.copy:
+    src: scripts/approved/lib/aiops_common.sh
+    dest: "{{ ai_ops_runtime_root }}/scripts/approved/lib/aiops_common.sh"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0644"
+
+- name: Install AI-OPS approved executable diagnostic scripts
+  ansible.builtin.copy:
+    src: "scripts/approved/{{ item }}"
+    dest: "{{ ai_ops_runtime_root }}/scripts/approved/{{ item }}"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0755"
+  loop:
+    - project_resource_summary.sh
+    - server_basic_info.sh
+    - server_network_info.sh
+    - neutron_agent_health.sh

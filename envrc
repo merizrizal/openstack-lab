@@ -2,6 +2,8 @@ rootdir=$(pwd)
 
 export ROOT_DIR=${rootdir}
 export ANSIBLE_CONFIG=$ROOT_DIR/ansible.cfg
+export BASE_IMAGE_NAME=ubuntu
+export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml
 
 cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
 
@@ -72,19 +74,101 @@ generate_os_client_config() {
     local env=$1
 	local lab_name=$2
 
-    output=$ROOT_DIR/generated/${env}_clouds.yml
+	output=$ROOT_DIR/generated/${env}_clouds.yml
 	controller01_ip_addr=`(yq '.controller01.mgmtnet_ip_address' inventories/$env/nodes.yml)`
+	os_keystone_username="admin"
 	os_keystone_password=`(yq '.os_keystone_password' ansible/deploy_openstack/inventories/$env/group_vars/all/common_secret.yml)`
+
+	if [[ ! -z $3 && ! -z $4 ]]; then
+		output=$ROOT_DIR/generated/clouds.yaml
+		os_keystone_username=$3
+		os_keystone_password=$4
+	fi
 
 	echo "---" > $output
 	echo "clouds:" >> $output
 	echo "  $lab_name:" >> $output
 	echo "    auth:" >> $output
 	echo "      auth_url: http://$controller01_ip_addr:5000/v3" >> $output
-	echo "      username: admin" >> $output
+	echo "      username: $os_keystone_username" >> $output
 	echo "      password: $os_keystone_password" >> $output
 	echo "      project_name: admin" >> $output
 	echo "      user_domain_name: default" >> $output
 	echo "      project_domain_name: default" >> $output
 	echo "    identity_api_version: 3" >> $output
+}
+
+generate_os_client_config_for_ai_ops() {
+	generate_os_client_config "local" "aiops-project-reader" "aiops-project-reader" "reader_platformpass"
+
+	output=$ROOT_DIR/generated/secure.yaml
+	echo "---" > $output
+	echo "clouds:" >> $output
+	echo "  aiops-project-reader:" >> $output
+	echo "    auth:" >> $output
+	echo "      password: reader_platformpass" >> $output
+	echo "    identity_api_version: 3" >> $output
+}
+
+deploy_ceph() {
+    local playbook=$1
+
+    if [[ ! -z $playbook ]]; then
+        ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_$playbook.yml
+    else
+        ansible-playbook -i deploy_ceph/inventories/local/local.yml deploy_ceph/playbook_deploy.yml
+    fi
+}
+
+deploy_openstack() {
+    local playbook=$1
+
+    if [[ ! -z $playbook ]]; then
+        ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_$playbook.yml
+    else
+        ansible-playbook -i deploy_openstack/inventories/local/local.yml deploy_openstack/playbook_deploy.yml
+    fi
+}
+
+deploy_opensearch() {
+    local playbook=$1
+
+    if [[ ! -z $playbook ]]; then
+        ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_$playbook.yml
+    else
+        ansible-playbook -i deploy_opensearch/inventories/local/local.yml deploy_opensearch/playbook_deploy.yml
+    fi
+}
+
+deploy_prometheus() {
+    local playbook=$1
+
+    if [[ ! -z $playbook ]]; then
+        ansible-playbook -i deploy_prometheus/inventories/local/local.yml deploy_prometheus/playbook_$playbook.yml
+    else
+        ansible-playbook -i deploy_prometheus/inventories/local/local.yml deploy_prometheus/playbook_deploy.yml
+    fi
+}
+
+bootstrap_openstack() {
+    ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_bootstrap.yml
+}
+
+bootstrap_kubernetes() {
+    ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_kubernetes.yml
+}
+
+bootstrap_cicd_server() {
+    ansible-playbook -i bootstrap_openstack/inventories/local/local.yml bootstrap_openstack/playbook_init_cicd_server.yml
+}
+
+deploy_kubernetes() {
+    ansible-playbook -i kubernetes_in_openstack/inventories/local/openstack.yml kubernetes_in_openstack/playbook_pre_setup.yml \
+    kubernetes_in_openstack/playbook_setup_kubernetes.yml kubernetes_in_openstack/playbook_setup_nodes.yml
+}
+
+deploy_cicd_server() {
+    ansible-playbook -i cicd_in_openstack/inventories/local/openstack.yml cicd_in_openstack/playbook_pre_setup.yml \
+    cicd_in_openstack/playbook_setup_gitlab.yml cicd_in_openstack/playbook_setup_jenkins.yml cicd_in_openstack/playbook_setup_runner.yml \
+    cicd_in_openstack/playbook_setup_ci_monitor.yml cicd_in_openstack/playbook_setup_node_exporter.yml
 }

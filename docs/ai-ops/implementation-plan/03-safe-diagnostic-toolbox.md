@@ -39,10 +39,10 @@ Excluded:
 
 ## 03.4 Assumptions
 
-- [ ] Project-reader credentials are configured and validated.
-- [ ] The assistant runtime has OpenStack CLI, JSON tooling, and shell support.
-- [ ] Initial scripts can be simple shell scripts because inspectability is valuable for the first version.
-- [ ] Server identifiers and names can be constrained to a safe character set for MVP tooling.
+- [x] Project-reader credentials are configured and validated.
+- [x] The assistant runtime has OpenStack CLI, JSON tooling, and shell support.
+- [x] Initial scripts can be simple shell scripts because inspectability is valuable for the first version.
+- [x] Server identifiers and names can be constrained to a safe character set for MVP tooling.
 
 ## 03.5 Ordered Tasks
 
@@ -57,15 +57,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Write a diagnostic toolbox README that states read-only commands only.
-- [ ] List forbidden operations: create, update, delete, restart, stop, start, install, edit, write redirection, unrestricted sudo, generic shell, database mutation, and raw command passthrough.
-- [ ] Require every script to validate inputs.
-- [ ] Require every script to use project-reader credentials by default unless explicitly classified otherwise.
-- [ ] Require outputs to be bounded and structured where practical.
+- [x] Write a diagnostic toolbox README that states read-only commands only.
+- [x] List forbidden operations: create, update, delete, restart, stop, start, install, edit, write redirection, unrestricted sudo, generic shell, database mutation, and raw command passthrough.
+- [x] Require every script to validate inputs.
+- [x] Require every script to use project-reader credentials by default unless explicitly classified otherwise.
+- [x] Require outputs to be bounded and structured where practical.
 
 Done when:
 
-- [ ] The script directory has a documented safety policy that can be reviewed before any script is trusted.
+- [x] The script directory has a documented safety policy that can be reviewed before any script is trusted.
 
 ### Step 2 - Add Common Script Helpers
 
@@ -78,15 +78,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a reusable helper for validating OpenStack object identifiers.
-- [ ] Add a reusable helper for emitting section headers or JSON envelopes.
-- [ ] Add a reusable helper for selecting the default project-reader cloud profile.
-- [ ] Add a reusable helper for consistent error messages and exit codes.
-- [ ] Add comments explaining why helpers reject shell metacharacters.
+- [x] Add a reusable helper for validating OpenStack object identifiers.
+- [x] Add a reusable helper for emitting section headers or JSON envelopes.
+- [x] Add a reusable helper for selecting the default project-reader cloud profile.
+- [x] Add a reusable helper for consistent error messages and exit codes.
+- [x] Add comments explaining why helpers reject shell metacharacters.
 
 Done when:
 
-- [ ] New scripts can share validation and output conventions without duplicating risky patterns.
+- [x] New scripts can share validation and output conventions without duplicating risky patterns.
 
 ### Step 3 - Implement Project Resource Summary
 
@@ -99,15 +99,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a script that lists project-visible servers in JSON.
-- [ ] Add network, subnet, port, volume, image, and security group list sections where policy allows.
-- [ ] Ensure the script uses the project-reader profile by default.
-- [ ] Ensure the script performs no create, update, delete, or service operations.
-- [ ] Manually run the script and save a redacted sample output.
+- [x] Add a script that lists project-visible servers in JSON.
+- [x] Add network, subnet, port, volume, image, and security group list sections where policy allows.
+- [x] Ensure the script uses the project-reader profile by default.
+- [x] Ensure the script performs no create, update, delete, or service operations.
+- [x] Manually run the script and save a redacted sample output.
 
 Done when:
 
-- [ ] The operator can run one command to see the basic project inventory without changing the cloud.
+- [x] The operator can run one command to see the basic project inventory without changing the cloud.
 
 ### Step 4 - Implement Server Basic Info
 
@@ -120,15 +120,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a script that accepts one server name or ID.
-- [ ] Reject empty input and unsafe characters.
-- [ ] Return server details in JSON.
-- [ ] Preserve OpenStack error output for not-found or permission-denied cases.
-- [ ] Manually verify success against an existing server and failure against an invalid identifier.
+- [x] Add a script that accepts one server name or ID.
+- [x] Reject empty input and unsafe characters.
+- [x] Return server details in JSON.
+- [x] Preserve OpenStack error output for not-found or permission-denied cases.
+- [x] Manually verify success against an existing server and failure against an invalid identifier.
 
 Done when:
 
-- [ ] The operator can inspect one server’s state, image, flavor, network attachments, and config-drive-related fields through a read-only call.
+- [x] The operator can inspect one server’s state, image, flavor, network attachments, and config-drive-related fields through a read-only call.
 
 ### Step 5 - Implement Server Network Info
 
@@ -141,16 +141,16 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a script that accepts one server name or ID.
-- [ ] Return the server summary in JSON.
-- [ ] Return port list for the server in JSON.
+- [x] Add a script that accepts one server name or ID.
+- [x] Return the server summary in JSON.
+- [x] Return port list for the server in JSON.
 - [ ] Where practical, expand port, subnet, and network details using read-only show operations.
-- [ ] Keep the first version simple if policy or CLI output makes expansion unreliable.
-- [ ] Manually verify output helps identify fixed IPs, networks, and ports for metadata troubleshooting.
+- [x] Keep the first version simple if policy or CLI output makes expansion unreliable.
+- [x] Manually verify output helps identify fixed IPs, networks, and ports for metadata troubleshooting.
 
 Done when:
 
-- [ ] The operator can gather server network attachment evidence without using arbitrary OpenStack commands.
+- [x] The operator can gather server network attachment evidence without using arbitrary OpenStack commands.
 
 ### Step 6 - Add Optional Neutron Agent Health Tool Gate
 
@@ -164,13 +164,13 @@ Estimate:
 Tasks:
 
 - [ ] Add the Neutron agent health script only if an operator-reader profile exists and has been validated.
-- [ ] If the profile does not exist, add a documented placeholder that marks the tool unavailable.
-- [ ] Classify the tool as higher-visibility than project-reader diagnostics.
+- [x] If the profile does not exist, add a documented placeholder that marks the tool unavailable.
+- [x] Classify the tool as higher-visibility than project-reader diagnostics.
 - [ ] Ensure the tool lists agents only and performs no service operations.
 
 Done when:
 
-- [ ] The toolbox either has a safe Neutron agent health script or a clear deferred status.
+- [x] The toolbox either has a safe Neutron agent health script or a clear deferred status.
 
 ### Step 7 - Add Static Safety Checks
 
@@ -183,26 +183,26 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a repository-local check that scans AI-OPS scripts for forbidden command patterns.
-- [ ] Include patterns for OpenStack mutation verbs, service restarts, package installation, file mutation, unrestricted sudo, shell eval, and raw SSH command forwarding.
-- [ ] Run shell syntax checks on all scripts.
-- [ ] Document known false positives and how to review them.
+- [x] Add a repository-local check that scans AI-OPS scripts for forbidden command patterns.
+- [x] Include patterns for OpenStack mutation verbs, service restarts, package installation, file mutation, unrestricted sudo, shell eval, and raw SSH command forwarding.
+- [x] Run shell syntax checks on all scripts.
+- [x] Document known false positives and how to review them.
 
 Done when:
 
-- [ ] A maintainer can run a quick check that flags obviously unsafe script changes before trusting them.
+- [x] A maintainer can run a quick check that flags obviously unsafe script changes before trusting them.
 
 ## 03.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] Initial project-resource, server-basic, and server-network scripts exist.
-- [ ] Scripts use read-only OpenStack API operations.
-- [ ] Scripts validate inputs and reject unsafe characters.
-- [ ] Scripts use JSON or clear sectioned output.
-- [ ] Scripts can be run manually from the assistant runtime.
-- [ ] Static safety checks and shell syntax checks pass.
-- [ ] No generic command execution script exists.
+- [x] Initial project-resource, server-basic, and server-network scripts exist.
+- [x] Scripts use read-only OpenStack API operations.
+- [x] Scripts validate inputs and reject unsafe characters.
+- [x] Scripts use JSON or clear sectioned output.
+- [x] Scripts can be run manually from the assistant runtime.
+- [x] Static safety checks and shell syntax checks pass.
+- [x] No generic command execution script exists.
 
 ## 03.7 Risks
 
