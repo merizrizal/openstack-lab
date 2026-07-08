@@ -7,6 +7,30 @@
     group: "{{ ai_ops_runtime_group }}"
     mode: "{{ ai_ops_runtime_directory_mode }}"
 
+- name: Ensure AI-OPS tool runner directory exists
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_root }}/scripts/tool_runner"
+    state: directory
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "{{ ai_ops_runtime_directory_mode }}"
+
+- name: Install AI-OPS tool runner CLI
+  ansible.builtin.copy:
+    src: scripts/tool_runner/aiops_tool_runner.py
+    dest: "{{ ai_ops_runtime_root }}/scripts/tool_runner/aiops_tool_runner.py"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0755"
+
+- name: Install AI-OPS tool runner registry
+  ansible.builtin.copy:
+    src: scripts/tool_runner/tool_registry.json
+    dest: "{{ ai_ops_runtime_root }}/scripts/tool_runner/tool_registry.json"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0644"
+
 - name: Install AI-OPS approved diagnostic policy README
   ansible.builtin.copy:
     src: scripts/approved/README.md
