@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "registry_name": "ai-ops-tool-runner-mvp",
+  "description": "Deny-by-default registry for local AI-OPS diagnostic tool runner requests.",
+  "policy": {
+    "default_decision": "deny",
+    "execution_model": "argv_only",
+    "forbidden_capabilities": [
+      "generic_shell",
+      "generic_ssh",
+      "generic_sudo",
+      "openstack_cli_passthrough",
+      "file_read_write",
+      "database_query",
+      "rabbitmq_access",
+      "service_restart",
+      "package_mutation",
+      "remediation"
+    ],
+    "audit_required": true,
+    "result_envelope_required": true,
+    "secret_handling": "omit_or_redact_secret_like_values"
+  },
+  "supported_argument_validation_types": [
+    "required_string",
+    "safe_identifier_pattern",
+    "allowed_host_list",
+    "optional_default",
+    "bounded_time_window"
+  ],
+  "defaults": {
+    "credential_profile": "aiops-project-reader",
+    "risk_level": "low_readonly_project_scope",
+    "timeout_seconds": 30,
+    "output_limit_bytes": 65536,
+    "mutation_guarantee": "read_only_fixed_diagnostic_script"
+  },
+  "tools": [
+    {
+      "name": "project_resource_summary",
+      "description": "List project-visible OpenStack servers, networks, subnets, ports, volumes, images, and security groups where policy allows.",
+      "script_target": "/opt/openstack-ai-ops/scripts/approved/project_resource_summary.sh",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/approved/project_resource_summary.sh",
+      "credential_profile": "aiops-project-reader",
+      "risk_level": "low_readonly_project_scope",
+      "available": true,
+      "timeout_seconds": 45,
+      "output_limit_bytes": 131072,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "arguments": []
+    },
+    {
+      "name": "server_basic_info",
+      "description": "Show basic OpenStack details for one project-visible server name or ID.",
+      "script_target": "/opt/openstack-ai-ops/scripts/approved/server_basic_info.sh",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/approved/server_basic_info.sh",
+      "credential_profile": "aiops-project-reader",
+      "risk_level": "low_readonly_project_scope",
+      "available": true,
+      "timeout_seconds": 30,
+      "output_limit_bytes": 65536,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "arguments": [
+        {
+          "name": "server_identifier",
+          "position": 1,
+          "required": true,
+          "validation": "safe_identifier_pattern",
+          "pattern": "^[A-Za-z0-9._:-]+$",
+          "description": "Server name or ID using the Phase 03 conservative safe identifier character set."
+        }
+      ]
+    },
+    {
+      "name": "server_network_info",
+      "description": "Return server summary, ports, and project-visible network/subnet context for one server name or ID.",
+      "script_target": "/opt/openstack-ai-ops/scripts/approved/server_network_info.sh",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/approved/server_network_info.sh",
+      "credential_profile": "aiops-project-reader",
+      "risk_level": "low_readonly_project_scope",
+      "available": true,
+      "timeout_seconds": 45,
+      "output_limit_bytes": 131072,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "arguments": [
+        {
+          "name": "server_identifier",
+          "position": 1,
+          "required": true,
+          "validation": "safe_identifier_pattern",
+          "pattern": "^[A-Za-z0-9._:-]+$",
+          "description": "Server name or ID using the Phase 03 conservative safe identifier character set."
+        }
+      ]
+    },
+    {
+      "name": "neutron_agent_health",
+      "description": "Deferred higher-visibility Neutron agent health diagnostic. It remains unavailable until a validated non-default operator-reader profile exists.",
+      "script_target": "/opt/openstack-ai-ops/scripts/approved/neutron_agent_health.sh",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/approved/neutron_agent_health.sh",
+      "credential_profile": "operator-reader-deferred",
+      "risk_level": "higher_visibility_operator_scope_deferred",
+      "available": false,
+      "unavailable_reason": "no validated non-default operator-reader profile is available for this diagnostic",
+      "timeout_seconds": 30,
+      "output_limit_bytes": 32768,
+      "mutation_guarantee": "unavailable_fail_closed_no_execution_until_operator_reader_validated",
+      "arguments": []
+    }
+  ]
+}
