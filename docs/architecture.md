@@ -76,7 +76,7 @@ Major domains under `ansible/`:
    - Dynamic inventory from OpenStack cloud config, then GitLab/Jenkins/runner/monitor setup.
 7. `kubernetes_in_openstack/`
    - Dynamic inventory from OpenStack cloud config, then kubeadm cluster bring-up.
-8. `shared_resources/playbooks/roles/`
+8. `shared_resources/roles/`
    - Reusable `common`, `docker`, `telemetry`, and `ceph_common_vars`.
 
 Inventory boundaries are explicit and matter operationally:

@@ -130,6 +130,16 @@ deploy_openstack() {
     fi
 }
 
+deploy_aiops_assistant() {
+    local playbook=$1
+
+    if [[ ! -z $playbook ]]; then
+        ansible-playbook -i ai_ops_runtime/inventories/local/local.yml ai_ops_runtime/playbook_$playbook.yml
+    else
+        ansible-playbook -i ai_ops_runtime/inventories/local/local.yml ai_ops_runtime/playbook_setup_assistant_runtime.yml
+    fi
+}
+
 deploy_opensearch() {
     local playbook=$1
 

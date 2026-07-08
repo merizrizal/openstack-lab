@@ -33,7 +33,7 @@ Severity model:
 
 1. Port mismatch between node exporter default and OpenStack bootstrap security group.
    - Evidence:
-     - Node exporter default: `ansible/shared_resources/playbooks/roles/telemetry/defaults/main.yml:14` (`9200`)
+     - Node exporter default: `ansible/shared_resources/roles/telemetry/defaults/main.yml:14` (`9200`)
      - Security group opens: `ansible/bootstrap_openstack/playbook_bootstrap.yml:142` (`9100`)
    - Impact:
      - CI/CD node-exporter scraping from monitor VMs can fail due to blocked port.
@@ -53,7 +53,7 @@ Severity model:
    - Evidence:
      - Optional enable flag: `ansible/deploy_openstack/inventories/local/group_vars/all/common.yml:12`
      - Ceph role in pre-setup: `ansible/deploy_openstack/playbook_pre_setup.yml:13`
-     - Artifact path default: `ansible/shared_resources/playbooks/roles/ceph_common_vars/defaults/main.yml:5`
+     - Artifact path default: `ansible/shared_resources/roles/ceph_common_vars/defaults/main.yml:5`
      - Artifact consumption: `ansible/deploy_openstack/roles/ceph/tasks/main.yml:8`
    - Impact:
      - OpenStack pre-setup can fail if `ceph_enabled: true` and the Ceph export phase was not run previously.

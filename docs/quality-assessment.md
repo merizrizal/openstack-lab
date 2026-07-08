@@ -5,7 +5,7 @@
 1. Clear domain partitioning:
    - OpenStack, Ceph, observability, CI/CD, and Kubernetes are cleanly separated.
 2. Reusable shared roles:
-   - `shared_resources/playbooks/roles/*` centralizes common host prep, Docker, and telemetry behavior.
+   - `shared_resources/roles/*` centralizes common host prep, Docker, and telemetry behavior.
 3. Practical lab ergonomics:
    - Vagrant + inventories + Makefiles make end-to-end setup approachable.
 4. Dual CI footprint:

@@ -4,7 +4,7 @@ ansible:
     defaults:
       collections_path: >-
         $HOME/.ansible/collections:/usr/share/ansible/collections:$ROOT_DIR/dist/ansible/itential-deployer:$ROOT_DIR/dist/ansible/colt_utils_collections
-      roles_path: $HOME/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:$ROOT_DIR/shared_resources/playbooks/roles
+      roles_path: $HOME/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:$ROOT_DIR/shared_resources/roles
       log_path: $ROOT_DIR/molecule/log/$SCENARIO/$LOG_FILE.log
     inventory:
       enable_plugins: host_list, script, auto, yaml, ini, toml
