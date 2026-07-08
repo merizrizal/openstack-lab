@@ -8,3 +8,7 @@ log
 .ansible
 
 .agents
+
+# Compiled files
+*.class
+*.py[cod]
