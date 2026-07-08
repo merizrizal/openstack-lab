@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Fail-closed AI-OPS tool runner stub for Phase 04 Chunk 2."""
+"""Fail-closed AI-OPS tool runner for Phase 04 Chunk 5."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 import time
 import uuid
@@ -22,9 +24,20 @@ STATUS_EXIT_CODES = {
     "truncated": 6,
 }
 
+SAFE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
+SECRET_LIKE_ARGUMENT_RE = re.compile(
+    r"(?:^|[_-])(token|secret|password|passphrase|credential|private[_-]?key|api[_-]?key)(?:$|[_-])",
+    re.IGNORECASE,
+)
+
 
 def default_registry_path() -> Path:
     return Path(__file__).with_name("tool_registry.json")
+
+
+
+def default_audit_path() -> Path:
+    return Path("/opt/openstack-ai-ops/audit/tool-runner.jsonl")
 
 
 def load_registry(path: str | Path) -> dict[str, Any]:
@@ -66,7 +79,7 @@ def build_result_envelope(
     return {
         "tool": tool_name,
         "status": status,
-        "arguments": arguments or {},
+        "arguments": sanitize_arguments(arguments),
         "exit_code": exit_code,
         "stdout": stdout,
         "stderr": stderr,
@@ -75,6 +88,54 @@ def build_result_envelope(
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "request_id": request_id or str(uuid.uuid4()),
     }
+
+
+def sanitize_arguments(arguments: dict[str, str] | None) -> dict[str, Any]:
+    if not arguments:
+        return {}
+
+    sanitized: dict[str, Any] = {}
+    redacted_count = 0
+    for name, value in arguments.items():
+        if SECRET_LIKE_ARGUMENT_RE.search(name):
+            redacted_count += 1
+            continue
+        sanitized[name] = value
+
+    if redacted_count:
+        sanitized["_redacted_argument_count"] = redacted_count
+
+    return sanitized
+
+
+
+def build_audit_event(envelope: dict[str, Any]) -> dict[str, Any]:
+    event = {
+        "timestamp": envelope["timestamp"],
+        "tool": envelope["tool"],
+        "status": envelope["status"],
+        "arguments": sanitize_arguments(envelope.get("arguments")),
+        "duration_ms": envelope["duration_ms"],
+        "request_id": envelope["request_id"],
+    }
+
+    if envelope.get("exit_code") is not None:
+        event["exit_code"] = envelope["exit_code"]
+    if envelope.get("truncated"):
+        event["truncated"] = True
+    if envelope.get("stderr"):
+        event["reason"] = envelope["stderr"]
+
+    return event
+
+
+
+def write_audit_event(path: str | Path, event: dict[str, Any]) -> None:
+    audit_path = Path(path)
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    with audit_path.open("a", encoding="utf-8") as handle:
+        json.dump(event, handle, sort_keys=True)
+        handle.write("\n")
 
 
 def parse_declared_args(raw_args: list[str]) -> dict[str, str]:
@@ -91,9 +152,278 @@ def parse_declared_args(raw_args: list[str]) -> dict[str, str]:
     return parsed
 
 
+def get_supported_validation_types(registry: dict[str, Any]) -> set[str]:
+    raw_types = registry.get("supported_argument_validation_types", [])
+    if not isinstance(raw_types, list):
+        raise ValueError("supported argument validation types must be a JSON array")
+
+    supported_types: set[str] = set()
+    for raw_type in raw_types:
+        if not isinstance(raw_type, str) or not raw_type:
+            raise ValueError(
+                "supported argument validation types must be non-empty strings"
+            )
+        supported_types.add(raw_type)
+
+    return supported_types
+
+
+def validate_argument_value(
+    argument_definition: dict[str, Any],
+    value: str,
+    supported_validation_types: set[str],
+) -> str:
+    name = argument_definition["name"]
+    if value == "":
+        raise ValueError(f"{name} must not be empty")
+
+    validation_type = argument_definition.get("validation", "required_string")
+    if not isinstance(validation_type, str) or not validation_type:
+        raise ValueError(f"registry argument {name} is missing a validation type")
+    if validation_type not in supported_validation_types:
+        raise ValueError(
+            f"registry argument {name} uses unsupported validation type: {validation_type}"
+        )
+
+    if validation_type == "required_string":
+        return value
+
+    if validation_type == "safe_identifier_pattern":
+        pattern_text = argument_definition.get("pattern", SAFE_IDENTIFIER_PATTERN.pattern)
+        if not isinstance(pattern_text, str) or not pattern_text:
+            raise ValueError(f"registry argument {name} is missing a non-empty pattern")
+        if re.fullmatch(pattern_text, value) is None:
+            raise ValueError(f"{name} contains unsafe characters")
+        return value
+
+    raise ValueError(
+        f"registry argument {name} uses unsupported validation type: {validation_type}"
+    )
+
+
+def validate_request(
+    registry: dict[str, Any],
+    tool_name: str,
+    raw_args: dict[str, str],
+) -> tuple[dict[str, Any], dict[str, str]]:
+    tool_index = {tool["name"]: tool for tool in registry["tools"]}
+    requested_tool = tool_index.get(tool_name)
+    if requested_tool is None:
+        raise ValueError("requested tool is not present in the reviewed allowlist")
+
+    argument_definitions = requested_tool.get("arguments", [])
+    if not isinstance(argument_definitions, list):
+        raise ValueError(f"registry arguments for tool {tool_name} must be a JSON array")
+
+    supported_validation_types = get_supported_validation_types(registry)
+    allowed_names: set[str] = set()
+    validated_args: dict[str, str] = {}
+
+    for argument_definition in sorted(
+        argument_definitions,
+        key=lambda definition: definition.get("position", 0),
+    ):
+        if not isinstance(argument_definition, dict):
+            raise ValueError(
+                f"registry argument definitions for tool {tool_name} must be JSON objects"
+            )
+
+        name = argument_definition.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(
+                f"registry argument definition for tool {tool_name} is missing a non-empty name"
+            )
+        if name in allowed_names:
+            raise ValueError(
+                f"duplicate registry argument for tool {tool_name}: {name}"
+            )
+        allowed_names.add(name)
+
+        required = argument_definition.get("required", False)
+        if not isinstance(required, bool):
+            raise ValueError(f"registry argument {name} required flag must be boolean")
+
+        if name not in raw_args:
+            if "default" in argument_definition:
+                default_value = argument_definition["default"]
+                if not isinstance(default_value, str):
+                    raise ValueError(f"registry default for argument {name} must be a string")
+                validated_args[name] = validate_argument_value(
+                    argument_definition,
+                    default_value,
+                    supported_validation_types,
+                )
+            elif required:
+                raise ValueError(f"missing required argument: {name}")
+            continue
+
+        validated_args[name] = validate_argument_value(
+            argument_definition,
+            raw_args[name],
+            supported_validation_types,
+        )
+
+    unknown_args = sorted(set(raw_args) - allowed_names)
+    if unknown_args:
+        raise ValueError(
+            f"unknown declared argument(s): {', '.join(unknown_args)}"
+        )
+
+    return requested_tool, validated_args
+
+
+def get_positive_int_setting(
+    registry: dict[str, Any],
+    requested_tool: dict[str, Any],
+    setting_name: str,
+    fallback_value: int,
+) -> int:
+    if fallback_value < 1:
+        raise ValueError(f"fallback {setting_name} must be positive")
+
+    raw_defaults = registry.get("defaults", {})
+    if not isinstance(raw_defaults, dict):
+        raise ValueError("registry defaults must be a JSON object")
+
+    value = requested_tool.get(setting_name, raw_defaults.get(setting_name, fallback_value))
+    if not isinstance(value, int) or value < 1:
+        tool_name = requested_tool.get("name", "unknown")
+        raise ValueError(f"registry tool {tool_name} has invalid {setting_name}")
+
+    return value
+
+
+
+def build_command_argv(
+    requested_tool: dict[str, Any],
+    validated_args: dict[str, str],
+) -> list[str]:
+    tool_name = requested_tool.get("name", "unknown")
+    script_target = requested_tool.get("script_target")
+    if not isinstance(script_target, str) or not script_target:
+        raise ValueError(f"registry tool {tool_name} is missing a non-empty script_target")
+
+    argument_definitions = requested_tool.get("arguments", [])
+    if not isinstance(argument_definitions, list):
+        raise ValueError(f"registry arguments for tool {tool_name} must be a JSON array")
+
+    argv = [script_target]
+    for argument_definition in sorted(
+        argument_definitions,
+        key=lambda definition: definition.get("position", 0),
+    ):
+        name = argument_definition.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError(
+                f"registry argument definition for tool {tool_name} is missing a non-empty name"
+            )
+        if name in validated_args:
+            argv.append(validated_args[name])
+
+    return argv
+
+
+
+def truncate_output(text: str, output_limit_bytes: int) -> tuple[str, bool]:
+    if output_limit_bytes < 1:
+        raise ValueError("output_limit_bytes must be positive")
+
+    encoded = text.encode("utf-8")
+    if len(encoded) <= output_limit_bytes:
+        return text, False
+
+    return encoded[:output_limit_bytes].decode("utf-8", errors="ignore"), True
+
+
+
+def normalize_stream_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+
+def run_tool(
+    registry: dict[str, Any],
+    requested_tool: dict[str, Any],
+    validated_args: dict[str, str],
+) -> dict[str, Any]:
+    timeout_seconds = get_positive_int_setting(
+        registry,
+        requested_tool,
+        "timeout_seconds",
+        30,
+    )
+    output_limit_bytes = get_positive_int_setting(
+        registry,
+        requested_tool,
+        "output_limit_bytes",
+        65536,
+    )
+    argv = build_command_argv(requested_tool, validated_args)
+
+    try:
+        completed = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            shell=False,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout, stdout_truncated = truncate_output(
+            normalize_stream_text(exc.stdout),
+            output_limit_bytes,
+        )
+        timeout_message = f"tool execution exceeded timeout of {timeout_seconds} seconds"
+        stderr_text = normalize_stream_text(exc.stderr)
+        if stderr_text:
+            stderr_text = f"{stderr_text.rstrip()}\n{timeout_message}"
+        else:
+            stderr_text = timeout_message
+        stderr, stderr_truncated = truncate_output(stderr_text, output_limit_bytes)
+        return {
+            "status": "timeout",
+            "exit_code": None,
+            "stdout": stdout,
+            "stderr": stderr,
+            "truncated": stdout_truncated or stderr_truncated,
+        }
+    except OSError as exc:
+        stderr, stderr_truncated = truncate_output(str(exc), output_limit_bytes)
+        return {
+            "status": "error",
+            "exit_code": None,
+            "stdout": "",
+            "stderr": stderr,
+            "truncated": stderr_truncated,
+        }
+
+    stdout, stdout_truncated = truncate_output(completed.stdout, output_limit_bytes)
+    stderr, stderr_truncated = truncate_output(completed.stderr, output_limit_bytes)
+    truncated = stdout_truncated or stderr_truncated
+
+    status = "ok" if completed.returncode == 0 else "error"
+    if truncated:
+        status = "truncated"
+
+    return {
+        "status": status,
+        "exit_code": completed.returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "truncated": truncated,
+    }
+
+
 def parse_cli_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Fail-closed AI-OPS tool runner stub for reviewed diagnostic tools."
+        description="Fail-closed AI-OPS tool runner for reviewed diagnostic tools."
     )
     parser.add_argument("tool_name", help="Requested reviewed diagnostic tool name")
     parser.add_argument(
@@ -106,12 +436,17 @@ def parse_cli_args(argv: list[str] | None) -> argparse.Namespace:
         action="append",
         default=[],
         metavar="KEY=VALUE",
-        help="Declared tool argument. Chunk 2 stores arguments only; it does not validate them yet.",
+        help="Declared tool argument in key=value form. Chunk 5 validates, executes, and audits reviewed registry tools.",
     )
     parser.add_argument(
         "--request-id",
         default=None,
         help="Optional caller-provided request or correlation identifier",
+    )
+    parser.add_argument(
+        "--audit-path",
+        default=str(default_audit_path()),
+        help="Path to JSON Lines audit log file",
     )
     return parser.parse_args(argv)
 
@@ -127,48 +462,127 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         registry = load_registry(args.registry)
-        declared_args = parse_declared_args(args.arg)
-        tool_index = {tool["name"]: tool for tool in registry["tools"]}
-
-        requested_tool = tool_index.get(args.tool_name)
-        if requested_tool is None:
+    except Exception as exc:  # fail closed during startup
+        envelope = build_result_envelope(
+            args.tool_name,
+            "error",
+            arguments={},
+            stderr=str(exc),
+            duration_ms=int((time.monotonic() - started) * 1000),
+            request_id=args.request_id,
+        )
+        try:
+            write_audit_event(args.audit_path, build_audit_event(envelope))
+        except Exception as audit_exc:
             envelope = build_result_envelope(
                 args.tool_name,
-                "denied",
-                arguments=declared_args,
-                stderr="requested tool is not present in the reviewed allowlist",
+                "error",
+                arguments={},
+                stderr=f"failed to write audit event: {audit_exc}",
                 duration_ms=int((time.monotonic() - started) * 1000),
                 request_id=args.request_id,
             )
-        elif not requested_tool.get("available", True):
+        emit_envelope(envelope)
+        return STATUS_EXIT_CODES.get(envelope["status"], 1)
+
+    try:
+        declared_args = parse_declared_args(args.arg)
+    except ValueError as exc:
+        envelope = build_result_envelope(
+            args.tool_name,
+            "validation_error",
+            arguments={},
+            stderr=str(exc),
+            duration_ms=int((time.monotonic() - started) * 1000),
+            request_id=args.request_id,
+        )
+        try:
+            write_audit_event(args.audit_path, build_audit_event(envelope))
+        except Exception as audit_exc:
             envelope = build_result_envelope(
                 args.tool_name,
-                "unavailable",
-                arguments=declared_args,
-                stderr=requested_tool.get(
-                    "unavailable_reason",
-                    "tool is intentionally unavailable",
-                ),
+                "error",
+                arguments={},
+                stderr=f"failed to write audit event: {audit_exc}",
+                duration_ms=int((time.monotonic() - started) * 1000),
+                request_id=args.request_id,
+            )
+        emit_envelope(envelope)
+        return STATUS_EXIT_CODES.get(envelope["status"], 1)
+
+    tool_index = {tool["name"]: tool for tool in registry["tools"]}
+    requested_tool = tool_index.get(args.tool_name)
+
+    if requested_tool is None:
+        envelope = build_result_envelope(
+            args.tool_name,
+            "denied",
+            arguments=declared_args,
+            stderr="requested tool is not present in the reviewed allowlist",
+            duration_ms=int((time.monotonic() - started) * 1000),
+            request_id=args.request_id,
+        )
+    elif not requested_tool.get("available", True):
+        envelope = build_result_envelope(
+            args.tool_name,
+            "unavailable",
+            arguments=declared_args,
+            stderr=requested_tool.get(
+                "unavailable_reason",
+                "tool is intentionally unavailable",
+            ),
+            duration_ms=int((time.monotonic() - started) * 1000),
+            request_id=args.request_id,
+        )
+    else:
+        try:
+            requested_tool, validated_args = validate_request(
+                registry,
+                args.tool_name,
+                declared_args,
+            )
+            execution_result = run_tool(registry, requested_tool, validated_args)
+        except ValueError as exc:
+            envelope = build_result_envelope(
+                args.tool_name,
+                "validation_error",
+                arguments={},
+                stderr=str(exc),
+                duration_ms=int((time.monotonic() - started) * 1000),
+                request_id=args.request_id,
+            )
+        except Exception as exc:  # fail closed during execution
+            envelope = build_result_envelope(
+                args.tool_name,
+                "error",
+                arguments={},
+                stderr=str(exc),
                 duration_ms=int((time.monotonic() - started) * 1000),
                 request_id=args.request_id,
             )
         else:
             envelope = build_result_envelope(
                 args.tool_name,
-                "error",
-                arguments=declared_args,
-                stderr="tool execution not implemented in Chunk 2 stub",
+                execution_result["status"],
+                arguments=validated_args,
+                exit_code=execution_result["exit_code"],
+                stdout=execution_result["stdout"],
+                stderr=execution_result["stderr"],
                 duration_ms=int((time.monotonic() - started) * 1000),
+                truncated=execution_result["truncated"],
                 request_id=args.request_id,
             )
-    except Exception as exc:  # fail closed during stub phase
+
+    try:
+        write_audit_event(args.audit_path, build_audit_event(envelope))
+    except Exception as exc:
         envelope = build_result_envelope(
-            args.tool_name if "args" in locals() else "unknown",
+            args.tool_name,
             "error",
             arguments={},
-            stderr=str(exc),
+            stderr=f"failed to write audit event: {exc}",
             duration_ms=int((time.monotonic() - started) * 1000),
-            request_id=getattr(args, "request_id", None) if "args" in locals() else None,
+            request_id=args.request_id,
         )
 
     emit_envelope(envelope)
