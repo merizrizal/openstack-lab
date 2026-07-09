@@ -1,0 +1,79 @@
+---
+- name: Install packages repository on Debian-based distributions
+  when: "'debian' in (ansible_facts['os_family'] | lower)"
+  block:
+    - name: Install repository using deb822_repository module
+      block:
+        - name: Add the repository using deb822_repository module
+          ansible.builtin.deb822_repository:
+            name: "{{ repository_source_name }}"
+            types:
+              - deb
+            uris:
+              - "{{ repository_uri }}"
+            suites:
+              - "{{ ansible_facts['distribution_release'] }}"
+            components:
+              - stable
+            architectures:
+              - "{{ arch_mapping[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
+            signed_by: "{{ repository_key_uri }}"
+          register: add_repository
+          retries: 10
+          until: add_repository is succeeded
+      rescue:
+        - name: Remove the repository source if it exists
+          ansible.builtin.file:
+            path: "{{ add_repository.dest }}"
+            state: absent
+          when: add_repository is defined and add_repository.dest is defined
+
+        - name: Remove the keyring source if it exists
+          ansible.builtin.file:
+            path: "{{ add_repository.key_filename }}"
+            state: absent
+          when: add_repository is defined and add_repository.key_filename is defined
+
+        - name: Create directory for the GPG key
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: "755"
+
+        - name: Add the official GPG key
+          ansible.builtin.get_url:
+            url: "{{ repository_key_uri }}"
+            dest: /etc/apt/keyrings/{{ repository_key_filename }}
+            mode: "644"
+          register: add_gpg_key
+          retries: 10
+          until: add_gpg_key is succeeded
+
+        - name: Add the repository using raw copy file
+          ansible.builtin.copy:
+            content: |-
+              Types: deb
+              URIs: {{ repository_uri }}
+              Suites: {{ ansible_distribution_release }}
+              Components: stable
+              Architectures: {{ arch_mapping[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}
+              Signed-By: /etc/apt/keyrings/{{ repository_key_filename }}
+            dest: /etc/apt/sources.list.d/{{ repository_source_name }}.sources
+            mode: "644"
+
+    - name: Do apt upgrade
+      ansible.builtin.apt:
+        upgrade: safe
+        update_cache: true
+
+- name: Install packages repository on RHEL-based distributions
+  when: "'redhat' in (ansible_facts['os_family'] | lower)"
+  block:
+    - name: Add the repository using yum_repository module
+      ansible.builtin.yum_repository:
+        name: "{{ repository_source_name }}"
+        baseurl: "{{ repository_uri }}"
+        description: "{{ repository_description }}"
+        gpgcheck: true
+        gpgkey: "{{ repository_key_uri }}"
+        state: present

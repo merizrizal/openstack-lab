@@ -1,4 +1,22 @@
 ---
+- name: Install required packages
+  ansible.builtin.package:
+    pkg:
+      - ca-certificates
+      - curl
+  any_errors_fatal: true
+
+- name: Print architecture variables
+  ansible.builtin.debug:
+    msg: "{{ print_architecture_variables }}"
+  vars:
+    print_architecture_variables:
+      architecture: "{{ ansible_facts['architecture'] }}"
+      os_family: "{{ ansible_facts['os_family'] }}"
+      distribution: "{{ ansible_facts['distribution'] }}"
+      distribution_version: "{{ ansible_facts['distribution_version'] }}"
+      distribution_release: "{{ ansible_facts['distribution_release'] }}"
+
 - name: Capture Docker version
   ansible.builtin.command:
     cmd: docker --version

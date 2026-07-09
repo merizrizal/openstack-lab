@@ -1,0 +1,7 @@
+---
+- name: Install Docker
+  hosts: "{{ host_list | default('all') }}"
+  any_errors_fatal: true
+  become: true
+  roles:
+    - role: docker
