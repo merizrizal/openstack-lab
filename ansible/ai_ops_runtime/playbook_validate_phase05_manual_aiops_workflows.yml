@@ -1,0 +1,442 @@
+---
+- name: Validate AI-OPS Phase 05 manual AI-OPS workflows
+  hosts: assistant
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/assistant_runtime/defaults/main.yml"
+  vars:
+    ai_ops_phase05_tool_runner_dir: "{{ ai_ops_runtime_root }}/scripts/tool_runner"
+    ai_ops_phase05_runner_path: "{{ ai_ops_phase05_tool_runner_dir }}/aiops_tool_runner.py"
+    ai_ops_phase05_registry_path: "{{ ai_ops_phase05_tool_runner_dir }}/tool_registry.json"
+    ai_ops_phase05_approved_script_dir: "{{ ai_ops_runtime_root }}/scripts/approved"
+    ai_ops_phase05_audit_path: "{{ ai_ops_runtime_root }}/audit/tool-runner.jsonl"
+    ai_ops_phase05_evidence_path: >-
+      {{ ai_ops_runtime_root }}/diagnostics/summaries/phase05-manual-aiops-workflows-evidence-{{ ansible_facts['date_time'].date }}.md
+    ai_ops_phase05_request_suffix: "{{ ansible_facts['date_time'].iso8601_basic_short }}Z"
+    ai_ops_phase05_project_request_id: "phase05-project-summary-{{ ai_ops_phase05_request_suffix }}"
+    ai_ops_phase05_server_basic_request_id: "phase05-server-basic-{{ ai_ops_phase05_request_suffix }}"
+    ai_ops_phase05_server_network_request_id: "phase05-server-network-{{ ai_ops_phase05_request_suffix }}"
+    ai_ops_phase05_neutron_request_id: "phase05-neutron-unavailable-{{ ai_ops_phase05_request_suffix }}"
+    ai_ops_phase05_validation_server_identifier: control_plane_vm01
+    ai_ops_phase05_skip_server_specific_checks: "{{ (ai_ops_phase05_validation_server_identifier | length) == 0 }}"
+    ai_ops_phase05_required_paths:
+      - label: tool runner directory
+        path: "{{ ai_ops_phase05_tool_runner_dir }}"
+        type: directory
+        expected_mode: "0755"
+      - label: tool runner CLI
+        path: "{{ ai_ops_phase05_runner_path }}"
+        type: file
+        expected_mode: "0755"
+      - label: tool runner registry
+        path: "{{ ai_ops_phase05_registry_path }}"
+        type: file
+        expected_mode: "0644"
+      - label: audit directory
+        path: "{{ ai_ops_runtime_root }}/audit"
+        type: directory
+        expected_mode: "0755"
+      - label: project resource summary approved script
+        path: "{{ ai_ops_phase05_approved_script_dir }}/project_resource_summary.sh"
+        type: file
+        expected_mode: "0755"
+      - label: server basic info approved script
+        path: "{{ ai_ops_phase05_approved_script_dir }}/server_basic_info.sh"
+        type: file
+        expected_mode: "0755"
+      - label: server network info approved script
+        path: "{{ ai_ops_phase05_approved_script_dir }}/server_network_info.sh"
+        type: file
+        expected_mode: "0755"
+      - label: neutron agent health approved script
+        path: "{{ ai_ops_phase05_approved_script_dir }}/neutron_agent_health.sh"
+        type: file
+        expected_mode: "0755"
+  tasks:
+    - name: Inspect Phase 05 runtime paths
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_phase05_required_paths }}"
+      loop_control:
+        label: "{{ item.label }}"
+      register: ai_ops_phase05_required_path_stats
+
+    - name: Assert Phase 05 tool runner paths are deployed
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_phase05_required_path_stats.results
+            | selectattr('stat.exists', 'equalto', false)
+            | list
+            | length == 0
+          - >-
+            ai_ops_phase05_required_path_stats.results
+            | selectattr('item.type', 'equalto', 'directory')
+            | rejectattr('stat.isdir')
+            | list
+            | length == 0
+          - >-
+            ai_ops_phase05_required_path_stats.results
+            | selectattr('item.type', 'equalto', 'file')
+            | rejectattr('stat.isreg')
+            | list
+            | length == 0
+        fail_msg: "Phase 05 manual AI-OPS workflow paths are missing or have unexpected types."
+        success_msg: "Phase 05 manual AI-OPS workflow paths are present."
+
+    - name: Assert Phase 05 runtime path modes
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.item.expected_mode is not defined
+            or (item.stat.mode | string) in [item.item.expected_mode, item.item.expected_mode | regex_replace('^0', '')]
+        fail_msg: >-
+          {{ item.item.label }} has mode {{ item.stat.mode | default('unknown') }},
+          expected {{ item.item.expected_mode | default('not-enforced') }}.
+        success_msg: "{{ item.item.label }} has expected mode."
+      loop: "{{ ai_ops_phase05_required_path_stats.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+
+    - name: Assert a server identifier is safe when server-specific checks are enabled
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_validation_server_identifier | length > 0
+          - (ai_ops_phase05_validation_server_identifier | regex_search('^[A-Za-z0-9._:-]+$')) is not none
+        fail_msg: >-
+          Set ai_ops_phase05_validation_server_identifier to an existing project-visible server name or ID,
+          or leave it empty to skip optional server-specific validation.
+        success_msg: "Phase 05 server-specific validation received a safe server identifier."
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Validate deployed Phase 05 registry JSON syntax
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - json.tool
+          - "{{ ai_ops_phase05_registry_path }}"
+      register: ai_ops_phase05_registry_json_result
+      changed_when: false
+      failed_when: false
+
+    - name: Assert deployed Phase 05 registry JSON parses
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_registry_json_result.rc == 0
+        fail_msg: "Phase 05 tool registry JSON did not parse."
+        success_msg: "Phase 05 tool registry JSON parses."
+
+    - name: Validate deployed Phase 05 runner Python syntax
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - py_compile
+          - "{{ ai_ops_phase05_runner_path }}"
+      register: ai_ops_phase05_runner_py_compile_result
+      changed_when: false
+      failed_when: false
+
+    - name: Assert deployed Phase 05 runner Python compiles
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_runner_py_compile_result.rc == 0
+        fail_msg: "Phase 05 tool runner Python did not compile."
+        success_msg: "Phase 05 tool runner Python compiles."
+
+    - name: Run Phase 05 approved project summary validation
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_phase05_runner_path }}"
+          - --registry
+          - "{{ ai_ops_phase05_registry_path }}"
+          - --audit-path
+          - "{{ ai_ops_phase05_audit_path }}"
+          - --request-id
+          - "{{ ai_ops_phase05_project_request_id }}"
+          - project_resource_summary
+      register: ai_ops_phase05_project_summary_result
+      changed_when: false
+      failed_when: false
+
+    - name: Run Phase 05 server basic info validation
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_phase05_runner_path }}"
+          - --registry
+          - "{{ ai_ops_phase05_registry_path }}"
+          - --audit-path
+          - "{{ ai_ops_phase05_audit_path }}"
+          - --request-id
+          - "{{ ai_ops_phase05_server_basic_request_id }}"
+          - --arg
+          - "server_identifier={{ ai_ops_phase05_validation_server_identifier }}"
+          - server_basic_info
+      register: ai_ops_phase05_server_basic_result
+      changed_when: false
+      failed_when: false
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Run Phase 05 server network info validation
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_phase05_runner_path }}"
+          - --registry
+          - "{{ ai_ops_phase05_registry_path }}"
+          - --audit-path
+          - "{{ ai_ops_phase05_audit_path }}"
+          - --request-id
+          - "{{ ai_ops_phase05_server_network_request_id }}"
+          - --arg
+          - "server_identifier={{ ai_ops_phase05_validation_server_identifier }}"
+          - server_network_info
+      register: ai_ops_phase05_server_network_result
+      changed_when: false
+      failed_when: false
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Run Phase 05 unavailable Neutron gate check
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_phase05_runner_path }}"
+          - --registry
+          - "{{ ai_ops_phase05_registry_path }}"
+          - --audit-path
+          - "{{ ai_ops_phase05_audit_path }}"
+          - --request-id
+          - "{{ ai_ops_phase05_neutron_request_id }}"
+          - neutron_agent_health
+      register: ai_ops_phase05_neutron_result
+      changed_when: false
+      failed_when: false
+
+    - name: Parse Phase 05 project summary result envelope
+      ansible.builtin.set_fact:
+        ai_ops_phase05_project_summary_envelope: "{{ ai_ops_phase05_project_summary_result.stdout | from_json }}"
+
+    - name: Parse Phase 05 server basic result envelope
+      ansible.builtin.set_fact:
+        ai_ops_phase05_server_basic_envelope: "{{ ai_ops_phase05_server_basic_result.stdout | from_json }}"
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Parse Phase 05 server network result envelope
+      ansible.builtin.set_fact:
+        ai_ops_phase05_server_network_envelope: "{{ ai_ops_phase05_server_network_result.stdout | from_json }}"
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Parse Phase 05 neutron unavailable result envelope
+      ansible.builtin.set_fact:
+        ai_ops_phase05_neutron_envelope: "{{ ai_ops_phase05_neutron_result.stdout | from_json }}"
+
+    - name: Assert Phase 05 project summary envelope fields and status
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_project_summary_envelope.tool == 'project_resource_summary'
+          - ai_ops_phase05_project_summary_envelope.status in ['ok', 'error', 'truncated']
+          - ai_ops_phase05_project_summary_envelope.status not in ['denied', 'validation_error', 'unavailable', 'timeout']
+          - ai_ops_phase05_project_summary_envelope.arguments == {}
+          - ai_ops_phase05_project_summary_envelope.exit_code is not none
+          - ai_ops_phase05_project_summary_envelope.stdout is not none
+          - ai_ops_phase05_project_summary_envelope.stderr is not none
+          - ai_ops_phase05_project_summary_envelope.duration_ms is not none
+          - ai_ops_phase05_project_summary_envelope.truncated is not none
+          - ai_ops_phase05_project_summary_envelope.timestamp is not none
+          - ai_ops_phase05_project_summary_envelope.request_id == ai_ops_phase05_project_request_id
+        fail_msg: "Phase 05 project summary did not return the expected structured envelope."
+        success_msg: "Phase 05 project summary returned the expected structured envelope."
+
+    - name: Assert Phase 05 server result envelope fields and statuses
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_server_basic_envelope.tool == 'server_basic_info'
+          - ai_ops_phase05_server_basic_envelope.status in ['ok', 'error', 'truncated']
+          - ai_ops_phase05_server_basic_envelope.status not in ['denied', 'validation_error', 'unavailable', 'timeout']
+          - ai_ops_phase05_server_basic_envelope.arguments.server_identifier == ai_ops_phase05_validation_server_identifier
+          - ai_ops_phase05_server_basic_envelope.request_id == ai_ops_phase05_server_basic_request_id
+          - ai_ops_phase05_server_basic_envelope.exit_code is not none
+          - ai_ops_phase05_server_basic_envelope.stdout is not none
+          - ai_ops_phase05_server_basic_envelope.stderr is not none
+          - ai_ops_phase05_server_basic_envelope.duration_ms is not none
+          - ai_ops_phase05_server_basic_envelope.truncated is not none
+          - ai_ops_phase05_server_basic_envelope.timestamp is not none
+          - ai_ops_phase05_server_network_envelope.tool == 'server_network_info'
+          - ai_ops_phase05_server_network_envelope.status in ['ok', 'error', 'truncated']
+          - ai_ops_phase05_server_network_envelope.status not in ['denied', 'validation_error', 'unavailable', 'timeout']
+          - ai_ops_phase05_server_network_envelope.arguments.server_identifier == ai_ops_phase05_validation_server_identifier
+          - ai_ops_phase05_server_network_envelope.request_id == ai_ops_phase05_server_network_request_id
+          - ai_ops_phase05_server_network_envelope.exit_code is not none
+          - ai_ops_phase05_server_network_envelope.stdout is not none
+          - ai_ops_phase05_server_network_envelope.stderr is not none
+          - ai_ops_phase05_server_network_envelope.duration_ms is not none
+          - ai_ops_phase05_server_network_envelope.truncated is not none
+          - ai_ops_phase05_server_network_envelope.timestamp is not none
+        fail_msg: "Phase 05 server-specific validations did not return the expected structured envelopes."
+        success_msg: "Phase 05 server-specific validations returned the expected structured envelopes."
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Assert Phase 05 neutron unavailable envelope fields and status
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_neutron_result.rc != 0
+          - ai_ops_phase05_neutron_envelope.tool == 'neutron_agent_health'
+          - ai_ops_phase05_neutron_envelope.status == 'unavailable'
+          - ai_ops_phase05_neutron_envelope.request_id == ai_ops_phase05_neutron_request_id
+          - ai_ops_phase05_neutron_envelope.exit_code is none
+          - ai_ops_phase05_neutron_envelope.stdout is not none
+          - ai_ops_phase05_neutron_envelope.stderr is not none
+          - ai_ops_phase05_neutron_envelope.duration_ms is not none
+          - ai_ops_phase05_neutron_envelope.truncated is not none
+          - ai_ops_phase05_neutron_envelope.timestamp is not none
+        fail_msg: "Phase 05 neutron gate did not fail closed with an unavailable envelope."
+        success_msg: "Phase 05 neutron gate failed closed with an unavailable envelope."
+
+    - name: Collect Phase 05 audit events for validation request IDs
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import json
+            import sys
+            from pathlib import Path
+
+            audit_path = Path(sys.argv[1])
+            wanted = set(filter(None, sys.argv[2:]))
+            found = {}
+            with audit_path.open(encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    request_id = event.get("request_id")
+                    if request_id in wanted:
+                        found[request_id] = {
+                            "tool": event.get("tool"),
+                            "status": event.get("status"),
+                            "exit_code": event.get("exit_code"),
+                        }
+            missing = sorted(wanted - set(found))
+            print(json.dumps(found, sort_keys=True))
+            if missing:
+                print(json.dumps({"missing": missing}, sort_keys=True), file=sys.stderr)
+                sys.exit(1)
+          - "{{ ai_ops_phase05_audit_path }}"
+          - "{{ ai_ops_phase05_project_request_id }}"
+          - "{{ ai_ops_phase05_neutron_request_id }}"
+          - "{{ ai_ops_phase05_server_basic_request_id if not (ai_ops_phase05_skip_server_specific_checks | bool) else '' }}"
+          - "{{ ai_ops_phase05_server_network_request_id if not (ai_ops_phase05_skip_server_specific_checks | bool) else '' }}"
+      register: ai_ops_phase05_audit_event_summary_result
+      changed_when: false
+      failed_when: false
+
+    - name: Parse Phase 05 audit event summary
+      ansible.builtin.set_fact:
+        ai_ops_phase05_audit_event_summary: "{{ ai_ops_phase05_audit_event_summary_result.stdout | from_json }}"
+
+    - name: Assert Phase 05 audit events were written for core validation outcomes
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_audit_event_summary_result.rc == 0
+          - ai_ops_phase05_audit_event_summary[ai_ops_phase05_project_request_id].status == ai_ops_phase05_project_summary_envelope.status
+          - ai_ops_phase05_audit_event_summary[ai_ops_phase05_neutron_request_id].status == 'unavailable'
+        fail_msg: "Phase 05 audit log does not contain expected project summary and neutron validation events."
+        success_msg: "Phase 05 audit log contains expected project summary and neutron validation events."
+
+    - name: Assert Phase 05 audit events were written for optional server validation outcomes
+      ansible.builtin.assert:
+        that:
+          - ai_ops_phase05_audit_event_summary[ai_ops_phase05_server_basic_request_id].status == ai_ops_phase05_server_basic_envelope.status
+          - ai_ops_phase05_audit_event_summary[ai_ops_phase05_server_network_request_id].status == ai_ops_phase05_server_network_envelope.status
+        fail_msg: "Phase 05 audit log does not contain expected server validation events."
+        success_msg: "Phase 05 audit log contains expected server validation events."
+      when: not (ai_ops_phase05_skip_server_specific_checks | bool)
+
+    - name: Report Phase 05 manual workflow validation statuses
+      ansible.builtin.debug:
+        msg:
+          - "project summary status={{ ai_ops_phase05_project_summary_envelope.status }} rc={{ ai_ops_phase05_project_summary_result.rc }}"
+          - >-
+            server basic status={{ (ai_ops_phase05_server_basic_envelope.status | default('skipped'))
+            if not (ai_ops_phase05_skip_server_specific_checks | bool) else 'skipped' }}
+            rc={{ (ai_ops_phase05_server_basic_result.rc | default('skipped'))
+            if not (ai_ops_phase05_skip_server_specific_checks | bool) else 'skipped' }}
+          - >-
+            server network status={{ (ai_ops_phase05_server_network_envelope.status | default('skipped'))
+            if not (ai_ops_phase05_skip_server_specific_checks | bool) else 'skipped' }}
+            rc={{ (ai_ops_phase05_server_network_result.rc | default('skipped'))
+            if not (ai_ops_phase05_skip_server_specific_checks | bool) else 'skipped' }}
+          - "neutron unavailable status={{ ai_ops_phase05_neutron_envelope.status }} rc={{ ai_ops_phase05_neutron_result.rc }}"
+
+    - name: Write AI-OPS Phase 05 manual workflow evidence summary
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_phase05_evidence_path }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0644"
+        content: |
+          # Phase 05 Manual AI-OPS Workflows Evidence Snapshot
+
+          Generated by `ansible/ai_ops_runtime/playbook_validate_phase05_manual_aiops_workflows.yml`.
+
+          ## Metadata
+
+          - Date: {{ ansible_facts['date_time'].iso8601 }}
+          - Runtime host: {{ inventory_hostname }}
+          - Workspace root: {{ ai_ops_runtime_root }}
+          - Tool runner directory: {{ ai_ops_phase05_tool_runner_dir }}
+          - Runner path: {{ ai_ops_phase05_runner_path }}
+          - Registry path: {{ ai_ops_phase05_registry_path }}
+          - Audit path: {{ ai_ops_phase05_audit_path }}
+          - Evidence path: {{ ai_ops_phase05_evidence_path }}
+          - Server-specific checks skipped: {{ ai_ops_phase05_skip_server_specific_checks | bool }}
+          - Selected server identifier: {{ ai_ops_phase05_validation_server_identifier if not (ai_ops_phase05_skip_server_specific_checks | bool) else 'skipped' }}
+
+          ## Runtime Path Checks
+
+          {% for result in ai_ops_phase05_required_path_stats.results %}
+          - {{ result.item.label }}: {{ result.item.path }}
+            - exists={{ result.stat.exists | default(false) }}
+            - directory={{ result.stat.isdir | default(false) }}
+            - file={{ result.stat.isreg | default(false) }}
+            - owner={{ result.stat.pw_name | default('unknown') }}
+            - group={{ result.stat.gr_name | default('unknown') }}
+            - mode={{ result.stat.mode | default('unknown') }}
+            - expected_mode={{ result.item.expected_mode | default('not-enforced') }}
+          {% endfor %}
+
+          ## Static Runtime Checks
+
+          - Registry JSON parse return code: {{ ai_ops_phase05_registry_json_result.rc }}
+          - Runner Python compile return code: {{ ai_ops_phase05_runner_py_compile_result.rc }}
+
+          ## Runner Outcome Checks
+
+          | Check | Request ID | Return Code | Status | Tool |
+          | --- | --- | ---: | --- | --- |
+          | Approved project summary | `{{ ai_ops_phase05_project_request_id }}` | {{ ai_ops_phase05_project_summary_result.rc }} | {{ ai_ops_phase05_project_summary_envelope.status }} | {{ ai_ops_phase05_project_summary_envelope.tool }} |
+          {% if not (ai_ops_phase05_skip_server_specific_checks | bool) %}
+          | Server basic info | `{{ ai_ops_phase05_server_basic_request_id }}` | {{ ai_ops_phase05_server_basic_result.rc }} | {{ ai_ops_phase05_server_basic_envelope.status }} | {{ ai_ops_phase05_server_basic_envelope.tool }} |
+          | Server network info | `{{ ai_ops_phase05_server_network_request_id }}` | {{ ai_ops_phase05_server_network_result.rc }} | {{ ai_ops_phase05_server_network_envelope.status }} | {{ ai_ops_phase05_server_network_envelope.tool }} |
+          {% endif %}
+          | Neutron unavailable gate | `{{ ai_ops_phase05_neutron_request_id }}` | {{ ai_ops_phase05_neutron_result.rc }} | {{ ai_ops_phase05_neutron_envelope.status }} | {{ ai_ops_phase05_neutron_envelope.tool }} |
+
+          ## Audit Event Summary
+
+          {% for request_id, event in ai_ops_phase05_audit_event_summary.items() %}
+          - `{{ request_id }}`: tool={{ event.tool }}, status={{ event.status }}, exit_code={{ event.exit_code | default('none') }}
+          {% endfor %}
+
+          ## Boundary Notes
+
+          - This evidence summary records sanitized status and metadata only; it does not include credential file contents, tokens, passwords, private keys, raw profile material, or raw audit logs.
+          - The validation path uses only approved read-only runner tools and does not broaden capability to generic shell, SSH, sudo, remediation, or mutation.
+          - `project_resource_summary` may return `ok`, `error`, or `truncated` while still proving the structured local-runner path.
+          - Server-specific validation is optional and runs only when a safe server identifier is supplied.
+          - `neutron_agent_health` must remain `unavailable` until a validated non-default operator-reader profile exists.
+          - Any AI interpretation built from these outputs must remain diagnostic-only and provide manual recommendations only.
