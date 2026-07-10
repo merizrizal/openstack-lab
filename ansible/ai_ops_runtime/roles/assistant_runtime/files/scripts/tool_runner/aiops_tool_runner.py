@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed AI-OPS tool runner for Phase 04 Chunk 5."""
+"""Fail-closed AI-OPS tool runner for reviewed diagnostic tools."""
 
 from __future__ import annotations
 
@@ -168,6 +168,60 @@ def get_supported_validation_types(registry: dict[str, Any]) -> set[str]:
     return supported_types
 
 
+def validate_allowed_values(
+    argument_definition: dict[str, Any],
+    value: str,
+) -> str:
+    name = argument_definition["name"]
+    raw_allowed_values = argument_definition.get("allowed_values")
+    if (
+        not isinstance(raw_allowed_values, list)
+        or not raw_allowed_values
+        or any(
+            not isinstance(allowed_value, str) or not allowed_value
+            for allowed_value in raw_allowed_values
+        )
+        or len(set(raw_allowed_values)) != len(raw_allowed_values)
+    ):
+        raise ValueError(
+            f"registry argument {name} allowed_values must be a JSON array of unique non-empty strings"
+        )
+    if value not in raw_allowed_values:
+        raise ValueError(f"{name} is not an allowed value")
+    return value
+
+
+def validate_allowed_host(
+    argument_definition: dict[str, Any],
+    value: str,
+) -> str:
+    return validate_allowed_values(argument_definition, value)
+
+
+def validate_bounded_time_window(
+    argument_definition: dict[str, Any],
+    value: str,
+) -> str:
+    return validate_allowed_values(argument_definition, value)
+
+
+def validate_fixed_arguments(requested_tool: dict[str, Any]) -> list[str]:
+    tool_name = requested_tool.get("name", "unknown")
+    raw_fixed_arguments = requested_tool.get("fixed_arguments")
+    if raw_fixed_arguments is None:
+        return []
+    if (
+        not isinstance(raw_fixed_arguments, list)
+        or not raw_fixed_arguments
+        or any(not isinstance(value, str) or not value for value in raw_fixed_arguments)
+        or len(set(raw_fixed_arguments)) != len(raw_fixed_arguments)
+    ):
+        raise ValueError(
+            f"registry tool {tool_name} fixed_arguments must be a JSON array of unique non-empty strings"
+        )
+    return raw_fixed_arguments
+
+
 def validate_argument_value(
     argument_definition: dict[str, Any],
     value: str,
@@ -195,6 +249,12 @@ def validate_argument_value(
         if re.fullmatch(pattern_text, value) is None:
             raise ValueError(f"{name} contains unsafe characters")
         return value
+
+    if validation_type == "allowed_host_list":
+        return validate_allowed_host(argument_definition, value)
+
+    if validation_type == "bounded_time_window":
+        return validate_bounded_time_window(argument_definition, value)
 
     raise ValueError(
         f"registry argument {name} uses unsupported validation type: {validation_type}"
@@ -307,7 +367,7 @@ def build_command_argv(
     if not isinstance(argument_definitions, list):
         raise ValueError(f"registry arguments for tool {tool_name} must be a JSON array")
 
-    argv = [script_target]
+    argv = [script_target, *validate_fixed_arguments(requested_tool)]
     for argument_definition in sorted(
         argument_definitions,
         key=lambda definition: definition.get("position", 0),
@@ -436,7 +496,7 @@ def parse_cli_args(argv: list[str] | None) -> argparse.Namespace:
         action="append",
         default=[],
         metavar="KEY=VALUE",
-        help="Declared tool argument in key=value form. Chunk 5 validates, executes, and audits reviewed registry tools.",
+        help="Declared tool argument in key=value form for reviewed registry tools.",
     )
     parser.add_argument(
         "--request-id",

@@ -67,7 +67,7 @@
           "required": true,
           "validation": "safe_identifier_pattern",
           "pattern": "^[A-Za-z0-9._:-]+$",
-          "description": "Server name or ID using the Phase 03 conservative safe identifier character set."
+          "description": "Server name or ID using the conservative safe identifier character set."
         }
       ]
     },
@@ -89,7 +89,7 @@
           "required": true,
           "validation": "safe_identifier_pattern",
           "pattern": "^[A-Za-z0-9._:-]+$",
-          "description": "Server name or ID using the Phase 03 conservative safe identifier character set."
+          "description": "Server name or ID using the conservative safe identifier character set."
         }
       ]
     },

@@ -1,0 +1,23 @@
+---
+host_observer_configure_assistant: false
+host_observer_configure_target: false
+host_observer_assistant_host: assistant01
+host_observer_target_group: ai_ops_host_observers
+host_observer_user: aiops-observer
+host_observer_group: aiops-observer
+host_observer_home: /home/aiops-observer
+host_observer_shell: /bin/sh
+host_observer_collector_path: /usr/local/sbin/aiops-host-diagnostic
+host_observer_sudoers_path: /etc/sudoers.d/aiops-host-observer
+host_observer_runtime_root: /opt/openstack-ai-ops
+host_observer_assistant_user: assistant
+host_observer_assistant_group: assistant
+host_observer_ssh_directory: "{{ host_observer_runtime_root }}/credentials/ssh"
+host_observer_private_key_path: "{{ host_observer_ssh_directory }}/observer_ed25519"
+host_observer_public_key_path: "{{ host_observer_private_key_path }}.pub"
+host_observer_known_hosts_path: "{{ host_observer_ssh_directory }}/known_hosts"
+host_observer_authorized_keys_path: "{{ host_observer_home }}/.ssh/authorized_keys"
+host_observer_authorized_key_options: 'restrict,command="/usr/local/sbin/aiops-host-diagnostic"'
+host_observer_sudoers_content: |
+  Cmnd_Alias AIOPS_HOST_DIAGNOSTIC_COLLECT = /usr/local/sbin/aiops-host-diagnostic --collect
+  aiops-observer ALL=(root) NOPASSWD: AIOPS_HOST_DIAGNOSTIC_COLLECT
