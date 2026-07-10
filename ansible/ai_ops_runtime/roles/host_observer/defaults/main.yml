@@ -17,7 +17,7 @@ host_observer_private_key_path: "{{ host_observer_ssh_directory }}/observer_ed25
 host_observer_public_key_path: "{{ host_observer_private_key_path }}.pub"
 host_observer_known_hosts_path: "{{ host_observer_ssh_directory }}/known_hosts"
 host_observer_authorized_keys_path: "{{ host_observer_home }}/.ssh/authorized_keys"
-host_observer_authorized_key_options: 'restrict,command="/usr/local/sbin/aiops-host-diagnostic"'
+host_observer_authorized_key_options: restrict,command="/usr/local/sbin/aiops-host-diagnostic"
 host_observer_sudoers_content: |
   Cmnd_Alias AIOPS_HOST_DIAGNOSTIC_COLLECT = /usr/local/sbin/aiops-host-diagnostic --collect
   aiops-observer ALL=(root) NOPASSWD: AIOPS_HOST_DIAGNOSTIC_COLLECT
