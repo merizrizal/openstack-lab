@@ -1,0 +1,19 @@
+{
+  "aliases": {
+    "controller01": {
+      "address": {{ controller01.mgmtnet_ip_address | to_json }},
+      "kinds": ["metadata", "nova", "neutron"],
+      "time_windows": ["15m", "30m", "1h"]
+    },
+    "compute01": {
+      "address": {{ compute01.mgmtnet_ip_address | to_json }},
+      "kinds": ["nova", "neutron"],
+      "time_windows": ["15m", "30m", "1h"]
+    },
+    "compute02": {
+      "address": {{ compute02.mgmtnet_ip_address | to_json }},
+      "kinds": ["nova", "neutron"],
+      "time_windows": ["15m", "30m", "1h"]
+    }
+  }
+}

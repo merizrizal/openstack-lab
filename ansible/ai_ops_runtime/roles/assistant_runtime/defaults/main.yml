@@ -10,7 +10,6 @@ ai_ops_runtime_openstack_profile_name: aiops-project-reader
 ai_ops_runtime_openstack_profile_source: "{{ root_dir }}/generated"
 ai_ops_runtime_openstack_profile_source_is_remote: false
 ai_ops_runtime_directories:
-  - path: scripts
   - path: scripts/approved
   - path: diagnostics
   - path: diagnostics/raw
