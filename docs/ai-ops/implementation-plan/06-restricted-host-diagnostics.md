@@ -41,10 +41,10 @@ Excluded:
 
 ## 06.4 Assumptions
 
-- [ ] MVP OpenStack API diagnostics are already working through the local runner.
-- [ ] The operator can provision a restricted observer account on selected lab nodes.
-- [ ] Host-level diagnostics are higher risk and must remain opt-in.
-- [ ] Initial host diagnostics focus on controller metadata, Nova, and Neutron evidence.
+- [x] MVP OpenStack API diagnostics are working through the local runner.
+- [x] The restricted observer account is provisioned on reviewed lab nodes.
+- [x] Host-level diagnostics are classified as higher risk and remain explicitly allowlisted.
+- [x] Initial diagnostics cover controller metadata plus reviewed controller/compute Nova and Neutron evidence.
 
 ## 06.5 Ordered Tasks
 
@@ -59,15 +59,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Identify which lab nodes are valid targets for host diagnostics.
-- [ ] Define an explicit host allowlist using current node role names.
-- [ ] Define the observer user purpose and login restrictions.
-- [ ] Define which read-only commands may run with sudo and why.
-- [ ] Define prohibited commands: shells, editors, package managers, service control, file mutation, database clients, and arbitrary command forwarding.
+- [x] Identified reviewed controller and compute targets for host diagnostics.
+- [x] Defined explicit per-tool host allowlists using current node role names.
+- [x] Defined the observer user purpose and forced-command login restrictions.
+- [x] Defined the single read-only collector command allowed through sudo.
+- [x] Defined and tested prohibited shells, editors, package managers, service control, file mutation, database clients, and arbitrary command forwarding.
 
 Done when:
 
-- [ ] A reviewer can tell exactly what host access the assistant runtime should and should not have.
+- [x] A reviewer can tell exactly what host access the assistant runtime should and should not have.
 
 ### Step 2 - Provision Restricted Observer Access
 
@@ -80,15 +80,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Create the observer user on selected nodes using a repeatable process.
-- [ ] Install public-key access for the assistant runtime.
-- [ ] Configure sudo rules for only reviewed read-only log/status commands.
-- [ ] Disable password-based escalation for the observer user.
-- [ ] Verify that unrestricted sudo, interactive shell escalation, and service restart attempts fail.
+- [x] Created the observer user on selected nodes using a repeatable process.
+- [x] Installed dedicated public-key access for the assistant runtime.
+- [x] Configured sudo for only the reviewed read-only collector command.
+- [x] Disabled password-based escalation for the observer user.
+- [x] Verified unrestricted sudo, interactive shell escalation, service control, TTY, and forwarding attempts fail.
 
 Done when:
 
-- [ ] The assistant runtime can run approved read-only host checks and cannot escalate to unrestricted host control.
+- [x] The assistant runtime can run approved read-only host checks and cannot escalate to unrestricted host control.
 
 ### Step 3 - Implement Bounded Metadata Log Diagnostics
 
@@ -101,16 +101,16 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a recent metadata errors tool that accepts only an allowed host and bounded time window.
-- [ ] Collect Nova metadata API logs where present.
-- [ ] Collect Neutron metadata-agent logs where present.
-- [ ] Collect relevant system journal lines matching metadata, proxy, timeout, bad gateway, and `169.254.169.254` terms.
-- [ ] Limit lines and output size before returning to the runner.
-- [ ] Redact secret-like values.
+- [x] Added a recent metadata errors tool with an exact host allowlist and bounded time window.
+- [x] Collected fixed Nova metadata API evidence categories where present.
+- [x] Collected fixed Neutron metadata-agent evidence categories where present.
+- [x] Collected fixed journal evidence for metadata, proxy, timeout, bad gateway, and `169.254.169.254` terms.
+- [x] Limited lines and output size before returning to the runner.
+- [x] Redacted secret-like values.
 
 Done when:
 
-- [ ] Metadata troubleshooting can include recent host-level evidence without granting generic SSH.
+- [x] Metadata troubleshooting includes recent host-level evidence without granting generic SSH.
 
 ### Step 4 - Implement Bounded Nova and Neutron Error Diagnostics
 
@@ -123,15 +123,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a recent Nova errors tool for approved hosts and bounded time windows.
-- [ ] Add a recent Neutron errors tool for approved hosts and bounded time windows.
-- [ ] Keep each tool focused on logs/status only.
-- [ ] Return structured or clearly sectioned output.
-- [ ] Verify that missing log files or services produce unavailable/error statuses instead of failing unsafely.
+- [x] Added a recent Nova errors tool for approved hosts and bounded time windows.
+- [x] Added a recent Neutron errors tool for approved hosts and bounded time windows.
+- [x] Kept each tool focused on logs and status only.
+- [x] Returned structured, bounded, sectioned output.
+- [x] Verified that missing log files or services produce unavailable/error statuses instead of failing unsafely.
 
 Done when:
 
-- [ ] Operators can gather recent Nova and Neutron evidence without raw SSH commands.
+- [x] Operators can gather recent Nova and Neutron evidence without raw SSH commands.
 
 ### Step 5 - Extend Tool Registry and Tests
 
@@ -144,15 +144,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Register host/log tools with higher risk classification.
-- [ ] Require host arguments to match the explicit host allowlist, not just a regex.
-- [ ] Require time-window arguments to match accepted bounded forms.
-- [ ] Add tests that unsafe hosts, unsafe time windows, and shell metacharacters are rejected.
-- [ ] Add tests that host tools produce audit events.
+- [x] Registered host/log tools with higher risk classification.
+- [x] Required host arguments to match explicit host allowlists, not only a regex.
+- [x] Required time-window arguments to match accepted bounded forms.
+- [x] Added tests that unsafe hosts, unsafe time windows, and shell metacharacters are rejected.
+- [x] Validated that host tool calls produce audit events.
 
 Done when:
 
-- [ ] Host diagnostics are available only through the same safety gateway as OpenStack API tools.
+- [x] Host diagnostics are available only through the same safety gateway as OpenStack API tools.
 
 ### Step 6 - Validate Metadata Incident Workflow With Host Evidence
 
@@ -165,26 +165,26 @@ Estimate:
 
 Tasks:
 
-- [ ] Run server basic and network tools for a representative server.
-- [ ] Run recent metadata errors against the approved controller or network node.
-- [ ] Verify the output can distinguish unavailable Nova metadata listener, Neutron metadata errors, and missing evidence.
-- [ ] Confirm no remediation command is available or executed.
+- [x] Ran server basic and network tools for a representative server.
+- [x] Ran recent metadata errors against the approved controller.
+- [x] Verified the output retains Nova listener, Neutron metadata, Nova metadata-log, and unavailable-evidence categories.
+- [x] Confirmed no remediation command is available or executed.
 
 Done when:
 
-- [ ] The metadata troubleshooting workflow produces stronger evidence while remaining diagnostic-only.
+- [x] The metadata troubleshooting workflow produces stronger evidence while remaining diagnostic-only.
 
 ## 06.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] Restricted observer SSH access exists for selected nodes.
-- [ ] Sudo rules allow only reviewed read-only diagnostics.
-- [ ] Root SSH, unrestricted sudo, and service control attempts fail.
-- [ ] Metadata, Nova, and Neutron recent-error tools are available through the runner.
-- [ ] Host inputs and time windows are validated.
-- [ ] Log outputs are bounded and redacted.
-- [ ] All host tool calls are audited.
+- [x] Restricted observer SSH access exists for selected nodes.
+- [x] Sudo rules allow only reviewed read-only diagnostics.
+- [x] Root SSH, unrestricted sudo, and service control attempts fail.
+- [x] Metadata, Nova, and Neutron recent-error tools are available through the runner.
+- [x] Host inputs and time windows are validated.
+- [x] Log outputs are bounded and redacted.
+- [x] All host tool calls are audited.
 
 ## 06.7 Risks
 

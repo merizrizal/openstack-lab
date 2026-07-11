@@ -10,7 +10,7 @@ Scripts in this directory must remain diagnostic-only, read-only, narrow, and ma
 
 ## Default credential profile
 
-Unless a script is explicitly classified otherwise, it must use the Phase 02 project-reader profile:
+Unless a script is explicitly classified otherwise, it must use the project-reader profile:
 
 ```text
 OS_CLIENT_CONFIG_FILE=/opt/openstack-ai-ops/credentials/profiles/clouds.yaml

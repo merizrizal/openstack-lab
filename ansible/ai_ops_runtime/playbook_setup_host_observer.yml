@@ -1,0 +1,20 @@
+---
+- name: Provision observer credentials on assistant01
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: host_observer
+      host_observer_configure_assistant: true
+
+- name: Provision restricted observer targets
+  hosts: ai_ops_host_observers
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: host_observer
+      host_observer_configure_target: true

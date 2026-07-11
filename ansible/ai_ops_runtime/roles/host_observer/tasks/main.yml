@@ -1,0 +1,142 @@
+---
+- name: Assistant
+  when: host_observer_configure_assistant | bool
+  block:
+    - name: Assert assistant observer key scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == host_observer_assistant_host
+          - groups[host_observer_target_group] | length > 0
+        fail_msg: Observer provisioning must use only assistant01 and the reviewed target hosts.
+
+    - name: Create assistant observer SSH credential directory
+      ansible.builtin.file:
+        path: "{{ host_observer_ssh_directory }}"
+        state: directory
+        owner: "{{ host_observer_assistant_user }}"
+        group: "{{ host_observer_assistant_group }}"
+        mode: "0700"
+
+    - name: Generate dedicated observer SSH keypair on assistant01
+      ansible.builtin.command:
+        argv:
+          - ssh-keygen
+          - -q
+          - -t
+          - ed25519
+          - -f
+          - "{{ host_observer_private_key_path }}"
+          - -N
+          - ""
+        creates: "{{ host_observer_private_key_path }}"
+      no_log: true
+
+    - name: Enforce dedicated observer private key permissions
+      ansible.builtin.file:
+        path: "{{ host_observer_private_key_path }}"
+        state: file
+        owner: "{{ host_observer_assistant_user }}"
+        group: "{{ host_observer_assistant_group }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Read dedicated observer public key
+      ansible.builtin.slurp:
+        src: "{{ host_observer_public_key_path }}"
+      register: host_observer_public_key_file
+      no_log: true
+
+    - name: Publish dedicated observer public key for reviewed target hosts
+      ansible.builtin.set_fact:
+        host_observer_public_key: "{{ host_observer_public_key_file.content | b64decode | trim }}"
+      no_log: true
+
+    - name: Scan reviewed observer target host keys from assistant01
+      ansible.builtin.command:
+        argv:
+          - ssh-keyscan
+          - -T
+          - "5"
+          - "{{ lookup('ansible.builtin.vars', item)['mgmtnet_ip_address'] }}"
+      loop: "{{ groups[host_observer_target_group] | sort }}"
+      loop_control:
+        label: "{{ item }}"
+      register: host_observer_keyscan
+      changed_when: false
+      check_mode: false
+      failed_when:
+        - host_observer_keyscan.rc != 0
+        - host_observer_keyscan.stdout | length == 0
+
+    - name: Install pinned observer target host keys on assistant01
+      ansible.builtin.copy:
+        content: "{{ (host_observer_keyscan.results | map(attribute='stdout_lines') | flatten | sort | join('\n')) ~ '\n' }}"
+        dest: "{{ host_observer_known_hosts_path }}"
+        owner: "{{ host_observer_assistant_user }}"
+        group: "{{ host_observer_assistant_group }}"
+        mode: "0600"
+
+- name: Targets
+  when: host_observer_configure_target | bool
+  block:
+    - name: Assert reviewed observer target scope and public key availability
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname in groups[host_observer_target_group]
+          - hostvars[host_observer_assistant_host].host_observer_public_key is defined
+          - hostvars[host_observer_assistant_host].host_observer_public_key is match('^ssh-ed25519 ')
+        fail_msg: Observer target provisioning requires the reviewed host group and dedicated assistant key.
+
+    - name: Ensure observer group exists
+      ansible.builtin.group:
+        name: "{{ host_observer_group }}"
+        system: true
+        state: present
+
+    - name: Ensure restricted observer account exists
+      ansible.builtin.user:
+        name: "{{ host_observer_user }}"
+        group: "{{ host_observer_group }}"
+        groups: ""
+        append: false
+        system: true
+        create_home: true
+        home: "{{ host_observer_home }}"
+        shell: "{{ host_observer_shell }}"
+        password_lock: true
+        state: present
+
+    - name: Install root-owned host diagnostic collector
+      ansible.builtin.copy:
+        src: aiops_host_diagnostic.py
+        dest: "{{ host_observer_collector_path }}"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create restricted observer SSH directory
+      ansible.builtin.file:
+        path: "{{ host_observer_home }}/.ssh"
+        state: directory
+        owner: "{{ host_observer_user }}"
+        group: "{{ host_observer_group }}"
+        mode: "0700"
+
+    - name: Install forced-command observer authorized key
+      ansible.builtin.copy:
+        content: >-
+          {{ host_observer_authorized_key_options }} {{ hostvars[host_observer_assistant_host].host_observer_public_key }}
+        dest: "{{ host_observer_authorized_keys_path }}"
+        owner: "{{ host_observer_user }}"
+        group: "{{ host_observer_group }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Install validated restricted observer sudoers rule
+      ansible.builtin.copy:
+        content: "{{ host_observer_sudoers_content }}"
+        dest: "{{ host_observer_sudoers_path }}"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"

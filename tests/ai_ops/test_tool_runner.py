@@ -27,7 +27,12 @@ class TestToolRunnerStub(unittest.TestCase):
     def setUpClass(cls):
         cls.runner = load_runner_module()
 
-    def write_registry(self, tools):
+    def write_registry(self, tools, supported_validation_types=None):
+        if supported_validation_types is None:
+            supported_validation_types = [
+                "required_string",
+                "safe_identifier_pattern",
+            ]
         tempdir = tempfile.TemporaryDirectory()
         registry_path = Path(tempdir.name) / "tool_registry.json"
         registry_path.write_text(
@@ -35,10 +40,7 @@ class TestToolRunnerStub(unittest.TestCase):
                 {
                     "schema_version": 1,
                     "registry_name": "test-registry",
-                    "supported_argument_validation_types": [
-                        "required_string",
-                        "safe_identifier_pattern",
-                    ],
+                    "supported_argument_validation_types": supported_validation_types,
                     "defaults": {
                         "timeout_seconds": 30,
                         "output_limit_bytes": 65536,
@@ -245,6 +247,198 @@ class TestToolRunnerStub(unittest.TestCase):
         self.assertEqual(payload["status"], "validation_error")
         self.assertEqual(payload["arguments"], {})
         self.assertIn("server_identifier contains unsafe characters", payload["stderr"])
+
+    def test_host_and_window_validations_accept_only_declared_values(self):
+        supported_validation_types = {
+            "allowed_host_list",
+            "bounded_time_window",
+        }
+        host_definition = {
+            "name": "host",
+            "validation": "allowed_host_list",
+            "allowed_values": ["controller01", "compute01"],
+        }
+        window_definition = {
+            "name": "time_window",
+            "validation": "bounded_time_window",
+            "allowed_values": ["15m", "30m", "1h"],
+        }
+
+        for argument_definition, value in (
+            (host_definition, "controller01"),
+            (window_definition, "15m"),
+            (window_definition, "30m"),
+            (window_definition, "1h"),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    self.runner.validate_argument_value(
+                        argument_definition,
+                        value,
+                        supported_validation_types,
+                    ),
+                    value,
+                )
+
+        for argument_definition, value in (
+            (host_definition, "compute02"),
+            (host_definition, "controller01;id"),
+            (window_definition, "5m"),
+            (window_definition, "15m;id"),
+        ):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "is not an allowed value"):
+                    self.runner.validate_argument_value(
+                        argument_definition,
+                        value,
+                        supported_validation_types,
+                    )
+
+    def test_host_and_window_validations_reject_malformed_allowed_values(self):
+        supported_validation_types = {
+            "allowed_host_list",
+            "bounded_time_window",
+        }
+
+        for validation_type, allowed_values in (
+            ("allowed_host_list", []),
+            ("allowed_host_list", "controller01"),
+            ("allowed_host_list", ["controller01", "controller01"]),
+            ("bounded_time_window", ["15m", ""]),
+            ("bounded_time_window", ["15m", 30]),
+        ):
+            with self.subTest(allowed_values=allowed_values):
+                with self.assertRaisesRegex(ValueError, "allowed_values"):
+                    self.runner.validate_argument_value(
+                        {
+                            "name": validation_type,
+                            "validation": validation_type,
+                            "allowed_values": allowed_values,
+                        },
+                        "controller01",
+                        supported_validation_types,
+                    )
+
+    def test_bounded_time_window_default_is_validated(self):
+        tool = {
+            "name": "recent_metadata_errors",
+            "available": False,
+            "arguments": [
+                {
+                    "name": "host",
+                    "position": 1,
+                    "required": True,
+                    "validation": "allowed_host_list",
+                    "allowed_values": ["controller01"],
+                },
+                {
+                    "name": "time_window",
+                    "position": 2,
+                    "required": False,
+                    "validation": "bounded_time_window",
+                    "allowed_values": ["15m", "30m", "1h"],
+                    "default": "15m",
+                },
+            ],
+        }
+        registry = self.runner.load_registry(
+            self.write_registry(
+                [tool],
+                ["allowed_host_list", "bounded_time_window"],
+            )
+        )
+
+        _, validated_args = self.runner.validate_request(
+            registry,
+            "recent_metadata_errors",
+            {"host": "controller01"},
+        )
+        self.assertEqual(validated_args["time_window"], "15m")
+
+        registry["tools"][0]["arguments"][1]["default"] = "5m"
+        with self.assertRaisesRegex(ValueError, "is not an allowed value"):
+            self.runner.validate_request(
+                registry,
+                "recent_metadata_errors",
+                {"host": "controller01"},
+            )
+
+    def test_fixed_arguments_prefix_argv_and_reject_caller_overrides(self):
+        requested_tool = {
+            "name": "recent_metadata_errors",
+            "script_target": "/opt/openstack-ai-ops/scripts/host_diagnostics.py",
+            "fixed_arguments": ["metadata"],
+            "arguments": [
+                {
+                    "name": "host",
+                    "position": 1,
+                    "required": True,
+                    "validation": "allowed_host_list",
+                    "allowed_values": ["controller01"],
+                },
+                {
+                    "name": "time_window",
+                    "position": 2,
+                    "required": False,
+                    "validation": "bounded_time_window",
+                    "allowed_values": ["15m", "30m", "1h"],
+                    "default": "15m",
+                },
+            ],
+        }
+
+        self.assertEqual(
+            self.runner.build_command_argv(
+                requested_tool,
+                {"host": "controller01", "time_window": "30m"},
+            ),
+            [
+                "/opt/openstack-ai-ops/scripts/host_diagnostics.py",
+                "metadata",
+                "controller01",
+                "30m",
+            ],
+        )
+
+        registry = {
+            "tools": [requested_tool],
+            "supported_argument_validation_types": [
+                "allowed_host_list",
+                "bounded_time_window",
+            ],
+        }
+        with self.assertRaisesRegex(
+            ValueError, "unknown declared argument.*diagnostic_kind"
+        ):
+            self.runner.validate_request(
+                registry,
+                "recent_metadata_errors",
+                {
+                    "host": "controller01",
+                    "time_window": "30m",
+                    "diagnostic_kind": "nova",
+                },
+            )
+
+    def test_fixed_arguments_reject_malformed_registry_values(self):
+        requested_tool = {
+            "name": "recent_metadata_errors",
+            "script_target": "/opt/openstack-ai-ops/scripts/host_diagnostics.py",
+            "arguments": [],
+        }
+
+        for fixed_arguments in (
+            "metadata",
+            [],
+            ["metadata", "metadata"],
+            ["metadata", ""],
+        ):
+            with self.subTest(fixed_arguments=fixed_arguments):
+                with self.assertRaisesRegex(ValueError, "fixed_arguments"):
+                    self.runner.build_command_argv(
+                        {**requested_tool, "fixed_arguments": fixed_arguments},
+                        {},
+                    )
 
     def test_main_executes_allowlisted_no_argument_tool_by_argv(self):
         script_path = self.write_executable_script(

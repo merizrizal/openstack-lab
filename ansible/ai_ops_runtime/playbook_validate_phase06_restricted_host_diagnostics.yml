@@ -1,0 +1,356 @@
+---
+- name: Validate restricted host diagnostics from assistant runtime
+  hosts: assistant
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/assistant_runtime/defaults/main.yml"
+    - "{{ playbook_dir }}/roles/host_observer/defaults/main.yml"
+  vars:
+    ai_ops_restricted_runner_path: "{{ ai_ops_runtime_root }}/scripts/tool_runner/aiops_tool_runner.py"
+    ai_ops_restricted_registry_path: "{{ ai_ops_runtime_root }}/scripts/tool_runner/tool_registry.json"
+    ai_ops_restricted_connector_path: "{{ ai_ops_runtime_root }}/scripts/host_diagnostics/aiops_host_diagnostic_connector.py"
+    ai_ops_restricted_policy_path: "{{ ai_ops_runtime_root }}/scripts/host_diagnostics/host_diagnostic_policy.json"
+    ai_ops_restricted_audit_path: "{{ ai_ops_runtime_root }}/audit/tool-runner.jsonl"
+    ai_ops_restricted_request_prefix: "restricted-host-diagnostics-{{ ansible_facts['date_time'].iso8601_basic_short }}Z"
+    ai_ops_restricted_runtime_paths:
+      - { path: "{{ ai_ops_runtime_root }}/scripts", type: directory, owner: root, group: root, mode: "0755" }
+      - { path: "{{ ai_ops_runtime_root }}/scripts/host_diagnostics", type: directory, owner: root, group: root, mode: "0755" }
+      - { path: "{{ ai_ops_restricted_connector_path }}", type: file, owner: root, group: root, mode: "0755" }
+      - { path: "{{ ai_ops_restricted_policy_path }}", type: file, owner: root, group: root, mode: "0644" }
+      - { path: "{{ host_observer_private_key_path }}", type: file, owner: assistant, group: assistant, mode: "0600" }
+      - { path: "{{ host_observer_known_hosts_path }}", type: file, owner: assistant, group: assistant, mode: "0600" }
+      - { path: "{{ ai_ops_restricted_runner_path }}", type: file, owner: assistant, group: assistant, mode: "0755" }
+      - { path: "{{ ai_ops_restricted_registry_path }}", type: file, owner: assistant, group: assistant, mode: "0644" }
+    ai_ops_restricted_ssh_argv:
+      - /usr/bin/ssh
+      - -F
+      - /dev/null
+      - -i
+      - "{{ host_observer_private_key_path }}"
+      - -o
+      - BatchMode=yes
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - IdentityAgent=none
+      - -o
+      - PasswordAuthentication=no
+      - -o
+      - KbdInteractiveAuthentication=no
+      - -o
+      - NumberOfPasswordPrompts=0
+      - -o
+      - StrictHostKeyChecking=yes
+      - -o
+      - "UserKnownHostsFile={{ host_observer_known_hosts_path }}"
+      - -o
+      - GlobalKnownHostsFile=/dev/null
+      - -o
+      - UpdateHostKeys=no
+      - -o
+      - ForwardAgent=no
+      - -o
+      - ClearAllForwardings=yes
+      - -o
+      - RequestTTY=no
+      - -o
+      - PermitLocalCommand=no
+      - -l
+      - aiops-observer
+    ai_ops_restricted_approved_requests:
+      - { id: metadata-controller, tool: recent_metadata_errors, kind: metadata, host: controller01 }
+      - { id: nova-controller, tool: recent_nova_errors, kind: nova, host: controller01 }
+      - { id: nova-compute01, tool: recent_nova_errors, kind: nova, host: compute01 }
+      - { id: nova-compute02, tool: recent_nova_errors, kind: nova, host: compute02 }
+      - { id: neutron-controller, tool: recent_neutron_errors, kind: neutron, host: controller01 }
+      - { id: neutron-compute01, tool: recent_neutron_errors, kind: neutron, host: compute01 }
+      - { id: neutron-compute02, tool: recent_neutron_errors, kind: neutron, host: compute02 }
+    ai_ops_restricted_invalid_requests:
+      - { id: invalid-host, tool: recent_metadata_errors, args: [--arg, host=compute01, --arg, time_window=15m] }
+      - { id: invalid-window, tool: recent_nova_errors, args: [--arg, host=controller01, --arg, time_window=15m;id] }
+      - id: invalid-argument
+        tool: recent_neutron_errors
+        args: [--arg, host=controller01, --arg, time_window=15m, --arg, diagnostic_kind=nova]
+    ai_ops_restricted_workflow_requests:
+      - { id: project-summary, tool: project_resource_summary, args: [] }
+      - { id: server-basic, tool: server_basic_info, args: [--arg, server_identifier=control_plane_vm01] }
+      - { id: server-network, tool: server_network_info, args: [--arg, server_identifier=control_plane_vm01] }
+  tasks:
+    - name: Inspect assistant runtime artifacts
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_restricted_runtime_paths }}"
+      register: ai_ops_restricted_runtime_stats
+
+    - name: Assert assistant runtime artifact protections
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - (item.item.type == 'directory') == item.stat.isdir
+          - (item.item.type == 'file') == item.stat.isreg
+          - item.stat.pw_name == item.item.owner
+          - item.stat.gr_name == item.item.group
+          - item.stat.mode == item.item.mode
+        fail_msg: A restricted host diagnostic runtime artifact has an unsafe type, owner, group, or mode.
+      loop: "{{ ai_ops_restricted_runtime_stats.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Validate deployed registry and Python syntax
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - py_compile
+          - "{{ ai_ops_restricted_runner_path }}"
+          - "{{ ai_ops_restricted_connector_path }}"
+      changed_when: false
+
+    - name: Validate deployed registry JSON syntax
+      ansible.builtin.command:
+        argv: [python3, -m, json.tool, "{{ ai_ops_restricted_registry_path }}"]
+      changed_when: false
+      no_log: true
+
+    - name: Run approved direct connector forms as assistant
+      ansible.builtin.command:
+        argv: [/usr/sbin/runuser, -u, assistant, --, "{{ ai_ops_restricted_connector_path }}", "{{ item.kind }}", "{{ item.host }}", 15m]
+      loop: "{{ ai_ops_restricted_approved_requests }}"
+      register: ai_ops_restricted_direct_results
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert approved direct connector forms are bounded and redacted
+      ansible.builtin.assert:
+        that:
+          - item.rc == 0
+          - (item.stdout | from_json).kind == item.item.kind
+          - (item.stdout | from_json).time_window == '15m'
+          - item.stdout | length <= 65536
+          - item.stdout is not search('(?i)(password|token|secret)\\s*[=:]\\s*(?!\\[REDACTED\\])')
+        fail_msg: An approved connector form failed, exceeded its bound, or exposed a secret-like value.
+      loop: "{{ ai_ops_restricted_direct_results.results }}"
+      loop_control:
+        label: "{{ item.item.id }}"
+      no_log: true
+
+    - name: Parse sanitized metadata diagnostic payload
+      ansible.builtin.set_fact:
+        ai_ops_restricted_metadata_payload: >-
+          {{
+            (
+              ai_ops_restricted_direct_results.results
+              | selectattr('item.id', 'equalto', 'metadata-controller')
+              | map(attribute='stdout')
+              | first
+            )
+            | from_json
+          }}
+      no_log: true
+
+    - name: Assert metadata diagnostic retains fixed evidence categories
+      ansible.builtin.assert:
+        that:
+          - ai_ops_restricted_metadata_payload.sections | selectattr('source', 'equalto', 'listener:8775') | list | length == 1
+          - ai_ops_restricted_metadata_payload.sections | selectattr('source', 'equalto', 'journal:neutron-metadata-agent') | list | length == 1
+          - ai_ops_restricted_metadata_payload.sections | selectattr('source', 'equalto', '/var/log/apache2/nova_metadata_error.log') | list | length == 1
+        fail_msg: Metadata diagnostics did not retain the listener, Neutron, and Nova evidence categories.
+      no_log: true
+
+    - name: Attempt arbitrary observer shell command
+      ansible.builtin.command:
+        argv: "{{ ['/usr/sbin/runuser', '-u', 'assistant', '--'] + ai_ops_restricted_ssh_argv + [controller01.mgmtnet_ip_address, 'sh'] }}"
+      register: ai_ops_restricted_shell_denial
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Attempt observer TTY allocation
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/sbin/runuser', '-u', 'assistant', '--'] + ai_ops_restricted_ssh_argv
+            + ['-tt', controller01.mgmtnet_ip_address, 'aiops-host-diagnostic', 'metadata', '15m'] }}"
+      register: ai_ops_restricted_tty_denial
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Attempt observer forwarding
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/sbin/runuser', '-u', 'assistant', '--', '/usr/bin/timeout', '5'] + ai_ops_restricted_ssh_argv
+            + ['-N', '-L', '127.0.0.1:0:127.0.0.1:22', controller01.mgmtnet_ip_address] }}"
+      register: ai_ops_restricted_forwarding_denial
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert observer shell TTY and forwarding requests are denied
+      ansible.builtin.assert:
+        that:
+          - ai_ops_restricted_shell_denial.rc != 0
+          - ai_ops_restricted_tty_denial.rc != 0
+          - ai_ops_restricted_forwarding_denial.rc != 0
+        fail_msg: The restricted observer identity accepted a shell, TTY, or forwarding request.
+      no_log: true
+
+    - name: Run approved host tools through the local runner
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/sbin/runuser', '-u', 'assistant', '--', ai_ops_restricted_runner_path, '--registry', ai_ops_restricted_registry_path,
+            '--audit-path', ai_ops_restricted_audit_path, '--request-id',
+            ai_ops_restricted_request_prefix + '-' + item.id, '--arg', 'host=' + item.host, '--arg', 'time_window=15m', item.tool] }}
+      loop: "{{ ai_ops_restricted_approved_requests }}"
+      register: ai_ops_restricted_runner_results
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert approved runner host tools return structured success
+      ansible.builtin.assert:
+        that:
+          - item.rc == 0
+          - (item.stdout | from_json).tool == item.item.tool
+          - (item.stdout | from_json).status == 'ok'
+          - (item.stdout | from_json).arguments.host == item.item.host
+          - (item.stdout | from_json).arguments.time_window == '15m'
+          - (item.stdout | from_json).request_id == ai_ops_restricted_request_prefix + '-' + item.item.id
+          - (item.stdout | from_json).truncated in [true, false]
+        fail_msg: An approved host tool did not return the required successful runner envelope.
+      loop: "{{ ai_ops_restricted_runner_results.results }}"
+      loop_control:
+        label: "{{ item.item.id }}"
+      no_log: true
+
+    - name: Run invalid host tool requests through the local runner
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/sbin/runuser', '-u', 'assistant', '--', ai_ops_restricted_runner_path, '--registry', ai_ops_restricted_registry_path,
+            '--audit-path', ai_ops_restricted_audit_path, '--request-id',
+            ai_ops_restricted_request_prefix + '-' + item.id] + item.args + [item.tool] }}
+      loop: "{{ ai_ops_restricted_invalid_requests }}"
+      register: ai_ops_restricted_invalid_results
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert invalid host tool requests fail before execution
+      ansible.builtin.assert:
+        that:
+          - item.rc == 3
+          - (item.stdout | from_json).status == 'validation_error'
+          - (item.stdout | from_json).request_id == ai_ops_restricted_request_prefix + '-' + item.item.id
+        fail_msg: An invalid host tool request did not fail closed with a validation error.
+      loop: "{{ ai_ops_restricted_invalid_results.results }}"
+      loop_control:
+        label: "{{ item.item.id }}"
+      no_log: true
+
+    - name: Run metadata workflow project and server tools
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/sbin/runuser', '-u', 'assistant', '--', ai_ops_restricted_runner_path, '--registry', ai_ops_restricted_registry_path,
+            '--audit-path', ai_ops_restricted_audit_path, '--request-id',
+            ai_ops_restricted_request_prefix + '-' + item.id] + item.args + [item.tool] }}
+      loop: "{{ ai_ops_restricted_workflow_requests }}"
+      register: ai_ops_restricted_workflow_results
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert metadata workflow tools return structured success
+      ansible.builtin.assert:
+        that:
+          - item.rc == 0
+          - (item.stdout | from_json).tool == item.item.tool
+          - (item.stdout | from_json).status in ['ok', 'truncated']
+          - (item.stdout | from_json).request_id == ai_ops_restricted_request_prefix + '-' + item.item.id
+        fail_msg: A project or server metadata workflow tool did not return a successful structured envelope.
+      loop: "{{ ai_ops_restricted_workflow_results.results }}"
+      loop_control:
+        label: "{{ item.item.id }}"
+      no_log: true
+
+    - name: Collect sanitized audit event summary
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import json
+            import sys
+            from pathlib import Path
+
+            audit_path = Path(sys.argv[1])
+            prefix = sys.argv[2]
+            events = {}
+            for line in audit_path.read_text(encoding="utf-8").splitlines():
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                request_id = event.get("request_id", "")
+                if request_id.startswith(prefix):
+                    events[request_id] = {"tool": event.get("tool"), "status": event.get("status")}
+            print(json.dumps(events, sort_keys=True))
+          - "{{ ai_ops_restricted_audit_path }}"
+          - "{{ ai_ops_restricted_request_prefix }}"
+      register: ai_ops_restricted_audit_summary_result
+      changed_when: false
+      no_log: true
+
+    - name: Parse sanitized audit event summary
+      ansible.builtin.set_fact:
+        ai_ops_restricted_audit_summary: "{{ ai_ops_restricted_audit_summary_result.stdout | from_json }}"
+      no_log: true
+
+    - name: Assert audit events cover all runner validation requests
+      ansible.builtin.assert:
+        that:
+          - ai_ops_restricted_audit_summary | length == 13
+          - ai_ops_restricted_audit_summary[ai_ops_restricted_request_prefix + '-invalid-host'].status == 'validation_error'
+          - ai_ops_restricted_audit_summary[ai_ops_restricted_request_prefix + '-invalid-window'].status == 'validation_error'
+          - ai_ops_restricted_audit_summary[ai_ops_restricted_request_prefix + '-invalid-argument'].status == 'validation_error'
+          - ai_ops_restricted_audit_summary[ai_ops_restricted_request_prefix + '-metadata-controller'].status == 'ok'
+        fail_msg: The audit log does not correlate all approved and rejected validation requests.
+      no_log: true
+
+- name: Validate restricted observer target artifacts
+  hosts: ai_ops_host_observers
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/host_observer/defaults/main.yml"
+  vars:
+    ai_ops_restricted_target_paths:
+      - { path: "{{ host_observer_collector_path }}", type: file, owner: root, group: root, mode: "0755" }
+      - { path: "{{ host_observer_sudoers_path }}", type: file, owner: root, group: root, mode: "0440" }
+      - { path: "{{ host_observer_authorized_keys_path }}", type: file, owner: aiops-observer, group: aiops-observer, mode: "0600" }
+  tasks:
+    - name: Inspect restricted observer target artifacts
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_restricted_target_paths }}"
+      register: ai_ops_restricted_target_stats
+
+    - name: Assert restricted observer target artifact protections
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - (item.item.type == 'file') == item.stat.isreg
+          - item.stat.pw_name == item.item.owner
+          - item.stat.gr_name == item.item.group
+          - item.stat.mode == item.item.mode
+        fail_msg: A restricted observer target artifact has an unsafe type, owner, group, or mode.
+      loop: "{{ ai_ops_restricted_target_stats.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Validate restricted observer sudoers syntax
+      ansible.builtin.command:
+        argv: [/usr/sbin/visudo, -cf, "{{ host_observer_sudoers_path }}"]
+      changed_when: false

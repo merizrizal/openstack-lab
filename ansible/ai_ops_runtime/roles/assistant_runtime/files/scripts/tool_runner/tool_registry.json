@@ -67,7 +67,7 @@
           "required": true,
           "validation": "safe_identifier_pattern",
           "pattern": "^[A-Za-z0-9._:-]+$",
-          "description": "Server name or ID using the Phase 03 conservative safe identifier character set."
+          "description": "Server name or ID using the conservative safe identifier character set."
         }
       ]
     },
@@ -89,7 +89,7 @@
           "required": true,
           "validation": "safe_identifier_pattern",
           "pattern": "^[A-Za-z0-9._:-]+$",
-          "description": "Server name or ID using the Phase 03 conservative safe identifier character set."
+          "description": "Server name or ID using the conservative safe identifier character set."
         }
       ]
     },
@@ -106,6 +106,102 @@
       "output_limit_bytes": 32768,
       "mutation_guarantee": "unavailable_fail_closed_no_execution_until_operator_reader_validated",
       "arguments": []
+    },
+    {
+      "name": "recent_metadata_errors",
+      "description": "Collect bounded recent metadata diagnostic evidence from controller01 through the restricted observer connector.",
+      "script_target": "/opt/openstack-ai-ops/scripts/host_diagnostics/aiops_host_diagnostic_connector.py",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/host_diagnostics/aiops_host_diagnostic_connector.py",
+      "credential_profile": "restricted-ssh-observer",
+      "risk_level": "high_readonly_restricted_host_scope",
+      "available": true,
+      "timeout_seconds": 25,
+      "output_limit_bytes": 65536,
+      "mutation_guarantee": "forced_command_restricted_sudo_readonly_bounded",
+      "fixed_arguments": ["metadata"],
+      "arguments": [
+        {
+          "name": "host",
+          "position": 1,
+          "required": true,
+          "validation": "allowed_host_list",
+          "allowed_values": ["controller01"],
+          "description": "Approved metadata diagnostic host alias."
+        },
+        {
+          "name": "time_window",
+          "position": 2,
+          "required": false,
+          "validation": "bounded_time_window",
+          "allowed_values": ["15m", "30m", "1h"],
+          "default": "15m",
+          "description": "Exact approved recent-evidence window."
+        }
+      ]
+    },
+    {
+      "name": "recent_nova_errors",
+      "description": "Collect bounded recent Nova diagnostic evidence from reviewed controller and compute hosts through the restricted observer connector.",
+      "script_target": "/opt/openstack-ai-ops/scripts/host_diagnostics/aiops_host_diagnostic_connector.py",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/host_diagnostics/aiops_host_diagnostic_connector.py",
+      "credential_profile": "restricted-ssh-observer",
+      "risk_level": "high_readonly_restricted_host_scope",
+      "available": true,
+      "timeout_seconds": 25,
+      "output_limit_bytes": 65536,
+      "mutation_guarantee": "forced_command_restricted_sudo_readonly_bounded",
+      "fixed_arguments": ["nova"],
+      "arguments": [
+        {
+          "name": "host",
+          "position": 1,
+          "required": true,
+          "validation": "allowed_host_list",
+          "allowed_values": ["controller01", "compute01", "compute02"],
+          "description": "Approved Nova diagnostic host alias."
+        },
+        {
+          "name": "time_window",
+          "position": 2,
+          "required": false,
+          "validation": "bounded_time_window",
+          "allowed_values": ["15m", "30m", "1h"],
+          "default": "15m",
+          "description": "Exact approved recent-evidence window."
+        }
+      ]
+    },
+    {
+      "name": "recent_neutron_errors",
+      "description": "Collect bounded recent Neutron diagnostic evidence from reviewed controller and compute hosts through the restricted observer connector.",
+      "script_target": "/opt/openstack-ai-ops/scripts/host_diagnostics/aiops_host_diagnostic_connector.py",
+      "source_script": "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/host_diagnostics/aiops_host_diagnostic_connector.py",
+      "credential_profile": "restricted-ssh-observer",
+      "risk_level": "high_readonly_restricted_host_scope",
+      "available": true,
+      "timeout_seconds": 25,
+      "output_limit_bytes": 65536,
+      "mutation_guarantee": "forced_command_restricted_sudo_readonly_bounded",
+      "fixed_arguments": ["neutron"],
+      "arguments": [
+        {
+          "name": "host",
+          "position": 1,
+          "required": true,
+          "validation": "allowed_host_list",
+          "allowed_values": ["controller01", "compute01", "compute02"],
+          "description": "Approved Neutron diagnostic host alias."
+        },
+        {
+          "name": "time_window",
+          "position": 2,
+          "required": false,
+          "validation": "bounded_time_window",
+          "allowed_values": ["15m", "30m", "1h"],
+          "default": "15m",
+          "description": "Exact approved recent-evidence window."
+        }
+      ]
     }
   ]
 }

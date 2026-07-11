@@ -15,6 +15,49 @@
     group: "{{ ai_ops_runtime_group }}"
     mode: "{{ ai_ops_runtime_directory_mode }}"
 
+- name: Assert host diagnostic targets are reviewed observers
+  ansible.builtin.assert:
+    that:
+      - "'controller01' in groups.get('ai_ops_host_observers', [])"
+      - "'compute01' in groups.get('ai_ops_host_observers', [])"
+      - "'compute02' in groups.get('ai_ops_host_observers', [])"
+      - controller01.mgmtnet_ip_address is defined
+      - compute01.mgmtnet_ip_address is defined
+      - compute02.mgmtnet_ip_address is defined
+    fail_msg: Host diagnostics require the reviewed controller and compute observer targets.
+
+- name: Enforce root-owned AI-OPS script parent directory
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_root }}/scripts"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure root-managed host diagnostic directory exists
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_root }}/scripts/host_diagnostics"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install restricted host diagnostic connector
+  ansible.builtin.copy:
+    src: scripts/host_diagnostics/aiops_host_diagnostic_connector.py
+    dest: "{{ ai_ops_runtime_root }}/scripts/host_diagnostics/aiops_host_diagnostic_connector.py"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render root-managed host diagnostic policy
+  ansible.builtin.template:
+    src: host_diagnostics/host_diagnostic_policy.json.j2
+    dest: "{{ ai_ops_runtime_root }}/scripts/host_diagnostics/host_diagnostic_policy.json"
+    owner: root
+    group: root
+    mode: "0644"
+
 - name: Install AI-OPS tool runner CLI
   ansible.builtin.copy:
     src: scripts/tool_runner/aiops_tool_runner.py
