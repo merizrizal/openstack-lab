@@ -14,7 +14,7 @@
             suites:
               - "{{ ansible_facts['distribution_release'] }}"
             components:
-              - stable
+              - "{{ repository_component | default('stable') }}"
             architectures:
               - "{{ arch_mapping[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
             signed_by: "{{ repository_key_uri }}"
@@ -55,7 +55,7 @@
               Types: deb
               URIs: {{ repository_uri }}
               Suites: {{ ansible_distribution_release }}
-              Components: stable
+              Components: {{ repository_component | default('stable') }}
               Architectures: {{ arch_mapping[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}
               Signed-By: /etc/apt/keyrings/{{ repository_key_filename }}
             dest: /etc/apt/sources.list.d/{{ repository_source_name }}.sources

@@ -1,21 +1,14 @@
 ---
-- name: Add git-core gpg from a keyserver
-  ansible.builtin.get_url:
-    url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xe363c90f8f1b6217
-    dest: /etc/apt/trusted.gpg.d/git-core.asc
-    mode: "644"
-
-- name: Add git-core repository
-  ansible.builtin.apt_repository:
-    repo: >
-      deb [arch={{ arch_mapping[ansible_facts['architecture']] }} signed-by=/etc/apt/trusted.gpg.d/git-core.asc]
-      https://ppa.launchpadcontent.net/git-core/ppa/ubuntu {{ ansible_facts['distribution_release'] }} main
-    state: present
-
-- name: Do apt upgrade
-  ansible.builtin.apt:
-    upgrade: safe
-    update_cache: true
+- name: Install git-core repository
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: install_package_repository
+  vars:
+    repository_source_name: git-core
+    repository_uri: https://ppa.launchpadcontent.net/git-core/ppa/ubuntu
+    repository_key_uri: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xe363c90f8f1b6217
+    repository_key_filename: git-core.asc
+    repository_component: main
 
 - name: Install packages dependencies
   ansible.builtin.package:
