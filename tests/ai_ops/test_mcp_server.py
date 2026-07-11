@@ -19,6 +19,10 @@ RUNNER_REGISTRY_PATH = (
     REPO_ROOT
     / "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/tool_registry.json"
 )
+TOOL_RUNNER_PATH = (
+    REPO_ROOT
+    / "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/aiops_tool_runner.py"
+)
 
 
 def load_mcp_server_module():
@@ -37,13 +41,13 @@ class TestMCPServerStub(unittest.TestCase):
 
     def low_risk_policy(self):
         return {
-            "tool_allowlist": [self.server_module.INITIAL_MCP_TOOL_NAME],
+            "tool_allowlist": list(self.server_module.INITIAL_MCP_TOOL_NAMES),
             "enabled_risk_levels": [self.server_module.LOW_READONLY_PROJECT_RISK],
         }
 
     def project_summary_tool(self):
         return {
-            "name": self.server_module.INITIAL_MCP_TOOL_NAME,
+            "name": self.server_module.INITIAL_MCP_TOOL_NAMES[0],
             "description": "List project-visible diagnostic resources.",
             "credential_profile": "aiops-project-reader",
             "risk_level": self.server_module.LOW_READONLY_PROJECT_RISK,
@@ -51,10 +55,39 @@ class TestMCPServerStub(unittest.TestCase):
             "arguments": [],
         }
 
+    def server_tool(self, name):
+        descriptions = {
+            "server_basic_info": "Show basic OpenStack details for one server.",
+            "server_network_info": "Return network context for one server.",
+        }
+        return {
+            "name": name,
+            "description": descriptions[name],
+            "credential_profile": "aiops-project-reader",
+            "risk_level": self.server_module.LOW_READONLY_PROJECT_RISK,
+            "available": True,
+            "timeout_seconds": 30,
+            "arguments": [
+                {
+                    "name": "server_identifier",
+                    "position": 1,
+                    "required": True,
+                    "validation": "safe_identifier_pattern",
+                    "pattern": "^[A-Za-z0-9._:-]+$",
+                    "max_length": self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH,
+                    "description": "Reviewed server name or ID.",
+                }
+            ],
+        }
+
     def low_risk_registry(self):
         return {
             "policy": {"forbidden_capabilities": ["generic_shell"]},
-            "tools": [self.project_summary_tool()],
+            "supported_argument_validation_types": ["safe_identifier_pattern"],
+            "tools": [
+                self.project_summary_tool(),
+                *(self.server_tool(name) for name in self.server_module.INITIAL_MCP_TOOL_NAMES[1:]),
+            ],
         }
 
     def fake_runner_source(self, payload=None, raw_stdout=None):
@@ -62,7 +95,7 @@ class TestMCPServerStub(unittest.TestCase):
             return f"import sys\nsys.stdout.write({raw_stdout!r})\n"
 
         payload = {
-            "tool": self.server_module.INITIAL_MCP_TOOL_NAME,
+            "tool": self.server_module.INITIAL_MCP_TOOL_NAMES[0],
             "status": "ok",
             "arguments": {},
             "exit_code": 0,
@@ -77,6 +110,12 @@ class TestMCPServerStub(unittest.TestCase):
             "import json\n"
             "import sys\n"
             f"payload = {payload!r}\n"
+            "payload['tool'] = sys.argv[1]\n"
+            "payload['arguments'] = {}\n"
+            "for index, value in enumerate(sys.argv):\n"
+            "    if value == '--arg':\n"
+            "        name, argument_value = sys.argv[index + 1].split('=', 1)\n"
+            "        payload['arguments'][name] = argument_value\n"
             "payload['request_id'] = sys.argv[sys.argv.index('--request-id') + 1]\n"
             "sys.stdout.write(json.dumps(payload, sort_keys=True) + '\\n')\n"
         )
@@ -104,16 +143,26 @@ class TestMCPServerStub(unittest.TestCase):
             audit_path,
         )
 
-    def call_tool(self, paths, arguments=None):
+    def call_tool(self, paths, arguments=None, tool_name=None):
         server = self.server_module.create_server(paths)
         request = types.CallToolRequest(
             params=types.CallToolRequestParams(
-                name=self.server_module.INITIAL_MCP_TOOL_NAME,
+                name=tool_name or self.server_module.INITIAL_MCP_TOOL_NAMES[0],
                 arguments=arguments,
             )
         )
         result = asyncio.run(server.request_handlers[types.CallToolRequest](request))
         return result.root
+
+    def make_real_runner_paths(self):
+        paths = self.make_paths()
+        return self.server_module.AdapterPaths(
+            paths.policy_path,
+            paths.registry_path,
+            Path(sys.executable),
+            TOOL_RUNNER_PATH,
+            paths.audit_path,
+        )
 
     def test_default_adapter_paths_are_fixed_runtime_paths(self):
         paths = self.server_module.default_adapter_paths()
@@ -152,20 +201,32 @@ class TestMCPServerStub(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unable to load MCP policy"):
             self.server_module.load_mcp_policy(Path(tempdir.name) / "missing.json")
 
-    def test_create_server_discovers_one_registry_derived_tool(self):
+    def test_create_server_discovers_exactly_three_registry_derived_tools(self):
         server = self.server_module.create_server(self.make_paths())
         result = asyncio.run(
             server.request_handlers[types.ListToolsRequest](types.ListToolsRequest())
         )
 
+        tools = {tool.name: tool for tool in result.root.tools}
         self.assertIn(types.CallToolRequest, server.request_handlers)
-        self.assertEqual([tool.name for tool in result.root.tools], ["project_resource_summary"])
-        self.assertEqual(result.root.tools[0].inputSchema, {
+        self.assertEqual(list(tools), list(self.server_module.INITIAL_MCP_TOOL_NAMES))
+        self.assertEqual(tools["project_resource_summary"].inputSchema, {
             "type": "object",
             "properties": {},
             "additionalProperties": False,
         })
-        self.assertIn("read-only", result.root.tools[0].description.lower())
+        for tool_name in self.server_module.INITIAL_MCP_TOOL_NAMES[1:]:
+            with self.subTest(tool_name=tool_name):
+                self.assertEqual(
+                    tools[tool_name].inputSchema["properties"]["server_identifier"],
+                    {
+                        "type": "string",
+                        "description": "Reviewed server name or ID.",
+                        "pattern": "^[A-Za-z0-9._:-]+$",
+                        "maxLength": self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH,
+                    },
+                )
+        self.assertIn("read-only", tools["project_resource_summary"].description.lower())
 
     def test_schema_derives_public_arguments_without_fixed_arguments(self):
         tool = self.project_summary_tool()
@@ -232,10 +293,20 @@ class TestMCPServerStub(unittest.TestCase):
             self.server_module.list_exposed_tools(
                 self.low_risk_registry(),
                 {
-                    "tool_allowlist": [self.server_module.INITIAL_MCP_TOOL_NAME],
+                    "tool_allowlist": [self.server_module.INITIAL_MCP_TOOL_NAMES[0]],
                     "enabled_risk_levels": ["high_readonly_restricted_host_scope"],
                 },
             )
+
+    def test_create_server_rejects_restricted_host_policy_exposure(self):
+        registry = json.loads(RUNNER_REGISTRY_PATH.read_text(encoding="utf-8"))
+        policy = {
+            "tool_allowlist": ["recent_metadata_errors"],
+            "enabled_risk_levels": ["high_readonly_restricted_host_scope"],
+        }
+
+        with self.assertRaisesRegex(ValueError, "outside the initial MCP allowlist"):
+            self.server_module.create_server(self.make_paths(policy, registry))
 
     def test_registry_rejects_duplicate_and_forbidden_capabilities(self):
         duplicate_registry = self.low_risk_registry()
@@ -315,6 +386,22 @@ class TestMCPServerStub(unittest.TestCase):
             )
         )
         self.assertEqual(json.loads(result.content[0].text), result.structuredContent)
+
+    def test_server_tools_execute_fake_runner_with_valid_identifiers(self):
+        for tool_name in self.server_module.INITIAL_MCP_TOOL_NAMES[1:]:
+            with self.subTest(tool_name=tool_name):
+                result = self.call_tool(
+                    self.make_paths(),
+                    {"server_identifier": "server-01"},
+                    tool_name,
+                )
+
+                self.assertFalse(result.isError)
+                self.assertEqual(result.structuredContent["tool"], tool_name)
+                self.assertEqual(
+                    result.structuredContent["arguments"],
+                    {"server_identifier": "server-01"},
+                )
 
     def test_runner_timeout_envelope_is_returned_as_an_mcp_error(self):
         result = self.call_tool(
@@ -510,17 +597,69 @@ class TestMCPServerStub(unittest.TestCase):
 
         asyncio.run(cancel_call())
 
-    def test_argument_bearing_call_remains_unavailable_without_runner_execution(self):
+    def test_invalid_string_arguments_are_runner_audited_with_correlation(self):
+        cases = (
+            ("server_basic_info", {}, "missing required argument"),
+            (
+                "server_network_info",
+                {"server_identifier": "server;01"},
+                "unsafe characters",
+            ),
+            (
+                "server_basic_info",
+                {"server_identifier": "server-01", "unknown": "server-01"},
+                "unknown declared argument",
+            ),
+            (
+                "server_network_info",
+                {
+                    "server_identifier": "a"
+                    * (self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH + 1)
+                },
+                "exceeds maximum length",
+            ),
+        )
+
+        for tool_name, arguments, reason in cases:
+            with self.subTest(tool_name=tool_name, reason=reason):
+                paths = self.make_real_runner_paths()
+                result = self.call_tool(paths, arguments, tool_name)
+                events = [
+                    json.loads(line)
+                    for line in paths.audit_path.read_text(encoding="utf-8").splitlines()
+                ]
+
+                self.assertTrue(result.isError)
+                self.assertEqual(result.structuredContent["status"], "validation_error")
+                self.assertEqual(len(events), 1)
+                self.assertEqual(events[0]["tool"], tool_name)
+                self.assertEqual(events[0]["status"], "validation_error")
+                self.assertEqual(
+                    events[0]["request_id"],
+                    result.structuredContent["request_id"],
+                )
+                self.assertEqual(
+                    events[0]["client_id"], self.server_module.MCP_AUDIT_CLIENT_ID
+                )
+                self.assertEqual(
+                    events[0]["transport"], self.server_module.MCP_AUDIT_TRANSPORT
+                )
+                self.assertIn(reason, events[0]["reason"])
+
+    def test_adapter_rejects_non_string_argument_without_runner_execution(self):
+        paths = self.make_paths()
         result = self.call_tool(
-            self.make_paths(),
-            {"server_identifier": "server-01"},
+            paths,
+            {"server_identifier": 1},
+            "server_basic_info",
         )
 
         self.assertTrue(result.isError)
         self.assertEqual(
-            result.content[0].text,
-            self.server_module.ADAPTER_UNAVAILABLE_MESSAGE,
+            json.loads(result.content[0].text)["error"],
+            "MCP tool arguments must be strings",
         )
+        self.assertFalse(paths.audit_path.exists())
 
     def test_source_uses_fixed_subprocess_execution_without_network_transport(self):
         source = MCP_SERVER_PATH.read_text(encoding="utf-8")

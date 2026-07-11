@@ -19,7 +19,11 @@ from mcp.server.stdio import stdio_server
 MCP_SERVER_NAME = "openstack-ai-ops"
 MCP_SERVER_VERSION = "0.1.0"
 ADAPTER_UNAVAILABLE_MESSAGE = "adapter unavailable: requested MCP tool is not enabled"
-INITIAL_MCP_TOOL_NAME = "project_resource_summary"
+INITIAL_MCP_TOOL_NAMES = (
+    "project_resource_summary",
+    "server_basic_info",
+    "server_network_info",
+)
 LOW_READONLY_PROJECT_RISK = "low_readonly_project_scope"
 TOOL_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 MCP_REQUEST_ID_PREFIX = "mcp-stdio-"
@@ -395,8 +399,13 @@ async def invoke_runner(
     paths: AdapterPaths,
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    if tool_name != INITIAL_MCP_TOOL_NAME or arguments:
+    if tool_name not in INITIAL_MCP_TOOL_NAMES:
         raise RunnerProtocolError("runner invocation is not approved for this MCP tool")
+    if not isinstance(arguments, dict) or any(
+        not isinstance(name, str) or not isinstance(value, str)
+        for name, value in arguments.items()
+    ):
+        raise RunnerProtocolError("MCP tool arguments must be strings")
     argv = [
         str(paths.python_path),
         str(paths.runner_path),
@@ -412,6 +421,8 @@ async def invoke_runner(
         "--transport",
         MCP_AUDIT_TRANSPORT,
     ]
+    for name, value in sorted(arguments.items()):
+        argv.extend(("--arg", f"{name}={value}"))
     try:
         process = await asyncio.create_subprocess_exec(
             *argv,
@@ -495,10 +506,13 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
     registry = load_runner_registry(resolved_paths.registry_path)
     exposed_tools = list_exposed_tools(registry, policy)
     exposed_tool_names = {tool["name"] for tool in exposed_tools}
+    if not exposed_tool_names.issubset(INITIAL_MCP_TOOL_NAMES):
+        raise ValueError("MCP policy names a tool outside the initial MCP allowlist")
     registry_tools_by_name = {tool["name"]: tool for tool in registry["tools"]}
-    runner_timeout = runner_timeout_seconds(
-        registry_tools_by_name[INITIAL_MCP_TOOL_NAME]
-    )
+    runner_timeouts = {
+        tool_name: runner_timeout_seconds(registry_tools_by_name[tool_name])
+        for tool_name in exposed_tool_names
+    }
     runner_semaphore = asyncio.Semaphore(1)
 
     server = Server(MCP_SERVER_NAME, version=MCP_SERVER_VERSION)
@@ -512,9 +526,9 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
         tool_name: str,
         arguments: dict[str, Any],
     ) -> types.CallToolResult:
-        if tool_name not in exposed_tool_names or tool_name != INITIAL_MCP_TOOL_NAME:
-            return await unavailable_tool_call(tool_name, arguments)
-        if arguments:
+        if arguments is None:
+            arguments = {}
+        if tool_name not in exposed_tool_names:
             return await unavailable_tool_call(tool_name, arguments)
 
         request_id = new_request_id()
@@ -525,7 +539,7 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
                     arguments,
                     request_id,
                     resolved_paths,
-                    runner_timeout,
+                    runner_timeouts[tool_name],
                 )
         except RunnerProtocolError as exc:
             return adapter_error_result(request_id, str(exc))
