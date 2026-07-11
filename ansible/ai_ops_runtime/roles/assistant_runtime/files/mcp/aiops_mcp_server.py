@@ -27,7 +27,13 @@ MCP_AUDIT_CLIENT_ID = "local-mcp-client"
 MCP_AUDIT_TRANSPORT = "stdio"
 MCP_OUTER_TIMEOUT_GRACE_SECONDS = 5
 MCP_MAX_RUNNER_STREAM_BYTES = 131072
-MCP_MAX_RUNNER_ENVELOPE_BYTES = (2 * MCP_MAX_RUNNER_STREAM_BYTES) + 8192
+MCP_MAX_SERVER_IDENTIFIER_LENGTH = 128
+MCP_MAX_RUNNER_ENVELOPE_FIXED_OVERHEAD_BYTES = 8192
+MCP_MAX_RUNNER_ENVELOPE_BYTES = (
+    (2 * MCP_MAX_RUNNER_STREAM_BYTES)
+    + MCP_MAX_SERVER_IDENTIFIER_LENGTH
+    + MCP_MAX_RUNNER_ENVELOPE_FIXED_OVERHEAD_BYTES
+)
 MCP_ERROR_STATUSES = {
     "error",
     "denied",
@@ -128,6 +134,14 @@ def _validate_argument_definition(
         raise ValueError(f"registry argument {name} has an invalid validation type")
     if not isinstance(argument.get("description"), str) or not argument["description"]:
         raise ValueError(f"registry argument {name} has an invalid description")
+
+    max_length = argument.get("max_length")
+    if max_length is not None and (
+        not isinstance(max_length, int)
+        or isinstance(max_length, bool)
+        or max_length < 1
+    ):
+        raise ValueError(f"registry argument {name} has an invalid max_length")
 
     pattern = argument.get("pattern")
     if pattern is not None:
@@ -253,10 +267,13 @@ def build_mcp_tool_schema(registry_tool: dict[str, Any]) -> dict[str, Any]:
             "type": "string",
             "description": argument["description"],
         }
-        for key in ("pattern", "allowed_values", "default"):
+        for key in ("pattern", "allowed_values", "default", "max_length"):
             if key not in argument:
                 continue
-            schema_key = "enum" if key == "allowed_values" else key
+            schema_key = {
+                "allowed_values": "enum",
+                "max_length": "maxLength",
+            }.get(key, key)
             property_schema[schema_key] = argument[key]
         properties[argument["name"]] = property_schema
         if argument["required"]:

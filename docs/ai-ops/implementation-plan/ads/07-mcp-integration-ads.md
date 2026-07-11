@@ -371,8 +371,23 @@ The implementation must proceed through `chunked-implementation`. Do not impleme
 - **Validation:** valid envelope, runner error, timeout, malformed/multiple/mismatched envelope, audit-failure envelope, cancellation, and shell-disabled tests.
 - **Stop condition:** one complete MCP-to-runner-to-envelope slice is green; no argument-bearing or host tool is exposed.
 
+#### Pre-Chunk 5: Bounded Identifier and Envelope Contract
+
+- **Goal:** Resolve the argument/envelope-size blocker before exposing argument-bearing MCP tools.
+- **Files to change:**
+  - `ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/tool_registry.json`
+  - `ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/aiops_tool_runner.py`
+  - `tests/ai_ops/test_tool_runner.py`
+  - `ansible/ai_ops_runtime/roles/assistant_runtime/files/mcp/aiops_mcp_server.py`
+  - `tests/ai_ops/test_mcp_server.py`
+- **Symbols to add/change:** registry `max_length`; runner argument-length validation; MCP `maxLength` schema derivation; reviewed envelope-size constants.
+- **Implementation shape:** Set `server_identifier.max_length` to `128` for `server_basic_info` and `server_network_info`. The runner rejects over-limit values before pattern validation and retains its validation-error/audit path. The adapter derives `maxLength` but keeps runner validation authoritative. Its envelope bound explicitly reserves the 128-character identifier allowance in addition to the two reviewed stream limits and fixed JSON overhead. No argument-bearing MCP tool is allowlisted, converted to argv, or executed in this slice.
+- **Validation:** JSON syntax; Python compilation; focused runner tests for maximum valid and over-limit audited validation; MCP schema and maximum-envelope serialization tests; static safety scan and scoped diff review.
+- **Stop condition:** the finite 128-character contract is enforced and proven locally; Chunk 5 has not started.
+
 #### Chunk 5: Complete Low-Risk Tool and Argument Slice
 
+- **Precondition:** Pre-Chunk 5 is complete and its 128-character identifier/envelope contract remains green.
 - **Goal:** Add `server_basic_info` and `server_network_info` with registry-derived identifier schemas and runner-owned validation.
 - **Files to change:** MCP server and MCP tests only.
 - **Symbols to add/change:** argument conversion, SDK handler seam, initial low-risk allowlist.

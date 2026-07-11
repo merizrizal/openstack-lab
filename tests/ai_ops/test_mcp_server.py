@@ -15,6 +15,10 @@ MCP_SERVER_PATH = (
     REPO_ROOT
     / "ansible/ai_ops_runtime/roles/assistant_runtime/files/mcp/aiops_mcp_server.py"
 )
+RUNNER_REGISTRY_PATH = (
+    REPO_ROOT
+    / "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/tool_registry.json"
+)
 
 
 def load_mcp_server_module():
@@ -173,6 +177,7 @@ class TestMCPServerStub(unittest.TestCase):
                 "required": True,
                 "validation": "safe_identifier_pattern",
                 "pattern": "^[A-Za-z0-9._:-]+$",
+                "max_length": self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH,
                 "description": "Reviewed server name or ID.",
             }
         ]
@@ -184,8 +189,24 @@ class TestMCPServerStub(unittest.TestCase):
             schema["inputSchema"]["properties"]["server_identifier"]["pattern"],
             "^[A-Za-z0-9._:-]+$",
         )
+        self.assertEqual(
+            schema["inputSchema"]["properties"]["server_identifier"]["maxLength"],
+            self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH,
+        )
         self.assertFalse(schema["inputSchema"]["additionalProperties"])
         self.assertNotIn("fixed_arguments", schema["inputSchema"]["properties"])
+
+    def test_low_risk_server_identifier_lengths_match_envelope_contract(self):
+        registry = json.loads(RUNNER_REGISTRY_PATH.read_text(encoding="utf-8"))
+        tools = {tool["name"]: tool for tool in registry["tools"]}
+
+        for tool_name in ("server_basic_info", "server_network_info"):
+            with self.subTest(tool_name=tool_name):
+                argument = tools[tool_name]["arguments"][0]
+                self.assertEqual(
+                    argument["max_length"],
+                    self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH,
+                )
 
     def test_exposure_rejects_unknown_unavailable_and_disabled_risk_tools(self):
         with self.assertRaisesRegex(ValueError, "unknown tool"):
@@ -425,6 +446,29 @@ class TestMCPServerStub(unittest.TestCase):
                             1,
                         )
                     )
+
+    def test_maximum_identifier_envelope_fits_reviewed_bound(self):
+        envelope = {
+            "tool": "server_network_info",
+            "status": "ok",
+            "arguments": {
+                "server_identifier": "a"
+                * self.server_module.MCP_MAX_SERVER_IDENTIFIER_LENGTH
+            },
+            "exit_code": 0,
+            "stdout": "a" * self.server_module.MCP_MAX_RUNNER_STREAM_BYTES,
+            "stderr": "b" * self.server_module.MCP_MAX_RUNNER_STREAM_BYTES,
+            "duration_ms": 1,
+            "truncated": False,
+            "timestamp": "2026-07-11T00:00:00Z",
+            "request_id": "mcp-stdio-envelope-bound-test",
+        }
+
+        serialized = json.dumps(envelope, sort_keys=True).encode("utf-8") + b"\n"
+
+        self.assertLessEqual(
+            len(serialized), self.server_module.MCP_MAX_RUNNER_ENVELOPE_BYTES
+        )
 
     def test_cancellation_terminates_the_adapter_owned_runner(self):
         class BlockingProcess:

@@ -67,6 +67,7 @@
           "required": true,
           "validation": "safe_identifier_pattern",
           "pattern": "^[A-Za-z0-9._:-]+$",
+          "max_length": 128,
           "description": "Server name or ID using the conservative safe identifier character set."
         }
       ]
@@ -89,6 +90,7 @@
           "required": true,
           "validation": "safe_identifier_pattern",
           "pattern": "^[A-Za-z0-9._:-]+$",
+          "max_length": 128,
           "description": "Server name or ID using the conservative safe identifier character set."
         }
       ]

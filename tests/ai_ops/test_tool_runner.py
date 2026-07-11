@@ -248,6 +248,63 @@ class TestToolRunnerStub(unittest.TestCase):
         self.assertEqual(payload["arguments"], {})
         self.assertIn("server_identifier contains unsafe characters", payload["stderr"])
 
+    def test_validate_identifier_accepts_declared_max_length(self):
+        identifier = "a" * 128
+        argument_definition = {
+            "name": "server_identifier",
+            "validation": "safe_identifier_pattern",
+            "pattern": "^[A-Za-z0-9._:-]+$",
+            "max_length": 128,
+        }
+
+        self.assertEqual(
+            self.runner.validate_argument_value(
+                argument_definition,
+                identifier,
+                {"safe_identifier_pattern"},
+            ),
+            identifier,
+        )
+
+    def test_main_rejects_overlength_identifier_argument_and_audits(self):
+        registry_path = self.write_registry(
+            [
+                {
+                    "name": "server_basic_info",
+                    "available": True,
+                    "arguments": [
+                        {
+                            "name": "server_identifier",
+                            "position": 1,
+                            "required": True,
+                            "validation": "safe_identifier_pattern",
+                            "pattern": "^[A-Za-z0-9._:-]+$",
+                            "max_length": 128,
+                        }
+                    ],
+                }
+            ]
+        )
+
+        exit_code, payload, events = self.invoke_main_with_audit(
+            [
+                "server_basic_info",
+                "--registry",
+                str(registry_path),
+                "--arg",
+                f"server_identifier={'a' * 129}",
+            ]
+        )
+
+        self.assertEqual(exit_code, self.runner.STATUS_EXIT_CODES["validation_error"])
+        self.assertEqual(payload["status"], "validation_error")
+        self.assertEqual(payload["arguments"], {})
+        self.assertIn("server_identifier exceeds maximum length of 128", payload["stderr"])
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["status"], "validation_error")
+        self.assertEqual(events[0]["request_id"], payload["request_id"])
+        self.assertIn("server_identifier exceeds maximum length of 128", events[0]["reason"])
+
     def test_host_and_window_validations_accept_only_declared_values(self):
         supported_validation_types = {
             "allowed_host_list",

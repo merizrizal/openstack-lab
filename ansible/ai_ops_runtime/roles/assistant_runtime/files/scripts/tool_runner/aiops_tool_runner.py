@@ -247,6 +247,17 @@ def validate_argument_value(
     if value == "":
         raise ValueError(f"{name} must not be empty")
 
+    max_length = argument_definition.get("max_length")
+    if max_length is not None:
+        if (
+            not isinstance(max_length, int)
+            or isinstance(max_length, bool)
+            or max_length < 1
+        ):
+            raise ValueError(f"{name} max_length must be a positive integer")
+        if len(value) > max_length:
+            raise ValueError(f"{name} exceeds maximum length of {max_length}")
+
     validation_type = argument_definition.get("validation", "required_string")
     if not isinstance(validation_type, str) or not validation_type:
         raise ValueError(f"registry argument {name} is missing a validation type")
