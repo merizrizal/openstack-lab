@@ -9,3 +9,4 @@ openstacksdk
 xmltodict
 jinja2
 passlib
+mcp

@@ -29,6 +29,8 @@ SECRET_LIKE_ARGUMENT_RE = re.compile(
     r"(?:^|[_-])(token|secret|password|passphrase|credential|private[_-]?key|api[_-]?key)(?:$|[_-])",
     re.IGNORECASE,
 )
+MCP_AUDIT_CLIENT_ID = "local-mcp-client"
+MCP_AUDIT_TRANSPORT = "stdio"
 
 
 def default_registry_path() -> Path:
@@ -109,7 +111,17 @@ def sanitize_arguments(arguments: dict[str, str] | None) -> dict[str, Any]:
 
 
 
-def build_audit_event(envelope: dict[str, Any]) -> dict[str, Any]:
+def build_audit_event(
+    envelope: dict[str, Any],
+    *,
+    client_id: str | None = None,
+    transport: str | None = None,
+) -> dict[str, Any]:
+    if client_id not in (None, MCP_AUDIT_CLIENT_ID):
+        raise ValueError("unsupported audit client identifier")
+    if transport not in (None, MCP_AUDIT_TRANSPORT):
+        raise ValueError("unsupported audit transport")
+
     event = {
         "timestamp": envelope["timestamp"],
         "tool": envelope["tool"],
@@ -119,6 +131,10 @@ def build_audit_event(envelope: dict[str, Any]) -> dict[str, Any]:
         "request_id": envelope["request_id"],
     }
 
+    if client_id is not None:
+        event["client_id"] = client_id
+    if transport is not None:
+        event["transport"] = transport
     if envelope.get("exit_code") is not None:
         event["exit_code"] = envelope["exit_code"]
     if envelope.get("truncated"):
@@ -504,6 +520,18 @@ def parse_cli_args(argv: list[str] | None) -> argparse.Namespace:
         help="Optional caller-provided request or correlation identifier",
     )
     parser.add_argument(
+        "--client-id",
+        choices=[MCP_AUDIT_CLIENT_ID],
+        default=None,
+        help="Optional fixed audit client identifier for local MCP calls.",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=[MCP_AUDIT_TRANSPORT],
+        default=None,
+        help="Optional fixed audit transport for local MCP calls.",
+    )
+    parser.add_argument(
         "--audit-path",
         default=str(default_audit_path()),
         help="Path to JSON Lines audit log file",
@@ -532,7 +560,14 @@ def main(argv: list[str] | None = None) -> int:
             request_id=args.request_id,
         )
         try:
-            write_audit_event(args.audit_path, build_audit_event(envelope))
+            write_audit_event(
+                args.audit_path,
+                build_audit_event(
+                    envelope,
+                    client_id=args.client_id,
+                    transport=args.transport,
+                ),
+            )
         except Exception as audit_exc:
             envelope = build_result_envelope(
                 args.tool_name,
@@ -557,7 +592,14 @@ def main(argv: list[str] | None = None) -> int:
             request_id=args.request_id,
         )
         try:
-            write_audit_event(args.audit_path, build_audit_event(envelope))
+            write_audit_event(
+                args.audit_path,
+                build_audit_event(
+                    envelope,
+                    client_id=args.client_id,
+                    transport=args.transport,
+                ),
+            )
         except Exception as audit_exc:
             envelope = build_result_envelope(
                 args.tool_name,
@@ -634,7 +676,14 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     try:
-        write_audit_event(args.audit_path, build_audit_event(envelope))
+        write_audit_event(
+            args.audit_path,
+            build_audit_event(
+                envelope,
+                client_id=args.client_id,
+                transport=args.transport,
+            ),
+        )
     except Exception as exc:
         envelope = build_result_envelope(
             args.tool_name,

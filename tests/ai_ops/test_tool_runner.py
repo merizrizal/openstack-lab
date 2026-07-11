@@ -592,7 +592,66 @@ class TestToolRunnerStub(unittest.TestCase):
         self.assertEqual(events[0]["tool"], "not_registered")
         self.assertEqual(events[0]["status"], "denied")
         self.assertEqual(events[0]["arguments"], {})
+        self.assertNotIn("client_id", events[0])
+        self.assertNotIn("transport", events[0])
         self.assertIn("allowlist", events[0]["reason"])
+
+    def test_main_writes_fixed_mcp_origin_metadata_only_to_audit_event(self):
+        registry_path = self.write_registry(
+            [
+                {
+                    "name": "project_resource_summary",
+                    "available": True,
+                    "arguments": [],
+                }
+            ]
+        )
+
+        exit_code, payload, events = self.invoke_main_with_audit(
+            [
+                "not_registered",
+                "--registry",
+                str(registry_path),
+                "--client-id",
+                self.runner.MCP_AUDIT_CLIENT_ID,
+                "--transport",
+                self.runner.MCP_AUDIT_TRANSPORT,
+            ]
+        )
+
+        self.assertEqual(exit_code, self.runner.STATUS_EXIT_CODES["denied"])
+        self.assertEqual(payload["status"], "denied")
+        self.assertNotIn("client_id", payload)
+        self.assertNotIn("transport", payload)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["client_id"], self.runner.MCP_AUDIT_CLIENT_ID)
+        self.assertEqual(events[0]["transport"], self.runner.MCP_AUDIT_TRANSPORT)
+
+    def test_audit_origin_rejects_unreviewed_values(self):
+        envelope = self.runner.build_result_envelope(
+            "project_resource_summary",
+            "denied",
+            request_id="req-123",
+        )
+
+        with self.assertRaisesRegex(ValueError, "client identifier"):
+            self.runner.build_audit_event(
+                envelope,
+                client_id="untrusted-client",
+            )
+        with self.assertRaisesRegex(ValueError, "transport"):
+            self.runner.build_audit_event(
+                envelope,
+                transport="https",
+            )
+        with self.assertRaises(SystemExit):
+            self.runner.parse_cli_args(
+                ["project_resource_summary", "--client-id", "untrusted-client"]
+            )
+        with self.assertRaises(SystemExit):
+            self.runner.parse_cli_args(
+                ["project_resource_summary", "--transport", "https"]
+            )
 
     def test_main_writes_audit_event_for_validation_error(self):
         registry_path = self.write_registry(
