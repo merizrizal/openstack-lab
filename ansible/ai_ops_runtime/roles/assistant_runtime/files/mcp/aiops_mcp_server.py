@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Fail-closed stdio MCP adapter contract with no executable tools."""
+"""Fail-closed stdio MCP adapter for the initial reviewed runner tool."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import re
+import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,18 +18,47 @@ from mcp.server.stdio import stdio_server
 
 MCP_SERVER_NAME = "openstack-ai-ops"
 MCP_SERVER_VERSION = "0.1.0"
-ADAPTER_UNAVAILABLE_MESSAGE = "adapter unavailable: executable MCP tools are not enabled"
+ADAPTER_UNAVAILABLE_MESSAGE = "adapter unavailable: requested MCP tool is not enabled"
 INITIAL_MCP_TOOL_NAME = "project_resource_summary"
 LOW_READONLY_PROJECT_RISK = "low_readonly_project_scope"
 TOOL_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+MCP_REQUEST_ID_PREFIX = "mcp-stdio-"
+MCP_AUDIT_CLIENT_ID = "local-mcp-client"
+MCP_AUDIT_TRANSPORT = "stdio"
+MCP_OUTER_TIMEOUT_GRACE_SECONDS = 5
+MCP_MAX_RUNNER_STREAM_BYTES = 131072
+MCP_MAX_RUNNER_ENVELOPE_BYTES = (2 * MCP_MAX_RUNNER_STREAM_BYTES) + 8192
+MCP_ERROR_STATUSES = {
+    "error",
+    "denied",
+    "validation_error",
+    "timeout",
+    "unavailable",
+}
+RUNNER_ENVELOPE_STATUSES = MCP_ERROR_STATUSES | {"ok", "truncated"}
+RUNNER_ENVELOPE_FIELDS = {
+    "tool",
+    "status",
+    "arguments",
+    "exit_code",
+    "stdout",
+    "stderr",
+    "duration_ms",
+    "truncated",
+    "timestamp",
+    "request_id",
+}
 
 
 @dataclass(frozen=True)
 class AdapterPaths:
-    """Fixed runtime paths needed before the adapter can serve stdio requests."""
+    """Fixed runtime paths used by the stdio adapter and runner subprocess."""
 
     policy_path: Path
     registry_path: Path
+    python_path: Path
+    runner_path: Path
+    audit_path: Path
 
 
 def default_adapter_paths() -> AdapterPaths:
@@ -36,6 +67,11 @@ def default_adapter_paths() -> AdapterPaths:
         registry_path=Path(
             "/opt/openstack-ai-ops/scripts/tool_runner/tool_registry.json"
         ),
+        python_path=Path("/opt/openstack-ai-ops/.venv/bin/python"),
+        runner_path=Path(
+            "/opt/openstack-ai-ops/scripts/tool_runner/aiops_tool_runner.py"
+        ),
+        audit_path=Path("/opt/openstack-ai-ops/audit/tool-runner.jsonl"),
     )
 
 
@@ -266,6 +302,161 @@ def list_exposed_tools(
     return exposed_tools
 
 
+class RunnerProtocolError(ValueError):
+    """Raised when the adapter cannot trust a runner subprocess response."""
+
+
+def runner_timeout_seconds(registry_tool: dict[str, Any]) -> int:
+    timeout = registry_tool.get("timeout_seconds", 30)
+    if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout < 1:
+        raise ValueError("exposed runner tool has an invalid timeout_seconds value")
+    return timeout
+
+
+def new_request_id() -> str:
+    return f"{MCP_REQUEST_ID_PREFIX}{uuid.uuid4()}"
+
+
+def _validate_envelope_field_types(envelope: dict[str, Any]) -> None:
+    if not isinstance(envelope["arguments"], dict):
+        raise RunnerProtocolError("runner envelope arguments must be an object")
+    if envelope["exit_code"] is not None and (
+        not isinstance(envelope["exit_code"], int)
+        or isinstance(envelope["exit_code"], bool)
+    ):
+        raise RunnerProtocolError("runner envelope exit_code must be an integer or null")
+    for field in ("stdout", "stderr", "timestamp"):
+        if not isinstance(envelope[field], str):
+            raise RunnerProtocolError(f"runner envelope {field} must be a string")
+    if not isinstance(envelope["duration_ms"], int) or isinstance(
+        envelope["duration_ms"], bool
+    ) or envelope["duration_ms"] < 0:
+        raise RunnerProtocolError("runner envelope duration_ms must be non-negative")
+    if not isinstance(envelope["truncated"], bool):
+        raise RunnerProtocolError("runner envelope truncated must be a boolean")
+
+
+def validate_runner_envelope(
+    envelope: dict[str, Any],
+    expected_tool: str,
+    request_id: str,
+) -> dict[str, Any]:
+    if not RUNNER_ENVELOPE_FIELDS.issubset(envelope):
+        raise RunnerProtocolError("runner envelope is missing required fields")
+    if envelope["tool"] != expected_tool or not isinstance(envelope["tool"], str):
+        raise RunnerProtocolError("runner envelope tool does not match request")
+    if envelope["request_id"] != request_id or not isinstance(
+        envelope["request_id"], str
+    ):
+        raise RunnerProtocolError("runner envelope request_id does not match request")
+    if not isinstance(envelope["status"], str) or (
+        envelope["status"] not in RUNNER_ENVELOPE_STATUSES
+    ):
+        raise RunnerProtocolError("runner envelope has an invalid status")
+    _validate_envelope_field_types(envelope)
+    for field in ("stdout", "stderr"):
+        if len(envelope[field].encode("utf-8")) > MCP_MAX_RUNNER_STREAM_BYTES:
+            raise RunnerProtocolError("runner envelope stream exceeds reviewed bound")
+    return envelope
+
+
+async def _terminate_runner(process: asyncio.subprocess.Process) -> None:
+    if process.returncode is not None:
+        return
+    process.terminate()
+    try:
+        await asyncio.wait_for(process.wait(), timeout=1)
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.wait()
+
+
+async def invoke_runner(
+    tool_name: str,
+    arguments: dict[str, Any],
+    request_id: str,
+    paths: AdapterPaths,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    if tool_name != INITIAL_MCP_TOOL_NAME or arguments:
+        raise RunnerProtocolError("runner invocation is not approved for this MCP tool")
+    argv = [
+        str(paths.python_path),
+        str(paths.runner_path),
+        tool_name,
+        "--registry",
+        str(paths.registry_path),
+        "--audit-path",
+        str(paths.audit_path),
+        "--request-id",
+        request_id,
+        "--client-id",
+        MCP_AUDIT_CLIENT_ID,
+        "--transport",
+        MCP_AUDIT_TRANSPORT,
+    ]
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        raise RunnerProtocolError("runner subprocess could not be started") from exc
+
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout_seconds + MCP_OUTER_TIMEOUT_GRACE_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        await _terminate_runner(process)
+        raise RunnerProtocolError("runner subprocess exceeded the adapter timeout") from exc
+    except asyncio.CancelledError:
+        await _terminate_runner(process)
+        raise
+
+    if stderr:
+        raise RunnerProtocolError("runner wrote unexpected stderr output")
+    if len(stdout) > MCP_MAX_RUNNER_ENVELOPE_BYTES:
+        raise RunnerProtocolError("runner envelope exceeds reviewed bound")
+    try:
+        lines = stdout.decode("utf-8").splitlines()
+        if len(lines) != 1 or not lines[0]:
+            raise RunnerProtocolError("runner returned invalid JSON Lines output")
+        envelope = json.loads(lines[0])
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RunnerProtocolError("runner returned malformed JSON output") from exc
+    if not isinstance(envelope, dict):
+        raise RunnerProtocolError("runner envelope must be a JSON object")
+    return validate_runner_envelope(envelope, tool_name, request_id)
+
+
+def map_envelope_to_mcp_result(envelope: dict[str, Any]) -> types.CallToolResult:
+    return types.CallToolResult(
+        content=[
+            types.TextContent(
+                type="text",
+                text=json.dumps(envelope, sort_keys=True),
+            )
+        ],
+        structuredContent=envelope,
+        isError=envelope["status"] in MCP_ERROR_STATUSES,
+    )
+
+
+def adapter_error_result(request_id: str, message: str) -> types.CallToolResult:
+    return types.CallToolResult(
+        content=[
+            types.TextContent(
+                type="text",
+                text=json.dumps({"request_id": request_id, "error": message}),
+            )
+        ],
+        isError=True,
+    )
+
+
 async def unavailable_tool_call(
     tool_name: str,
     arguments: dict[str, Any],
@@ -286,6 +477,12 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
     policy = load_mcp_policy(resolved_paths.policy_path)
     registry = load_runner_registry(resolved_paths.registry_path)
     exposed_tools = list_exposed_tools(registry, policy)
+    exposed_tool_names = {tool["name"] for tool in exposed_tools}
+    registry_tools_by_name = {tool["name"]: tool for tool in registry["tools"]}
+    runner_timeout = runner_timeout_seconds(
+        registry_tools_by_name[INITIAL_MCP_TOOL_NAME]
+    )
+    runner_semaphore = asyncio.Semaphore(1)
 
     server = Server(MCP_SERVER_NAME, version=MCP_SERVER_VERSION)
 
@@ -298,7 +495,24 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
         tool_name: str,
         arguments: dict[str, Any],
     ) -> types.CallToolResult:
-        return await unavailable_tool_call(tool_name, arguments)
+        if tool_name not in exposed_tool_names or tool_name != INITIAL_MCP_TOOL_NAME:
+            return await unavailable_tool_call(tool_name, arguments)
+        if arguments:
+            return await unavailable_tool_call(tool_name, arguments)
+
+        request_id = new_request_id()
+        try:
+            async with runner_semaphore:
+                envelope = await invoke_runner(
+                    tool_name,
+                    arguments,
+                    request_id,
+                    resolved_paths,
+                    runner_timeout,
+                )
+        except RunnerProtocolError as exc:
+            return adapter_error_result(request_id, str(exc))
+        return map_envelope_to_mcp_result(envelope)
 
     return server
 
