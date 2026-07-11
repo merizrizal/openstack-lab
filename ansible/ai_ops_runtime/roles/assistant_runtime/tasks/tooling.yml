@@ -17,3 +17,10 @@
     state: present
     virtualenv: "{{ ai_ops_runtime_venv_path }}"
     virtualenv_command: python3 -m venv
+
+- name: Install pinned MCP SDK in AI-OPS runtime virtualenv
+  ansible.builtin.pip:
+    name: "{{ ai_ops_runtime_mcp_python_package }}"
+    state: present
+    virtualenv: "{{ ai_ops_runtime_venv_path }}"
+    virtualenv_command: python3 -m venv

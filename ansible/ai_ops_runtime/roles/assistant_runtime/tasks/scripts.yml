@@ -15,6 +15,17 @@
     group: "{{ ai_ops_runtime_group }}"
     mode: "{{ ai_ops_runtime_directory_mode }}"
 
+- name: Ensure AI-OPS MCP runtime directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "{{ ai_ops_runtime_directory_mode }}"
+  loop:
+    - "{{ ai_ops_runtime_mcp_root }}"
+    - "{{ ai_ops_runtime_mcp_resources_path }}"
+
 - name: Assert host diagnostic targets are reviewed observers
   ansible.builtin.assert:
     that:
@@ -73,6 +84,34 @@
     owner: "{{ ai_ops_runtime_user }}"
     group: "{{ ai_ops_runtime_group }}"
     mode: "0644"
+
+- name: Install AI-OPS MCP stdio adapter
+  ansible.builtin.copy:
+    src: mcp/aiops_mcp_server.py
+    dest: "{{ ai_ops_runtime_mcp_server_path }}"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0755"
+
+- name: Render AI-OPS MCP exposure policy
+  ansible.builtin.template:
+    src: mcp/mcp_policy.json.j2
+    dest: "{{ ai_ops_runtime_mcp_policy_path }}"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0644"
+
+- name: Install AI-OPS MCP curated resources
+  ansible.builtin.copy:
+    src: "mcp/resources/{{ item }}"
+    dest: "{{ ai_ops_runtime_mcp_resources_path }}/{{ item }}"
+    owner: "{{ ai_ops_runtime_user }}"
+    group: "{{ ai_ops_runtime_group }}"
+    mode: "0644"
+  loop:
+    - diagnostic-safety.md
+    - lab-architecture.md
+    - metadata-troubleshooting.md
 
 - name: Install AI-OPS approved diagnostic policy README
   ansible.builtin.copy:
