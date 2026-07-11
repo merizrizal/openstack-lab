@@ -14,6 +14,7 @@ from typing import Any
 
 from mcp import types
 from mcp.server.lowlevel import Server
+from mcp.server.lowlevel.helper_types import ReadResourceContents
 from mcp.server.stdio import stdio_server
 
 MCP_SERVER_NAME = "openstack-ai-ops"
@@ -24,7 +25,52 @@ INITIAL_MCP_TOOL_NAMES = (
     "server_basic_info",
     "server_network_info",
 )
+RESTRICTED_HOST_MCP_TOOL_NAMES = (
+    "recent_metadata_errors",
+    "recent_nova_errors",
+    "recent_neutron_errors",
+)
+REVIEWED_MCP_TOOL_NAMES = INITIAL_MCP_TOOL_NAMES + RESTRICTED_HOST_MCP_TOOL_NAMES
+CURATED_RESOURCES = {
+    "aiops://policy/diagnostic-safety": {
+        "name": "diagnostic-safety",
+        "description": "Read-only diagnostic safety policy and runner boundary.",
+        "filename": "diagnostic-safety.md",
+    },
+    "aiops://runbooks/metadata-troubleshooting": {
+        "name": "metadata-troubleshooting",
+        "description": "Safe evidence order for metadata troubleshooting.",
+        "filename": "metadata-troubleshooting.md",
+    },
+    "aiops://architecture/lab-summary": {
+        "name": "lab-architecture-summary",
+        "description": "Sanitized OpenStack lab topology and service placement.",
+        "filename": "lab-architecture.md",
+    },
+}
+DIAGNOSTIC_PROMPTS = {
+    "metadata_diagnosis": {
+        "description": "Diagnose metadata symptoms with approved API evidence.",
+        "arguments": ("server_identifier",),
+    },
+    "server_inspection": {
+        "description": "Inspect one server through basic and network evidence.",
+        "arguments": ("server_identifier",),
+    },
+    "project_summary": {
+        "description": "Summarize high-level project-visible inventory.",
+        "arguments": (),
+    },
+}
+MCP_RESOURCE_MIME_TYPE = "text/markdown"
+MCP_RESOURCE_DIRECTORY = Path("/opt/openstack-ai-ops/mcp/resources")
+MCP_SERVER_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
 LOW_READONLY_PROJECT_RISK = "low_readonly_project_scope"
+HIGH_READONLY_RESTRICTED_HOST_RISK = "high_readonly_restricted_host_scope"
+REVIEWED_MCP_RISK_LEVELS = {
+    LOW_READONLY_PROJECT_RISK,
+    HIGH_READONLY_RESTRICTED_HOST_RISK,
+}
 TOOL_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 MCP_REQUEST_ID_PREFIX = "mcp-stdio-"
 MCP_AUDIT_CLIENT_ID = "local-mcp-client"
@@ -69,6 +115,7 @@ class AdapterPaths:
     python_path: Path
     runner_path: Path
     audit_path: Path
+    resource_directory: Path = MCP_RESOURCE_DIRECTORY
 
 
 def default_adapter_paths() -> AdapterPaths:
@@ -213,11 +260,14 @@ def validate_mcp_policy(policy: dict[str, Any]) -> dict[str, Any]:
     if set(policy) != expected_keys:
         raise ValueError("MCP policy must contain only reviewed exposure settings")
     _require_unique_string_list(policy, "tool_allowlist", "MCP policy tool_allowlist")
-    _require_unique_string_list(
+    enabled_risk_levels = _require_unique_string_list(
         policy,
         "enabled_risk_levels",
         "MCP policy enabled_risk_levels",
     )
+    unknown_risk_levels = set(enabled_risk_levels) - REVIEWED_MCP_RISK_LEVELS
+    if unknown_risk_levels:
+        raise ValueError("MCP policy enables an unknown risk class")
     return policy
 
 
@@ -399,7 +449,7 @@ async def invoke_runner(
     paths: AdapterPaths,
     timeout_seconds: int,
 ) -> dict[str, Any]:
-    if tool_name not in INITIAL_MCP_TOOL_NAMES:
+    if tool_name not in REVIEWED_MCP_TOOL_NAMES:
         raise RunnerProtocolError("runner invocation is not approved for this MCP tool")
     if not isinstance(arguments, dict) or any(
         not isinstance(name, str) or not isinstance(value, str)
@@ -498,6 +548,162 @@ async def unavailable_tool_call(
     )
 
 
+def list_curated_resources() -> list[types.Resource]:
+    return [
+        types.Resource(
+            uri=uri,
+            name=definition["name"],
+            description=definition["description"],
+            mimeType=MCP_RESOURCE_MIME_TYPE,
+        )
+        for uri, definition in CURATED_RESOURCES.items()
+    ]
+
+
+def read_curated_resource(
+    uri: Any,
+    resource_directory: Path,
+) -> list[ReadResourceContents]:
+    definition = CURATED_RESOURCES.get(str(uri))
+    if definition is None:
+        raise ValueError("unknown curated resource URI")
+
+    filename = definition["filename"]
+    relative_path = Path(filename)
+    if relative_path.is_absolute() or relative_path.name != filename:
+        raise ValueError("invalid curated resource mapping")
+
+    candidate = resource_directory / relative_path
+    if resource_directory.is_symlink() or candidate.is_symlink():
+        raise ValueError("curated resource symlinks are not allowed")
+
+    try:
+        resolved_directory = resource_directory.resolve(strict=True)
+        resolved_candidate = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise ValueError("unable to load curated resource") from exc
+    if resolved_candidate.parent != resolved_directory:
+        raise ValueError("curated resource path escapes fixed directory")
+
+    try:
+        content = resolved_candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ValueError("unable to load curated resource") from exc
+    return [ReadResourceContents(content, MCP_RESOURCE_MIME_TYPE)]
+
+
+def list_diagnostic_prompts() -> list[types.Prompt]:
+    prompts = []
+    for name, definition in DIAGNOSTIC_PROMPTS.items():
+        arguments = [
+            types.PromptArgument(
+                name=argument_name,
+                description="Exact reviewed server name or ID.",
+                required=True,
+            )
+            for argument_name in definition["arguments"]
+        ]
+        prompts.append(
+            types.Prompt(
+                name=name,
+                description=definition["description"],
+                arguments=arguments,
+            )
+        )
+    return prompts
+
+
+def _validated_prompt_arguments(
+    prompt_name: str,
+    arguments: dict[str, str] | None,
+) -> dict[str, str]:
+    definition = DIAGNOSTIC_PROMPTS.get(prompt_name)
+    if definition is None:
+        raise ValueError("unknown diagnostic prompt")
+
+    supplied = {} if arguments is None else arguments
+    expected_names = set(definition["arguments"])
+    if set(supplied) != expected_names:
+        raise ValueError("diagnostic prompt arguments do not match the fixed schema")
+    if any(not isinstance(value, str) for value in supplied.values()):
+        raise ValueError("diagnostic prompt arguments must be strings")
+
+    server_identifier = supplied.get("server_identifier")
+    if server_identifier is not None and (
+        not server_identifier
+        or len(server_identifier) > MCP_MAX_SERVER_IDENTIFIER_LENGTH
+        or MCP_SERVER_IDENTIFIER_RE.fullmatch(server_identifier) is None
+    ):
+        raise ValueError("server_identifier is outside the reviewed identifier rules")
+    return supplied
+
+
+def render_diagnostic_prompt(
+    prompt_name: str,
+    arguments: dict[str, str] | None,
+    exposed_tool_names: set[str] | None = None,
+) -> types.GetPromptResult:
+    supplied = _validated_prompt_arguments(prompt_name, arguments)
+    available_tools = (
+        set(INITIAL_MCP_TOOL_NAMES)
+        if exposed_tool_names is None
+        else exposed_tool_names
+    )
+    shared = (
+        "This workflow is diagnostic-only. Do not remediate, mutate resources, "
+        "invent commands, or claim that manual next steps were executed. Use only "
+        "the named tools when they are discovered. Preserve every request ID and "
+        "report timeout, unavailable, validation_error, and truncated states as "
+        "evidence gaps. Explain healthy signals, failing signals, the likely failure "
+        "domain, evidence gaps, and manual next steps."
+    )
+
+    if prompt_name == "metadata_diagnosis":
+        server_identifier = supplied["server_identifier"]
+        if "recent_metadata_errors" in available_tools:
+            restricted_guidance = (
+                "After the API tools, use recent_metadata_errors only for the "
+                "explicitly exposed restricted-host evidence boundary. Preserve its "
+                "fixed host alias, time window, status, truncation, and request ID."
+            )
+        else:
+            restricted_guidance = (
+                "Restricted-host evidence is not exposed; identify that limitation "
+                "when API evidence cannot localize the failure."
+            )
+        workflow = (
+            "Investigate metadata symptoms for server_identifier "
+            f"{server_identifier!r}. Use project_resource_summary first, then "
+            "server_basic_info and server_network_info with exactly that identifier. "
+            "Do not treat active server state, visible fixed IPs, or config-drive "
+            f"clues as proof that the metadata path is healthy. {restricted_guidance}"
+        )
+    elif prompt_name == "server_inspection":
+        server_identifier = supplied["server_identifier"]
+        workflow = (
+            f"Inspect server_identifier {server_identifier!r}. Use server_basic_info "
+            "first and server_network_info second with exactly the same identifier. "
+            "Keep server, network, port, fixed-IP, volume, and config-drive evidence "
+            "separate, and do not infer guest or application health."
+        )
+    else:
+        workflow = (
+            "Use project_resource_summary for a high-level project-visible inventory "
+            "summary. Do not infer hidden, admin-only, host-level, or unavailable "
+            "resources from absent output."
+        )
+
+    return types.GetPromptResult(
+        description=DIAGNOSTIC_PROMPTS[prompt_name]["description"],
+        messages=[
+            types.PromptMessage(
+                role="user",
+                content=types.TextContent(type="text", text=f"{shared}\n\n{workflow}"),
+            )
+        ],
+    )
+
+
 def create_server(paths: AdapterPaths | None = None) -> Server:
     """Build a stdio-only server after validating its fixed JSON inputs."""
 
@@ -506,8 +712,8 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
     registry = load_runner_registry(resolved_paths.registry_path)
     exposed_tools = list_exposed_tools(registry, policy)
     exposed_tool_names = {tool["name"] for tool in exposed_tools}
-    if not exposed_tool_names.issubset(INITIAL_MCP_TOOL_NAMES):
-        raise ValueError("MCP policy names a tool outside the initial MCP allowlist")
+    if not exposed_tool_names.issubset(REVIEWED_MCP_TOOL_NAMES):
+        raise ValueError("MCP policy names a tool outside the reviewed MCP allowlist")
     registry_tools_by_name = {tool["name"]: tool for tool in registry["tools"]}
     runner_timeouts = {
         tool_name: runner_timeout_seconds(registry_tools_by_name[tool_name])
@@ -516,6 +722,29 @@ def create_server(paths: AdapterPaths | None = None) -> Server:
     runner_semaphore = asyncio.Semaphore(1)
 
     server = Server(MCP_SERVER_NAME, version=MCP_SERVER_VERSION)
+
+    @server.list_resources()
+    async def handle_list_resources() -> list[types.Resource]:
+        return list_curated_resources()
+
+    @server.read_resource()
+    async def handle_read_resource(uri: Any) -> list[ReadResourceContents]:
+        return read_curated_resource(uri, resolved_paths.resource_directory)
+
+    @server.list_prompts()
+    async def handle_list_prompts() -> list[types.Prompt]:
+        return list_diagnostic_prompts()
+
+    @server.get_prompt()
+    async def handle_get_prompt(
+        prompt_name: str,
+        arguments: dict[str, str] | None,
+    ) -> types.GetPromptResult:
+        return render_diagnostic_prompt(
+            prompt_name,
+            arguments,
+            exposed_tool_names,
+        )
 
     @server.list_tools()
     async def handle_list_tools() -> list[types.Tool]:

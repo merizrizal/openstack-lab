@@ -1,0 +1,8 @@
+{% set exposed_tools = ai_ops_runtime_mcp_low_risk_tool_allowlist + (ai_ops_runtime_mcp_restricted_host_tool_allowlist if ai_ops_runtime_mcp_restricted_host_exposure_enabled else []) %}
+{
+  "tool_allowlist": {{ exposed_tools | to_json }},
+  "enabled_risk_levels": [
+    "low_readonly_project_scope"{% if ai_ops_runtime_mcp_restricted_host_exposure_enabled %},
+    "high_readonly_restricted_host_scope"{% endif %}
+  ]
+}
