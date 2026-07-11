@@ -1,0 +1,425 @@
+---
+- name: Validate local stdio MCP integration
+  hosts: assistant
+  become: true
+  gather_facts: true
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/assistant_runtime/defaults/main.yml"
+  vars:
+    ai_ops_mcp_validation_server_path: "{{ ai_ops_runtime_mcp_server_path }}"
+    ai_ops_mcp_validation_policy_path: "{{ ai_ops_runtime_mcp_policy_path }}"
+    ai_ops_mcp_validation_resource_path: "{{ ai_ops_runtime_mcp_resources_path }}"
+    ai_ops_mcp_validation_registry_path: "{{ ai_ops_runtime_root }}/scripts/tool_runner/tool_registry.json"
+    ai_ops_mcp_validation_runner_path: "{{ ai_ops_runtime_root }}/scripts/tool_runner/aiops_tool_runner.py"
+    ai_ops_mcp_validation_audit_path: "{{ ai_ops_runtime_root }}/audit/tool-runner.jsonl"
+    ai_ops_mcp_validation_python_path: "{{ ai_ops_runtime_venv_path }}/bin/python"
+    ai_ops_mcp_validation_server_identifier: control_plane_vm01
+    ai_ops_mcp_validation_expected_tools:
+      - project_resource_summary
+      - server_basic_info
+      - server_network_info
+    ai_ops_mcp_validation_expected_resources:
+      - aiops://architecture/lab-summary
+      - aiops://policy/diagnostic-safety
+      - aiops://runbooks/metadata-troubleshooting
+    ai_ops_mcp_validation_expected_prompts:
+      - metadata_diagnosis
+      - project_summary
+      - server_inspection
+    ai_ops_mcp_validation_paths:
+      - { path: "{{ ai_ops_runtime_mcp_root }}", type: directory, mode: "0755" }
+      - { path: "{{ ai_ops_mcp_validation_resource_path }}", type: directory, mode: "0755" }
+      - { path: "{{ ai_ops_mcp_validation_server_path }}", type: file, mode: "0755" }
+      - { path: "{{ ai_ops_mcp_validation_policy_path }}", type: file, mode: "0644" }
+      - { path: "{{ ai_ops_mcp_validation_resource_path }}/diagnostic-safety.md", type: file, mode: "0644" }
+      - { path: "{{ ai_ops_mcp_validation_resource_path }}/lab-architecture.md", type: file, mode: "0644" }
+      - { path: "{{ ai_ops_mcp_validation_resource_path }}/metadata-troubleshooting.md", type: file, mode: "0644" }
+      - { path: "{{ ai_ops_mcp_validation_runner_path }}", type: file, mode: "0755" }
+      - { path: "{{ ai_ops_mcp_validation_registry_path }}", type: file, mode: "0644" }
+  tasks:
+    - name: Assert validation server identifier is reviewed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_server_identifier | length > 0
+          - ai_ops_mcp_validation_server_identifier | length <= 128
+          - (ai_ops_mcp_validation_server_identifier | regex_search('^[A-Za-z0-9._:-]+$')) is not none
+        fail_msg: Set a project-visible server name or ID matching the reviewed identifier contract.
+
+    - name: Inspect deployed MCP runtime artifacts
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_mcp_validation_paths }}"
+      register: ai_ops_mcp_validation_path_stats
+
+    - name: Assert deployed MCP runtime protections
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - (item.item.type == 'directory') == item.stat.isdir
+          - (item.item.type == 'file') == item.stat.isreg
+          - item.stat.pw_name == ai_ops_runtime_user
+          - item.stat.gr_name == ai_ops_runtime_group
+          - item.stat.mode == item.item.mode
+          - not item.stat.islnk
+        fail_msg: A deployed MCP artifact has an unsafe type, owner, group, mode, or symlink state.
+      loop: "{{ ai_ops_mcp_validation_path_stats.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Validate deployed MCP adapter Python syntax
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - -m
+          - py_compile
+          - "{{ ai_ops_mcp_validation_server_path }}"
+      changed_when: false
+
+    - name: Validate deployed MCP policy JSON syntax
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - -m
+          - json.tool
+          - "{{ ai_ops_mcp_validation_policy_path }}"
+      changed_when: false
+      no_log: true
+
+    - name: Read deployed MCP package version
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - -c
+          - "import importlib.metadata; print(importlib.metadata.version('mcp'))"
+      register: ai_ops_mcp_validation_package_version
+      changed_when: false
+
+    - name: Assert deployed MCP package is pinned
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_package_version.stdout == '1.28.1'
+        fail_msg: The deployed MCP package does not match the reviewed pin.
+
+    - name: Read sanitized deployed MCP policy
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - -c
+          - |
+            import json
+            import sys
+            from pathlib import Path
+
+            policy = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+            print(json.dumps(policy, sort_keys=True))
+          - "{{ ai_ops_mcp_validation_policy_path }}"
+      register: ai_ops_mcp_validation_policy_result
+      changed_when: false
+      no_log: true
+
+    - name: Parse sanitized deployed MCP policy
+      ansible.builtin.set_fact:
+        ai_ops_mcp_validation_policy: "{{ ai_ops_mcp_validation_policy_result.stdout | from_json }}"
+      no_log: true
+
+    - name: Assert default MCP exposure remains narrow
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_policy.tool_allowlist | sort == ai_ops_mcp_validation_expected_tools | sort
+          - ai_ops_mcp_validation_policy.enabled_risk_levels == ['low_readonly_project_scope']
+          - ai_ops_mcp_validation_policy.tool_allowlist | intersect(ai_ops_runtime_mcp_restricted_host_tool_allowlist) | length == 0
+        fail_msg: The deployed MCP policy exposes tools or risk classes outside the approved default boundary.
+      no_log: true
+
+    - name: Create temporary MCP validation directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -aiops-mcp-validation
+      register: ai_ops_mcp_validation_tempdir
+
+    - name: Protect temporary MCP validation directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_validation_tempdir.path }}"
+        state: directory
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0700"
+
+    - name: Install temporary sanitized MCP stdio client
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_mcp_validation_tempdir.path }}/validate_mcp.py"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0600"
+        content: |
+          import asyncio
+          import json
+          import re
+          import subprocess
+          import sys
+
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
+
+          def listener_snapshot():
+              result = subprocess.run(
+                  ["/usr/bin/ss", "-H", "-lntu"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+                  timeout=5,
+              )
+              return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+          def envelope_summary(result):
+              envelope = result.structuredContent
+              if not isinstance(envelope, dict):
+                  return {"is_error": bool(result.isError), "structured": False}
+              return {
+                  "is_error": bool(result.isError),
+                  "structured": True,
+                  "tool": envelope.get("tool"),
+                  "status": envelope.get("status"),
+                  "request_id": envelope.get("request_id"),
+                  "truncated": envelope.get("truncated"),
+              }
+
+
+          async def validate(python_path, server_path, server_identifier):
+              before_listeners = listener_snapshot()
+              parameters = StdioServerParameters(
+                  command=python_path,
+                  args=[server_path],
+              )
+              async with stdio_client(parameters) as (read_stream, write_stream):
+                  async with ClientSession(read_stream, write_stream) as session:
+                      await session.initialize()
+                      during_listeners = listener_snapshot()
+                      tools = await session.list_tools()
+                      resources = await session.list_resources()
+                      prompts = await session.list_prompts()
+
+                      resource_summaries = {}
+                      for resource in resources.resources:
+                          result = await session.read_resource(resource.uri)
+                          resource_text = "\n".join(
+                              getattr(item, "text", "")
+                              for item in result.contents
+                          )
+                          resource_summaries[str(resource.uri)] = {
+                              "content_count": len(result.contents),
+                              "nonempty": bool(resource_text),
+                              "secret_like": bool(
+                                  re.search(
+                                      r"BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY"
+                                      r"|AKIA[0-9A-Z]{16}"
+                                      r"|(?:password|token|secret)\s*[=:]\s*\S+",
+                                      resource_text,
+                                      re.IGNORECASE,
+                                  )
+                              ),
+                          }
+
+                      prompt_summaries = {}
+                      for prompt in prompts.prompts:
+                          arguments = (
+                              {"server_identifier": server_identifier}
+                              if prompt.name in {"metadata_diagnosis", "server_inspection"}
+                              else None
+                          )
+                          result = await session.get_prompt(prompt.name, arguments)
+                          text = "\n".join(
+                              getattr(message.content, "text", "")
+                              for message in result.messages
+                          )
+                          prompt_summaries[prompt.name] = {
+                              "message_count": len(result.messages),
+                              "diagnostic_only": "diagnostic-only" in text,
+                              "manual_next_steps": "manual next steps" in text,
+                          }
+
+                      project = await session.call_tool("project_resource_summary", {})
+                      basic = await session.call_tool(
+                          "server_basic_info",
+                          {"server_identifier": server_identifier},
+                      )
+                      network = await session.call_tool(
+                          "server_network_info",
+                          {"server_identifier": server_identifier},
+                      )
+                      invalid = await session.call_tool(
+                          "server_basic_info",
+                          {"server_identifier": "invalid identifier"},
+                      )
+                      unknown = await session.call_tool("generic_command", {})
+
+              return {
+                  "tools": sorted(tool.name for tool in tools.tools),
+                  "tool_schemas_closed": all(
+                      tool.inputSchema.get("additionalProperties") is False
+                      for tool in tools.tools
+                  ),
+                  "resources": sorted(str(resource.uri) for resource in resources.resources),
+                  "resource_summaries": resource_summaries,
+                  "prompts": sorted(prompt.name for prompt in prompts.prompts),
+                  "prompt_summaries": prompt_summaries,
+                  "calls": {
+                      "project": envelope_summary(project),
+                      "basic": envelope_summary(basic),
+                      "network": envelope_summary(network),
+                      "invalid": envelope_summary(invalid),
+                      "unknown": envelope_summary(unknown),
+                  },
+                  "new_listener_count": len(during_listeners - before_listeners),
+              }
+
+
+          print(json.dumps(asyncio.run(validate(*sys.argv[1:4])), sort_keys=True))
+
+    - name: Run temporary MCP stdio client as runtime user
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/runuser
+          - -u
+          - "{{ ai_ops_runtime_user }}"
+          - --
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - "{{ ai_ops_mcp_validation_tempdir.path }}/validate_mcp.py"
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - "{{ ai_ops_mcp_validation_server_path }}"
+          - "{{ ai_ops_mcp_validation_server_identifier }}"
+      register: ai_ops_mcp_validation_client_result
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Remove temporary MCP validation directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_validation_tempdir.path }}"
+        state: absent
+
+    - name: Assert temporary MCP stdio client succeeded
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_client_result.rc == 0
+          - ai_ops_mcp_validation_client_result.stderr | length <= 8192
+          - ai_ops_mcp_validation_client_result.stderr is not search('(?i)(password|token|secret)\\s*[=:]')
+        fail_msg: The deployed MCP stdio client smoke failed.
+      no_log: true
+
+    - name: Parse sanitized MCP stdio client result
+      ansible.builtin.set_fact:
+        ai_ops_mcp_validation_summary: "{{ ai_ops_mcp_validation_client_result.stdout | from_json }}"
+      no_log: true
+
+    - name: Assert exact MCP discovery and closed schemas
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_summary.tools == ai_ops_mcp_validation_expected_tools | sort
+          - ai_ops_mcp_validation_summary.resources == ai_ops_mcp_validation_expected_resources | sort
+          - ai_ops_mcp_validation_summary.prompts == ai_ops_mcp_validation_expected_prompts | sort
+          - ai_ops_mcp_validation_summary.tool_schemas_closed
+          - ai_ops_mcp_validation_summary.new_listener_count == 0
+        fail_msg: MCP discovery, schema closure, or stdio-only operation did not match the reviewed contract.
+      no_log: true
+
+    - name: Assert curated resources and prompts are safe and nonempty
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_summary.resource_summaries | dict2items | map(attribute='value.nonempty') | min
+          - not (ai_ops_mcp_validation_summary.resource_summaries | dict2items | map(attribute='value.secret_like') | max)
+          - ai_ops_mcp_validation_summary.prompt_summaries | dict2items | map(attribute='value.diagnostic_only') | min
+          - ai_ops_mcp_validation_summary.prompt_summaries | dict2items | map(attribute='value.manual_next_steps') | min
+        fail_msg: A curated resource or diagnostic prompt failed its safe-content assertion.
+      no_log: true
+
+    - name: Assert low-risk calls and negative cases preserve MCP envelopes
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_summary.calls.project.structured
+          - ai_ops_mcp_validation_summary.calls.project.tool == 'project_resource_summary'
+          - ai_ops_mcp_validation_summary.calls.project.status in ['ok', 'truncated']
+          - not ai_ops_mcp_validation_summary.calls.project.is_error
+          - ai_ops_mcp_validation_summary.calls.basic.tool == 'server_basic_info'
+          - ai_ops_mcp_validation_summary.calls.basic.status in ['ok', 'truncated']
+          - not ai_ops_mcp_validation_summary.calls.basic.is_error
+          - ai_ops_mcp_validation_summary.calls.network.tool == 'server_network_info'
+          - ai_ops_mcp_validation_summary.calls.network.status in ['ok', 'truncated']
+          - not ai_ops_mcp_validation_summary.calls.network.is_error
+          - ai_ops_mcp_validation_summary.calls.invalid.tool == 'server_basic_info'
+          - ai_ops_mcp_validation_summary.calls.invalid.status == 'validation_error'
+          - ai_ops_mcp_validation_summary.calls.invalid.is_error
+          - not ai_ops_mcp_validation_summary.calls.unknown.structured
+          - ai_ops_mcp_validation_summary.calls.unknown.is_error
+        fail_msg: MCP valid or invalid calls did not preserve the reviewed result behavior.
+      no_log: true
+
+    - name: Collect sanitized MCP audit correlation summary
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_validation_python_path }}"
+          - -c
+          - |
+            import json
+            import sys
+            from pathlib import Path
+
+            expected = set(sys.argv[2:])
+            events = {}
+            for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                request_id = event.get("request_id")
+                if request_id in expected:
+                    events[request_id] = {
+                        "tool": event.get("tool"),
+                        "status": event.get("status"),
+                        "client_id": event.get("client_id"),
+                        "transport": event.get("transport"),
+                    }
+            print(json.dumps(events, sort_keys=True))
+          - "{{ ai_ops_mcp_validation_audit_path }}"
+          - "{{ ai_ops_mcp_validation_summary.calls.project.request_id }}"
+          - "{{ ai_ops_mcp_validation_summary.calls.basic.request_id }}"
+          - "{{ ai_ops_mcp_validation_summary.calls.network.request_id }}"
+          - "{{ ai_ops_mcp_validation_summary.calls.invalid.request_id }}"
+      register: ai_ops_mcp_validation_audit_result
+      changed_when: false
+      no_log: true
+
+    - name: Parse sanitized MCP audit correlation summary
+      ansible.builtin.set_fact:
+        ai_ops_mcp_validation_audit_summary: "{{ ai_ops_mcp_validation_audit_result.stdout | from_json }}"
+      no_log: true
+
+    - name: Assert MCP calls correlate to fixed-origin audit metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_audit_summary | length == 4
+          - ai_ops_mcp_validation_audit_summary | dict2items | map(attribute='value.client_id') | unique | list == ['local-mcp-client']
+          - ai_ops_mcp_validation_audit_summary | dict2items | map(attribute='value.transport') | unique | list == ['stdio']
+          - ai_ops_mcp_validation_audit_summary[ai_ops_mcp_validation_summary.calls.invalid.request_id].status == 'validation_error'
+        fail_msg: MCP calls did not correlate to the fixed sanitized audit origin.
+      no_log: true
+
+    - name: Confirm MCP adapter exits after stdio client disconnects
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/pgrep
+          - -f
+          - "^{{ ai_ops_mcp_validation_python_path }} {{ ai_ops_mcp_validation_server_path }}$"
+      register: ai_ops_mcp_validation_process_result
+      changed_when: false
+      failed_when: false
+
+    - name: Assert MCP disable state leaves no adapter process
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_validation_process_result.rc == 1
+          - ai_ops_mcp_validation_process_result.stdout | length == 0
+        fail_msg: An MCP adapter process remained after the stdio client disconnected.
