@@ -45,3 +45,7 @@
     file: runtime_home.yml
   vars:
     ai_client_runtime_selected_profile: "{{ ai_client_runtime_profiles[ai_ops_client_runtime.client] }}"
+
+- name: Deploy fail-closed provider gateway service
+  ansible.builtin.include_tasks:
+    file: provider_gateway.yml

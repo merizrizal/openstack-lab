@@ -1,6 +1,36 @@
 ---
 ai_client_runtime_user: assistant
 ai_client_runtime_group: assistant
+ai_ops_provider_gateway:
+  user: aiops-provider
+  group: aiops-provider
+  root: /opt/openstack-ai-ops/provider-gateway
+  service_name: aiops-provider-gateway
+ai_ops_assistant_egress:
+  enabled: false
+  user: assistant
+  ufw:
+    ipv4_rules_path: /etc/ufw/before.rules
+    ipv6_rules_path: /etc/ufw/before6.rules
+    marker: AI-OPS assistant egress policy
+  ipv4:
+    openstack_api_destination: "{{ controller01.mgmtnet_ip_address }}"
+    openstack_api_ports:
+      - 5000
+      - 8774
+      - 8776
+      - 8778
+      - 9292
+      - 9696
+      - 9876
+    diagnostic_ssh_destinations:
+      - "{{ controller01.mgmtnet_ip_address }}"
+      - "{{ compute01.mgmtnet_ip_address }}"
+      - "{{ compute02.mgmtnet_ip_address }}"
+    diagnostic_ssh_port: 22
+  ipv6:
+    mode: deny_all
+
 ai_client_runtime_profiles:
   codex:
     version: "0.144.1"

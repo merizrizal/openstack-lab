@@ -146,11 +146,24 @@ class TestProviderRedaction(unittest.TestCase):
         with self.assertRaises(self.redaction.MalformedJsonError):
             self.redaction.strict_json_loads('{"username":')
 
-    def test_rejects_ambiguous_sensitive_text(self):
-        for text in ("the username is SYNTHETIC_USER", "token SYNTHETIC_TOKEN"):
+    def test_rejects_ambiguous_sensitive_text_with_safe_metadata(self):
+        cases = (
+            ("the username is SYNTHETIC_USER", "plain_text_label", "identity"),
+            ("token SYNTHETIC_TOKEN", "plain_text_label", "secret"),
+            ('{"token":', "json_like_text", "secret"),
+        )
+        for text, reason, label_category in cases:
             with self.subTest(text=text):
-                with self.assertRaises(self.redaction.AmbiguousSensitiveLabelError):
+                with self.assertRaises(
+                    self.redaction.AmbiguousSensitiveLabelError
+                ) as raised:
                     self.redaction.redact_remote_payload({"input": text})
+
+                error = raised.exception
+                self.assertEqual(error.reason, reason)
+                self.assertEqual(error.label_category, label_category)
+                self.assertEqual(error.args, ("ambiguous sensitive label",))
+                self.assertNotIn("SYNTHETIC", repr(error.__dict__))
 
     def test_rejects_unsupported_provider_content(self):
         with self.assertRaises(self.redaction.UnsupportedContentError):

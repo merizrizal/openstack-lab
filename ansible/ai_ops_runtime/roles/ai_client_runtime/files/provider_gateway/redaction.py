@@ -68,7 +68,16 @@ class MalformedJsonError(RedactionError):
 
 
 class AmbiguousSensitiveLabelError(RedactionError):
-    """Raised when a sensitive text label is not in a reviewed canonical form."""
+    """Raised with fixed metadata when a sensitive text label is ambiguous."""
+
+    def __init__(self, reason: str, label_category: str) -> None:
+        if reason not in {"json_like_text", "plain_text_label"}:
+            raise ValueError("unsupported ambiguity reason")
+        if label_category not in {"identity", "secret"}:
+            raise ValueError("unsupported ambiguity label category")
+        self.reason = reason
+        self.label_category = label_category
+        super().__init__("ambiguous sensitive label")
 
 
 class UnsupportedContentError(RedactionError):
@@ -251,6 +260,16 @@ def _field_category(key: str) -> str | None:
     return None
 
 
+def _ambiguous_label_error(reason: str, text: str) -> AmbiguousSensitiveLabelError:
+    match = SENSITIVE_LABEL_RE.search(text)
+    if match is None:
+        raise RedactionError("sensitive label classification is absent")
+    label_category = _field_category(match.group(0))
+    if label_category is None:
+        raise RedactionError("sensitive label category is unreviewed")
+    return AmbiguousSensitiveLabelError(reason, label_category)
+
+
 def _redact_value(value: Any, sensitive_values: set[str], counts: Counter[str]) -> Any:
     if isinstance(value, list):
         return [_redact_value(item, sensitive_values, counts) for item in value]
@@ -276,7 +295,7 @@ def _redact_text(text: str, sensitive_values: set[str], counts: Counter[str]) ->
             embedded = strict_json_loads(stripped)
         except MalformedJsonError:
             if SENSITIVE_LABEL_RE.search(text):
-                raise AmbiguousSensitiveLabelError("ambiguous sensitive JSON-like text")
+                raise _ambiguous_label_error("json_like_text", text)
         else:
             if not isinstance(embedded, (dict, list)):
                 raise UnsupportedContentError(
@@ -296,7 +315,7 @@ def _redact_text(text: str, sensitive_values: set[str], counts: Counter[str]) ->
             start <= label_match.start() and label_match.end() <= end
             for start, end in canonical_label_ranges
         ):
-            raise AmbiguousSensitiveLabelError("ambiguous sensitive text label")
+            raise _ambiguous_label_error("plain_text_label", label_match.group(0))
 
     pieces: list[str] = []
     cursor = 0

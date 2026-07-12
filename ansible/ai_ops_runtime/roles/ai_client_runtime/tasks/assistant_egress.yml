@@ -1,0 +1,51 @@
+---
+- name: Assert assistant egress policy contract
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'assistant01'
+      - ai_ops_assistant_egress is mapping
+      - >-
+        ai_ops_assistant_egress.keys() | list | sort ==
+        ['enabled', 'ipv4', 'ipv6', 'ufw', 'user']
+      - ai_ops_assistant_egress.enabled | type_debug == 'bool'
+      - ai_ops_assistant_egress.enabled == true
+      - ai_ops_assistant_egress.user == ai_client_runtime_user
+      - ai_ops_assistant_egress.ufw is mapping
+      - >-
+        ai_ops_assistant_egress.ufw.keys() | list | sort ==
+        ['ipv4_rules_path', 'ipv6_rules_path', 'marker']
+      - ai_ops_assistant_egress.ufw.ipv4_rules_path == '/etc/ufw/before.rules'
+      - ai_ops_assistant_egress.ufw.ipv6_rules_path == '/etc/ufw/before6.rules'
+      - ai_ops_assistant_egress.ufw.marker == 'AI-OPS assistant egress policy'
+      - >-
+        ai_ops_assistant_egress.ipv4.openstack_api_destination ==
+        controller01.mgmtnet_ip_address
+      - >-
+        ai_ops_assistant_egress.ipv4.openstack_api_ports ==
+        [5000, 8774, 8776, 8778, 9292, 9696, 9876]
+      - >-
+        ai_ops_assistant_egress.ipv4.diagnostic_ssh_destinations ==
+        [controller01.mgmtnet_ip_address, compute01.mgmtnet_ip_address,
+        compute02.mgmtnet_ip_address]
+      - ai_ops_assistant_egress.ipv4.diagnostic_ssh_port == 22
+      - "ai_ops_assistant_egress.ipv6 == {'mode': 'deny_all'}"
+    fail_msg: >-
+      Assistant egress settings are outside the approved UFW policy boundary.
+
+- name: Install assistant IPv4 UFW egress block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_assistant_egress.ufw.ipv4_rules_path }}"
+    marker: "# {mark} {{ ai_ops_assistant_egress.ufw.marker }}"
+    insertbefore: "^COMMIT$"
+    block: >-
+      {{ lookup('ansible.builtin.template', 'provider_gateway/aiops-assistant-egress-ipv4.rules.j2') }}
+    validate: /usr/sbin/iptables-restore --test %s
+
+- name: Install assistant IPv6 UFW egress block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_assistant_egress.ufw.ipv6_rules_path }}"
+    marker: "# {mark} {{ ai_ops_assistant_egress.ufw.marker }}"
+    insertbefore: "^COMMIT$"
+    block: >-
+      {{ lookup('ansible.builtin.template', 'provider_gateway/aiops-assistant-egress-ipv6.rules.j2') }}
+    validate: /usr/sbin/ip6tables-restore --test %s
