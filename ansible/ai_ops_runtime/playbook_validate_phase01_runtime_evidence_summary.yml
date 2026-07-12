@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars_files:
-    - "{{ var_file_path }}"
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
     - "{{ playbook_dir }}/roles/assistant_runtime/defaults/main.yml"
   vars:
     ai_ops_runtime_evidence_path: "{{ ai_ops_runtime_root }}/diagnostics/summaries/phase01-runtime-evidence-{{ ansible_facts['date_time'].date }}.md"

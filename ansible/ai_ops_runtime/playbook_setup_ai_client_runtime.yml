@@ -1,0 +1,9 @@
+---
+- name: Validate AI client runtime selection
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: ai_client_runtime

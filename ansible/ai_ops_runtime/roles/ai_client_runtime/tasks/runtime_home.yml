@@ -1,0 +1,32 @@
+---
+- name: Assert selected AI client runtime home boundary
+  ansible.builtin.assert:
+    that:
+      - ai_client_runtime_selected_profile.runtime_home is string
+      - ai_client_runtime_selected_profile.runtime_home_mode == '0700'
+      - ai_client_runtime_selected_profile.runtime_home != '/home/assistant'
+      - >-
+        ai_client_runtime_selected_profile.runtime_home is match(
+        '^/opt/openstack-ai-ops/[A-Za-z0-9][A-Za-z0-9._-]*$'
+        )
+    fail_msg: "ERR_CODEX_HOME_BOUNDARY: the selected runtime home is outside the reviewed AI-OPS boundary."
+
+- name: Inspect selected AI client runtime home
+  ansible.builtin.stat:
+    path: "{{ ai_client_runtime_selected_profile.runtime_home }}"
+  register: ai_client_runtime_home_stat
+
+- name: Reject unsafe selected AI client runtime home
+  ansible.builtin.assert:
+    that:
+      - not ai_client_runtime_home_stat.stat.exists or ai_client_runtime_home_stat.stat.isdir
+      - not (ai_client_runtime_home_stat.stat.islnk | default(false))
+    fail_msg: "ERR_CODEX_HOME_BOUNDARY: the selected runtime home must be a directory and not a symlink."
+
+- name: Create selected AI client runtime home
+  ansible.builtin.file:
+    path: "{{ ai_client_runtime_selected_profile.runtime_home }}"
+    state: directory
+    owner: "{{ ai_client_runtime_user }}"
+    group: "{{ ai_client_runtime_group }}"
+    mode: "{{ ai_client_runtime_selected_profile.runtime_home_mode }}"

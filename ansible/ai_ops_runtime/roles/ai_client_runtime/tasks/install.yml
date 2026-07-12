@@ -1,0 +1,38 @@
+---
+- name: Install selected AI client with reviewed npm installer
+  when: ai_client_runtime_selected_profile.installer == 'npm_global'
+  block:
+    - name: Install reviewed global npm client package
+      community.general.npm:
+        name: "{{ ai_client_runtime_selected_profile.package }}"
+        global: true
+        state: present
+  rescue:
+    - name: Report reviewed client installation failure
+      ansible.builtin.fail:
+        msg: "ERR_AI_CLIENT_INSTALL: the reviewed client package could not be installed."
+
+- name: Verify selected AI client executable and version
+  block:
+    - name: Read selected AI client version
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_client_runtime_selected_profile.executable }}"
+          - --version
+      register: ai_client_runtime_selected_version
+      changed_when: false
+
+    - name: Assert selected AI client reports reviewed version
+      ansible.builtin.assert:
+        that:
+          - >-
+            (ai_client_runtime_selected_version.stdout | trim) is search(
+            '(^|[^0-9.])' ~
+            (ai_client_runtime_selected_profile.version | regex_escape) ~
+            '($|[^0-9.])'
+            )
+        fail_msg: "ERR_AI_CLIENT_INSTALL: the reviewed executable did not report its expected version."
+  rescue:
+    - name: Report reviewed client executable verification failure
+      ansible.builtin.fail:
+        msg: "ERR_AI_CLIENT_INSTALL: the reviewed client executable could not be verified."

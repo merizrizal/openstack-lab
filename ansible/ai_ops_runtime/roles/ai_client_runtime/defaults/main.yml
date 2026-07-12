@@ -1,0 +1,11 @@
+---
+ai_client_runtime_user: assistant
+ai_client_runtime_group: assistant
+ai_client_runtime_profiles:
+  codex:
+    version: "0.144.1"
+    installer: npm_global
+    package: "@openai/codex@0.144.1"
+    executable: /opt/nodejs/bin/codex
+    runtime_home: /opt/openstack-ai-ops/codex-home
+    runtime_home_mode: "0700"

@@ -1,0 +1,47 @@
+---
+- name: Assert AI client runtime target scope is assistant01 only
+  ansible.builtin.assert:
+    that:
+      - "'assistant01' in (groups['assistant'] | default([]))"
+      - "(groups['assistant'] | default([])) | length == 1"
+      - inventory_hostname == 'assistant01'
+      - assistant01.environment == 'assistant'
+    fail_msg: AI client runtime setup must target only assistant01 in the assistant group.
+
+- name: Assert AI client runtime inventory selection is allowlisted
+  ansible.builtin.assert:
+    that:
+      - ai_ops_client_runtime is mapping
+      - ai_ops_client_runtime.keys() | list | sort == ['client', 'enabled', 'model_mode', 'version']
+      - ai_ops_client_runtime.enabled | type_debug == 'bool'
+      - ai_ops_client_runtime.enabled == true
+      - ai_ops_client_runtime.client is string
+      - ai_ops_client_runtime.version is string
+      - ai_ops_client_runtime.model_mode is string
+      - ai_ops_client_runtime.client in ai_client_runtime_profiles
+      - ai_ops_client_runtime.model_mode in ['local', 'remote']
+    fail_msg: "ERR_AI_CLIENT_PROFILE: inventory must select one enabled, allowlisted client profile without provider or client configuration."
+
+- name: Assert AI client runtime selection matches reviewed profile version
+  ansible.builtin.assert:
+    that:
+      - ai_ops_client_runtime.version == ai_client_runtime_profiles[ai_ops_client_runtime.client].version
+    fail_msg: "ERR_AI_CLIENT_PROFILE: inventory version does not match the reviewed client profile."
+
+- name: Assert selected AI client profile uses a reviewed installer
+  ansible.builtin.assert:
+    that:
+      - ai_client_runtime_profiles[ai_ops_client_runtime.client].installer == 'npm_global'
+    fail_msg: "ERR_AI_CLIENT_INSTALL: the selected client profile has no reviewed installer."
+
+- name: Install and verify selected AI client
+  ansible.builtin.include_tasks:
+    file: install.yml
+  vars:
+    ai_client_runtime_selected_profile: "{{ ai_client_runtime_profiles[ai_ops_client_runtime.client] }}"
+
+- name: Provision selected AI client runtime home
+  ansible.builtin.include_tasks:
+    file: runtime_home.yml
+  vars:
+    ai_client_runtime_selected_profile: "{{ ai_client_runtime_profiles[ai_ops_client_runtime.client] }}"

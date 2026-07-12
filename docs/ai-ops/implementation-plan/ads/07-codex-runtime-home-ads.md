@@ -36,17 +36,17 @@ state: present
 
 - `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/workspace.yml` creates `assistant` as a system user with `create_home: false` and `/usr/sbin/nologin`.
 - Read-only inspection found `/home/assistant` absent.
-- Codex CLI is installed on `assistant01` at `/usr/local/bin/codex`, reports `codex-cli 0.144.1`, and documents `~/.codex/config.toml` as its default configuration path.
+- Codex CLI is installed on `assistant01` at `/opt/nodejs/bin/codex`, reports `codex-cli 0.144.1`, and documents `~/.codex/config.toml` as its default configuration path.
 - `ansible/ai_ops_runtime/inventories/local/group_vars/all/common_vars.yml` records the non-secret `assistant01` selection: enabled Codex client, version `0.144.1`, and `model_mode: remote`; no provider or client configuration is present there.
 - Codex `mcp add` supports `NAME -- COMMAND...`, which can launch the fixed adapter over stdio; `mcp remove NAME` provides the normal disable operation. The URL mode must not be used.
-- `runuser -u assistant -- /usr/local/bin/codex --version` succeeds but warns that it cannot create PATH aliases, consistent with the missing home directory.
+- `runuser -u assistant -- /opt/nodejs/bin/codex --version` succeeds but warns that it cannot create PATH aliases, consistent with the missing home directory.
 - `ansible/ai_ops_runtime/playbook_validate_phase07_mcp_integration.yml` already uses fixed-argv `/usr/sbin/runuser -u assistant -- ...` for the temporary stdio validation client.
 - The deployed MCP root contains exactly the adapter, policy, resources directory, and three curated resources with the expected `assistant:assistant` ownership and modes. The shared virtual environment contains `mcp==1.28.1` and has no installed reverse dependency on `mcp`.
 
 #### Assumptions
 
 - `/opt/openstack-ai-ops` remains the repository-managed local runtime root and is suitable for an `assistant`-owned `0700` child directory.
-- The observed `/usr/local/bin/codex` path and `0.144.1` behavior remain pinned for the first client-acceptance path; version changes require a new Chunk 0 confirmation.
+- The observed `/opt/nodejs/bin/codex` path and `0.144.1` behavior remain pinned for the first client-acceptance path; version changes require a new Chunk 0 confirmation.
 - Setting `HOME` is sufficient for this Codex version. No XDG environment override is approved unless separately confirmed from version-specific help or documentation.
 - The eventual remote provider may receive only reviewed, minimized, redacted tool results and project metadata. The required redaction boundary, provider policy, credentials, model, endpoint, and egress controls are still unapproved.
 
@@ -59,7 +59,7 @@ state: present
 - `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/workspace.yml`
 - `ansible/ai_ops_runtime/playbook_validate_phase07_mcp_integration.yml`
 - `docs/ai-ops/runtime/mcp-integration.md`
-- fixed `/usr/sbin/runuser`, `/usr/bin/env`, `/usr/local/bin/codex`, and existing MCP adapter paths on `assistant01`
+- fixed `/usr/sbin/runuser`, `/usr/bin/env`, `/opt/nodejs/bin/codex`, and existing MCP adapter paths on `assistant01`
 
 #### Inventory selection contract (concrete)
 
@@ -82,7 +82,7 @@ ai_client_runtime_profiles:
   codex:
     installer: npm_global
     package: "@openai/codex"
-    executable: /usr/local/bin/codex
+    executable: /opt/nodejs/bin/codex
     runtime_home: "{{ ai_ops_runtime_root }}/codex-home"
     runtime_home_mode: "0700"
 ```
