@@ -184,14 +184,14 @@ Estimate:
 
 Tasks:
 
-- [ ] Document how to start the MCP server locally on the assistant runtime.
-- [ ] Document how an AI client connects to the server.
-- [ ] Document that remote exposure is not part of this phase.
-- [ ] Document rollback: stop MCP server, disable client config, retain local runner for manual use.
+- [x] Document how to start the MCP server locally on the assistant runtime.
+- [x] Document how an AI client connects to the server.
+- [x] Document that remote exposure is not part of this phase.
+- [x] Document rollback: stop MCP server, disable client config, retain local runner for manual use.
 
 Done when:
 
-- [ ] A maintainer can enable or disable MCP without touching OpenStack Lab state.
+- [x] A maintainer can enable or disable MCP without touching OpenStack Lab state.
 
 ## 07.6 Phase Definition of Done
 
@@ -199,7 +199,7 @@ This phase is done when:
 
 - [x] MCP server starts locally.
 - [x] MCP exposes only approved diagnostic tools.
-- [ ] MCP tools reuse the same validation, timeout, output-limit, and audit behavior as the runner.
+- [x] MCP tools reuse the same validation, timeout, output-limit, and audit behavior as the runner.
 - [x] MCP resources expose safe lab context.
 - [x] MCP prompts encode repeatable diagnostic workflows.
 - [x] MCP tests verify no generic command execution capability exists.
