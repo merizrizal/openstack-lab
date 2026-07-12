@@ -10,14 +10,15 @@
 
 Phase 07 already has a deployed and live-validated local stdio MCP adapter. The extension does not redesign the adapter or broaden its authority. It adds two operational slices:
 
-1. **Real-client acceptance:** select one approved local AI client, configure it locally on `assistant01` to launch the fixed adapter command as `assistant`, prove discovery and low-risk calls through that client, disable the entry, and prove the adapter exits.
+1. **Real-client acceptance:** select one approved local AI client and explicitly select an approved model backend mode (`local` or `remote`), configure both runtime-locally on `assistant01`, launch the fixed adapter command as `assistant`, prove discovery and low-risk calls through that client, disable the entry, and prove the adapter exits.
 2. **Repository-managed lifecycle control:** extract MCP deployment into a narrowly callable Ansible task path supporting explicit `present` and `absent` states, with guarded removal and a dedicated playbook that does not run the broad common, credential, host-diagnostic, or general runtime setup paths.
 
 Expected flow:
 
 ```text
 existing MCP runtime validation passes
-  -> operator selects one local AI client
+  -> operator selects one local AI client and one approved model backend mode
+  -> `model_mode=local` uses a reviewed local inference runtime; `model_mode=remote` uses an approved HTTPS provider
   -> client configuration uses fixed command and argv over stdio
   -> client discovers exact reviewed surface
   -> client performs reviewed low-risk calls
@@ -34,6 +35,7 @@ existing MCP runtime validation passes
 Included:
 
 - one approved local AI-client acceptance path on `assistant01`;
+- explicit runtime-local model-backend selection with `model_mode: local|remote`;
 - client enable, discovery, low-risk call, disconnect, and disable proof;
 - sanitized acceptance evidence without client history or diagnostic payloads;
 - an explicit MCP lifecycle state contract;
@@ -73,6 +75,14 @@ The deployed fixed launch command is:
 - The client configuration itself remains runtime-local and uncommitted.
 
 **Client Configuration Contract (Conceptual):** The selected client's configuration key, file path, CLI syntax, and disable operation must be confirmed in Chunk 0 from that client's installed version and official/local help. No product-specific path or command is approved by this ADS in advance.
+
+**Model Backend Selection and Data-Egress Contract (Conceptual):** The selected client's runtime-local, uncommitted configuration must select exactly one `model_mode`: `local` or `remote`. Missing, unsupported, or ambiguous mode/backend configuration must fail closed: the client must not start a model session or invoke MCP tools.
+
+- `local` selects an approved local inference runtime (for example, Ollama) and an approved model/version. Chunk 0 must confirm its invocation or local endpoint, model storage, resource limits, and local-only exposure. A runtime that requires a listener may bind only a Unix socket or loopback address; it is not an MCP endpoint and must never be remotely reachable. Local mode requires no remote-provider credential or model-provider egress.
+- `remote` selects an approved provider endpoint, model/version, and data-residency region over HTTPS only. Its dedicated credential must remain runtime-local, separately delivered, rotatable, and revocable; it must never enter the OpenStack profile area, MCP policy, runner arguments, logs, audit events, repository, or evidence.
+- Remote providers may receive MCP tool results and project metadata only through a reviewed redaction and minimization boundary. That boundary must default-deny unclassified content and prevent credentials, tokens, passwords, private keys, raw audit records, environment data, and other sensitive values from leaving `assistant01`. Until the client-specific boundary, retention/training/telemetry policy, and sanitized acceptance evidence are approved, `remote` mode is unavailable.
+
+The exact selected-client configuration keys, paths, commands, and disable operation remain deferred to Chunk 0; this ADS approves no product-specific configuration in advance.
 
 #### Lifecycle State Contract (Conceptual)
 
@@ -117,6 +127,7 @@ ai_ops_runtime_mcp_remove_sdk: false
 #### Assumptions
 
 - The operator will choose and approve one AI client that is installed or installable locally on `assistant01` and supports MCP stdio command-and-arguments configuration.
+- The operator will choose and approve exactly one model backend mode: `local` with a reviewed local runtime/model, or `remote` with a reviewed provider/model/region and data-egress controls. The selection remains runtime-local and does not change MCP transport.
 - The selected client can be run under the existing `assistant` account without granting a login shell or broader credentials; if this is false, Chunk 0 must stop and request a revised operating method.
 - Client acceptance can be demonstrated without committing the runtime-local client configuration.
 - The shared Python virtual environment may contain packages that depend on `mcp`; therefore SDK removal is opt-in and must be checked before execution.
@@ -126,6 +137,10 @@ ai_ops_runtime_mcp_remove_sdk: false
 #### Open confirmations for Chunk 0
 
 - Which AI client and exact installed version are approved?
+- Which `model_mode` is approved for acceptance: `local` or `remote`?
+- For `local`, which runtime and model/version are approved, and how are model storage, resource limits, and Unix-socket/loopback-only exposure verified?
+- For `remote`, which provider, endpoint, model/version, data-residency region, HTTPS egress/proxy/TLS policy, credential-delivery/rotation/revocation process, and retention/training/telemetry policy are approved?
+- What reviewed redaction/minimization boundary classifies allowed tool results and project metadata, blocks sensitive values by default, and proves that only sanitized content can reach a remote provider?
 - What official configuration path or CLI operation adds and disables a local stdio MCP command for that version?
 - Can the selected client run as `assistant` despite the account's `/usr/sbin/nologin` shell, or is a controlled `runuser` invocation required?
 - Does the client emit or retain raw payloads/history by default, and how can evidence collection avoid those stores?
@@ -138,6 +153,7 @@ ai_ops_runtime_mcp_remove_sdk: false
 #### Existing repository dependencies
 
 - `ansible/ai_ops_runtime/inventories/local/local.yml`
+- `ansible/ai_ops_runtime/inventories/local/group_vars/all/common_vars.yml`
 - `inventories/local/nodes.yml`
 - `ansible/ai_ops_runtime/roles/assistant_runtime/defaults/main.yml`
 - `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/main.yml`
@@ -180,15 +196,15 @@ Prefer built-in modules:
 - selected approved AI client and its verified local stdio support;
 - `pgrep`, `ss`, and standard filesystem tools already available on `assistant01` or explicitly checked before use.
 
-No new network service, listener, daemon, or remote transport dependency is permitted.
+No remote MCP transport, network-reachable listener, or remote-facing daemon is permitted. An approved local inference runtime is permitted only with Unix-socket or loopback-only exposure and is not an MCP transport.
 
 ### IV. Step-by-Step Procedure / Execution Flow
 
 #### A. Real-client acceptance
 
-1. Confirm the selected AI client, version, execution identity, configuration mechanism, and local data-retention behavior.
+1. Confirm the selected AI client, version, execution identity, configuration mechanism, local data-retention behavior, and exactly one approved model backend mode. For `local`, confirm the runtime/model and local-only exposure; for `remote`, confirm provider controls, the redaction/minimization boundary, and retention/training/telemetry policy.
 2. Run the existing Phase 07 validation playbook as a precondition.
-3. Configure the client runtime-locally with the fixed executable and adapter argument. Do not use a shell wrapper or commit the configuration.
+3. Configure the client runtime-locally with the fixed executable, adapter argument, and selected model backend. Do not use a shell wrapper or commit the configuration; leave the client unable to start a model session or tool call if any backend control is unapproved or unavailable.
 4. Start the client as `assistant` and establish one local stdio MCP session.
 5. Verify exact discovery of the reviewed three tools, three resources, and three prompts.
 6. Invoke the three low-risk project tools using the reviewed project-visible server identifier.
@@ -235,6 +251,9 @@ No new network service, listener, daemon, or remote transport dependency is perm
 | Stage | Failure Mode | Agent/System Action | Next State/Error Report |
 |---|---|---|---|
 | Client selection | No approved client/version or no stdio support | Stop before configuration; record the missing decision | `ERR_MCP_CLIENT_UNSELECTED` (proposed) |
+| Model backend selection | `model_mode` is missing, unsupported, or has no approved backend | Keep client disabled; do not start a model session or MCP tool call | `ERR_MODEL_BACKEND_UNSELECTED` (proposed) |
+| Remote data egress | Redaction/minimization, provider policy, credential delivery, or HTTPS controls are unapproved or cannot prevent sensitive transmission | Reject `remote` mode and keep the client disabled; any switch to `local` requires an explicit approved selection | `ERR_MODEL_REMOTE_EGRESS` (proposed) |
+| Local runtime exposure | Local runtime is remotely reachable or exceeds approved resource/storage constraints | Stop local acceptance; do not expose or use the runtime | `ERR_MODEL_LOCAL_BOUNDARY` (proposed) |
 | Client identity | Client cannot run as `assistant` without broadening account access | Stop; do not change shell or grant extra privileges | `ERR_MCP_CLIENT_IDENTITY` (proposed) |
 | Client configuration | Client requires shell-string execution, remote URL, or caller-controlled paths | Reject configuration and keep client disabled | `ERR_MCP_CLIENT_BOUNDARY` (proposed) |
 | Client discovery | Surface differs from the exact reviewed tools/resources/prompts | Disable entry, close session, retain sanitized mismatch only | `ERR_MCP_CLIENT_DISCOVERY` (proposed) |
@@ -256,8 +275,9 @@ No new network service, listener, daemon, or remote transport dependency is perm
 
 #### Security
 
-- Keep transport stdio-only and process-per-client-session.
-- Never add a service unit, listener, remote endpoint, firewall rule, or bind address.
+- Keep MCP transport stdio-only and process-per-client-session.
+- Never add an MCP service unit, MCP listener, remote MCP endpoint, firewall rule, or non-loopback bind address. A separately approved local inference runtime may use only a Unix socket or loopback address and must not expose MCP.
+- Treat remote-provider transmission as a separate data-egress boundary: permit only reviewed, minimized, redacted tool results and project metadata; do not transmit sensitive values or raw client history.
 - Run the client and adapter as `assistant`, never root.
 - Do not change the `assistant` login shell merely to accommodate a client.
 - Keep fixed executable, adapter, runner, registry, audit, and credential paths.
@@ -344,6 +364,9 @@ Phase 99 remains responsible for expanding comprehensive status and secret/audit
 Run only after client selection and explicit approval:
 
 - existing Phase 07 validation playbook passes;
+- exactly one approved `model_mode` is active; missing or invalid mode prevents model sessions and MCP calls;
+- `local` mode proves the selected runtime/model remains Unix-socket or loopback-only and no model-provider egress occurs;
+- `remote` mode proves HTTPS endpoint controls and the reviewed redaction/minimization boundary using synthetic sensitive markers only; no real credential or sensitive payload may be sent for acceptance;
 - client process and adapter run as `assistant`;
 - exact discovery matches reviewed names;
 - reviewed low-risk calls return structured statuses and correlated audit metadata;
