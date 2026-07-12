@@ -19,7 +19,6 @@ ai_ops_runtime_directories:
   - path: credentials/profiles
     mode: "{{ ai_ops_runtime_credential_profiles_mode }}"
   - path: audit
-  - path: mcp
 ai_ops_runtime_packages:
   - python3
   - python3-venv
@@ -32,6 +31,9 @@ ai_ops_runtime_mcp_server_path: "{{ ai_ops_runtime_mcp_root }}/aiops_mcp_server.
 ai_ops_runtime_mcp_policy_path: "{{ ai_ops_runtime_mcp_root }}/mcp_policy.json"
 ai_ops_runtime_mcp_resources_path: "{{ ai_ops_runtime_mcp_root }}/resources"
 ai_ops_runtime_mcp_python_package: "mcp==1.28.1"
+ai_ops_runtime_mcp_state: present
+ai_ops_runtime_mcp_removal_confirmed: false
+ai_ops_runtime_mcp_remove_sdk: false
 ai_ops_runtime_mcp_low_risk_tool_allowlist:
   - project_resource_summary
   - server_basic_info

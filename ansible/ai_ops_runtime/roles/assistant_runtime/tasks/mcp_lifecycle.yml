@@ -1,0 +1,303 @@
+---
+- name: Assert MCP lifecycle target scope is assistant01 only
+  ansible.builtin.assert:
+    that:
+      - "'assistant01' in groups['assistant']"
+      - "groups['assistant'] | length == 1"
+      - "inventory_hostname == 'assistant01'"
+      - "assistant01.environment == 'assistant'"
+    fail_msg: MCP lifecycle management must target only assistant01 in the assistant group.
+
+- name: Assert MCP lifecycle state contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_runtime_mcp_state is string
+      - ai_ops_runtime_mcp_state in ['present', 'absent']
+      - ai_ops_runtime_mcp_removal_confirmed | type_debug == 'bool'
+      - ai_ops_runtime_mcp_remove_sdk | type_debug == 'bool'
+      - ai_ops_runtime_mcp_state != 'absent' or ai_ops_runtime_mcp_removal_confirmed
+      - not ai_ops_runtime_mcp_remove_sdk or ai_ops_runtime_mcp_state == 'absent'
+      - not ai_ops_runtime_mcp_remove_sdk or ai_ops_runtime_mcp_removal_confirmed
+    fail_msg: MCP lifecycle state requires present or confirmed absent state, and SDK removal requires confirmed absent state.
+
+- name: Maintain AI-OPS MCP present state
+  when: ai_ops_runtime_mcp_state == 'present'
+  block:
+    - name: Ensure AI-OPS MCP runtime directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "{{ ai_ops_runtime_directory_mode }}"
+      loop:
+        - "{{ ai_ops_runtime_mcp_root }}"
+        - "{{ ai_ops_runtime_mcp_resources_path }}"
+
+    - name: Install AI-OPS MCP stdio adapter
+      ansible.builtin.copy:
+        src: mcp/aiops_mcp_server.py
+        dest: "{{ ai_ops_runtime_mcp_server_path }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0755"
+
+    - name: Render AI-OPS MCP exposure policy
+      ansible.builtin.template:
+        src: mcp/mcp_policy.json.j2
+        dest: "{{ ai_ops_runtime_mcp_policy_path }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0644"
+
+    - name: Install AI-OPS MCP curated resources
+      ansible.builtin.copy:
+        src: "mcp/resources/{{ item }}"
+        dest: "{{ ai_ops_runtime_mcp_resources_path }}/{{ item }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0644"
+      loop:
+        - diagnostic-safety.md
+        - lab-architecture.md
+        - metadata-troubleshooting.md
+
+    - name: Install pinned MCP SDK in AI-OPS runtime virtualenv
+      ansible.builtin.pip:
+        name: "{{ ai_ops_runtime_mcp_python_package }}"
+        state: present
+        virtualenv: "{{ ai_ops_runtime_venv_path }}"
+        virtualenv_command: python3 -m venv
+
+- name: Record reviewed MCP artifact entries
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.set_fact:
+    ai_ops_runtime_mcp_expected_entries:
+      - "f:{{ ai_ops_runtime_mcp_server_path }}"
+      - "f:{{ ai_ops_runtime_mcp_policy_path }}"
+      - "d:{{ ai_ops_runtime_mcp_resources_path }}"
+      - "f:{{ ai_ops_runtime_mcp_resources_path }}/diagnostic-safety.md"
+      - "f:{{ ai_ops_runtime_mcp_resources_path }}/lab-architecture.md"
+      - "f:{{ ai_ops_runtime_mcp_resources_path }}/metadata-troubleshooting.md"
+  no_log: true
+
+- name: Inspect exact MCP adapter process before artifact removal
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/pgrep
+      - -f
+      - "^{{ ai_ops_runtime_venv_path }}/bin/python {{ ai_ops_runtime_mcp_server_path }}$"
+  register: ai_ops_runtime_mcp_adapter_process
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert MCP adapter process is absent before artifact removal
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.assert:
+    that:
+      - ai_ops_runtime_mcp_adapter_process.rc == 1
+      - ai_ops_runtime_mcp_adapter_process.stdout | length == 0
+    fail_msg: MCP artifact removal requires the exact stdio adapter process to be absent.
+  no_log: true
+
+- name: Inspect MCP root without following links before artifact removal
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.stat:
+    path: "{{ ai_ops_runtime_mcp_root }}"
+    follow: false
+  register: ai_ops_runtime_mcp_root_stat
+  changed_when: false
+  no_log: true
+
+- name: Assert MCP root is absent or a reviewed directory
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.assert:
+    that:
+      - >-
+        not ai_ops_runtime_mcp_root_stat.stat.exists or
+        (ai_ops_runtime_mcp_root_stat.stat.isdir and not ai_ops_runtime_mcp_root_stat.stat.islnk)
+    fail_msg: MCP artifact removal requires an absent or non-symlink MCP root directory.
+  no_log: true
+
+- name: Enumerate MCP root entry types without following links
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_root_stat.stat.exists
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/find
+      - -P
+      - "{{ ai_ops_runtime_mcp_root }}"
+      - -mindepth
+      - "1"
+      - -maxdepth
+      - "2"
+      - -printf
+      - "%y:%p\\n"
+  register: ai_ops_runtime_mcp_entries
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert MCP root contains only reviewed artifact entries
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_root_stat.stat.exists
+  ansible.builtin.assert:
+    that:
+      - ai_ops_runtime_mcp_entries.stdout_lines | sort == ai_ops_runtime_mcp_expected_entries | sort
+    fail_msg: MCP artifact removal refuses an unexpected entry, type, or symlink under the MCP root.
+  no_log: true
+
+- name: Remove reviewed MCP resource files individually
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.file:
+    path: "{{ ai_ops_runtime_mcp_resources_path }}/{{ item }}"
+    state: absent
+  loop:
+    - diagnostic-safety.md
+    - lab-architecture.md
+    - metadata-troubleshooting.md
+
+- name: Remove reviewed MCP policy and adapter files individually
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ ai_ops_runtime_mcp_policy_path }}"
+    - "{{ ai_ops_runtime_mcp_server_path }}"
+
+- name: Inspect MCP resources directory after known-file removal
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.stat:
+    path: "{{ ai_ops_runtime_mcp_resources_path }}"
+    follow: false
+  register: ai_ops_runtime_mcp_resources_stat
+  changed_when: false
+  no_log: true
+
+- name: Remove empty MCP resources directory
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_resources_stat.stat.exists
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/rmdir
+      - "{{ ai_ops_runtime_mcp_resources_path }}"
+  changed_when: true
+
+- name: Inspect MCP root after reviewed artifact removal
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.stat:
+    path: "{{ ai_ops_runtime_mcp_root }}"
+    follow: false
+  register: ai_ops_runtime_mcp_root_after_removal
+  changed_when: false
+  no_log: true
+
+- name: Remove empty MCP root directory
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_root_after_removal.stat.exists
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/rmdir
+      - "{{ ai_ops_runtime_mcp_root }}"
+  changed_when: true
+
+- name: Inspect reviewed runtime virtualenv before optional SDK removal
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_remove_sdk
+  ansible.builtin.stat:
+    path: "{{ ai_ops_runtime_venv_path }}"
+    follow: false
+  register: ai_ops_runtime_mcp_venv_stat
+  changed_when: false
+  no_log: true
+
+- name: Assert reviewed runtime virtualenv before optional SDK removal
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_remove_sdk
+  ansible.builtin.assert:
+    that:
+      - ai_ops_runtime_venv_path == ai_ops_runtime_root ~ '/.venv'
+      - ai_ops_runtime_mcp_venv_stat.stat.isdir
+      - not ai_ops_runtime_mcp_venv_stat.stat.islnk
+    fail_msg: MCP SDK removal requires the reviewed non-symlink runtime virtualenv.
+  no_log: true
+
+- name: Inspect declared installed reverse dependencies on MCP
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_remove_sdk
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -R
+      - -E
+      - "^Requires-Dist: mcp([ ;<>=!\\[]|$)"
+      - "{{ ai_ops_runtime_venv_path }}/lib"
+  register: ai_ops_runtime_mcp_reverse_dependencies
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert MCP SDK has no declared installed reverse dependency
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_remove_sdk
+  ansible.builtin.assert:
+    that:
+      - ai_ops_runtime_mcp_reverse_dependencies.rc == 1
+    fail_msg: MCP SDK removal is blocked because a dependency declares MCP or inspection is uncertain.
+  no_log: true
+
+- name: Remove pinned MCP SDK only when explicitly requested
+  when:
+    - ai_ops_runtime_mcp_state == 'absent'
+    - ai_ops_runtime_mcp_remove_sdk
+  ansible.builtin.pip:
+    name: "{{ ai_ops_runtime_mcp_python_package }}"
+    state: absent
+    virtualenv: "{{ ai_ops_runtime_venv_path }}"
+    virtualenv_command: python3 -m venv
+
+- name: Inspect preserved runtime paths without reading contents
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+  loop:
+    - { path: "{{ ai_ops_runtime_root }}/scripts/tool_runner/aiops_tool_runner.py", type: file, mode: "0755" }
+    - { path: "{{ ai_ops_runtime_root }}/scripts/tool_runner/tool_registry.json", type: file, mode: "0644" }
+    - { path: "{{ ai_ops_runtime_root }}/credentials", type: directory, mode: "0755" }
+    - { path: "{{ ai_ops_runtime_root }}/diagnostics", type: directory, mode: "0755" }
+    - { path: "{{ ai_ops_runtime_root }}/audit", type: directory, mode: "0755" }
+    - { path: /opt/openstack-ai-ops/codex-home, type: directory, mode: "0700" }
+  register: ai_ops_runtime_mcp_preservation_stats
+  changed_when: false
+  no_log: true
+
+- name: Assert preserved runtime path metadata
+  when: ai_ops_runtime_mcp_state == 'absent'
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - not item.stat.islnk
+      - (item.item.type == 'file') == item.stat.isreg
+      - (item.item.type == 'directory') == item.stat.isdir
+      - item.stat.pw_name == ai_ops_runtime_user
+      - item.stat.gr_name == ai_ops_runtime_group
+      - item.stat.mode == item.item.mode
+    fail_msg: MCP artifact removal changed or found unsafe preserved runtime metadata.
+  loop: "{{ ai_ops_runtime_mcp_preservation_stats.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  no_log: true

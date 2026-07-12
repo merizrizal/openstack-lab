@@ -67,14 +67,20 @@
       loop_control:
         label: "{{ item.item.path }}"
 
-    - name: Validate deployed MCP adapter Python syntax
+    - name: Validate deployed MCP adapter Python syntax without bytecode output
       ansible.builtin.command:
         argv:
           - "{{ ai_ops_mcp_validation_python_path }}"
-          - -m
-          - py_compile
+          - -c
+          - |
+            from pathlib import Path
+            import sys
+
+            source_path = Path(sys.argv[1])
+            compile(source_path.read_text(encoding="utf-8"), str(source_path), "exec")
           - "{{ ai_ops_mcp_validation_server_path }}"
       changed_when: false
+      no_log: true
 
     - name: Validate deployed MCP policy JSON syntax
       ansible.builtin.command:

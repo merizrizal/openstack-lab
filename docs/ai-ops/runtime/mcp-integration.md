@@ -37,6 +37,44 @@ Before enabling a client, confirm:
 
 Do not run the broad assistant setup playbook casually. It includes common host management and credential-profile tasks in addition to MCP deployment. Review its task boundary and obtain explicit approval before changing `assistant01`.
 
+## Codex Runtime-Home Invocation
+
+The approved Codex profile is version `0.144.1` at `/opt/nodejs/bin/codex`. It may run only as the non-interactive `assistant` account with `HOME` fixed to `/opt/openstack-ai-ops/codex-home`. Do not create `/home/assistant`, use `su -`, a login shell, a shell wrapper, an inventory-provided executable, or any alternate home.
+
+### Version and Help Validation Only
+
+Use fixed argv for the approved read-only checks:
+
+```bash
+/usr/sbin/runuser -u assistant -- /usr/bin/env HOME=/opt/openstack-ai-ops/codex-home /opt/nodejs/bin/codex --version
+/usr/sbin/runuser -u assistant -- /usr/bin/env HOME=/opt/openstack-ai-ops/codex-home /opt/nodejs/bin/codex --help
+/usr/sbin/runuser -u assistant -- /usr/bin/env HOME=/opt/openstack-ai-ops/codex-home /opt/nodejs/bin/codex mcp add --help
+/usr/sbin/runuser -u assistant -- /usr/bin/env HOME=/opt/openstack-ai-ops/codex-home /opt/nodejs/bin/codex mcp remove --help
+```
+
+Treat any unexpected version, alias/configuration warning, nonzero result, runtime-home boundary failure, or listener delta as a failed validation. Compare the help output with the installed `0.144.1` binary; do not retain raw help output, listener snapshots, runtime-home contents, or environment dumps in evidence.
+
+### Local MCP Configuration Contract
+
+The only reviewed entry is `openstack-ai-ops`, using the command-and-arguments stdio form below. Add or remove it only after explicit approval. Before an acceptance test, fail closed if that name already exists so operator-managed configuration is never overwritten.
+
+```bash
+/usr/sbin/runuser -u assistant -- /usr/bin/env HOME=/opt/openstack-ai-ops/codex-home /opt/nodejs/bin/codex mcp add openstack-ai-ops -- /opt/openstack-ai-ops/.venv/bin/python /opt/openstack-ai-ops/mcp/aiops_mcp_server.py
+/usr/sbin/runuser -u assistant -- /usr/bin/env HOME=/opt/openstack-ai-ops/codex-home /opt/nodejs/bin/codex mcp remove openstack-ai-ops
+```
+
+Acceptance is add, confirm the named entry, remove, confirm absence, then re-add and remove. The entry must be absent when the test ends. Treat any nonzero result, listener delta, or surviving adapter process as failure. The repository validator must also confirm the exact three low-risk tools, three curated resources, three diagnostic prompts, closed tool schemas, default restricted-host denial, and no listener delta.
+
+Use neither `--url` nor `--env`; URL/remote transport and credential injection are prohibited. Do not run `codex login`, configure a provider, invoke a model, or commit the runtime-local client configuration. Record only the client version, fixed invocation form, exit status, warning absence/presence, listener-delta result, and sanitized discovery pass/fail metadata. Never record client configuration, credentials, prompts/history, provider data, raw tool output, raw audit records, or environment values.
+
+### Artifact Removal Is Not Normal Client Disablement
+
+Normal disablement removes the reviewed runtime-local client entry and confirms that its adapter process exits; it does not delete deployed MCP artifacts. Artifact removal is a separate, explicitly confirmed lifecycle operation. Before it may run, the client entry must already be disabled, the exact adapter process must be absent, and the MCP root must contain only the reviewed non-symlink files and directories.
+
+The lifecycle path removes only named resources, policy, and adapter files, then uses empty-directory removal for `resources/` and the MCP root. It never recursively deletes a directory, accesses the Codex runtime home, or removes the SDK unless `ai_ops_runtime_mcp_remove_sdk=true` is separately requested and installed reverse-dependency inspection passes. Any unexpected entry, type, link, active adapter, or preservation-metadata failure stops removal before further cleanup.
+
+The Phase 07 validator compiles adapter source text without importing or executing it, so validation does not create `__pycache__` beneath the managed MCP root.
+
 ## Enable an AI Client
 
 Configure the selected AI client to launch the fixed command directly over stdio as the `assistant` account. Use a command-and-arguments form rather than a shell string:
