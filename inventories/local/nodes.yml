@@ -82,3 +82,12 @@ assistant01:
 #   additional_disks:
 #     - size: 200
 #       name: vdb
+
+dummy01:
+  environment: dummy
+  mgmtnet_ip_address: 192.168.121.70
+  provider_ip_address: 192.168.123.70
+  hostname: dummy01.local
+  memory: 2048
+  cpus: 2
+  disks: 20

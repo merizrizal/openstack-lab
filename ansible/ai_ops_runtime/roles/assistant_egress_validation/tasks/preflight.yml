@@ -1,0 +1,125 @@
+---
+- name: Read UFW enabled configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -E
+      - ^ENABLED=
+      - /etc/ufw/ufw.conf
+  register: ai_ops_assistant_egress_ufw_enabled_config
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read UFW active status
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - status
+      - verbose
+  register: ai_ops_assistant_egress_ufw_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read packet-filter frontend versions
+  ansible.builtin.command:
+    argv:
+      - "{{ item }}"
+      - -V
+  loop:
+    - /usr/sbin/iptables
+    - /usr/sbin/ip6tables
+  register: ai_ops_assistant_egress_packet_filter_frontends
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Resolve assistant numeric UID
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/id
+      - -u
+      - "{{ ai_ops_assistant_egress.user }}"
+  register: ai_ops_assistant_egress_user_uid
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv4 output traversal
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - OUTPUT
+  register: ai_ops_assistant_egress_ipv4_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv4 UFW before-output chain
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - ufw-before-output
+  register: ai_ops_assistant_egress_ipv4_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv6 output traversal
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - OUTPUT
+  register: ai_ops_assistant_egress_ipv6_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv6 UFW before-output chain
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - ufw6-before-output
+  register: ai_ops_assistant_egress_ipv6_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert UFW baseline is enabled and active
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_egress_ufw_enabled_config.rc == 0
+      - ai_ops_assistant_egress_ufw_enabled_config.stdout == 'ENABLED=yes'
+      - ai_ops_assistant_egress_ufw_status.rc == 0
+      - "(ai_ops_assistant_egress_ufw_status.stdout_lines | first) == 'Status: active'"
+    fail_msg: ERR_ASSISTANT_EGRESS_UFW_INACTIVE
+
+- name: Assert packet-filter frontend and assistant UID are recognized
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_egress_packet_filter_frontends.results | length == 2
+      - ai_ops_assistant_egress_packet_filter_frontends.results[0].rc == 0
+      - ai_ops_assistant_egress_packet_filter_frontends.results[1].rc == 0
+      - "'nf_tables' in ai_ops_assistant_egress_packet_filter_frontends.results[0].stdout"
+      - "'nf_tables' in ai_ops_assistant_egress_packet_filter_frontends.results[1].stdout"
+      - ai_ops_assistant_egress_user_uid.rc == 0
+      - ai_ops_assistant_egress_user_uid.stdout is match('^[0-9]+$')
+    fail_msg: ERR_ASSISTANT_EGRESS_PREFLIGHT_UNRECOGNIZED
+
+- name: Assert IPv4 and IPv6 output traversal reaches UFW before-output chains
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_egress_ipv4_output.rc == 0
+      - "'-A OUTPUT -j ufw-before-output' in ai_ops_assistant_egress_ipv4_output.stdout_lines"
+      - ai_ops_assistant_egress_ipv4_before_output.rc == 0
+      - "'-N ufw-before-output' in ai_ops_assistant_egress_ipv4_before_output.stdout_lines"
+      - ai_ops_assistant_egress_ipv6_output.rc == 0
+      - "'-A OUTPUT -j ufw6-before-output' in ai_ops_assistant_egress_ipv6_output.stdout_lines"
+      - ai_ops_assistant_egress_ipv6_before_output.rc == 0
+      - "'-N ufw6-before-output' in ai_ops_assistant_egress_ipv6_before_output.stdout_lines"
+    fail_msg: ERR_ASSISTANT_EGRESS_CHAIN_PATH

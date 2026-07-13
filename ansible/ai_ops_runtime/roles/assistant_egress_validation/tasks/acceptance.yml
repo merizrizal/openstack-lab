@@ -1,0 +1,97 @@
+---
+- name: Check reviewed SSH management connectivity as assistant
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+        import socket
+        import sys
+
+        with socket.create_connection((sys.argv[1], int(sys.argv[2])), timeout=3):
+            pass
+      - "{{ item.host }}"
+      - "{{ item.port | string }}"
+  become: true
+  become_user: "{{ ai_ops_assistant_egress.user }}"
+  loop: "{{ ai_ops_egress_validation_management_targets }}"
+  register: ai_ops_egress_validation_management_checks
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Assert reviewed SSH management connectivity remains available
+  ansible.builtin.assert:
+    that:
+      - >-
+        ai_ops_egress_validation_management_checks.results
+        | selectattr('rc', 'ne', 0)
+        | list
+        | length == 0
+    fail_msg: ERR_ASSISTANT_EGRESS_MANAGEMENT_ACCESS
+  no_log: true
+
+- name: Check approved synthetic endpoint is denied to assistant
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+        import socket
+        import sys
+
+        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connection.settimeout(3)
+        try:
+            result = connection.connect_ex((sys.argv[1], int(sys.argv[2])))
+        finally:
+            connection.close()
+        raise SystemExit(0 if result != 0 else 1)
+      - "{{ ai_ops_egress_validation_synthetic_host }}"
+      - "{{ ai_ops_egress_validation_synthetic_port | string }}"
+  become: true
+  become_user: "{{ ai_ops_assistant_egress.user }}"
+  register: ai_ops_egress_validation_synthetic_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Assert approved synthetic endpoint is denied to assistant
+  ansible.builtin.assert:
+    that:
+      - ai_ops_egress_validation_synthetic_check.rc == 0
+    fail_msg: ERR_ASSISTANT_EGRESS_BYPASS
+  no_log: true
+
+- name: Record UFW rule files before idempotency check
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_checksum: true
+  loop:
+    - "{{ ai_ops_assistant_egress.ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_assistant_egress.ufw.ipv6_rules_path }}"
+  register: ai_ops_egress_validation_rule_files_before
+  changed_when: false
+
+- name: Reapply assistant egress policy for idempotency validation
+  ansible.builtin.include_role:
+    name: ai_client_runtime
+    tasks_from: assistant_egress.yml
+
+- name: Record UFW rule files after idempotency check
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_checksum: true
+  loop:
+    - "{{ ai_ops_assistant_egress.ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_assistant_egress.ufw.ipv6_rules_path }}"
+  register: ai_ops_egress_validation_rule_files_after
+  changed_when: false
+
+- name: Assert second egress application did not alter UFW rule files
+  ansible.builtin.assert:
+    that:
+      - >-
+        ai_ops_egress_validation_rule_files_before.results | map(attribute='stat.checksum') |
+        list == ai_ops_egress_validation_rule_files_after.results | map(attribute='stat.checksum') | list
+    fail_msg: ERR_ASSISTANT_EGRESS_NOT_IDEMPOTENT

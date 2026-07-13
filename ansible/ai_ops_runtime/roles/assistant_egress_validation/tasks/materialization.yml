@@ -1,0 +1,98 @@
+---
+- name: Read UFW active status after egress policy update
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - status
+      - verbose
+  register: ai_ops_assistant_egress_runtime_ufw_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv4 output traversal after egress policy update
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - OUTPUT
+  register: ai_ops_assistant_egress_runtime_ipv4_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv4 UFW before-output rules after egress policy update
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - ufw-before-output
+  register: ai_ops_assistant_egress_runtime_ipv4_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv6 output traversal after egress policy update
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - OUTPUT
+  register: ai_ops_assistant_egress_runtime_ipv6_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read IPv6 UFW before-output rules after egress policy update
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - ufw6-before-output
+  register: ai_ops_assistant_egress_runtime_ipv6_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert UFW remains active after egress policy update
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_egress_runtime_ufw_status.rc == 0
+      - "(ai_ops_assistant_egress_runtime_ufw_status.stdout_lines | first) == 'Status: active'"
+    fail_msg: ERR_ASSISTANT_EGRESS_RELOAD
+
+- name: Assert IPv4 egress rules materialized in the active UFW path
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_egress_runtime_ipv4_output.rc == 0
+      - "'-A OUTPUT -j ufw-before-output' in ai_ops_assistant_egress_runtime_ipv4_output.stdout_lines"
+      - ai_ops_assistant_egress_runtime_ipv4_before_output.rc == 0
+      - >-
+        ai_ops_assistant_egress_runtime_ipv4_before_output.stdout_lines
+        | select('search', '-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout)
+        | select('search', '-o lo')
+        | select('search', '-j ACCEPT$')
+        | list
+        | length == 1
+      - >-
+        (ai_ops_assistant_egress_runtime_ipv4_before_output.stdout_lines | last)
+        | regex_search('-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT$') is not none
+    fail_msg: ERR_ASSISTANT_EGRESS_NOT_MATERIALIZED
+
+- name: Assert IPv6 egress rules materialized in the active UFW path
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_egress_runtime_ipv6_output.rc == 0
+      - "'-A OUTPUT -j ufw6-before-output' in ai_ops_assistant_egress_runtime_ipv6_output.stdout_lines"
+      - ai_ops_assistant_egress_runtime_ipv6_before_output.rc == 0
+      - >-
+        ai_ops_assistant_egress_runtime_ipv6_before_output.stdout_lines
+        | select('search', '-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout)
+        | select('search', '-o lo')
+        | select('search', '-j ACCEPT$')
+        | list
+        | length == 1
+      - >-
+        (ai_ops_assistant_egress_runtime_ipv6_before_output.stdout_lines | last)
+        | regex_search('-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT$') is not none
+    fail_msg: ERR_ASSISTANT_EGRESS_NOT_MATERIALIZED

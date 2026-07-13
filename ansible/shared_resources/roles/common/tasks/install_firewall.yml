@@ -1,0 +1,21 @@
+---
+- name: Install firewall on Debian-based distributions
+  when: "'debian' in (ansible_facts['os_family'] | lower)"
+  block:
+    - name: Enable UFW
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/ufw
+          - --force
+          - enable
+      register: ufw_enable
+      changed_when: "'active and enabled' in ufw_enable.stdout"
+
+    - name: UFW allow SSH
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/ufw
+          - allow
+          - ssh
+      register: ufw_enable
+      changed_when: "'existing' not in ufw_enable.stdout"

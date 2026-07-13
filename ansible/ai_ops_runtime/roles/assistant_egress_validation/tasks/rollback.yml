@@ -1,0 +1,84 @@
+---
+- name: Read UFW status before marker-only rollback
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - status
+      - verbose
+  register: ai_ops_egress_validation_rollback_ufw_status
+  changed_when: false
+  failed_when: false
+
+- name: Remove managed IPv4 egress marker block when UFW remains active
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_assistant_egress.ufw.ipv4_rules_path }}"
+    marker: "# {mark} {{ ai_ops_assistant_egress.ufw.marker }}"
+    state: absent
+    validate: /usr/sbin/iptables-restore --test %s
+  when:
+    - ai_ops_egress_validation_rollback_ufw_status.rc == 0
+    - "(ai_ops_egress_validation_rollback_ufw_status.stdout_lines | first) == 'Status: active'"
+  notify: Reload UFW
+
+- name: Remove managed IPv6 egress marker block when UFW remains active
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_assistant_egress.ufw.ipv6_rules_path }}"
+    marker: "# {mark} {{ ai_ops_assistant_egress.ufw.marker }}"
+    state: absent
+    validate: /usr/sbin/ip6tables-restore --test %s
+  when:
+    - ai_ops_egress_validation_rollback_ufw_status.rc == 0
+    - "(ai_ops_egress_validation_rollback_ufw_status.stdout_lines | first) == 'Status: active'"
+  notify: Reload UFW
+
+- name: Flush marker-only rollback reload
+  ansible.builtin.meta: flush_handlers
+
+- name: Read active IPv4 UFW before-output rules after rollback
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - ufw-before-output
+  register: ai_ops_egress_validation_rollback_ipv4_rules
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read active IPv6 UFW before-output rules after rollback
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - ufw6-before-output
+  register: ai_ops_egress_validation_rollback_ipv6_rules
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Check managed markers are absent from UFW rule files
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -F
+      - "{{ ai_ops_assistant_egress.ufw.marker }}"
+      - "{{ item }}"
+  loop:
+    - "{{ ai_ops_assistant_egress.ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_assistant_egress.ufw.ipv6_rules_path }}"
+  register: ai_ops_egress_validation_rollback_markers
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Assert rollback preserved active UFW and removed owner rejects
+  ansible.builtin.assert:
+    that:
+      - ai_ops_egress_validation_rollback_ufw_status.rc == 0
+      - "(ai_ops_egress_validation_rollback_ufw_status.stdout_lines | first) == 'Status: active'"
+      - ai_ops_egress_validation_rollback_ipv4_rules.rc == 0
+      - ai_ops_egress_validation_rollback_ipv6_rules.rc == 0
+      - ai_ops_egress_validation_rollback_markers.results | map(attribute='rc') | list == [1, 1]
+      - "('-A ufw-before-output -m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT') not in ai_ops_egress_validation_rollback_ipv4_rules.stdout_lines"
+      - "('-A ufw6-before-output -m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT') not in ai_ops_egress_validation_rollback_ipv6_rules.stdout_lines"
+    fail_msg: ERR_ASSISTANT_EGRESS_ROLLBACK
