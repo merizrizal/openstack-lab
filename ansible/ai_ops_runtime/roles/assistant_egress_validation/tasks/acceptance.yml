@@ -14,6 +14,8 @@
       - "{{ item.port | string }}"
   become: true
   become_user: "{{ ai_ops_assistant_egress.user }}"
+  vars:
+    ansible_pipelining: true
   loop: "{{ ai_ops_egress_validation_management_targets }}"
   register: ai_ops_egress_validation_management_checks
   changed_when: false
@@ -51,6 +53,8 @@
       - "{{ ai_ops_egress_validation_synthetic_port | string }}"
   become: true
   become_user: "{{ ai_ops_assistant_egress.user }}"
+  vars:
+    ansible_pipelining: true
   register: ai_ops_egress_validation_synthetic_check
   changed_when: false
   failed_when: false

@@ -54,6 +54,59 @@
   failed_when: false
   check_mode: false
 
+- name: Classify materialized UFW owner-rule positions
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+        import json
+        import re
+        import sys
+
+        uid = sys.argv[1]
+        owner = re.compile(r"(?:^| )-m owner --uid-owner " + re.escape(uid) + r"(?: |$)")
+        accept = re.compile(r"(?:^| )-j ACCEPT(?: |$)")
+        reject = re.compile(r"(?:^| )-j REJECT(?: |$)")
+        loopback = re.compile(r"(?:^| )-o lo(?: |$)")
+        rules = sys.stdin.read().splitlines()
+
+        def positions(*predicates):
+            return [
+                position
+                for position, rule in enumerate(rules, start=1)
+                if all(predicate.search(rule) for predicate in predicates)
+            ]
+
+        print(json.dumps({
+            "owner_allow_positions": positions(owner, accept),
+            "owner_loopback_allow_positions": positions(owner, loopback, accept),
+            "owner_reject_positions": positions(owner, reject),
+            "rule_count": len(rules),
+        }, sort_keys=True))
+      - "{{ ai_ops_assistant_egress_user_uid.stdout }}"
+    stdin: "{{ item.rules.stdout }}"
+    stdin_add_newline: false
+  loop:
+    - family: ipv4
+      rules: "{{ ai_ops_assistant_egress_runtime_ipv4_before_output }}"
+    - family: ipv6
+      rules: "{{ ai_ops_assistant_egress_runtime_ipv6_before_output }}"
+  register: ai_ops_assistant_egress_runtime_rule_position_classification
+  changed_when: false
+  failed_when: false
+  no_log: true
+  check_mode: false
+
+- name: Record metadata-only materialized UFW rule positions
+  ansible.builtin.debug:
+    msg:
+      ipv4: "{{ ai_ops_assistant_egress_runtime_rule_position_classification.results[0].stdout | from_json }}"
+      ipv6: "{{ ai_ops_assistant_egress_runtime_rule_position_classification.results[1].stdout | from_json }}"
+  when:
+    - ai_ops_assistant_egress_runtime_rule_position_classification.results | length == 2
+    - ai_ops_assistant_egress_runtime_rule_position_classification.results | map(attribute='rc') | list == [0, 0]
+
 - name: Assert UFW remains active after egress policy update
   ansible.builtin.assert:
     that:
@@ -67,16 +120,23 @@
       - ai_ops_assistant_egress_runtime_ipv4_output.rc == 0
       - "'-A OUTPUT -j ufw-before-output' in ai_ops_assistant_egress_runtime_ipv4_output.stdout_lines"
       - ai_ops_assistant_egress_runtime_ipv4_before_output.rc == 0
+      - ai_ops_assistant_egress_runtime_rule_position_classification.results[0].rc == 0
       - >-
-        ai_ops_assistant_egress_runtime_ipv4_before_output.stdout_lines
-        | select('search', '-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout)
-        | select('search', '-o lo')
-        | select('search', '-j ACCEPT$')
-        | list
-        | length == 1
+        (ai_ops_assistant_egress_runtime_rule_position_classification.results[0].stdout | from_json)
+        .owner_loopback_allow_positions | length == 1
       - >-
-        (ai_ops_assistant_egress_runtime_ipv4_before_output.stdout_lines | last)
-        | regex_search('-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT$') is not none
+        (ai_ops_assistant_egress_runtime_rule_position_classification.results[0].stdout | from_json)
+        .owner_allow_positions | length ==
+        1 + (ai_ops_assistant_egress.ipv4.openstack_api_ports | length) +
+        (ai_ops_assistant_egress.ipv4.diagnostic_ssh_destinations | length)
+      - >-
+        (ai_ops_assistant_egress_runtime_rule_position_classification.results[0].stdout | from_json)
+        .owner_reject_positions | length == 1
+      - >-
+        ((ai_ops_assistant_egress_runtime_rule_position_classification.results[0].stdout | from_json)
+        .owner_reject_positions | first) >
+        ((ai_ops_assistant_egress_runtime_rule_position_classification.results[0].stdout | from_json)
+        .owner_allow_positions | max)
     fail_msg: ERR_ASSISTANT_EGRESS_NOT_MATERIALIZED
 
 - name: Assert IPv6 egress rules materialized in the active UFW path
@@ -85,14 +145,19 @@
       - ai_ops_assistant_egress_runtime_ipv6_output.rc == 0
       - "'-A OUTPUT -j ufw6-before-output' in ai_ops_assistant_egress_runtime_ipv6_output.stdout_lines"
       - ai_ops_assistant_egress_runtime_ipv6_before_output.rc == 0
+      - ai_ops_assistant_egress_runtime_rule_position_classification.results[1].rc == 0
       - >-
-        ai_ops_assistant_egress_runtime_ipv6_before_output.stdout_lines
-        | select('search', '-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout)
-        | select('search', '-o lo')
-        | select('search', '-j ACCEPT$')
-        | list
-        | length == 1
+        (ai_ops_assistant_egress_runtime_rule_position_classification.results[1].stdout | from_json)
+        .owner_loopback_allow_positions | length == 1
       - >-
-        (ai_ops_assistant_egress_runtime_ipv6_before_output.stdout_lines | last)
-        | regex_search('-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT$') is not none
+        (ai_ops_assistant_egress_runtime_rule_position_classification.results[1].stdout | from_json)
+        .owner_allow_positions | length == 1
+      - >-
+        (ai_ops_assistant_egress_runtime_rule_position_classification.results[1].stdout | from_json)
+        .owner_reject_positions | length == 1
+      - >-
+        ((ai_ops_assistant_egress_runtime_rule_position_classification.results[1].stdout | from_json)
+        .owner_reject_positions | first) >
+        ((ai_ops_assistant_egress_runtime_rule_position_classification.results[1].stdout | from_json)
+        .owner_allow_positions | max)
     fail_msg: ERR_ASSISTANT_EGRESS_NOT_MATERIALIZED

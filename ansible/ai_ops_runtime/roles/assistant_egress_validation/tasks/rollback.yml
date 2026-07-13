@@ -79,6 +79,16 @@
       - ai_ops_egress_validation_rollback_ipv4_rules.rc == 0
       - ai_ops_egress_validation_rollback_ipv6_rules.rc == 0
       - ai_ops_egress_validation_rollback_markers.results | map(attribute='rc') | list == [1, 1]
-      - "('-A ufw-before-output -m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT') not in ai_ops_egress_validation_rollback_ipv4_rules.stdout_lines"
-      - "('-A ufw6-before-output -m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ ' -j REJECT') not in ai_ops_egress_validation_rollback_ipv6_rules.stdout_lines"
+      - >-
+        ai_ops_egress_validation_rollback_ipv4_rules.stdout_lines
+        | select('search', '(?:^| )-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ '(?: |$)')
+        | select('search', '(?:^| )-j REJECT(?: |$)')
+        | list
+        | length == 0
+      - >-
+        ai_ops_egress_validation_rollback_ipv6_rules.stdout_lines
+        | select('search', '(?:^| )-m owner --uid-owner ' ~ ai_ops_assistant_egress_user_uid.stdout ~ '(?: |$)')
+        | select('search', '(?:^| )-j REJECT(?: |$)')
+        | list
+        | length == 0
     fail_msg: ERR_ASSISTANT_EGRESS_ROLLBACK
