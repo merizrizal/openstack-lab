@@ -1,0 +1,95 @@
+---
+- name: Validate device-auth egress approval contract
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname | dirname }}/inventories/local/nodes.yml"
+  vars:
+    ai_ops_device_auth_egress:
+      enabled: true
+      state: present
+      user: assistant
+      approval:
+        id: expired-device-auth-approval
+        expires_at_utc: "2000-01-01T00:00:00Z"
+  tasks:
+    - name: Reject expired device-auth approval before firewall work
+      block:
+        - name: Run device-auth egress approval role
+          ansible.builtin.include_role:
+            name: assistant_device_auth_egress
+      rescue:
+        - name: Retain expected approval failure metadata
+          ansible.builtin.set_fact:
+            ai_ops_device_auth_egress_contract_failure: "{{ ansible_failed_result.msg }}"
+
+    - name: Assert expired device-auth approval failed closed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_device_auth_egress_contract_failure is defined
+          - ai_ops_device_auth_egress_contract_failure == 'ERR_DEVICE_AUTH_EXPIRY'
+
+    - name: Check temporary device-auth markers are absent
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/grep
+          - -F
+          - AI-OPS device-auth egress exception
+          - "{{ item }}"
+      loop:
+        - /etc/ufw/before.rules
+        - /etc/ufw/before6.rules
+      register: ai_ops_device_auth_egress_marker_checks
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Assert expired approval created no firewall marker
+      ansible.builtin.assert:
+        that:
+          - ai_ops_device_auth_egress_marker_checks.results | map(attribute='rc') | list == [1, 1]
+        fail_msg: ERR_DEVICE_AUTH_UNEXPECTED_MARKER
+
+- name: Validate temporary device-auth dual-stack rule lifecycle
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir | dirname | dirname }}/inventories/local/nodes.yml"
+  tasks:
+    - name: Generate bounded approval expiry from target UTC
+      ansible.builtin.command:
+        argv:
+          - /bin/date
+          - -u
+          - --date=+5 minutes
+          - +%Y-%m-%dT%H:%M:%SZ
+      register: ai_ops_device_auth_egress_validation_expiry
+      changed_when: false
+      check_mode: false
+
+    - name: Configure bounded temporary device-auth IPv4 approval
+      ansible.builtin.set_fact:
+        ai_ops_device_auth_egress:
+          enabled: true
+          state: present
+          user: assistant
+          approval:
+            id: dualstack-materialization-validation
+            expires_at_utc: "{{ ai_ops_device_auth_egress_validation_expiry.stdout }}"
+
+    - name: Apply and remove temporary device-auth dual-stack rules
+      block:
+        - name: Apply temporary device-auth IPv4 rule
+          ansible.builtin.include_role:
+            name: assistant_device_auth_egress
+      always:
+        - name: Configure temporary device-auth IPv4 rule removal
+          ansible.builtin.set_fact:
+            ai_ops_device_auth_egress: >-
+              {{ ai_ops_device_auth_egress | combine({'state': 'absent'}) }}
+
+        - name: Remove temporary device-auth IPv4 rule
+          ansible.builtin.include_role:
+            name: assistant_device_auth_egress

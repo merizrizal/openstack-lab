@@ -1,0 +1,93 @@
+---
+- name: Operate a temporary device-auth egress window
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+  vars:
+    ai_ops_device_auth_window_apply: false
+    ai_ops_device_auth_window_approval_id: ""
+    ai_ops_device_auth_window_expires_at_utc: ""
+    ai_ops_device_auth_window_pause_seconds: 0
+  tasks:
+    - name: Assert operator-gated device-auth window inputs
+      ansible.builtin.assert:
+        that:
+          - ai_ops_device_auth_window_apply | bool
+          - ai_ops_device_auth_window_approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+          - >-
+            ai_ops_device_auth_window_expires_at_utc is match(
+            '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+          - ai_ops_device_auth_window_pause_seconds | int > 0
+          - ai_ops_device_auth_window_pause_seconds | int <= 600
+        fail_msg: ERR_DEVICE_AUTH_APPROVAL
+
+    - name: Read target UTC epoch before device-auth window
+      ansible.builtin.command:
+        argv:
+          - /bin/date
+          - -u
+          - +%s
+      register: ai_ops_device_auth_window_now_epoch
+      changed_when: false
+      check_mode: false
+
+    - name: Parse device-auth window expiry
+      ansible.builtin.command:
+        argv:
+          - /bin/date
+          - -u
+          - "--date={{ ai_ops_device_auth_window_expires_at_utc }}"
+          - +%s
+      register: ai_ops_device_auth_window_expiry_epoch
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Assert device-auth window expires after the operator pause
+      ansible.builtin.assert:
+        that:
+          - ai_ops_device_auth_window_expiry_epoch.rc == 0
+          - ai_ops_device_auth_window_expiry_epoch.stdout is match('^[0-9]+$')
+          - >-
+            ai_ops_device_auth_window_expiry_epoch.stdout | int >
+            ai_ops_device_auth_window_now_epoch.stdout | int +
+            ai_ops_device_auth_window_pause_seconds | int
+        fail_msg: ERR_DEVICE_AUTH_EXPIRY
+
+    - name: Apply, pause, and remove temporary device-auth egress
+      block:
+        - name: Configure approved temporary device-auth egress
+          ansible.builtin.set_fact:
+            ai_ops_device_auth_egress:
+              enabled: true
+              state: present
+              user: assistant
+              approval:
+                id: "{{ ai_ops_device_auth_window_approval_id }}"
+                expires_at_utc: "{{ ai_ops_device_auth_window_expires_at_utc }}"
+
+        - name: Apply temporary device-auth egress
+          ansible.builtin.include_role:
+            name: assistant_device_auth_egress
+
+        - name: State the operator-owned authentication pause
+          ansible.builtin.debug:
+            msg: >-
+              Temporary egress is active for the approved interval. The operator may
+              perform device authentication manually as assistant. Do not enter, copy,
+              or report device codes, tokens, URLs, account data, or provider output here.
+
+        - name: Wait for the bounded operator-owned authentication interval
+          ansible.builtin.pause:
+            seconds: "{{ ai_ops_device_auth_window_pause_seconds | int }}"
+      always:
+        - name: Configure temporary device-auth egress removal
+          ansible.builtin.set_fact:
+            ai_ops_device_auth_egress: >-
+              {{ ai_ops_device_auth_egress | combine({'state': 'absent'}) }}
+
+        - name: Remove temporary device-auth egress
+          ansible.builtin.include_role:
+            name: assistant_device_auth_egress

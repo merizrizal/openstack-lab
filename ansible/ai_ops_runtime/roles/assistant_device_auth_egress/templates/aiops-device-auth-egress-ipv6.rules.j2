@@ -1,0 +1,3 @@
+:{{ ai_ops_device_auth_egress_ufw.ipv6_chain }} -
+{% for destination in ai_ops_device_auth_egress_approved.ipv6_destinations %}-A ufw6-before-output -m owner --uid-owner {{ ai_ops_device_auth_egress.user }} -d {{ destination }} -p tcp --dport {{ ai_ops_device_auth_egress_approved.tcp_port }} -j {{ ai_ops_device_auth_egress_ufw.ipv6_chain }}
+{% endfor %}-A {{ ai_ops_device_auth_egress_ufw.ipv6_chain }} -j ACCEPT

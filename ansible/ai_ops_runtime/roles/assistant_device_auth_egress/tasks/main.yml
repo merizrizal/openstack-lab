@@ -1,0 +1,392 @@
+---
+- name: Assert device-auth egress configuration contract
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'assistant01'
+      - ai_ops_device_auth_egress is mapping
+      - ai_ops_device_auth_egress.keys() | list | sort == ['approval', 'enabled', 'state', 'user']
+      - ai_ops_device_auth_egress.enabled | type_debug == 'bool'
+      - ai_ops_device_auth_egress.state in ['present', 'absent']
+      - ai_ops_device_auth_egress.user == 'assistant'
+      - ai_ops_device_auth_egress.approval is mapping
+      - >-
+        ai_ops_device_auth_egress.approval.keys() | list | sort ==
+        ['expires_at_utc', 'id']
+      - ai_ops_device_auth_egress_approved is mapping
+      - >-
+        ai_ops_device_auth_egress_approved.keys() | list | sort ==
+        ['ipv4_destinations', 'ipv6_destinations', 'max_duration_seconds', 'tcp_port']
+      - ai_ops_device_auth_egress_approved.tcp_port == 443
+      - ai_ops_device_auth_egress_approved.max_duration_seconds == 600
+      - ai_ops_device_auth_egress_approved.ipv4_destinations | length == 2
+      - ai_ops_device_auth_egress_approved.ipv6_destinations | length == 2
+      - >-
+        ai_ops_device_auth_egress_approved.ipv4_destinations |
+        ansible.utils.ipaddr('address') | length ==
+        ai_ops_device_auth_egress_approved.ipv4_destinations | length
+      - >-
+        ai_ops_device_auth_egress_approved.ipv6_destinations |
+        ansible.utils.ipaddr('address') | length ==
+        ai_ops_device_auth_egress_approved.ipv6_destinations | length
+      - >-
+        ai_ops_device_auth_egress_approved.ipv4_destinations |
+        select('search', '/') | list | length == 0
+      - >-
+        ai_ops_device_auth_egress_approved.ipv6_destinations |
+        select('search', '/') | list | length == 0
+    fail_msg: ERR_DEVICE_AUTH_APPROVAL
+
+- name: Assert enabled device-auth approval is bounded
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress.approval.id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+      - >-
+        ai_ops_device_auth_egress.approval.expires_at_utc is match(
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+    fail_msg: ERR_DEVICE_AUTH_APPROVAL
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Read target UTC epoch for enabled device-auth approval
+  ansible.builtin.command:
+    argv:
+      - /bin/date
+      - -u
+      - +%s
+  register: ai_ops_device_auth_egress_now_epoch
+  changed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Parse enabled device-auth approval expiry
+  ansible.builtin.command:
+    argv:
+      - /bin/date
+      - -u
+      - --date={{ ai_ops_device_auth_egress.approval.expires_at_utc }}
+      - +%s
+  register: ai_ops_device_auth_egress_expiry_epoch
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert enabled device-auth approval has a valid ten-minute expiry
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_expiry_epoch.rc == 0
+      - ai_ops_device_auth_egress_expiry_epoch.stdout is match('^[0-9]+$')
+      - ai_ops_device_auth_egress_expiry_epoch.stdout | int > ai_ops_device_auth_egress_now_epoch.stdout | int
+      - >-
+        ai_ops_device_auth_egress_expiry_epoch.stdout | int <=
+        (ai_ops_device_auth_egress_now_epoch.stdout | int) +
+        ai_ops_device_auth_egress_approved.max_duration_seconds
+    fail_msg: ERR_DEVICE_AUTH_EXPIRY
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert device-auth UFW contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_ufw is mapping
+      - >-
+        ai_ops_device_auth_egress_ufw.keys() | list | sort ==
+        ['ipv4_chain', 'ipv4_rules_path', 'ipv6_chain', 'ipv6_rules_path', 'marker',
+        'permanent_marker']
+      - ai_ops_device_auth_egress_ufw.ipv4_rules_path == '/etc/ufw/before.rules'
+      - ai_ops_device_auth_egress_ufw.ipv6_rules_path == '/etc/ufw/before6.rules'
+      - ai_ops_device_auth_egress_ufw.ipv4_chain == 'aiops-dev-auth-out'
+      - ai_ops_device_auth_egress_ufw.ipv6_chain == 'aiops-dev-auth6-out'
+  when: ai_ops_device_auth_egress.enabled
+
+- name: Read UFW status before device-auth IPv4 rule update
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ufw
+      - status
+      - verbose
+  register: ai_ops_device_auth_egress_ufw_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Read permanent egress markers before device-auth rule update
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -F
+      - "# BEGIN {{ ai_ops_device_auth_egress_ufw.permanent_marker }}"
+      - "{{ item }}"
+  loop:
+    - "{{ ai_ops_device_auth_egress_ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_device_auth_egress_ufw.ipv6_rules_path }}"
+  register: ai_ops_device_auth_egress_permanent_markers
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert active permanent egress baseline before device-auth rule update
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_ufw_status.rc == 0
+      - "(ai_ops_device_auth_egress_ufw_status.stdout_lines | first) == 'Status: active'"
+      - ai_ops_device_auth_egress_permanent_markers.results | map(attribute='rc') | list == [0, 0]
+    fail_msg: ERR_DEVICE_AUTH_BASELINE
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Install temporary device-auth IPv4 UFW block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_device_auth_egress_ufw.ipv4_rules_path }}"
+    marker: "# {mark} {{ ai_ops_device_auth_egress_ufw.marker }}"
+    insertbefore: "^# BEGIN {{ ai_ops_device_auth_egress_ufw.permanent_marker }}$"
+    block: >-
+      {{ lookup('ansible.builtin.template', 'aiops-device-auth-egress-ipv4.rules.j2') }}
+    validate: /usr/sbin/iptables-restore --test %s
+  notify: Reload UFW after device-auth egress update
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Install temporary device-auth IPv6 UFW block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_device_auth_egress_ufw.ipv6_rules_path }}"
+    marker: "# {mark} {{ ai_ops_device_auth_egress_ufw.marker }}"
+    insertbefore: "^# BEGIN {{ ai_ops_device_auth_egress_ufw.permanent_marker }}$"
+    block: >-
+      {{ lookup('ansible.builtin.template', 'aiops-device-auth-egress-ipv6.rules.j2') }}
+    validate: /usr/sbin/ip6tables-restore --test %s
+  notify: Reload UFW after device-auth egress update
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Remove temporary device-auth IPv4 UFW block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_device_auth_egress_ufw.ipv4_rules_path }}"
+    marker: "# {mark} {{ ai_ops_device_auth_egress_ufw.marker }}"
+    state: absent
+    validate: /usr/sbin/iptables-restore --test %s
+  notify: Reload UFW after device-auth egress update
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
+
+- name: Remove temporary device-auth IPv6 UFW block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_device_auth_egress_ufw.ipv6_rules_path }}"
+    marker: "# {mark} {{ ai_ops_device_auth_egress_ufw.marker }}"
+    state: absent
+    validate: /usr/sbin/ip6tables-restore --test %s
+  notify: Reload UFW after device-auth egress update
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
+
+- name: Flush device-auth UFW reload before IPv4 materialization verification
+  ansible.builtin.meta: flush_handlers
+  when: ai_ops_device_auth_egress.enabled
+
+- name: Read active temporary device-auth IPv4 jump rules
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - ufw-before-output
+  register: ai_ops_device_auth_egress_ipv4_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Read active temporary device-auth IPv4 chain
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - "{{ ai_ops_device_auth_egress_ufw.ipv4_chain }}"
+  register: ai_ops_device_auth_egress_ipv4_chain
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Read active temporary device-auth IPv6 jump rules
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - ufw6-before-output
+  register: ai_ops_device_auth_egress_ipv6_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Read active temporary device-auth IPv6 chain
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - "{{ ai_ops_device_auth_egress_ufw.ipv6_chain }}"
+  register: ai_ops_device_auth_egress_ipv6_chain
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert temporary device-auth IPv4 rules materialized before permanent reject
+  ansible.builtin.shell: >-
+    set -o pipefail && /usr/sbin/iptables -S ufw-before-output |
+    /usr/bin/awk '/-j {{ ai_ops_device_auth_egress_ufw.ipv4_chain }}/{jump=NR}
+    /-m owner --uid-owner [0-9]+ -j REJECT/{reject=NR}
+    END{exit !(jump > 0 && reject > jump)}'
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert temporary device-auth IPv4 chain is exact
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_ipv4_before_output.rc == 0
+      - >-
+        ai_ops_device_auth_egress_ipv4_before_output.stdout_lines |
+        select('search', '-j ' ~ ai_ops_device_auth_egress_ufw.ipv4_chain) |
+        list | length == ai_ops_device_auth_egress_approved.ipv4_destinations | length
+      - ai_ops_device_auth_egress_ipv4_chain.rc == 0
+      - >-
+        ai_ops_device_auth_egress_ipv4_chain.stdout_lines ==
+        ['-N ' ~ ai_ops_device_auth_egress_ufw.ipv4_chain,
+        '-A ' ~ ai_ops_device_auth_egress_ufw.ipv4_chain ~ ' -j ACCEPT']
+    fail_msg: ERR_DEVICE_AUTH_NOT_MATERIALIZED
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert temporary device-auth IPv6 rules materialized before permanent reject
+  ansible.builtin.shell: >-
+    set -o pipefail && /usr/sbin/ip6tables -S ufw6-before-output |
+    /usr/bin/awk '/-j {{ ai_ops_device_auth_egress_ufw.ipv6_chain }}/{jump=NR}
+    /-m owner --uid-owner [0-9]+ -j REJECT/{reject=NR}
+    END{exit !(jump > 0 && reject > jump)}'
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Assert temporary device-auth IPv6 chain is exact
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_ipv6_before_output.rc == 0
+      - >-
+        ai_ops_device_auth_egress_ipv6_before_output.stdout_lines |
+        select('search', '-j ' ~ ai_ops_device_auth_egress_ufw.ipv6_chain) |
+        list | length == ai_ops_device_auth_egress_approved.ipv6_destinations | length
+      - ai_ops_device_auth_egress_ipv6_chain.rc == 0
+      - >-
+        ai_ops_device_auth_egress_ipv6_chain.stdout_lines ==
+        ['-N ' ~ ai_ops_device_auth_egress_ufw.ipv6_chain,
+        '-A ' ~ ai_ops_device_auth_egress_ufw.ipv6_chain ~ ' -j ACCEPT']
+    fail_msg: ERR_DEVICE_AUTH_NOT_MATERIALIZED
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'present'
+
+- name: Read active permanent IPv4 egress reject after temporary removal
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/iptables
+      - -S
+      - ufw-before-output
+  register: ai_ops_device_auth_egress_rollback_ipv4_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
+
+- name: Read active permanent IPv6 egress reject after temporary removal
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/ip6tables
+      - -S
+      - ufw6-before-output
+  register: ai_ops_device_auth_egress_rollback_ipv6_before_output
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
+
+- name: Assert permanent egress rejects remain after temporary removal
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_rollback_ipv4_before_output.rc == 0
+      - >-
+        ai_ops_device_auth_egress_rollback_ipv4_before_output.stdout_lines |
+        select('search', '(?:^| )-m owner --uid-owner [0-9]+ -j REJECT(?: |$)') |
+        list | length == 1
+      - ai_ops_device_auth_egress_rollback_ipv6_before_output.rc == 0
+      - >-
+        ai_ops_device_auth_egress_rollback_ipv6_before_output.stdout_lines |
+        select('search', '(?:^| )-m owner --uid-owner [0-9]+ -j REJECT(?: |$)') |
+        list | length == 1
+    fail_msg: ERR_DEVICE_AUTH_ROLLBACK
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
+
+- name: Read removed temporary device-auth markers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -F
+      - "{{ ai_ops_device_auth_egress_ufw.marker }}"
+      - "{{ item }}"
+  loop:
+    - "{{ ai_ops_device_auth_egress_ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_device_auth_egress_ufw.ipv6_rules_path }}"
+  register: ai_ops_device_auth_egress_removed_markers
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
+
+- name: Assert temporary device-auth markers are absent
+  ansible.builtin.assert:
+    that:
+      - ai_ops_device_auth_egress_removed_markers.results | map(attribute='rc') | list == [1, 1]
+    fail_msg: ERR_DEVICE_AUTH_ROLLBACK
+  when:
+    - ai_ops_device_auth_egress.enabled
+    - ai_ops_device_auth_egress.state == 'absent'
