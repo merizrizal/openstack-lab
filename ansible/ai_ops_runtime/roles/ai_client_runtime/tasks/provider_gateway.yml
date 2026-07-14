@@ -6,11 +6,15 @@
       - ai_ops_provider_gateway is mapping
       - >-
         ai_ops_provider_gateway.keys() | list | sort ==
-        ['group', 'root', 'service_name', 'user']
+        ['evidence_ledger', 'group', 'root', 'service_name', 'state_directory', 'user']
       - ai_ops_provider_gateway.user == 'aiops-provider'
       - ai_ops_provider_gateway.group == 'aiops-provider'
       - ai_ops_provider_gateway.root == '/opt/openstack-ai-ops/provider-gateway'
       - ai_ops_provider_gateway.service_name == 'aiops-provider-gateway'
+      - ai_ops_provider_gateway.state_directory == 'aiops-provider-gateway'
+      - >-
+        ai_ops_provider_gateway.evidence_ledger ==
+        '/var/lib/aiops-provider-gateway/gateway-evidence.jsonl'
     fail_msg: >-
       Provider gateway deployment settings are outside the reviewed boundary.
 

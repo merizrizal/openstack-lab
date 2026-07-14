@@ -8,10 +8,13 @@ User={{ ai_ops_provider_gateway.user }}
 Group={{ ai_ops_provider_gateway.group }}
 WorkingDirectory={{ ai_ops_provider_gateway.root }}
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart={{ ai_ops_provider_gateway.root }}/venv/bin/python {{ ai_ops_provider_gateway.root }}/aiops_provider_gateway.py --policy {{ ai_ops_provider_gateway.root }}/gateway_policy.json
+ExecStart={{ ai_ops_provider_gateway.root }}/venv/bin/python {{ ai_ops_provider_gateway.root }}/aiops_provider_gateway.py --policy {{ ai_ops_provider_gateway.root }}/gateway_policy.json --evidence-ledger {{ ai_ops_provider_gateway.evidence_ledger }}
 Restart=on-failure
 RestartSec=5s
 UMask=0077
+StateDirectory={{ ai_ops_provider_gateway.state_directory }}
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/{{ ai_ops_provider_gateway.state_directory }}
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true

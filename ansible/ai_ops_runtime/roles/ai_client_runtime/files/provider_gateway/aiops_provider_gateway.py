@@ -4,9 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import http.client
 import json
+import os
+import re
+import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Protocol
@@ -174,6 +179,238 @@ class UpstreamRequest:
     body: bytes
 
 
+GATEWAY_EVIDENCE_SCHEMA_VERSION = 1
+GATEWAY_EVIDENCE_COUNT_CATEGORIES = frozenset(
+    {"canonical_text", "embedded_json", "identity", "propagated_value", "secret"}
+)
+GATEWAY_EVIDENCE_OUTCOMES = frozenset(
+    {
+        "forward_started",
+        "upstream_non_success",
+        "upstream_succeeded",
+        "upstream_transport_failed",
+    }
+)
+GATEWAY_EVIDENCE_STATUS_CLASSES = frozenset({"1xx", "2xx", "3xx", "4xx", "5xx"})
+GATEWAY_EVIDENCE_TIMESTAMP_RE = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+)
+GATEWAY_EVIDENCE_MAX_REDACTION_COUNT = 10000
+
+
+class GatewayEvidenceError(ValueError):
+    """Raised when a metadata-only gateway evidence event is invalid."""
+
+
+@dataclass(frozen=True)
+class GatewayEvidenceEvent:
+    """Allowlisted metadata for one gateway request lifecycle state."""
+
+    timestamp_utc: str
+    correlation_id: str
+    model: str
+    route: str
+    classification_status: str
+    redaction_counts: tuple[tuple[str, int], ...]
+    outcome: str
+    upstream_status_class: str | None
+    tls_verified: bool | None
+    schema_version: int = GATEWAY_EVIDENCE_SCHEMA_VERSION
+
+
+def serialize_gateway_evidence_event(event: GatewayEvidenceEvent) -> bytes:
+    """Serialize one bounded, payload-free gateway evidence event."""
+    if not isinstance(event, GatewayEvidenceEvent):
+        raise GatewayEvidenceError("gateway evidence event is invalid")
+    if event.schema_version != GATEWAY_EVIDENCE_SCHEMA_VERSION:
+        raise GatewayEvidenceError("gateway evidence schema is unsupported")
+    if not isinstance(event.timestamp_utc, str) or not GATEWAY_EVIDENCE_TIMESTAMP_RE.fullmatch(
+        event.timestamp_utc
+    ):
+        raise GatewayEvidenceError("gateway evidence timestamp is invalid")
+    try:
+        correlation_uuid = uuid.UUID(event.correlation_id)
+    except (AttributeError, ValueError):
+        raise GatewayEvidenceError("gateway evidence correlation is invalid") from None
+    if correlation_uuid.version != 4:
+        raise GatewayEvidenceError("gateway evidence correlation is invalid")
+    if event.model != REVIEWED_MODEL or event.route != FIXED_UPSTREAM_ROUTE:
+        raise GatewayEvidenceError("gateway evidence route is invalid")
+    if event.classification_status not in {"clear", "redacted"}:
+        raise GatewayEvidenceError("gateway evidence classification is invalid")
+    if event.outcome not in GATEWAY_EVIDENCE_OUTCOMES:
+        raise GatewayEvidenceError("gateway evidence outcome is invalid")
+    if not isinstance(event.redaction_counts, tuple) or not all(
+        isinstance(item, tuple) and len(item) == 2 for item in event.redaction_counts
+    ):
+        raise GatewayEvidenceError("gateway evidence counts are invalid")
+    if tuple(sorted(event.redaction_counts)) != event.redaction_counts:
+        raise GatewayEvidenceError("gateway evidence counts are unordered")
+    counts: dict[str, int] = {}
+    for category, count in event.redaction_counts:
+        if (
+            category not in GATEWAY_EVIDENCE_COUNT_CATEGORIES
+            or isinstance(count, bool)
+            or not isinstance(count, int)
+            or not 0 <= count <= GATEWAY_EVIDENCE_MAX_REDACTION_COUNT
+        ):
+            raise GatewayEvidenceError("gateway evidence counts are invalid")
+        if category in counts:
+            raise GatewayEvidenceError("gateway evidence counts are duplicated")
+        counts[category] = count
+    if event.outcome == "forward_started":
+        if event.upstream_status_class is not None or event.tls_verified is not None:
+            raise GatewayEvidenceError("gateway evidence start state is invalid")
+    elif event.outcome == "upstream_transport_failed":
+        if event.upstream_status_class is not None or event.tls_verified is not False:
+            raise GatewayEvidenceError("gateway evidence transport state is invalid")
+    elif (
+        event.upstream_status_class not in GATEWAY_EVIDENCE_STATUS_CLASSES
+        or event.tls_verified is not True
+    ):
+        raise GatewayEvidenceError("gateway evidence terminal state is invalid")
+    return json.dumps(
+        {
+            "classification_status": event.classification_status,
+            "correlation_id": event.correlation_id,
+            "model": event.model,
+            "outcome": event.outcome,
+            "redaction_counts": counts,
+            "route": event.route,
+            "schema_version": event.schema_version,
+            "timestamp_utc": event.timestamp_utc,
+            "tls_verified": event.tls_verified,
+            "upstream_status_class": event.upstream_status_class,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+GATEWAY_EVIDENCE_MAX_RECORD_BYTES = 4096
+GATEWAY_EVIDENCE_MIN_LEDGER_BYTES = GATEWAY_EVIDENCE_MAX_RECORD_BYTES
+GATEWAY_EVIDENCE_MAX_LEDGER_BYTES = 65536
+
+
+class GatewayEvidenceWriter(Protocol):
+    """Append validated metadata records without exposing a query interface."""
+
+    def append(self, record: bytes) -> None:
+        """Durably append one newline-terminated metadata record."""
+
+
+@dataclass(frozen=True)
+class LocalGatewayEvidenceWriter:
+    """Append bounded metadata records to an operator-provisioned local ledger."""
+
+    path: Path
+    max_bytes: int = GATEWAY_EVIDENCE_MAX_LEDGER_BYTES
+
+    def validate(self) -> None:
+        """Create and validate the configured ledger without writing an event."""
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = None
+        try:
+            descriptor = os.open(self.path, flags, 0o600)
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            metadata = os.fstat(descriptor)
+            if metadata.st_size > self.max_bytes or metadata.st_mode & 0o777 != 0o600:
+                raise GatewayEvidenceError("gateway evidence ledger is unsafe")
+        except GatewayEvidenceError:
+            raise
+        except OSError:
+            raise GatewayEvidenceError("gateway evidence write failed") from None
+        finally:
+            if descriptor is not None:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+                    os.close(descriptor)
+                except OSError:
+                    raise GatewayEvidenceError("gateway evidence write failed") from None
+
+    def append(self, record: bytes) -> None:
+        if (
+            not isinstance(record, bytes)
+            or not record.endswith(b"\n")
+            or not 0 < len(record) <= GATEWAY_EVIDENCE_MAX_RECORD_BYTES
+        ):
+            raise GatewayEvidenceError("gateway evidence record is invalid")
+        if (
+            isinstance(self.max_bytes, bool)
+            or not isinstance(self.max_bytes, int)
+            or not GATEWAY_EVIDENCE_MIN_LEDGER_BYTES
+            <= self.max_bytes
+            <= GATEWAY_EVIDENCE_MAX_LEDGER_BYTES
+        ):
+            raise GatewayEvidenceError("gateway evidence retention is invalid")
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = None
+        try:
+            descriptor = os.open(self.path, flags, 0o600)
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            if os.fstat(descriptor).st_size + len(record) > self.max_bytes:
+                raise GatewayEvidenceError("gateway evidence retention exceeded")
+            if os.write(descriptor, record) != len(record):
+                raise OSError("gateway evidence record was partially written")
+            os.fsync(descriptor)
+        except GatewayEvidenceError:
+            raise
+        except OSError:
+            raise GatewayEvidenceError("gateway evidence write failed") from None
+        finally:
+            if descriptor is not None:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+                    os.close(descriptor)
+                except OSError:
+                    raise GatewayEvidenceError("gateway evidence write failed") from None
+
+
+def append_gateway_evidence_event(
+    writer: GatewayEvidenceWriter, event: GatewayEvidenceEvent
+) -> None:
+    """Serialize then append one metadata event; any failure is fail-closed."""
+    record = serialize_gateway_evidence_event(event) + b"\n"
+    if len(record) > GATEWAY_EVIDENCE_MAX_RECORD_BYTES:
+        raise GatewayEvidenceError("gateway evidence record is too large")
+    try:
+        writer.append(record)
+    except GatewayEvidenceError:
+        raise
+    except (AttributeError, OSError, TypeError, ValueError):
+        raise GatewayEvidenceError("gateway evidence write failed") from None
+
+
+def build_gateway_evidence_event(
+    result: RedactionResult,
+    *,
+    outcome: str,
+    upstream_status_class: str | None,
+    tls_verified: bool | None,
+) -> GatewayEvidenceEvent:
+    """Construct one strict metadata event from an already-redacted result."""
+    if not isinstance(result, RedactionResult):
+        raise GatewayEvidenceError("gateway evidence result is invalid")
+    return GatewayEvidenceEvent(
+        timestamp_utc=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        correlation_id=result.correlation_id,
+        model=REVIEWED_MODEL,
+        route=FIXED_UPSTREAM_ROUTE,
+        classification_status=result.classification_status,
+        redaction_counts=tuple(sorted(result.redaction_counts.items())),
+        outcome=outcome,
+        upstream_status_class=upstream_status_class,
+        tls_verified=tls_verified,
+    )
+
+
+def upstream_status_class(status: int) -> str:
+    """Return the sanitized HTTP status class for a reviewed upstream response."""
+    if isinstance(status, bool) or not isinstance(status, int) or not 100 <= status < 600:
+        raise GatewayEvidenceError("gateway evidence upstream status is invalid")
+    return f"{status // 100}xx"
+
+
 class FakeUpstreamSink(Protocol):
     """Test-only in-memory sink; it must not perform transport I/O."""
 
@@ -309,6 +546,32 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         """Disable access and error logging so request data cannot be retained."""
 
+    def _append_gateway_evidence(
+        self,
+        result: RedactionResult,
+        *,
+        outcome: str,
+        upstream_status_class: str | None,
+        tls_verified: bool | None,
+    ) -> bool:
+        writer = self.server.evidence_writer
+        if writer is None:
+            return True
+        try:
+            append_gateway_evidence_event(
+                writer,
+                build_gateway_evidence_event(
+                    result,
+                    outcome=outcome,
+                    upstream_status_class=upstream_status_class,
+                    tls_verified=tls_verified,
+                ),
+            )
+        except GatewayEvidenceError:
+            self._send_error_json(502, "ERR_GATEWAY_EVIDENCE")
+            return False
+        return True
+
     def do_POST(self) -> None:
         if self.path != self.server.policy.route:
             self._send_error_json(404, "ERR_GATEWAY_ROUTE")
@@ -338,14 +601,40 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 request = build_upstream_request(
                     result, self.server.policy, self.headers.get_all("Authorization", [])
                 )
-                response = forward_upstream_request(
-                    request, self.server.upstream_connection_factory
-                )
             except ProviderRequestError:
                 self._send_error_json(401, "ERR_OPENAI_AUTH_MANUAL")
                 return
+            if not self._append_gateway_evidence(
+                result,
+                outcome="forward_started",
+                upstream_status_class=None,
+                tls_verified=None,
+            ):
+                return
+            try:
+                response = forward_upstream_request(
+                    request, self.server.upstream_connection_factory
+                )
             except UpstreamTransportError:
+                if not self._append_gateway_evidence(
+                    result,
+                    outcome="upstream_transport_failed",
+                    upstream_status_class=None,
+                    tls_verified=False,
+                ):
+                    return
                 self._send_error_json(502, "ERR_OPENAI_RESPONSE")
+                return
+            if not self._append_gateway_evidence(
+                result,
+                outcome=(
+                    "upstream_succeeded"
+                    if 200 <= response.status < 300
+                    else "upstream_non_success"
+                ),
+                upstream_status_class=upstream_status_class(response.status),
+                tls_verified=True,
+            ):
                 return
         self._send_fake_response(response)
 
@@ -472,10 +761,12 @@ class GatewayServer(ThreadingHTTPServer):
         port: int | None = None,
         fake_upstream_sink: FakeUpstreamSink | None = None,
         upstream_connection_factory: Any = http.client.HTTPSConnection,
+        evidence_writer: GatewayEvidenceWriter | None = None,
     ) -> None:
         self.policy = policy
         self.fake_upstream_sink = fake_upstream_sink
         self.upstream_connection_factory = upstream_connection_factory
+        self.evidence_writer = evidence_writer
         super().__init__(
             (policy.bind_host, policy.bind_port if port is None else port),
             GatewayRequestHandler,
@@ -485,9 +776,11 @@ class GatewayServer(ThreadingHTTPServer):
         """Avoid emitting request-adjacent exception data."""
 
 
-def serve(policy: GatewayPolicy) -> None:
-    """Run the loopback gateway with fixed HTTPS forwarding enabled."""
-    server = GatewayServer(policy)
+def serve(policy: GatewayPolicy, evidence_ledger: Path) -> None:
+    """Run the loopback gateway with a validated local evidence ledger."""
+    evidence_writer = LocalGatewayEvidenceWriter(evidence_ledger)
+    evidence_writer.validate()
+    server = GatewayServer(policy, evidence_writer=evidence_writer)
     try:
         server.serve_forever()
     finally:
@@ -501,10 +794,11 @@ def main() -> int:
         type=Path,
         default=Path(__file__).with_name("gateway_policy.json"),
     )
+    parser.add_argument("--evidence-ledger", type=Path, required=True)
     args = parser.parse_args()
     try:
-        serve(load_policy(args.policy))
-    except GatewayPolicyError:
+        serve(load_policy(args.policy), args.evidence_ledger)
+    except (GatewayPolicyError, GatewayEvidenceError):
         return 2
     except KeyboardInterrupt:
         return 0

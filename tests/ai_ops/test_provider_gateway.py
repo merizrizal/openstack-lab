@@ -6,10 +6,12 @@ import io
 import json
 import socket
 import sys
+import tempfile
 import threading
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GATEWAY_PATH = (
@@ -52,9 +54,19 @@ class TestProviderGatewayStub(unittest.TestCase):
         value.update(overrides)
         return self.gateway.GatewayPolicy.from_mapping(value)
 
-    def start_gateway(self, policy=None, fake_upstream_sink=None):
+    def start_gateway(
+        self,
+        policy=None,
+        fake_upstream_sink=None,
+        upstream_connection_factory=http.client.HTTPSConnection,
+        evidence_writer=None,
+    ):
         server = self.gateway.GatewayServer(
-            policy or self.policy(), port=0, fake_upstream_sink=fake_upstream_sink
+            policy or self.policy(),
+            port=0,
+            fake_upstream_sink=fake_upstream_sink,
+            upstream_connection_factory=upstream_connection_factory,
+            evidence_writer=evidence_writer,
         )
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -297,6 +309,358 @@ class TestProviderGatewayStub(unittest.TestCase):
         self.assertEqual(connection.request_args[1]["headers"], request.headers)
         self.assertEqual(response.body_chunks, (b"data: synthetic\n\n",))
         self.assertTrue(connection.closed)
+
+    def test_serializes_only_allowlisted_gateway_evidence_metadata(self):
+        event = self.gateway.GatewayEvidenceEvent(
+            timestamp_utc="2026-07-14T12:00:00Z",
+            correlation_id="550e8400-e29b-41d4-a716-446655440000",
+            model=self.gateway.REVIEWED_MODEL,
+            route=self.gateway.FIXED_UPSTREAM_ROUTE,
+            classification_status="redacted",
+            redaction_counts=(("identity", 2), ("secret", 1)),
+            outcome="upstream_succeeded",
+            upstream_status_class="2xx",
+            tls_verified=True,
+        )
+
+        serialized = self.gateway.serialize_gateway_evidence_event(event)
+        value = json.loads(serialized)
+
+        self.assertEqual(
+            set(value),
+            {
+                "classification_status",
+                "correlation_id",
+                "model",
+                "outcome",
+                "redaction_counts",
+                "route",
+                "schema_version",
+                "timestamp_utc",
+                "tls_verified",
+                "upstream_status_class",
+            },
+        )
+        self.assertEqual(value["redaction_counts"], {"identity": 2, "secret": 1})
+        self.assertNotIn("SYNTHETIC_RAW_PROMPT", serialized.decode("utf-8"))
+
+    def test_rejects_invalid_or_unsafe_gateway_evidence_metadata(self):
+        base = {
+            "timestamp_utc": "2026-07-14T12:00:00Z",
+            "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
+            "model": self.gateway.REVIEWED_MODEL,
+            "route": self.gateway.FIXED_UPSTREAM_ROUTE,
+            "classification_status": "clear",
+            "redaction_counts": (),
+            "outcome": "forward_started",
+            "upstream_status_class": None,
+            "tls_verified": None,
+        }
+        invalid_values = (
+            {"correlation_id": "not-a-uuid"},
+            {"classification_status": "payload-retained"},
+            {"redaction_counts": None},
+            {"redaction_counts": (("identity", 1, 2),)},
+            {"redaction_counts": (("payload", 1),)},
+            {"redaction_counts": (("identity", True),)},
+            {"outcome": "forward_started", "tls_verified": True},
+            {
+                "outcome": "upstream_succeeded",
+                "upstream_status_class": "2xx",
+                "tls_verified": False,
+            },
+        )
+        for override in invalid_values:
+            with self.subTest(override=override):
+                event = self.gateway.GatewayEvidenceEvent(**(base | override))
+                with self.assertRaises(self.gateway.GatewayEvidenceError):
+                    self.gateway.serialize_gateway_evidence_event(event)
+
+    def test_appends_valid_metadata_event_to_local_ledger(self):
+        event = self.gateway.GatewayEvidenceEvent(
+            timestamp_utc="2026-07-14T12:00:00Z",
+            correlation_id="550e8400-e29b-41d4-a716-446655440000",
+            model=self.gateway.REVIEWED_MODEL,
+            route=self.gateway.FIXED_UPSTREAM_ROUTE,
+            classification_status="clear",
+            redaction_counts=(),
+            outcome="forward_started",
+            upstream_status_class=None,
+            tls_verified=None,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gateway-evidence.jsonl"
+            writer = self.gateway.LocalGatewayEvidenceWriter(path)
+
+            self.gateway.append_gateway_evidence_event(writer, event)
+
+            record = path.read_bytes()
+            self.assertTrue(record.endswith(b"\n"))
+            self.assertEqual(json.loads(record), json.loads(self.gateway.serialize_gateway_evidence_event(event)))
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_rejects_invalid_event_before_writer_and_propagates_writer_failure(self):
+        class RecordingWriter:
+            def __init__(self):
+                self.records = []
+
+            def append(self, record):
+                self.records.append(record)
+
+        class FailingWriter:
+            def append(self, record):
+                raise OSError("synthetic ledger failure")
+
+        invalid_event = self.gateway.GatewayEvidenceEvent(
+            timestamp_utc="invalid",
+            correlation_id="550e8400-e29b-41d4-a716-446655440000",
+            model=self.gateway.REVIEWED_MODEL,
+            route=self.gateway.FIXED_UPSTREAM_ROUTE,
+            classification_status="clear",
+            redaction_counts=(),
+            outcome="forward_started",
+            upstream_status_class=None,
+            tls_verified=None,
+        )
+        valid_event = self.gateway.GatewayEvidenceEvent(
+            timestamp_utc="2026-07-14T12:00:00Z",
+            correlation_id="550e8400-e29b-41d4-a716-446655440000",
+            model=self.gateway.REVIEWED_MODEL,
+            route=self.gateway.FIXED_UPSTREAM_ROUTE,
+            classification_status="clear",
+            redaction_counts=(),
+            outcome="forward_started",
+            upstream_status_class=None,
+            tls_verified=None,
+        )
+        recording_writer = RecordingWriter()
+
+        with self.assertRaises(self.gateway.GatewayEvidenceError):
+            self.gateway.append_gateway_evidence_event(recording_writer, invalid_event)
+        self.assertEqual(recording_writer.records, [])
+        with self.assertRaises(self.gateway.GatewayEvidenceError):
+            self.gateway.append_gateway_evidence_event(FailingWriter(), valid_event)
+
+    def test_rejects_overflow_and_symlinked_ledgers_without_modification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gateway-evidence.jsonl"
+            path.write_bytes(b"x" * 4094)
+            writer = self.gateway.LocalGatewayEvidenceWriter(path, max_bytes=4096)
+
+            with self.assertRaises(self.gateway.GatewayEvidenceError):
+                writer.append(b"{}\n")
+            self.assertEqual(path.read_bytes(), b"x" * 4094)
+
+            target = Path(directory) / "target.jsonl"
+            target.write_bytes(b"preserved")
+            link = Path(directory) / "ledger-link.jsonl"
+            link.symlink_to(target)
+            with self.assertRaises(self.gateway.GatewayEvidenceError):
+                self.gateway.LocalGatewayEvidenceWriter(link, max_bytes=4096).append(b"{}\n")
+            self.assertEqual(target.read_bytes(), b"preserved")
+
+    def test_serializes_concurrent_appends_under_the_ledger_bound(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gateway-evidence.jsonl"
+            path.write_bytes(b"x" * 4091)
+            writer = self.gateway.LocalGatewayEvidenceWriter(path, max_bytes=4096)
+            barrier = threading.Barrier(2)
+            errors = []
+
+            def append_record():
+                barrier.wait()
+                try:
+                    writer.append(b"{}\n")
+                except self.gateway.GatewayEvidenceError as exc:
+                    errors.append(exc)
+
+            first = threading.Thread(target=append_record)
+            second = threading.Thread(target=append_record)
+            first.start()
+            second.start()
+            first.join()
+            second.join()
+
+            self.assertEqual(len(errors), 1)
+            self.assertEqual(path.stat().st_size, 4094)
+
+    def test_serve_requires_a_usable_explicit_evidence_ledger(self):
+        class RecordingServer:
+            instances = []
+
+            def __init__(self, policy, *, evidence_writer):
+                self.policy = policy
+                self.evidence_writer = evidence_writer
+                self.served = False
+                self.closed = False
+                self.instances.append(self)
+
+            def serve_forever(self):
+                self.served = True
+
+            def server_close(self):
+                self.closed = True
+
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = Path(directory) / "gateway-evidence.jsonl"
+            with mock.patch.object(self.gateway, "GatewayServer", RecordingServer):
+                self.gateway.serve(self.policy(), ledger)
+
+            server = RecordingServer.instances[-1]
+            self.assertTrue(server.served)
+            self.assertTrue(server.closed)
+            self.assertEqual(server.evidence_writer.path, ledger)
+            self.assertEqual(ledger.stat().st_mode & 0o777, 0o600)
+
+            with self.assertRaises(self.gateway.GatewayEvidenceError):
+                self.gateway.serve(self.policy(), Path(directory) / "missing" / "ledger.jsonl")
+
+    def test_records_sanitized_success_evidence_and_strips_inbound_headers(self):
+        class RecordingWriter:
+            def __init__(self):
+                self.records = []
+
+            def append(self, record):
+                self.records.append(record)
+
+        class Response:
+            status = 200
+
+            def getheader(self, name, default=None):
+                return "text/event-stream" if name == "Content-Type" else default
+
+            def read(self, size):
+                if not hasattr(self, "sent"):
+                    self.sent = True
+                    return b"data: synthetic\n\n"
+                return b""
+
+        class Connection:
+            def __init__(self):
+                self.headers = None
+
+            def request(self, method, path, body, headers):
+                self.headers = headers
+
+            def getresponse(self):
+                return Response()
+
+            def close(self):
+                pass
+
+        writer = RecordingWriter()
+        connection = Connection()
+        _, port = self.start_gateway(
+            evidence_writer=writer,
+            upstream_connection_factory=lambda *args, **kwargs: connection,
+        )
+        payload = {
+            "model": self.gateway.REVIEWED_MODEL,
+            "input": {"username": "SYNTHETIC_USERNAME"},
+        }
+
+        status, _, _ = self.request(
+            port,
+            body=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": "Bearer SYNTHETIC_INBOUND_TOKEN",
+                "X-Unreviewed": "SYNTHETIC_UNREVIEWED_HEADER",
+            },
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(connection.headers["Authorization"], "Bearer SYNTHETIC_INBOUND_TOKEN")
+        self.assertEqual(set(connection.headers), {"Accept", "Content-Type", "Authorization"})
+        events = [json.loads(record) for record in writer.records]
+        self.assertEqual([event["outcome"] for event in events], ["forward_started", "upstream_succeeded"])
+        self.assertEqual(events[0]["correlation_id"], events[1]["correlation_id"])
+        self.assertEqual(events[1]["upstream_status_class"], "2xx")
+        self.assertTrue(events[1]["tls_verified"])
+        serialized = b"".join(writer.records).decode("utf-8")
+        self.assertNotIn("SYNTHETIC_USERNAME", serialized)
+        self.assertNotIn("SYNTHETIC_INBOUND_TOKEN", serialized)
+        self.assertNotIn("SYNTHETIC_UNREVIEWED_HEADER", serialized)
+
+    def test_records_non_success_and_transport_failure_evidence(self):
+        class RecordingWriter:
+            def __init__(self):
+                self.records = []
+
+            def append(self, record):
+                self.records.append(record)
+
+        class NonSuccessResponse:
+            status = 429
+
+            def getheader(self, name, default=None):
+                return default
+
+            def read(self, size):
+                return b""
+
+        class Connection:
+            def request(self, *args, **kwargs):
+                pass
+
+            def getresponse(self):
+                return NonSuccessResponse()
+
+            def close(self):
+                pass
+
+        writer = RecordingWriter()
+        _, port = self.start_gateway(
+            evidence_writer=writer,
+            upstream_connection_factory=lambda *args, **kwargs: Connection(),
+        )
+        status, _, _ = self.request(port, headers={"Authorization": "Bearer SYNTHETIC_TOKEN"})
+        self.assertEqual(status, 429)
+        self.assertEqual(json.loads(writer.records[-1])["outcome"], "upstream_non_success")
+        self.assertEqual(json.loads(writer.records[-1])["upstream_status_class"], "4xx")
+
+        transport_writer = RecordingWriter()
+        _, transport_port = self.start_gateway(
+            evidence_writer=transport_writer,
+            upstream_connection_factory=lambda *args, **kwargs: (_ for _ in ()).throw(OSError()),
+        )
+        status, _, body = self.request(
+            transport_port, headers={"Authorization": "Bearer SYNTHETIC_TOKEN"}
+        )
+        self.assertEqual(status, 502)
+        self.assertEqual(body, b'{"error":"ERR_OPENAI_RESPONSE"}')
+        self.assertEqual(
+            json.loads(transport_writer.records[-1])["outcome"], "upstream_transport_failed"
+        )
+        self.assertFalse(json.loads(transport_writer.records[-1])["tls_verified"])
+
+    def test_evidence_failure_blocks_forwarding_and_redaction_failure_writes_nothing(self):
+        class FailingWriter:
+            def append(self, record):
+                raise OSError("synthetic ledger failure")
+
+        class RecordingWriter:
+            def __init__(self):
+                self.records = []
+
+            def append(self, record):
+                self.records.append(record)
+
+        connection_calls = []
+        _, port = self.start_gateway(
+            evidence_writer=FailingWriter(),
+            upstream_connection_factory=lambda *args, **kwargs: connection_calls.append(args),
+        )
+        status, _, body = self.request(port, headers={"Authorization": "Bearer SYNTHETIC_TOKEN"})
+        self.assertEqual(status, 502)
+        self.assertEqual(body, b'{"error":"ERR_GATEWAY_EVIDENCE"}')
+        self.assertEqual(connection_calls, [])
+
+        writer = RecordingWriter()
+        _, redaction_port = self.start_gateway(evidence_writer=writer)
+        status, _, body = self.request(redaction_port, body=b'{"input":"unterminated')
+        self.assertEqual(status, 400)
+        self.assertEqual(body, b'{"error":"ERR_GATEWAY_JSON"}')
+        self.assertEqual(writer.records, [])
 
     def test_gateway_source_uses_only_the_reviewed_https_transport(self):
         tree = ast.parse(GATEWAY_PATH.read_text(encoding="utf-8"))

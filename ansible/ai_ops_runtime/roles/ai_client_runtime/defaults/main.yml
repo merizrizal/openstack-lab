@@ -6,6 +6,8 @@ ai_ops_provider_gateway:
   group: aiops-provider
   root: /opt/openstack-ai-ops/provider-gateway
   service_name: aiops-provider-gateway
+  state_directory: aiops-provider-gateway
+  evidence_ledger: /var/lib/aiops-provider-gateway/gateway-evidence.jsonl
 ai_ops_assistant_egress:
   enabled: true
   user: assistant
