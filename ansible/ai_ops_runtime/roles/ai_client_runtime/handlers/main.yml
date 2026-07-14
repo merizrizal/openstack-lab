@@ -4,10 +4,3 @@
     name: "{{ ai_ops_provider_gateway.service_name }}"
     daemon_reload: true
     state: restarted
-
-- name: Reload UFW
-  ansible.builtin.command:
-    argv:
-      - /usr/sbin/ufw
-      - reload
-  changed_when: false

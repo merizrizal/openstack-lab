@@ -49,3 +49,7 @@
 - name: Deploy fail-closed provider gateway service
   ansible.builtin.include_tasks:
     file: provider_gateway.yml
+
+- name: Enforce persistent assistant egress policy
+  ansible.builtin.include_role:
+    name: assistant_egress

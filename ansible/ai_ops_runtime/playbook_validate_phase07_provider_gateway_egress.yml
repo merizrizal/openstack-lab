@@ -44,8 +44,7 @@
 
         - name: Apply and verify assistant egress policy
           ansible.builtin.include_role:
-            name: ai_client_runtime
-            tasks_from: assistant_egress.yml
+            name: assistant_egress
 
         - name: Flush UFW reload before materialization validation
           ansible.builtin.meta: flush_handlers

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -29,9 +30,17 @@ POLICY_KEYS = frozenset(
         "service_identity",
         "route",
         "max_request_bytes",
+        "upstream_host",
+        "upstream_port",
+        "upstream_route",
+        "upstream_timeout_seconds",
+        "max_response_bytes",
     }
 )
 LOOPBACK_HOSTS = frozenset({"127.0.0.1"})
+FIXED_UPSTREAM_HOST = "api.openai.com"
+FIXED_UPSTREAM_PORT = 443
+FIXED_UPSTREAM_ROUTE = "/v1/responses"
 
 
 class GatewayPolicyError(ValueError):
@@ -47,6 +56,11 @@ class GatewayPolicy:
     service_identity: str
     route: str
     max_request_bytes: int
+    upstream_host: str
+    upstream_port: int
+    upstream_route: str
+    upstream_timeout_seconds: int
+    max_response_bytes: int
 
     @classmethod
     def from_mapping(cls, value: Any) -> "GatewayPolicy":
@@ -80,12 +94,40 @@ class GatewayPolicy:
             or max_request_bytes <= 0
         ):
             raise GatewayPolicyError("gateway request bound is invalid")
+        upstream_host = value["upstream_host"]
+        if upstream_host != FIXED_UPSTREAM_HOST:
+            raise GatewayPolicyError("gateway upstream host is not approved")
+        upstream_port = value["upstream_port"]
+        if upstream_port != FIXED_UPSTREAM_PORT:
+            raise GatewayPolicyError("gateway upstream port is not approved")
+        upstream_route = value["upstream_route"]
+        if upstream_route != FIXED_UPSTREAM_ROUTE:
+            raise GatewayPolicyError("gateway upstream route is not approved")
+        upstream_timeout_seconds = value["upstream_timeout_seconds"]
+        if (
+            isinstance(upstream_timeout_seconds, bool)
+            or not isinstance(upstream_timeout_seconds, int)
+            or not 0 < upstream_timeout_seconds <= 30
+        ):
+            raise GatewayPolicyError("gateway upstream timeout is invalid")
+        max_response_bytes = value["max_response_bytes"]
+        if (
+            isinstance(max_response_bytes, bool)
+            or not isinstance(max_response_bytes, int)
+            or not 0 < max_response_bytes <= max_request_bytes
+        ):
+            raise GatewayPolicyError("gateway response bound is invalid")
         return cls(
             bind_host=value["bind_host"],
             bind_port=value["bind_port"],
             service_identity=value["service_identity"],
             route=value["route"],
             max_request_bytes=value["max_request_bytes"],
+            upstream_host=upstream_host,
+            upstream_port=upstream_port,
+            upstream_route=upstream_route,
+            upstream_timeout_seconds=upstream_timeout_seconds,
+            max_response_bytes=max_response_bytes,
         )
 
 
@@ -117,6 +159,19 @@ class FakeUpstreamResponse:
 
     status: int
     body_chunks: tuple[bytes, ...]
+
+
+@dataclass(frozen=True)
+class UpstreamRequest:
+    """Rebuilt HTTPS request with a memory-only authorization header."""
+
+    host: str
+    port: int
+    path: str
+    timeout_seconds: int
+    max_response_bytes: int
+    headers: dict[str, str]
+    body: bytes
 
 
 class FakeUpstreamSink(Protocol):
@@ -161,6 +216,90 @@ def build_fake_upstream_request(result: RedactionResult) -> FakeUpstreamRequest:
     )
 
 
+UPSTREAM_PROTOCOL_HEADERS = {
+    "Accept": "text/event-stream",
+    "Content-Type": "application/json",
+}
+
+
+def extract_bearer_authorization(values: list[str]) -> str:
+    """Return one non-empty bearer value without retaining or logging it."""
+    if len(values) != 1:
+        raise ProviderRequestError("provider authorization is unavailable")
+    authorization = values[0]
+    if (
+        not isinstance(authorization, str)
+        or not authorization.startswith("Bearer ")
+        or len(authorization) == len("Bearer ")
+        or "\r" in authorization
+        or "\n" in authorization
+    ):
+        raise ProviderRequestError("provider authorization is unavailable")
+    return authorization
+
+
+def build_upstream_request(
+    result: RedactionResult, policy: GatewayPolicy, authorization_values: list[str]
+) -> UpstreamRequest:
+    """Build the fixed HTTPS request from redacted data and one bearer header."""
+    headers = dict(UPSTREAM_PROTOCOL_HEADERS)
+    headers["Authorization"] = extract_bearer_authorization(authorization_values)
+    return UpstreamRequest(
+        host=policy.upstream_host,
+        port=policy.upstream_port,
+        path=policy.upstream_route,
+        timeout_seconds=policy.upstream_timeout_seconds,
+        max_response_bytes=policy.max_response_bytes,
+        headers=headers,
+        body=json.dumps(result.payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        ),
+    )
+
+
+class UpstreamTransportError(RuntimeError):
+    """Raised without transport details when fixed HTTPS forwarding fails."""
+
+
+def forward_upstream_request(
+    request: UpstreamRequest, connection_factory: Any = http.client.HTTPSConnection
+) -> FakeUpstreamResponse:
+    """Forward one rebuilt request over verified HTTPS and bound the response."""
+    connection = None
+    try:
+        connection = connection_factory(
+            request.host, port=request.port, timeout=request.timeout_seconds
+        )
+        connection.request("POST", request.path, body=request.body, headers=request.headers)
+        response = connection.getresponse()
+        status = response.status
+        if isinstance(status, bool) or not isinstance(status, int) or not 100 <= status < 600:
+            raise UpstreamTransportError("provider response is invalid")
+        if not 200 <= status < 300:
+            return FakeUpstreamResponse(status=status, body_chunks=())
+        content_type = response.getheader("Content-Type", "")
+        if content_type.split(";", 1)[0].strip().casefold() != "text/event-stream":
+            raise UpstreamTransportError("provider response is invalid")
+        chunks: list[bytes] = []
+        remaining = request.max_response_bytes
+        while True:
+            chunk = response.read(min(65536, remaining + 1))
+            if not chunk:
+                break
+            if not isinstance(chunk, bytes) or len(chunk) > remaining:
+                raise UpstreamTransportError("provider response is invalid")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        return FakeUpstreamResponse(status=status, body_chunks=tuple(chunks))
+    except (OSError, http.client.HTTPException, UpstreamTransportError) as exc:
+        if isinstance(exc, UpstreamTransportError):
+            raise
+        raise UpstreamTransportError("provider transport failed") from None
+    finally:
+        if connection is not None:
+            connection.close()
+
+
 class GatewayRequestHandler(BaseHTTPRequestHandler):
     """Accept reviewed requests and submit only rebuilt data to a local test sink."""
 
@@ -180,7 +319,6 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         try:
             result = redact_remote_payload(validate_provider_request_shape(payload))
             scan_redacted_payload(payload, result)
-            fake_request = build_fake_upstream_request(result)
         except ProviderRequestError:
             self._send_error_json(400, "ERR_GATEWAY_SCHEMA_DRIFT")
             return
@@ -189,14 +327,26 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
             return
 
         sink = self.server.fake_upstream_sink
-        if sink is None:
-            self._send_error_json(503, "ERR_GATEWAY_UNAVAILABLE")
-            return
-        try:
-            response = sink.submit(fake_request)
-        except Exception:
-            self._send_error_json(502, "ERR_GATEWAY_FAKE_UPSTREAM")
-            return
+        if sink is not None:
+            try:
+                response = sink.submit(build_fake_upstream_request(result))
+            except Exception:
+                self._send_error_json(502, "ERR_GATEWAY_FAKE_UPSTREAM")
+                return
+        else:
+            try:
+                request = build_upstream_request(
+                    result, self.server.policy, self.headers.get_all("Authorization", [])
+                )
+                response = forward_upstream_request(
+                    request, self.server.upstream_connection_factory
+                )
+            except ProviderRequestError:
+                self._send_error_json(401, "ERR_OPENAI_AUTH_MANUAL")
+                return
+            except UpstreamTransportError:
+                self._send_error_json(502, "ERR_OPENAI_RESPONSE")
+                return
         self._send_fake_response(response)
 
     def do_GET(self) -> None:
@@ -321,9 +471,11 @@ class GatewayServer(ThreadingHTTPServer):
         *,
         port: int | None = None,
         fake_upstream_sink: FakeUpstreamSink | None = None,
+        upstream_connection_factory: Any = http.client.HTTPSConnection,
     ) -> None:
         self.policy = policy
         self.fake_upstream_sink = fake_upstream_sink
+        self.upstream_connection_factory = upstream_connection_factory
         super().__init__(
             (policy.bind_host, policy.bind_port if port is None else port),
             GatewayRequestHandler,
@@ -334,7 +486,7 @@ class GatewayServer(ThreadingHTTPServer):
 
 
 def serve(policy: GatewayPolicy) -> None:
-    """Run only the local stub; no outbound client is constructed."""
+    """Run the loopback gateway with fixed HTTPS forwarding enabled."""
     server = GatewayServer(policy)
     try:
         server.serve_forever()

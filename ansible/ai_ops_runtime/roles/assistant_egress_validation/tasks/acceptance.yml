@@ -79,8 +79,7 @@
 
 - name: Reapply assistant egress policy for idempotency validation
   ansible.builtin.include_role:
-    name: ai_client_runtime
-    tasks_from: assistant_egress.yml
+    name: assistant_egress
 
 - name: Record UFW rule files after idempotency check
   ansible.builtin.stat:

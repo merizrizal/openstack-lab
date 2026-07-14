@@ -7,7 +7,7 @@ ai_ops_provider_gateway:
   root: /opt/openstack-ai-ops/provider-gateway
   service_name: aiops-provider-gateway
 ai_ops_assistant_egress:
-  enabled: false
+  enabled: true
   user: assistant
   ufw:
     ipv4_rules_path: /etc/ufw/before.rules

@@ -86,6 +86,53 @@ class TestProviderGatewayStub(unittest.TestCase):
         with self.assertRaises(self.gateway.GatewayPolicyError):
             self.policy(bind_port=True)
 
+    def test_policy_accepts_only_fixed_bounded_upstream(self):
+        policy = self.policy()
+
+        self.assertEqual(policy.upstream_host, "api.openai.com")
+        self.assertEqual(policy.upstream_port, 443)
+        self.assertEqual(policy.upstream_route, "/v1/responses")
+        self.assertEqual(policy.upstream_timeout_seconds, 30)
+        self.assertEqual(policy.max_response_bytes, policy.max_request_bytes)
+        for overrides in (
+            {"upstream_host": "example.invalid"},
+            {"upstream_port": 8443},
+            {"upstream_route": "/v1/chat/completions"},
+            {"upstream_timeout_seconds": 31},
+            {"max_response_bytes": policy.max_request_bytes + 1},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(self.gateway.GatewayPolicyError):
+                    self.policy(**overrides)
+
+    def test_rebuilds_fixed_upstream_request_with_allowlisted_headers(self):
+        result = self.gateway.redact_remote_payload(
+            {"username": "SYNTHETIC_USERNAME", "input": "SYNTHETIC_USERNAME"}
+        )
+
+        request = self.gateway.build_upstream_request(
+            result, self.policy(), ["Bearer SYNTHETIC_AUTHORIZATION"]
+        )
+
+        self.assertEqual(request.host, "api.openai.com")
+        self.assertEqual(request.port, 443)
+        self.assertEqual(request.path, "/v1/responses")
+        self.assertEqual(request.timeout_seconds, 30)
+        self.assertEqual(request.max_response_bytes, 1048576)
+        self.assertEqual(
+            request.headers,
+            {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": "Bearer SYNTHETIC_AUTHORIZATION",
+            },
+        )
+        self.assertNotIn("SYNTHETIC_USERNAME", request.body.decode("utf-8"))
+        for values in ([], ["Bearer one", "Bearer two"], ["Basic synthetic"], ["Bearer "]):
+            with self.subTest(values=values):
+                with self.assertRaises(self.gateway.ProviderRequestError):
+                    self.gateway.build_upstream_request(result, self.policy(), values)
+
     def test_accepts_only_exact_post_responses_route(self):
         _, port = self.start_gateway()
 
@@ -95,8 +142,8 @@ class TestProviderGatewayStub(unittest.TestCase):
         self.assertEqual(status, 405)
         self.assertEqual(headers["Allow"], "POST")
         status, _, body = self.request(port)
-        self.assertEqual(status, 503)
-        self.assertEqual(body, b'{"error":"ERR_GATEWAY_UNAVAILABLE"}')
+        self.assertEqual(status, 401)
+        self.assertEqual(body, b'{"error":"ERR_OPENAI_AUTH_MANUAL"}')
 
     def test_redacts_and_streams_only_to_fixed_fake_upstream(self):
         sink = RecordingFakeUpstream(self.gateway)
@@ -159,7 +206,9 @@ class TestProviderGatewayStub(unittest.TestCase):
         self.assertEqual(sink.submissions, [])
 
     def test_enforces_request_size_bound(self):
-        _, port = self.start_gateway(self.policy(max_request_bytes=8))
+        _, port = self.start_gateway(
+            self.policy(max_request_bytes=8, max_response_bytes=8)
+        )
 
         status, _, body = self.request(port, body=b'{"input":"too large"}')
 
@@ -205,12 +254,53 @@ class TestProviderGatewayStub(unittest.TestCase):
 
         status, _, body = self.request(port)
 
-        self.assertEqual(status, 503)
-        self.assertEqual(body, b'{"error":"ERR_GATEWAY_UNAVAILABLE"}')
+        self.assertEqual(status, 401)
+        self.assertEqual(body, b'{"error":"ERR_OPENAI_AUTH_MANUAL"}')
 
-    def test_gateway_source_has_no_outbound_client_or_forwarding_call(self):
+    def test_forwards_only_rebuilt_request_through_injected_https_connection(self):
+        class Response:
+            status = 200
+
+            def getheader(self, name, default=None):
+                return "text/event-stream" if name == "Content-Type" else default
+
+            def read(self, size):
+                if not hasattr(self, "sent"):
+                    self.sent = True
+                    return b"data: synthetic\n\n"
+                return b""
+
+        class Connection:
+            def __init__(self):
+                self.closed = False
+                self.request_args = None
+
+            def request(self, *args, **kwargs):
+                self.request_args = (args, kwargs)
+
+            def getresponse(self):
+                return Response()
+
+            def close(self):
+                self.closed = True
+
+        connection = Connection()
+        result = self.gateway.redact_remote_payload({"input": "SYNTHETIC_SAFE_MARKER"})
+        request = self.gateway.build_upstream_request(
+            result, self.policy(), ["Bearer SYNTHETIC_AUTHORIZATION"]
+        )
+        response = self.gateway.forward_upstream_request(
+            request, lambda *args, **kwargs: connection
+        )
+
+        self.assertEqual(connection.request_args[0], ("POST", "/v1/responses"))
+        self.assertEqual(connection.request_args[1]["headers"], request.headers)
+        self.assertEqual(response.body_chunks, (b"data: synthetic\n\n",))
+        self.assertTrue(connection.closed)
+
+    def test_gateway_source_uses_only_the_reviewed_https_transport(self):
         tree = ast.parse(GATEWAY_PATH.read_text(encoding="utf-8"))
-        forbidden_modules = {"http.client", "httpx", "requests", "urllib", "urllib.request"}
+        prohibited_modules = {"httpx", "requests", "urllib", "urllib.request"}
         imported_modules = set()
         calls = set()
         for node in ast.walk(tree):
@@ -221,8 +311,10 @@ class TestProviderGatewayStub(unittest.TestCase):
             elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
                 calls.add(node.func.attr)
 
-        self.assertFalse(imported_modules & forbidden_modules)
-        self.assertFalse(calls & {"connect", "create_connection", "request", "urlopen"})
+        self.assertIn("http.client", imported_modules)
+        self.assertFalse(imported_modules & prohibited_modules)
+        self.assertIn("request", calls)
+        self.assertFalse(calls & {"connect", "create_connection", "urlopen"})
 
     def test_rejected_request_is_not_written_to_stderr(self):
         _, port = self.start_gateway()
