@@ -2,7 +2,7 @@
 
 **Status:** Revised downstream architecture after the client-native redaction blocker.
 
-**Dependency order:** Phase 07 MCP integration -> `07-codex-runtime-home-ads-revised.md` Chunks 0-5 -> `07-extended-mcp-client-lifecycle-ads-revised.md` Chunks 0-4 -> this ADS Revised Chunks 0-7 -> Phase 99.
+**Dependency order:** Phase 07 MCP integration -> `07-01-codex-runtime-home-ads-revised.md` Chunks 0-5 -> `07-02-extended-mcp-client-lifecycle-ads-revised.md` Chunks 0-4 -> this ADS Revised Chunks 0-7 -> Phase 99.
 
 **Supersedes:** `07-openai-remote-provider-boundary-ads.md` where that document requires a Codex-native full-payload rewrite hook.
 
@@ -142,8 +142,8 @@ It must not contain, log, persist, or return the original values.
 
 #### Existing Dependencies
 
-- Accepted `07-codex-runtime-home-ads-revised.md` runtime-home and local-MCP evidence.
-- Accepted `07-extended-mcp-client-lifecycle-ads-revised.md` remove/restore evidence with MCP restored and the client entry disabled.
+- Accepted `07-01-codex-runtime-home-ads-revised.md` runtime-home and local-MCP evidence.
+- Accepted `07-02-extended-mcp-client-lifecycle-ads-revised.md` remove/restore evidence with MCP restored and the client entry disabled.
 - Fixed Codex runtime and runtime home.
 - Restored local stdio MCP adapter.
 - Existing runner registry, runner, result envelope, timeout, redaction, and audit path.

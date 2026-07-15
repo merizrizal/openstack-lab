@@ -1,6 +1,6 @@
 ## Architectural Design Specification: Provider Gateway Metadata-Only Acceptance Evidence
 
-**Source:** `07-openai-remote-provider-boundary-ads-revised.md` Chunk 7; provider-gateway evidence gap discovered during Chunk 7 preparation.
+**Source:** `07-03-openai-remote-provider-boundary-ads-revised.md` Chunk 7; provider-gateway evidence gap discovered during Chunk 7 preparation.
 
 **Goal:** Retain bounded, non-secret evidence for one reviewed provider-boundary acceptance request without retaining any request body, response body, authorization value, header value, prompt, or provider output.
 

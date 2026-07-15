@@ -1,6 +1,6 @@
 ## Architectural Design Specification: Temporary Approval-Gated Device-Authentication Egress
 
-**Source:** Phase 07 manual-authentication blocker in `45-phase07-gateway-forwarding-egress-role-refactor-to-manual-auth-handoff.md`; `07-openai-remote-provider-boundary-ads-revised.md` Chunk 6; `07-provider-gateway-egress-enforcement-revision-ads.md`.
+**Source:** Phase 07 manual-authentication blocker in `45-phase07-gateway-forwarding-egress-role-refactor-to-manual-auth-handoff.md`; `07-03-openai-remote-provider-boundary-ads-revised.md` Chunk 6; `07-04-provider-gateway-egress-enforcement-revision-ads.md`.
 
 **Goal:** Let the operator perform one manual device-authentication flow in the fixed `assistant` runtime context through a separately approved, temporary, least-privilege egress exception, then remove it and prove the permanent direct-egress deny policy is restored. This ADS does not authorize a remote request or Chunk 7.
 

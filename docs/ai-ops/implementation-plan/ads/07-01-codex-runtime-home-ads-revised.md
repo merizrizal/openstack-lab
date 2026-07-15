@@ -2,7 +2,7 @@
 
 **Status:** Revised prerequisite and handoff contract.
 
-**Dependency order:** Phase 07 MCP integration -> this ADS Chunks 0-5 -> `07-extended-mcp-client-lifecycle-ads-revised.md` Chunks 0-4 -> `07-openai-remote-provider-boundary-ads-revised.md` Revised Chunks 0-7 -> Phase 99.
+**Dependency order:** Phase 07 MCP integration -> this ADS Chunks 0-5 -> `07-02-extended-mcp-client-lifecycle-ads-revised.md` Chunks 0-4 -> `07-03-openai-remote-provider-boundary-ads-revised.md` Revised Chunks 0-7 -> Phase 99.
 
 **Source:** The Chunk 0 real-client blocker recorded against the original extended MCP-client ADS, the observed `assistant01` Codex CLI installation, and the coordinated lifecycle/provider ADS sequence.
 
@@ -27,7 +27,7 @@ state: present
 - Codex processes must run as `assistant` through a fixed-argv `runuser` invocation with `HOME` set to the fixed runtime-home path. No shell wrapper, login shell, caller-controlled home, or caller-controlled executable is allowed.
 - The expected Codex configuration location is therefore `${HOME}/.codex/config.toml`, which is runtime-local and uncommitted.
 - The MCP entry must use Codex's command-and-arguments stdio form and the existing fixed adapter command. Its configured name, executable, and arguments are reviewed values, not operator-supplied values.
-- `model_mode=remote` records future backend intent only and remains separate from MCP transport. This ADS does not enable direct provider access. Any remote model use must wait until `07-extended-mcp-client-lifecycle-ads-revised.md` has restored and validated the local MCP deployment, then follow `07-openai-remote-provider-boundary-ads-revised.md` through its reviewed loopback gateway.
+- `model_mode=remote` records future backend intent only and remains separate from MCP transport. This ADS does not enable direct provider access. Any remote model use must wait until `07-02-extended-mcp-client-lifecycle-ads-revised.md` has restored and validated the local MCP deployment, then follow `07-03-openai-remote-provider-boundary-ads-revised.md` through its reviewed loopback gateway.
 - The first implementation supports only `present`. Automatic deletion of the runtime home is excluded because it may contain operator-managed client configuration, credentials, or history; any removal design needs separate explicit confirmation and content classification.
 
 **Generic AI-Client Runtime Role Contract (Conceptual):** A proposed `ansible/ai_ops_runtime/roles/ai_client_runtime` owns installation and runtime-home provisioning for an allowlisted client profile selected by `assistant01` inventory metadata. A proposed `ansible/ai_ops_runtime/playbook_setup_ai_client_runtime.yml` targets only the `assistant` group and invokes only this role; it must not include `common`, `assistant_runtime`, credentials, the MCP lifecycle, or remote-provider setup. The first profile maps `client: codex` and `version: "0.144.1"` to the observed global npm package `@openai/codex`; future clients add a reviewed role-default profile rather than new client-specific playbooks.
@@ -63,8 +63,8 @@ state: present
 - `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/workspace.yml`
 - `ansible/ai_ops_runtime/playbook_validate_phase07_mcp_integration.yml`
 - `docs/ai-ops/runtime/mcp-integration.md`
-- `docs/ai-ops/implementation-plan/ads/07-extended-mcp-client-lifecycle-ads-revised.md` as the immediate follow-on ADS
-- `docs/ai-ops/implementation-plan/ads/07-openai-remote-provider-boundary-ads-revised.md` as the downstream provider ADS
+- `docs/ai-ops/implementation-plan/ads/07-02-extended-mcp-client-lifecycle-ads-revised.md` as the immediate follow-on ADS
+- `docs/ai-ops/implementation-plan/ads/07-03-openai-remote-provider-boundary-ads-revised.md` as the downstream provider ADS
 - fixed `/usr/sbin/runuser`, `/usr/bin/env`, `/opt/nodejs/bin/codex`, and existing MCP adapter paths on `assistant01`
 
 #### Inventory selection contract (concrete)
@@ -106,8 +106,8 @@ The generic role must reject an unsupported `client`, an unreviewed version, or 
 7. After the runtime-home boundary is accepted, add or validate the reviewed local stdio MCP entry using the client-supported command-and-arguments form. This local MCP configuration does not require remote-provider approval and must never use URL/remote-MCP mode.
 8. Confirm discovery and the reviewed low-risk MCP surface, then remove the entry with the supported client operation during rollback or acceptance cleanup.
 9. Declare this ADS complete only when the Codex version, fixed `HOME`, local stdio MCP entry, warning-free invocation, and metadata-only evidence are accepted while remote mode remains disabled.
-10. Hand off to `07-extended-mcp-client-lifecycle-ads-revised.md`. That ADS alone may move MCP installation ownership and implement guarded artifact removal/restoration; it must preserve this runtime home and client state.
-11. After the lifecycle handoff is accepted and MCP is restored, proceed to `07-openai-remote-provider-boundary-ads-revised.md` for the loopback custom-provider route, redaction gateway, provider identity, egress controls, authentication compatibility, and remote acceptance.
+10. Hand off to `07-02-extended-mcp-client-lifecycle-ads-revised.md`. That ADS alone may move MCP installation ownership and implement guarded artifact removal/restoration; it must preserve this runtime home and client state.
+11. After the lifecycle handoff is accepted and MCP is restored, proceed to `07-03-openai-remote-provider-boundary-ads-revised.md` for the loopback custom-provider route, redaction gateway, provider identity, egress controls, authentication compatibility, and remote acceptance.
 12. Preserve the runtime-home contents. Do not copy them to evidence, logs, the OpenStack profile area, MCP policy, runner arguments, provider-gateway policy, or Git.
 
 ### V. Failure Modes and Resilience
@@ -133,8 +133,8 @@ The generic role must reject an unsupported `client`, an unreviewed version, or 
 - Use `/usr/sbin/runuser` and `/usr/bin/env HOME=<fixed-path>` as fixed argv, never `shell`, `su -`, or a login session.
 - Keep MCP stdio-only. Codex's URL option, remote MCP transport, listener, HTTP, SSE, and WebSocket MCP paths are prohibited.
 - Do not use Codex MCP `--env` to inject provider credentials or OpenStack credentials into the adapter process.
-- Do not implement MCP artifact removal in this ADS; that belongs to `07-extended-mcp-client-lifecycle-ads-revised.md`.
-- Do not run `codex login`, configure a custom provider, store provider credentials, deploy a gateway, or perform model actions. Those actions belong exclusively to `07-openai-remote-provider-boundary-ads-revised.md` after both prerequisite ADSs are accepted.
+- Do not implement MCP artifact removal in this ADS; that belongs to `07-02-extended-mcp-client-lifecycle-ads-revised.md`.
+- Do not run `codex login`, configure a custom provider, store provider credentials, deploy a gateway, or perform model actions. Those actions belong exclusively to `07-03-openai-remote-provider-boundary-ads-revised.md` after both prerequisite ADSs are accepted.
 
 #### Integrity and idempotency
 
@@ -231,7 +231,7 @@ The implementation must proceed through `chunked-implementation`. Do not impleme
 #### Handoff Gate: Revised MCP Lifecycle ADS
 - **Goal:** End this ADS cleanly and start repository-managed MCP artifact lifecycle work only after Chunks 0-5 are accepted.
 - **Prerequisites:** reviewed Codex version installed; fixed runtime home present with correct ownership/mode; `/home/assistant` absent; account remains non-interactive; fixed-argv invocation is warning-free; local MCP stdio discovery and normal client disablement are proven; remote mode is disabled.
-- **Next document:** `docs/ai-ops/implementation-plan/ads/07-extended-mcp-client-lifecycle-ads-revised.md`.
+- **Next document:** `docs/ai-ops/implementation-plan/ads/07-02-extended-mcp-client-lifecycle-ads-revised.md`.
 - **Implementation shape:** This handoff adds no lifecycle or provider code. The next ADS begins with lifecycle-only discovery, then owns task extraction, guarded removal, restoration, and lifecycle evidence. It must not modify or remove the Codex runtime home.
 - **Validation:** Review the runtime-home evidence and assert no MCP artifact removal toggle, provider endpoint, custom provider, gateway listener, provider identity, credential, authentication state, or remote request was introduced by this ADS.
 - **Stop condition:** The prerequisite handoff is accepted. Do not treat lifecycle or provider work as an internal Chunk 6 of this document.
@@ -262,7 +262,7 @@ Use pre-read-discipline, safe-python-edit, and post-edit-discipline if available
 Activate rtk-command-prefix for shell commands.
 
 Task:
-Continue Phase 07 with `07-extended-mcp-client-lifecycle-ads-revised.md`.
+Continue Phase 07 with `07-02-extended-mcp-client-lifecycle-ads-revised.md`.
 
 Mode:
 Execute Chunk 0 only. Treat the accepted runtime-home and local MCP evidence as prerequisites. Confirm the exact managed MCP artifact set, task ownership, adapter process match, SDK dependency state, and preservation metadata plan. Do not modify the runtime-home role, configure Codex, remove artifacts, contact a provider, log in, or enable remote mode. Record the lifecycle handoff and stop.
@@ -276,4 +276,4 @@ This ADS is the prerequisite client-runtime layer. It ends after local Codex inv
 
 **Deferred enhancement TODO:** evaluate an alternative MCP-capable client and `model_mode=local` only through a new client/backend discovery confirmation. The alternative must use the same fixed stdio adapter, `assistant` identity, runtime-local uncommitted configuration, fail-closed data boundary, and no remote MCP exposure. This TODO does not authorize a local model runtime, provider egress, credential storage, or client replacement.
 
-The inventory-selection foundation is recorded. Next action: obtain approval to execute Chunk 2, which creates only the generic role and dedicated playbook validation stub. Continue through Chunks 3-5 one at a time. Only after the handoff gate is accepted should the implementation agent begin Chunk 0 of `07-extended-mcp-client-lifecycle-ads-revised.md`; the provider ADS remains downstream.
+The inventory-selection foundation is recorded. Next action: obtain approval to execute Chunk 2, which creates only the generic role and dedicated playbook validation stub. Continue through Chunks 3-5 one at a time. Only after the handoff gate is accepted should the implementation agent begin Chunk 0 of `07-02-extended-mcp-client-lifecycle-ads-revised.md`; the provider ADS remains downstream.

@@ -2,7 +2,7 @@
 
 **Status:** Revised coordinated follow-on after Codex runtime-home and local MCP acceptance.
 
-**Dependency order:** Phase 07 MCP integration -> `07-codex-runtime-home-ads-revised.md` Chunks 0-5 -> this ADS Chunks 0-4 -> `07-openai-remote-provider-boundary-ads-revised.md` Revised Chunks 0-7 -> Phase 99.
+**Dependency order:** Phase 07 MCP integration -> `07-01-codex-runtime-home-ads-revised.md` Chunks 0-5 -> this ADS Chunks 0-4 -> `07-03-openai-remote-provider-boundary-ads-revised.md` Revised Chunks 0-7 -> Phase 99.
 
 **Supersedes:** `07-extended-mcp-client-lifecycle-ads.md` where that document duplicates real-client acceptance and model-backend/provider decisions now owned by the runtime-home and remote-provider ADSs.
 
@@ -55,7 +55,7 @@ Included:
 - idempotent reinstall and Phase 07 MCP regression validation;
 - sanitized lifecycle evidence and accurate Phase 07 checklist updates.
 
-Excluded and owned by `07-codex-runtime-home-ads-revised.md`:
+Excluded and owned by `07-01-codex-runtime-home-ads-revised.md`:
 
 - Codex installation or upgrade;
 - Codex runtime-home creation or removal;
@@ -63,7 +63,7 @@ Excluded and owned by `07-codex-runtime-home-ads-revised.md`:
 - real-client configuration, discovery, low-risk calls, and normal client disablement acceptance;
 - changes to the `assistant` account or login shell.
 
-Excluded and owned by `07-openai-remote-provider-boundary-ads-revised.md`:
+Excluded and owned by `07-03-openai-remote-provider-boundary-ads-revised.md`:
 
 - model/provider selection and activation;
 - custom-provider configuration;
@@ -212,7 +212,7 @@ must:
 
 #### Existing repository dependencies
 
-- `docs/ai-ops/implementation-plan/ads/07-codex-runtime-home-ads-revised.md`
+- `docs/ai-ops/implementation-plan/ads/07-01-codex-runtime-home-ads-revised.md`
 - `docs/ai-ops/runtime/mcp-integration.md`
 - `docs/ai-ops/runtime/phase07-mcp-integration-evidence-2026-07-12.md`
 - the dated Codex runtime-home/local-MCP acceptance evidence
@@ -306,7 +306,7 @@ No Codex package installation, model runtime, provider credential, public egress
 
 #### E. Handoff
 
-After lifecycle evidence is accepted, hand off to `07-openai-remote-provider-boundary-ads-revised.md`. That ADS may rely on the stable local MCP deployment and accepted client runtime but must not modify the lifecycle contract without a separate review.
+After lifecycle evidence is accepted, hand off to `07-03-openai-remote-provider-boundary-ads-revised.md`. That ADS may rely on the stable local MCP deployment and accepted client runtime but must not modify the lifecycle contract without a separate review.
 
 ### V. Failure Modes and Resilience
 
@@ -496,7 +496,7 @@ Execute exactly one chunk at a time. Every chunk ends with targeted validation, 
 #### Handoff Gate: Remote Provider Gateway ADS
 
 - **Prerequisites:** runtime-home ADS accepted; this lifecycle ADS Chunk 4 accepted; MCP deployment restored; client entry disabled; manual runner and Phase 07 MCP validation green; no provider configuration or remote traffic introduced.
-- **Next document:** `docs/ai-ops/implementation-plan/ads/07-openai-remote-provider-boundary-ads-revised.md`.
+- **Next document:** `docs/ai-ops/implementation-plan/ads/07-03-openai-remote-provider-boundary-ads-revised.md`.
 - **Stop condition:** Begin only Revised Chunk 0 of that ADS. Do not fold provider work into this document.
 
 ### IX. Handoff to `chunked-implementation`
@@ -534,7 +534,7 @@ Disable the accepted runtime-local client entry first. Stop on an active adapter
 After the lifecycle handoff gate:
 
 ```text
-Continue Phase 07 with `07-openai-remote-provider-boundary-ads-revised.md`.
+Continue Phase 07 with `07-03-openai-remote-provider-boundary-ads-revised.md`.
 Execute Revised Chunk 0 only. Treat both the accepted runtime-home/local-MCP evidence and the accepted MCP lifecycle evidence as prerequisites. Use only a temporary loopback fake Responses API provider and synthetic data. Do not contact OpenAI, log in, use a real credential, or enable permanent remote mode. Record the compatibility result and stop.
 ```
 

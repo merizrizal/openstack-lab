@@ -1,6 +1,6 @@
 ## Architectural Design Specification: Provider Gateway Egress Enforcement Revision
 
-**Source:** `docs/ai-ops/implementation-plan/ads/07-openai-remote-provider-boundary-ads-revised.md`, Chunk 5; Phase 07 UFW diagnosis on 2026-07-12.
+**Source:** `docs/ai-ops/implementation-plan/ads/07-03-openai-remote-provider-boundary-ads-revised.md`, Chunk 5; Phase 07 UFW diagnosis on 2026-07-12.
 
 **Goal:** Revise the disabled assistant egress-policy design so it fails closed before modifying UFW files when UFW is not globally enabled, and so a future approved application proves that UFW materialized the UID-owner rules in the active packet-filter path.
 
@@ -28,7 +28,7 @@ A failed precondition is a fail-closed deployment error: no block insertion, no 
 
 #### Observed evidence
 
-- The accepted provider-boundary ADS requires direct egress by `assistant` to be denied while retaining reviewed management access (`07-openai-remote-provider-boundary-ads-revised.md`, Security Boundary and Chunk 5).
+- The accepted provider-boundary ADS requires direct egress by `assistant` to be denied while retaining reviewed management access (`07-03-openai-remote-provider-boundary-ads-revised.md`, Security Boundary and Chunk 5).
 - `tasks/assistant_egress.yml` presently asserts the static policy boundary and validates candidate files with `iptables-restore --test` and `ip6tables-restore --test`, then inserts managed blocks before `COMMIT`.
 - The IPv4 and IPv6 templates target `ufw-before-output` and `ufw6-before-output`, respectively.
 - `tasks/main.yml` does not include `assistant_egress.yml`; the policy is disabled and unwired.
