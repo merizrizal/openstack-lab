@@ -5,12 +5,12 @@
 **Locally route-validated runtime-override contract — not accepted for remote use.**
 The official Codex 0.144.1 runtime-override form reached the no-forward loopback
 gateway, and the nested-input redaction ambiguity has been resolved and deployed.
-A bounded provider attempt subsequently reached verified TLS through the production
-gateway and returned metadata-only category `authentication`. Official Codex source
-confirms the remaining blocker is the gateway's API-key-oriented upstream contract:
-the authenticated ChatGPT/device-auth runtime requires the ChatGPT Codex backend
-plus transient account routing. Remote provider mode remains disabled pending the
-revised provider-boundary ADS chunks and a separately approved provider request.
+The reviewed gateway source now rebuilds the authenticated ChatGPT/device-auth
+request for the fixed ChatGPT Codex backend with transient account routing and
+schema 2 metadata-only evidence. These local source and injected-transport checks
+do not authorize deployment or a provider request. Remote provider mode remains
+disabled pending the remaining revised provider-boundary ADS chunks and a separately
+approved provider request.
 
 ## Scope and boundaries
 
@@ -43,13 +43,13 @@ They are not provider credentials.
 
 Before a synthetic invocation:
 
-1. Verify `codex --version` returns `0.144.1` in the fixed runtime home.
-2. Verify `codex login status` succeeds without printing its output.
+1. Verify `rtk codex --version` returns `0.144.1` in the fixed runtime home.
+2. Verify `rtk codex login status` succeeds without printing its output.
 3. Use the exact non-secret runtime overrides above; do not create or overwrite a
    profile file.
 4. Start a temporary `aiops-provider`-owned loopback gateway on a port other than
    `8765`, with `fake_upstream_sink` and `evidence_writer=None`.
-5. Use an assistant-owned temporary Git workspace and `codex exec --ephemeral`.
+5. Use an assistant-owned temporary Git workspace and `rtk codex exec --ephemeral`.
    Do not use the unsupported `--ask-for-approval never` option.
 6. Permit exactly one synthetic invocation. Retain only client exit category,
    request method/route, gateway HTTP status/code, redaction category, and the
@@ -67,13 +67,13 @@ redaction ambiguity is resolved: local no-forward acceptance reached the reviewe
 model-discovery routes and exactly one `POST /v1/responses`, and the deployed gateway
 later reached verified upstream TLS with redacted metadata.
 
-Remote acceptance remains blocked because the current gateway sends the device-auth
-credential to `api.openai.com/v1/responses` and does not forward the required
-`ChatGPT-Account-ID`. The revised ADS selects a fixed
-`chatgpt.com/backend-api/codex/responses` upstream with a tightly allowlisted,
-transient account-routing header. Do not change this runtime-override shape, inspect
-authentication or account values, implement the upstream change outside the ADS
-chunk ladder, or retry a real provider request without fresh explicit approval.
+Remote acceptance remains blocked pending deployment and egress validation plus the
+local fake-upstream acceptance gate. The reviewed source fixes the upstream to
+`chatgpt.com/backend-api/codex/responses`, forwards only the transient allowlisted
+Bearer and `ChatGPT-Account-ID` headers, and writes schema 2 metadata-only evidence;
+it has not been deployed or used for a provider request. Do not change this
+runtime-override shape, inspect authentication or account values, or retry a real
+provider request without fresh explicit approval.
 
 ## References
 

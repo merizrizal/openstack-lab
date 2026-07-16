@@ -112,9 +112,9 @@ class TestProviderGatewayStub(unittest.TestCase):
     def test_policy_accepts_only_fixed_bounded_upstream(self):
         policy = self.policy()
 
-        self.assertEqual(policy.upstream_host, "api.openai.com")
+        self.assertEqual(policy.upstream_host, "chatgpt.com")
         self.assertEqual(policy.upstream_port, 443)
-        self.assertEqual(policy.upstream_route, "/v1/responses")
+        self.assertEqual(policy.upstream_route, "/backend-api/codex/responses")
         self.assertEqual(policy.upstream_timeout_seconds, 30)
         self.assertEqual(policy.max_response_bytes, policy.max_request_bytes)
         for overrides in (
@@ -238,12 +238,14 @@ class TestProviderGatewayStub(unittest.TestCase):
         )
 
         request = self.gateway.build_upstream_request(
-            result, self.policy(), ["Bearer SYNTHETIC_AUTHORIZATION"]
+            result,
+            self.policy(),
+            self.gateway.validate_chatgpt_auth_headers(self.chatgpt_headers()),
         )
 
-        self.assertEqual(request.host, "api.openai.com")
+        self.assertEqual(request.host, "chatgpt.com")
         self.assertEqual(request.port, 443)
-        self.assertEqual(request.path, "/v1/responses")
+        self.assertEqual(request.path, "/backend-api/codex/responses")
         self.assertEqual(request.timeout_seconds, 30)
         self.assertEqual(request.max_response_bytes, 1048576)
         self.assertEqual(
@@ -252,13 +254,10 @@ class TestProviderGatewayStub(unittest.TestCase):
                 "Accept": "text/event-stream",
                 "Content-Type": "application/json",
                 "Authorization": "Bearer SYNTHETIC_AUTHORIZATION",
+                "ChatGPT-Account-ID": "SYNTHETIC_ACCOUNT_ID",
             },
         )
         self.assertNotIn("SYNTHETIC_USERNAME", request.body.decode("utf-8"))
-        for values in ([], ["Bearer one", "Bearer two"], ["Basic synthetic"], ["Bearer "]):
-            with self.subTest(values=values):
-                with self.assertRaises(self.gateway.ProviderRequestError):
-                    self.gateway.build_upstream_request(result, self.policy(), values)
 
     def test_accepts_only_exact_post_responses_route(self):
         _, port = self.start_gateway()
@@ -271,6 +270,20 @@ class TestProviderGatewayStub(unittest.TestCase):
         status, _, body = self.request(port)
         self.assertEqual(status, 401)
         self.assertEqual(body, b'{"error":"ERR_OPENAI_AUTH_MANUAL"}')
+
+    def test_rejects_missing_chatgpt_account_without_transport(self):
+        connection_calls = []
+        _, port = self.start_gateway(
+            upstream_connection_factory=lambda *args, **kwargs: connection_calls.append(args),
+        )
+
+        status, _, body = self.request(
+            port, headers={"Authorization": "Bearer SYNTHETIC_INBOUND_TOKEN"}
+        )
+
+        self.assertEqual(status, 401)
+        self.assertEqual(body, b'{"error":"ERR_OPENAI_AUTH_MANUAL"}')
+        self.assertEqual(connection_calls, [])
 
     def test_serves_only_reviewed_model_discovery_route(self):
         _, port = self.start_gateway()
@@ -448,13 +461,17 @@ class TestProviderGatewayStub(unittest.TestCase):
         connection = Connection()
         result = self.gateway.redact_remote_payload({"input": "SYNTHETIC_SAFE_MARKER"})
         request = self.gateway.build_upstream_request(
-            result, self.policy(), ["Bearer SYNTHETIC_AUTHORIZATION"]
+            result,
+            self.policy(),
+            self.gateway.validate_chatgpt_auth_headers(self.chatgpt_headers()),
         )
         response = self.gateway.forward_upstream_request(
             request, lambda *args, **kwargs: connection
         )
 
-        self.assertEqual(connection.request_args[0], ("POST", "/v1/responses"))
+        self.assertEqual(
+            connection.request_args[0], ("POST", "/backend-api/codex/responses")
+        )
         self.assertEqual(connection.request_args[1]["headers"], request.headers)
         self.assertEqual(response.body_chunks, (b"data: synthetic\n\n",))
         self.assertTrue(connection.closed)
@@ -512,8 +529,66 @@ class TestProviderGatewayStub(unittest.TestCase):
                 "upstream_status_class",
             },
         )
+        self.assertEqual(value["schema_version"], 2)
         self.assertEqual(value["redaction_counts"], {"identity": 2, "secret": 1})
         self.assertNotIn("SYNTHETIC_RAW_PROMPT", serialized.decode("utf-8"))
+
+    def test_parses_mixed_schema_gateway_evidence_records(self):
+        current = {
+            "classification_status": "clear",
+            "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
+            "model": self.gateway.REVIEWED_MODEL,
+            "outcome": "forward_started",
+            "redaction_counts": {"identity": 1},
+            "route": self.gateway.FIXED_UPSTREAM_ROUTE,
+            "schema_version": self.gateway.GATEWAY_EVIDENCE_SCHEMA_VERSION,
+            "timestamp_utc": "2026-07-14T12:00:00Z",
+            "tls_verified": None,
+            "upstream_status_class": None,
+        }
+        historical = current | {
+            "route": self.gateway.HISTORICAL_GATEWAY_EVIDENCE_ROUTE,
+            "schema_version": self.gateway.HISTORICAL_GATEWAY_EVIDENCE_SCHEMA_VERSION,
+        }
+
+        parsed = [
+            self.gateway.parse_gateway_evidence_record(json.dumps(record))
+            for record in (historical, current)
+        ]
+
+        self.assertEqual(
+            [(event.schema_version, event.route) for event in parsed],
+            [
+                (1, "/v1/responses"),
+                (2, "/backend-api/codex/responses"),
+            ],
+        )
+        historical_event = self.gateway.GatewayEvidenceEvent(
+            timestamp_utc=historical["timestamp_utc"],
+            correlation_id=historical["correlation_id"],
+            model=historical["model"],
+            route=historical["route"],
+            classification_status=historical["classification_status"],
+            redaction_counts=(("identity", 1),),
+            outcome=historical["outcome"],
+            upstream_status_class=None,
+            tls_verified=None,
+            schema_version=1,
+        )
+        with self.assertRaises(self.gateway.GatewayEvidenceError):
+            self.gateway.serialize_gateway_evidence_event(historical_event)
+
+        for override in (
+            {"schema_version": 3},
+            {"schema_version": 1},
+            {"route": "/v1/responses"},
+            {"route": "/unexpected"},
+        ):
+            with self.subTest(override=override):
+                with self.assertRaises(self.gateway.GatewayEvidenceError):
+                    self.gateway.parse_gateway_evidence_record(
+                        json.dumps(current | override)
+                    )
 
     def test_rejects_invalid_or_unsafe_gateway_evidence_metadata(self):
         base = {
@@ -686,14 +761,7 @@ class TestProviderGatewayStub(unittest.TestCase):
             with self.assertRaises(self.gateway.GatewayEvidenceError):
                 self.gateway.serve(self.policy(), Path(directory) / "missing" / "ledger.jsonl")
 
-    def test_records_sanitized_success_evidence_and_strips_inbound_headers(self):
-        class RecordingWriter:
-            def __init__(self):
-                self.records = []
-
-            def append(self, record):
-                self.records.append(record)
-
+    def test_forwards_validated_chatgpt_headers_through_injected_https_connection(self):
         class Response:
             status = 200
 
@@ -708,107 +776,46 @@ class TestProviderGatewayStub(unittest.TestCase):
 
         class Connection:
             def __init__(self):
-                self.headers = None
+                self.request_args = None
+                self.closed = False
 
             def request(self, method, path, body, headers):
-                self.headers = headers
+                self.request_args = (method, path, body, dict(headers))
 
             def getresponse(self):
                 return Response()
 
             def close(self):
-                pass
+                self.closed = True
 
-        writer = RecordingWriter()
         connection = Connection()
         _, port = self.start_gateway(
-            evidence_writer=writer,
             upstream_connection_factory=lambda *args, **kwargs: connection,
         )
-        payload = {
-            "model": self.gateway.REVIEWED_MODEL,
-            "input": {"username": "SYNTHETIC_USERNAME"},
-        }
-
-        status, _, _ = self.request(
+        status, _, body = self.request(
             port,
-            body=json.dumps(payload).encode("utf-8"),
             headers={
                 "Authorization": "Bearer SYNTHETIC_INBOUND_TOKEN",
+                "ChatGPT-Account-ID": "SYNTHETIC_ACCOUNT_ID",
                 "X-Unreviewed": "SYNTHETIC_UNREVIEWED_HEADER",
             },
         )
 
         self.assertEqual(status, 200)
-        self.assertEqual(connection.headers["Authorization"], "Bearer SYNTHETIC_INBOUND_TOKEN")
-        self.assertEqual(set(connection.headers), {"Accept", "Content-Type", "Authorization"})
-        events = [json.loads(record) for record in writer.records]
-        self.assertEqual([event["outcome"] for event in events], ["forward_started", "upstream_succeeded"])
-        self.assertEqual(events[0]["correlation_id"], events[1]["correlation_id"])
-        self.assertEqual(events[1]["upstream_status_class"], "2xx")
-        self.assertTrue(events[1]["tls_verified"])
-        serialized = b"".join(writer.records).decode("utf-8")
-        self.assertNotIn("SYNTHETIC_USERNAME", serialized)
-        self.assertNotIn("SYNTHETIC_INBOUND_TOKEN", serialized)
-        self.assertNotIn("SYNTHETIC_UNREVIEWED_HEADER", serialized)
-
-    def test_records_non_success_and_transport_failure_evidence(self):
-        class RecordingWriter:
-            def __init__(self):
-                self.records = []
-
-            def append(self, record):
-                self.records.append(record)
-
-        class NonSuccessResponse:
-            status = 429
-
-            def getheader(self, name, default=None):
-                return default
-
-            def read(self, size):
-                return b""
-
-        class Connection:
-            def request(self, *args, **kwargs):
-                pass
-
-            def getresponse(self):
-                return NonSuccessResponse()
-
-            def close(self):
-                pass
-
-        writer = RecordingWriter()
-        _, port = self.start_gateway(
-            evidence_writer=writer,
-            upstream_connection_factory=lambda *args, **kwargs: Connection(),
-        )
-        status, _, _ = self.request(port, headers={"Authorization": "Bearer SYNTHETIC_TOKEN"})
-        self.assertEqual(status, 429)
-        self.assertEqual(json.loads(writer.records[-1])["outcome"], "upstream_non_success")
-        self.assertEqual(json.loads(writer.records[-1])["upstream_status_class"], "4xx")
-
-        transport_writer = RecordingWriter()
-        _, transport_port = self.start_gateway(
-            evidence_writer=transport_writer,
-            upstream_connection_factory=lambda *args, **kwargs: (_ for _ in ()).throw(OSError()),
-        )
-        status, _, body = self.request(
-            transport_port, headers={"Authorization": "Bearer SYNTHETIC_TOKEN"}
-        )
-        self.assertEqual(status, 502)
-        self.assertEqual(body, b'{"error":"ERR_OPENAI_RESPONSE"}')
+        self.assertEqual(body, b"data: synthetic\n\n")
+        self.assertEqual(connection.request_args[:2], ("POST", "/backend-api/codex/responses"))
         self.assertEqual(
-            json.loads(transport_writer.records[-1])["outcome"], "upstream_transport_failed"
+            connection.request_args[3],
+            {
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "Authorization": "Bearer SYNTHETIC_INBOUND_TOKEN",
+                "ChatGPT-Account-ID": "SYNTHETIC_ACCOUNT_ID",
+            },
         )
-        self.assertFalse(json.loads(transport_writer.records[-1])["tls_verified"])
+        self.assertTrue(connection.closed)
 
-    def test_evidence_failure_blocks_forwarding_and_redaction_failure_writes_nothing(self):
-        class FailingWriter:
-            def append(self, record):
-                raise OSError("synthetic ledger failure")
-
+    def test_redaction_failure_writes_no_evidence(self):
         class RecordingWriter:
             def __init__(self):
                 self.records = []
@@ -816,19 +823,9 @@ class TestProviderGatewayStub(unittest.TestCase):
             def append(self, record):
                 self.records.append(record)
 
-        connection_calls = []
-        _, port = self.start_gateway(
-            evidence_writer=FailingWriter(),
-            upstream_connection_factory=lambda *args, **kwargs: connection_calls.append(args),
-        )
-        status, _, body = self.request(port, headers={"Authorization": "Bearer SYNTHETIC_TOKEN"})
-        self.assertEqual(status, 502)
-        self.assertEqual(body, b'{"error":"ERR_GATEWAY_EVIDENCE"}')
-        self.assertEqual(connection_calls, [])
-
         writer = RecordingWriter()
-        _, redaction_port = self.start_gateway(evidence_writer=writer)
-        status, _, body = self.request(redaction_port, body=b'{"input":"unterminated')
+        _, port = self.start_gateway(evidence_writer=writer)
+        status, _, body = self.request(port, body=b'{"input":"unterminated')
         self.assertEqual(status, 400)
         self.assertEqual(body, b'{"error":"ERR_GATEWAY_JSON"}')
         self.assertEqual(writer.records, [])

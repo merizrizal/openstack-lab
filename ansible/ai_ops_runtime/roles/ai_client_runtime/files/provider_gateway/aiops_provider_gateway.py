@@ -10,7 +10,7 @@ import json
 import os
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -46,9 +46,9 @@ POLICY_KEYS = frozenset(
 LOOPBACK_HOSTS = frozenset({"127.0.0.1"})
 MODELS_ROUTE = "/v1/models"
 EXPECTED_MODELS_QUERY = (("client_version", "0.144.1"),)
-FIXED_UPSTREAM_HOST = "api.openai.com"
+FIXED_UPSTREAM_HOST = "chatgpt.com"
 FIXED_UPSTREAM_PORT = 443
-FIXED_UPSTREAM_ROUTE = "/v1/responses"
+FIXED_UPSTREAM_ROUTE = "/backend-api/codex/responses"
 
 
 class GatewayPolicyError(ValueError):
@@ -182,7 +182,27 @@ class UpstreamRequest:
     body: bytes
 
 
-GATEWAY_EVIDENCE_SCHEMA_VERSION = 1
+HISTORICAL_GATEWAY_EVIDENCE_SCHEMA_VERSION = 1
+GATEWAY_EVIDENCE_SCHEMA_VERSION = 2
+HISTORICAL_GATEWAY_EVIDENCE_ROUTE = "/v1/responses"
+GATEWAY_EVIDENCE_ROUTES = {
+    HISTORICAL_GATEWAY_EVIDENCE_SCHEMA_VERSION: HISTORICAL_GATEWAY_EVIDENCE_ROUTE,
+    GATEWAY_EVIDENCE_SCHEMA_VERSION: FIXED_UPSTREAM_ROUTE,
+}
+GATEWAY_EVIDENCE_FIELDS = frozenset(
+    {
+        "classification_status",
+        "correlation_id",
+        "model",
+        "outcome",
+        "redaction_counts",
+        "route",
+        "schema_version",
+        "timestamp_utc",
+        "tls_verified",
+        "upstream_status_class",
+    }
+)
 GATEWAY_EVIDENCE_COUNT_CATEGORIES = frozenset(
     {"canonical_text", "embedded_json", "identity", "propagated_value", "secret"}
 )
@@ -225,7 +245,11 @@ def serialize_gateway_evidence_event(event: GatewayEvidenceEvent) -> bytes:
     """Serialize one bounded, payload-free gateway evidence event."""
     if not isinstance(event, GatewayEvidenceEvent):
         raise GatewayEvidenceError("gateway evidence event is invalid")
-    if event.schema_version != GATEWAY_EVIDENCE_SCHEMA_VERSION:
+    if (
+        isinstance(event.schema_version, bool)
+        or not isinstance(event.schema_version, int)
+        or event.schema_version != GATEWAY_EVIDENCE_SCHEMA_VERSION
+    ):
         raise GatewayEvidenceError("gateway evidence schema is unsupported")
     if not isinstance(event.timestamp_utc, str) or not GATEWAY_EVIDENCE_TIMESTAMP_RE.fullmatch(
         event.timestamp_utc
@@ -288,6 +312,63 @@ def serialize_gateway_evidence_event(event: GatewayEvidenceEvent) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
+
+
+def parse_gateway_evidence_record(record: bytes | str) -> GatewayEvidenceEvent:
+    """Parse one allowlisted historical or current evidence record."""
+    if not isinstance(record, (bytes, str)):
+        raise GatewayEvidenceError("gateway evidence record is invalid")
+
+    def unique_mapping(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise GatewayEvidenceError("gateway evidence record is invalid")
+            value[key] = item
+        return value
+
+    try:
+        value = json.loads(record, object_pairs_hook=unique_mapping)
+    except (TypeError, ValueError, UnicodeDecodeError):
+        raise GatewayEvidenceError("gateway evidence record is invalid") from None
+    if not isinstance(value, dict) or frozenset(value) != GATEWAY_EVIDENCE_FIELDS:
+        raise GatewayEvidenceError("gateway evidence record is invalid")
+    counts = value["redaction_counts"]
+    if not isinstance(counts, dict):
+        raise GatewayEvidenceError("gateway evidence counts are invalid")
+    try:
+        event = GatewayEvidenceEvent(
+            timestamp_utc=value["timestamp_utc"],
+            correlation_id=value["correlation_id"],
+            model=value["model"],
+            route=value["route"],
+            classification_status=value["classification_status"],
+            redaction_counts=tuple(sorted(counts.items())),
+            outcome=value["outcome"],
+            upstream_status_class=value["upstream_status_class"],
+            tls_verified=value["tls_verified"],
+            schema_version=value["schema_version"],
+        )
+    except TypeError:
+        raise GatewayEvidenceError("gateway evidence record is invalid") from None
+    if (
+        isinstance(event.schema_version, bool)
+        or not isinstance(event.schema_version, int)
+        or event.schema_version not in GATEWAY_EVIDENCE_ROUTES
+        or event.route != GATEWAY_EVIDENCE_ROUTES[event.schema_version]
+    ):
+        raise GatewayEvidenceError("gateway evidence schema is unsupported")
+    if event.schema_version == GATEWAY_EVIDENCE_SCHEMA_VERSION:
+        serialize_gateway_evidence_event(event)
+    else:
+        serialize_gateway_evidence_event(
+            replace(
+                event,
+                schema_version=GATEWAY_EVIDENCE_SCHEMA_VERSION,
+                route=FIXED_UPSTREAM_ROUTE,
+            )
+        )
+    return event
 
 
 GATEWAY_EVIDENCE_MAX_RECORD_BYTES = 4096
@@ -567,28 +648,13 @@ def validate_chatgpt_auth_headers(headers: Any) -> ChatGPTAuthHeaders:
     return ChatGPTAuthHeaders(authorization=authorization, account_id=account_id)
 
 
-def extract_bearer_authorization(values: list[str]) -> str:
-    """Return one non-empty bearer value without retaining or logging it."""
-    if len(values) != 1:
-        raise ProviderRequestError("provider authorization is unavailable")
-    authorization = values[0]
-    if (
-        not isinstance(authorization, str)
-        or not authorization.startswith("Bearer ")
-        or len(authorization) == len("Bearer ")
-        or "\r" in authorization
-        or "\n" in authorization
-    ):
-        raise ProviderRequestError("provider authorization is unavailable")
-    return authorization
-
-
 def build_upstream_request(
-    result: RedactionResult, policy: GatewayPolicy, authorization_values: list[str]
+    result: RedactionResult, policy: GatewayPolicy, auth_headers: ChatGPTAuthHeaders
 ) -> UpstreamRequest:
-    """Build the fixed HTTPS request from redacted data and one bearer header."""
+    """Build the fixed HTTPS request from redacted data and validated headers."""
     headers = dict(UPSTREAM_PROTOCOL_HEADERS)
-    headers["Authorization"] = extract_bearer_authorization(authorization_values)
+    headers["Authorization"] = auth_headers.authorization
+    headers["ChatGPT-Account-ID"] = auth_headers.account_id
     return UpstreamRequest(
         host=policy.upstream_host,
         port=policy.upstream_port,
@@ -706,44 +772,48 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                 return
         else:
             try:
-                request = build_upstream_request(
-                    result, self.server.policy, self.headers.get_all("Authorization", [])
-                )
+                auth_headers = validate_chatgpt_auth_headers(self.headers)
+                request = build_upstream_request(result, self.server.policy, auth_headers)
             except ProviderRequestError:
                 self._send_error_json(401, "ERR_OPENAI_AUTH_MANUAL")
                 return
-            if not self._append_gateway_evidence(
-                result,
-                outcome="forward_started",
-                upstream_status_class=None,
-                tls_verified=None,
-            ):
-                return
             try:
-                response = forward_upstream_request(
-                    request, self.server.upstream_connection_factory
-                )
-            except UpstreamTransportError:
                 if not self._append_gateway_evidence(
                     result,
-                    outcome="upstream_transport_failed",
+                    outcome="forward_started",
                     upstream_status_class=None,
-                    tls_verified=False,
+                    tls_verified=None,
                 ):
                     return
-                self._send_error_json(502, "ERR_OPENAI_RESPONSE")
-                return
-            if not self._append_gateway_evidence(
-                result,
-                outcome=(
-                    "upstream_succeeded"
-                    if 200 <= response.status < 300
-                    else "upstream_non_success"
-                ),
-                upstream_status_class=upstream_status_class(response.status),
-                tls_verified=True,
-            ):
-                return
+                try:
+                    response = forward_upstream_request(
+                        request, self.server.upstream_connection_factory
+                    )
+                except UpstreamTransportError:
+                    if not self._append_gateway_evidence(
+                        result,
+                        outcome="upstream_transport_failed",
+                        upstream_status_class=None,
+                        tls_verified=False,
+                    ):
+                        return
+                    self._send_error_json(502, "ERR_OPENAI_RESPONSE")
+                    return
+                if not self._append_gateway_evidence(
+                    result,
+                    outcome=(
+                        "upstream_succeeded"
+                        if 200 <= response.status < 300
+                        else "upstream_non_success"
+                    ),
+                    upstream_status_class=upstream_status_class(response.status),
+                    tls_verified=True,
+                ):
+                    return
+            finally:
+                request.headers.clear()
+                del request
+                del auth_headers
         self._send_fake_response(response)
 
     def do_GET(self) -> None:

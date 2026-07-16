@@ -5,9 +5,9 @@
   "service_identity": "aiops-provider",
   "route": "/v1/responses",
   "max_request_bytes": 1048576,
-  "upstream_host": "api.openai.com",
+  "upstream_host": "chatgpt.com",
   "upstream_port": 443,
-  "upstream_route": "/v1/responses",
+  "upstream_route": "/backend-api/codex/responses",
   "upstream_timeout_seconds": 30,
   "max_response_bytes": 1048576
 }

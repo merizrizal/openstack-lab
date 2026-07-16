@@ -83,3 +83,28 @@
     daemon_reload: true
     enabled: true
     state: started
+
+- name: Apply pending provider gateway restart before service validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Read active provider gateway environment
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/systemctl
+      - show
+      - --property=Environment
+      - --value
+      - "{{ ai_ops_provider_gateway.service_name }}"
+  register: ai_ops_provider_gateway_environment
+  changed_when: false
+  no_log: true
+
+- name: Assert active provider gateway clears proxy environment
+  ansible.builtin.assert:
+    that:
+      - ai_ops_provider_gateway_environment.rc == 0
+      - >-
+        ai_ops_provider_gateway_environment.stdout is not search(
+        '(?:^|\\s)(?:ALL_PROXY|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|all_proxy|http_proxy|https_proxy|no_proxy)=')
+    fail_msg: ERR_PROVIDER_GATEWAY_PROXY_ENVIRONMENT
+  no_log: true

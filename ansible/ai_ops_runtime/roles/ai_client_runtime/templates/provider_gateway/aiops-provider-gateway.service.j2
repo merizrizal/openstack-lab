@@ -8,6 +8,7 @@ User={{ ai_ops_provider_gateway.user }}
 Group={{ ai_ops_provider_gateway.group }}
 WorkingDirectory={{ ai_ops_provider_gateway.root }}
 Environment=PYTHONDONTWRITEBYTECODE=1
+UnsetEnvironment=ALL_PROXY HTTP_PROXY HTTPS_PROXY NO_PROXY all_proxy http_proxy https_proxy no_proxy
 ExecStart={{ ai_ops_provider_gateway.root }}/venv/bin/python {{ ai_ops_provider_gateway.root }}/aiops_provider_gateway.py --policy {{ ai_ops_provider_gateway.root }}/gateway_policy.json --evidence-ledger {{ ai_ops_provider_gateway.evidence_ledger }}
 Restart=on-failure
 RestartSec=5s
