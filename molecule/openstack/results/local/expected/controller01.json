@@ -18,6 +18,15 @@
         "provider_ip_address": "192.168.123.20"
     },
     "cinder_password": "platformpass",
+    "dummy01": {
+        "cpus": 2,
+        "disks": 20,
+        "environment": "dummy",
+        "hostname": "dummy01.local",
+        "memory": 2048,
+        "mgmtnet_ip_address": "192.168.121.70",
+        "provider_ip_address": "192.168.123.70"
+    },
     "glance_password": "platformpass",
     "group_names": [
         "controller",

@@ -157,6 +157,40 @@ class TestProviderGatewayStub(unittest.TestCase):
         self.assertEqual(status, 401)
         self.assertEqual(body, b'{"error":"ERR_OPENAI_AUTH_MANUAL"}')
 
+    def test_serves_only_reviewed_model_discovery_route(self):
+        _, port = self.start_gateway()
+
+        status, headers, body = self.request(
+            port,
+            method="GET",
+            path="/v1/models?client_version=0.144.1",
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Content-Type"], "application/json")
+        self.assertEqual(
+            json.loads(body),
+            {
+                "object": "list",
+                "data": [
+                    {
+                        "id": self.gateway.REVIEWED_MODEL,
+                        "object": "model",
+                        "created": 0,
+                        "owned_by": "openai",
+                    }
+                ],
+            },
+        )
+        status, _, _ = self.request(port, method="GET", path="/v1/models")
+        self.assertEqual(status, 404)
+        status, _, _ = self.request(
+            port,
+            method="GET",
+            path="/v1/models?client_version=unexpected",
+        )
+        self.assertEqual(status, 404)
+
     def test_redacts_and_streams_only_to_fixed_fake_upstream(self):
         sink = RecordingFakeUpstream(self.gateway)
         _, port = self.start_gateway(fake_upstream_sink=sink)
@@ -309,6 +343,28 @@ class TestProviderGatewayStub(unittest.TestCase):
         self.assertEqual(connection.request_args[1]["headers"], request.headers)
         self.assertEqual(response.body_chunks, (b"data: synthetic\n\n",))
         self.assertTrue(connection.closed)
+
+    def test_classifies_provider_4xx_without_response_content(self):
+        cases = {
+            400: "bad_request",
+            401: "authentication",
+            403: "permission",
+            404: "not_found",
+            409: "other_4xx",
+            422: "unprocessable",
+            429: "rate_or_quota",
+            451: "other_4xx",
+        }
+        for status, category in cases.items():
+            with self.subTest(status=status):
+                self.assertEqual(
+                    self.gateway.provider_error_category(status), category
+                )
+
+        for status in (True, 399, 500):
+            with self.subTest(invalid_status=status):
+                with self.assertRaises(self.gateway.GatewayEvidenceError):
+                    self.gateway.provider_error_category(status)
 
     def test_serializes_only_allowlisted_gateway_evidence_metadata(self):
         event = self.gateway.GatewayEvidenceEvent(

@@ -165,6 +165,33 @@ class TestProviderRedaction(unittest.TestCase):
                 self.assertEqual(error.args, ("ambiguous sensitive label",))
                 self.assertNotIn("SYNTHETIC", repr(error.__dict__))
 
+    def test_redacts_entire_ambiguous_plain_text_within_nested_input(self):
+        payload = {"input": [{"text": "token SYNTHETIC_TOKEN"}]}
+
+        result = self.redaction.redact_remote_payload(payload)
+
+        self.assertEqual(result.payload, {"input": [{"text": "[REDACTED]"}]})
+        self.assertEqual(result.redaction_counts, {"secret": 1})
+        self.assertNotIn("SYNTHETIC_TOKEN", json.dumps(dataclasses.asdict(result)))
+
+    def test_reports_only_allowlisted_text_context_for_ambiguous_labels(self):
+        cases = (
+            ({"input": "token SYNTHETIC_TOKEN"}, "input_root_text"),
+            ({"instructions": "token SYNTHETIC_TOKEN"}, "other_text"),
+        )
+        for payload, value_context in cases:
+            with self.subTest(value_context=value_context):
+                with self.assertRaises(
+                    self.redaction.AmbiguousSensitiveLabelError
+                ) as raised:
+                    self.redaction.redact_remote_payload(payload)
+
+                error = raised.exception
+                self.assertEqual(error.value_context, value_context)
+                metadata = repr(error.__dict__)
+                self.assertNotIn("SYNTHETIC", metadata)
+                self.assertNotIn("token", metadata.casefold())
+
     def test_rejects_unsupported_provider_content(self):
         with self.assertRaises(self.redaction.UnsupportedContentError):
             self.redaction.redact_remote_payload(

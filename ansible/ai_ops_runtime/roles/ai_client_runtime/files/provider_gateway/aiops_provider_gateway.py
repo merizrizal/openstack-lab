@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import parse_qsl, urlsplit
 
 from redaction import (
     DuplicateKeyError,
@@ -43,6 +44,8 @@ POLICY_KEYS = frozenset(
     }
 )
 LOOPBACK_HOSTS = frozenset({"127.0.0.1"})
+MODELS_ROUTE = "/v1/models"
+EXPECTED_MODELS_QUERY = (("client_version", "0.144.1"),)
 FIXED_UPSTREAM_HOST = "api.openai.com"
 FIXED_UPSTREAM_PORT = 443
 FIXED_UPSTREAM_ROUTE = "/v1/responses"
@@ -411,6 +414,20 @@ def upstream_status_class(status: int) -> str:
     return f"{status // 100}xx"
 
 
+def provider_error_category(status: int) -> str:
+    """Classify one provider 4xx status without inspecting response content."""
+    if isinstance(status, bool) or not isinstance(status, int) or not 400 <= status < 500:
+        raise GatewayEvidenceError("provider error status is invalid")
+    return {
+        400: "bad_request",
+        401: "authentication",
+        403: "permission",
+        404: "not_found",
+        422: "unprocessable",
+        429: "rate_or_quota",
+    }.get(status, "other_4xx")
+
+
 class FakeUpstreamSink(Protocol):
     """Test-only in-memory sink; it must not perform transport I/O."""
 
@@ -639,6 +656,14 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
         self._send_fake_response(response)
 
     def do_GET(self) -> None:
+        parsed = urlsplit(self.path)
+        if (
+            parsed.path == MODELS_ROUTE
+            and tuple(parse_qsl(parsed.query, keep_blank_values=True))
+            == EXPECTED_MODELS_QUERY
+        ):
+            self._send_models_response()
+            return
         self._reject_method()
 
     def do_DELETE(self) -> None:
@@ -655,6 +680,30 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         self._reject_method()
+
+    def _send_models_response(self) -> None:
+        body = json.dumps(
+            {
+                "object": "list",
+                "data": [
+                    {
+                        "id": REVIEWED_MODEL,
+                        "object": "model",
+                        "created": 0,
+                        "owned_by": "openai",
+                    }
+                ],
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.close_connection = True
+        self.end_headers()
+        self.wfile.write(body)
 
     def _reject_method(self) -> None:
         if self.path == self.server.policy.route:

@@ -70,13 +70,16 @@ class MalformedJsonError(RedactionError):
 class AmbiguousSensitiveLabelError(RedactionError):
     """Raised with fixed metadata when a sensitive text label is ambiguous."""
 
-    def __init__(self, reason: str, label_category: str) -> None:
+    def __init__(self, reason: str, label_category: str, value_context: str) -> None:
         if reason not in {"json_like_text", "plain_text_label"}:
             raise ValueError("unsupported ambiguity reason")
         if label_category not in {"identity", "secret"}:
             raise ValueError("unsupported ambiguity label category")
+        if value_context not in {"input_root_text", "input_nested_text", "other_text"}:
+            raise ValueError("unsupported ambiguity value context")
         self.reason = reason
         self.label_category = label_category
+        self.value_context = value_context
         super().__init__("ambiguous sensitive label")
 
 
@@ -143,7 +146,7 @@ def redact_remote_payload(
     _assert_supported_content(payload)
     sensitive_values = _collect_sensitive_values(payload)
     counts: Counter[str] = Counter()
-    redacted = _redact_value(payload, sensitive_values, counts)
+    redacted = _redact_value(payload, sensitive_values, counts, is_root=True)
     if not isinstance(redacted, dict):
         raise UnsupportedContentError("provider payload must remain a JSON object")
 
@@ -260,19 +263,31 @@ def _field_category(key: str) -> str | None:
     return None
 
 
-def _ambiguous_label_error(reason: str, text: str) -> AmbiguousSensitiveLabelError:
+def _ambiguous_label_error(
+    reason: str, text: str, value_context: str
+) -> AmbiguousSensitiveLabelError:
     match = SENSITIVE_LABEL_RE.search(text)
     if match is None:
         raise RedactionError("sensitive label classification is absent")
     label_category = _field_category(match.group(0))
     if label_category is None:
         raise RedactionError("sensitive label category is unreviewed")
-    return AmbiguousSensitiveLabelError(reason, label_category)
+    return AmbiguousSensitiveLabelError(reason, label_category, value_context)
 
 
-def _redact_value(value: Any, sensitive_values: set[str], counts: Counter[str]) -> Any:
+def _redact_value(
+    value: Any,
+    sensitive_values: set[str],
+    counts: Counter[str],
+    *,
+    value_context: str = "other_text",
+    is_root: bool = False,
+) -> Any:
     if isinstance(value, list):
-        return [_redact_value(item, sensitive_values, counts) for item in value]
+        return [
+            _redact_value(item, sensitive_values, counts, value_context=value_context)
+            for item in value
+        ]
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
         for key, nested in value.items():
@@ -281,21 +296,44 @@ def _redact_value(value: Any, sensitive_values: set[str], counts: Counter[str]) 
                 counts[category] += 1
                 redacted[key] = REDACTION_MARKER
             else:
-                redacted[key] = _redact_value(nested, sensitive_values, counts)
+                nested_context = value_context
+                if is_root and key == "input":
+                    nested_context = (
+                        "input_root_text"
+                        if isinstance(nested, str)
+                        else "input_nested_text"
+                    )
+                redacted[key] = _redact_value(
+                    nested,
+                    sensitive_values,
+                    counts,
+                    value_context=nested_context,
+                )
         return redacted
     if isinstance(value, str):
-        return _redact_text(value, sensitive_values, counts)
+        try:
+            return _redact_text(value, sensitive_values, counts, value_context)
+        except AmbiguousSensitiveLabelError as exc:
+            if exc.reason != "plain_text_label" or value_context != "input_nested_text":
+                raise
+            counts[exc.label_category] += 1
+            return REDACTION_MARKER
     return value
 
 
-def _redact_text(text: str, sensitive_values: set[str], counts: Counter[str]) -> str:
+def _redact_text(
+    text: str,
+    sensitive_values: set[str],
+    counts: Counter[str],
+    value_context: str,
+) -> str:
     stripped = text.strip()
     if stripped.startswith(("{", "[")):
         try:
             embedded = strict_json_loads(stripped)
         except MalformedJsonError:
             if SENSITIVE_LABEL_RE.search(text):
-                raise _ambiguous_label_error("json_like_text", text)
+                raise _ambiguous_label_error("json_like_text", text, value_context)
         else:
             if not isinstance(embedded, (dict, list)):
                 raise UnsupportedContentError(
@@ -303,7 +341,9 @@ def _redact_text(text: str, sensitive_values: set[str], counts: Counter[str]) ->
                 )
             counts["embedded_json"] += 1
             return json.dumps(
-                _redact_value(embedded, sensitive_values, counts),
+                _redact_value(
+                    embedded, sensitive_values, counts, value_context=value_context
+                ),
                 sort_keys=True,
                 separators=(",", ":"),
             )
@@ -315,7 +355,9 @@ def _redact_text(text: str, sensitive_values: set[str], counts: Counter[str]) ->
             start <= label_match.start() and label_match.end() <= end
             for start, end in canonical_label_ranges
         ):
-            raise _ambiguous_label_error("plain_text_label", label_match.group(0))
+            raise _ambiguous_label_error(
+                "plain_text_label", label_match.group(0), value_context
+            )
 
     pieces: list[str] = []
     cursor = 0
