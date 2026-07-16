@@ -1,464 +1,318 @@
-## Architectural Design Specification: Phase 07 OpenAI Remote Provider via Reviewed Redaction Gateway
+## Architectural Design Specification: Phase 07 ChatGPT Device-Authentication Provider Boundary
 
-**Status:** Revised downstream architecture after the client-native redaction blocker.
+**Status:** Revised design after the authenticated upstream-contract mismatch; implementation and provider traffic remain prohibited until the local chunks pass and a provider request receives separate explicit approval.
 
-**Dependency order:** Phase 07 MCP integration -> `07-01-codex-runtime-home-ads-revised.md` Chunks 0-5 -> `07-02-extended-mcp-client-lifecycle-ads-revised.md` Chunks 0-4 -> this ADS Revised Chunks 0-7 -> Phase 99.
+**Dependency order:** Accepted Codex runtime home and MCP lifecycle -> accepted loopback routing, redaction, gateway, evidence, and `assistant` egress controls -> this ChatGPT/device-auth revision Chunks 0-7 -> separately approved remote acceptance -> Phase 99.
 
-**Supersedes:** `07-openai-remote-provider-boundary-ads.md` where that document requires a Codex-native full-payload rewrite hook.
+**Supersedes:** The `api.openai.com/v1/responses` authentication and upstream portions of earlier revisions of this ADS. The accepted loopback, payload-redaction, MCP, service-identity, evidence-retention, and direct-`assistant`-egress boundaries remain in force unless this revision explicitly changes them.
 
-**Source:** Phase 07 MCP integration, accepted Codex runtime-home/local-MCP evidence, accepted MCP deployment-lifecycle evidence, the failed client-native redaction discovery, and the operator-approved OpenAI data-egress policy.
+**Source:** Phase 07 MCP integration; accepted local gateway/redaction/evidence work; `docs/ai-ops/runtime/phase07-remote-provider-decision-2026-07-14.md`; `docs/ai-ops/runtime/codex-custom-provider-profile-contract.md`; metadata-only provider classification `authentication`; and the reviewed official Codex `rust-v0.144.1` ChatGPT authentication contracts recorded in handoff 53.
 
-**Goal:** Permit the operator-managed OpenAI model `gpt-5.6-terra` only through a reviewed local application-layer gateway that receives the complete Codex Responses API request, redacts approved sensitive fields before any remote transmission, and preserves the existing local MCP stdio and trusted-runner boundaries.
+**Goal:** Make the existing loopback redaction gateway compatible with the currently authenticated Codex ChatGPT/device-auth runtime by rebuilding requests for one fixed ChatGPT Codex backend endpoint and transiently forwarding only the reviewed authentication-routing headers, without retaining account or credential values or weakening any existing redaction, evidence, MCP, TLS, or egress boundary.
 
 ---
 
 ### I. Overview and Contract
 
-`assistant01` retains one local Codex runtime under the non-interactive `assistant` account. The local MCP adapter remains a stdio child process and continues to delegate every diagnostic action to the existing trusted runner. MCP is not made network-facing and remains unrelated to remote-provider authentication.
-
-This ADS begins only after both prerequisite handoff gates are accepted: the runtime-home ADS has proven fixed-home Codex and local MCP behavior, and the lifecycle ADS has restored the exact reviewed MCP deployment after guarded remove/reinstall validation. The Codex MCP entry must be disabled at the start of Revised Chunk 0, and remote mode must still be inactive.
-
-Chunk 0 established that the installed Codex client has no verified client-native hook that can rewrite the complete final provider-bound payload. Official Codex hook behavior is narrower:
-
-- `UserPromptSubmit` receives the current prompt and can block it, but it does not provide a supported replacement-prompt field;
-- `PreToolUse` can rewrite supported tool inputs, including MCP arguments, but this occurs before execution and is not a provider-request boundary;
-- `PostToolUse` receives MCP results, but replacement of MCP tool output is not supported in the reviewed behavior;
-- lifecycle hooks do not expose one supported object representing the complete final request after history, instructions, compaction, and tool results are assembled.
-
-Therefore Codex hooks may be used as defense-in-depth blocking controls, but they are not the mandatory redaction boundary.
-
-Codex supports a custom model-provider definition with a fixed `base_url`, OpenAI authentication reuse, and the Responses API wire format. The revised design uses that supported provider boundary to route Codex to a reviewed loopback-only gateway.
+The selected architecture remains an explicit application-layer gateway:
 
 ```text
-operator
-  -> local Codex runtime as assistant
-  -> local MCP stdio process when tools are needed
-  -> trusted aiops_tool_runner.py
-  -> approved read-only OpenStack diagnostics
-
-Codex final Responses API request
-  -> explicit custom provider base_url
-  -> loopback-only AI-OPS redaction gateway
-  -> parse and validate complete request
-  -> redact and revalidate
-  -> rebuild a new outbound request
-  -> HTTPS with normal TLS verification
-  -> fixed OpenAI upstream endpoint
+Codex 0.144.1 as assistant
+  -> temporary runtime override with loopback base_url ending in /v1
+  -> POST /v1/responses on 127.0.0.1:8765
+  -> validate, redact, leak-scan, and rebuild JSON
+  -> validate the authentication-routing header set
+  -> verified HTTPS POST to chatgpt.com:443/backend-api/codex/responses
+  -> stream the bounded response to Codex
 ```
 
-The gateway is an explicit application-layer provider endpoint, not a transparent proxy, TLS interception layer, shell wrapper, generic forwarding proxy, or MCP transport. It accepts only the reviewed Responses API route from the local Codex process and forwards only to one fixed upstream provider endpoint.
+The current authenticated runtime uses the ChatGPT/device-auth family. It is not compatible with the API-key endpoint. This revision therefore chooses the preferred current-runtime contract:
 
-#### Approved Remote-Provider Policy
+- **Inbound gateway route:** fixed `POST /v1/responses`; unchanged so the validated Codex runtime override remains stable.
+- **Upstream scheme:** fixed `https`.
+- **Upstream host:** fixed `chatgpt.com`.
+- **Upstream port:** fixed `443`.
+- **Upstream route:** fixed `/backend-api/codex/responses`.
+- **Provider selection:** the request cannot select or override scheme, host, port, path, proxy, DNS result, or transport.
+- **Authentication mode:** exactly one non-empty `Authorization: Bearer <opaque-value>` header.
+- **Account routing:** exactly one non-empty `ChatGPT-Account-ID` header.
+- **FedRAMP routing:** unsupported in this slice. Any inbound `X-OpenAI-Fedramp` header is rejected, not ignored or forwarded. Support requires a separately reviewed branch and egress/evidence contract.
+- **Agent identity:** unsupported in this slice. Any non-Bearer authorization scheme or agent-assertion path fails closed; parsing must not be broadened opportunistically.
+- **Alternative API-key design:** deferred. An operator-managed API-key path retaining `api.openai.com/v1/responses` would require a separate authentication source, policy mode, egress contract, tests, and approval. The gateway must not infer the mode from credential shape or retry one endpoint after another.
 
-- Provider: OpenAI.
-- Model identifier: `gpt-5.6-terra`, treated as operator-provided until runtime acceptance proves the selected account and client accept it.
-- Authentication: manual operator login in the Codex runtime context. No provider credential may enter Git, Ansible inventory, MCP configuration, evidence, audit events, command-line arguments, or logs.
-- Local provider routing: Codex uses a dedicated custom provider ID whose `base_url` points only to the loopback gateway.
-- Upstream transport: HTTPS only with normal system certificate validation.
-- Upstream destination: fixed by gateway configuration and never caller-selected. The operator's unrestricted-HTTPS exception remains documented as residual network risk, but application code must still reject an arbitrary upstream URL.
-- Retention: provider retention is allowed.
-- Training: provider training on submitted content is not approved and must be verified by the operator at account or workspace level.
-- Data policy: values associated with `username`, `group`, and secret-like field names must be replaced before remote transmission. Other reviewed diagnostic fields may be submitted.
-- Remote mode: disabled by default and enabled only after every local synthetic acceptance test passes.
+#### Header Boundary
 
-#### Full-Payload Redaction Boundary
+The inbound HTTP parser is case-insensitive for field names. Validation must operate on all values returned for each protected name, not on a comma-joined or first-value view.
 
-The gateway receives the final JSON request body that Codex intends to send using the Responses API. Every accepted request must pass this sequence:
+The gateway may construct only these upstream headers:
+
+| Header | Source | Contract |
+| --- | --- | --- |
+| `Accept` | gateway constant | Exactly `text/event-stream` |
+| `Content-Type` | gateway constant | Exactly `application/json` |
+| `Authorization` | inbound request | Exactly one valid Bearer value; transient memory only |
+| `ChatGPT-Account-ID` | inbound request | Exactly one non-empty bounded value; transient memory only |
+
+`Authorization` and `ChatGPT-Account-ID` values must reject empty values, leading or trailing whitespace ambiguity, control characters, CR/LF, duplicate field lines, and parser-produced multiple values. The implementation may define conservative byte bounds during Chunk 0 after confirming the official client’s emitted shape; absence of a reviewed bound blocks implementation rather than allowing an unbounded value.
+
+Security-relevant singleton headers—`Authorization`, `ChatGPT-Account-ID`, `X-OpenAI-Fedramp`, `Content-Type`, `Content-Length`, `Content-Encoding`, `Transfer-Encoding`, and `Host`—must reject duplicate field lines. `Host`, content length, and connection metadata are rebuilt by the outbound HTTP client. Cookies, forwarding headers, proxy headers, inbound host, user-agent, tracing headers, and every unlisted field are not forwarded. Presence of `X-OpenAI-Fedramp` is an explicit local error even if only one value is present.
+
+No authentication or account-routing value may enter a dataclass representation intended for evidence, logs, exception text, test failure text, process arguments, files, or Git. A short-lived upstream request object may hold the validated values only until the request is completed or aborted.
+
+#### Payload and Response Boundary
+
+The accepted payload path is unchanged:
 
 ```text
-raw inbound request bytes
-  -> bounded read
-  -> exact route/method/content-type validation
-  -> JSON parse
-  -> reviewed request-shape validation
-  -> redact_remote_payload(parsed_request)
-  -> post-redaction leak scan
-  -> construct new outbound JSON from redacted result
-  -> send to fixed HTTPS upstream
+bounded body -> exact content/encoding checks -> strict JSON parse
+-> reviewed model/input shape -> fail-closed redaction -> leak scan
+-> new JSON serialization -> fixed upstream request
 ```
 
-The raw inbound body must never be forwarded. The outbound request must be newly serialized from the redacted object.
+The raw body is never forwarded. Unsupported, malformed, duplicate-key, ambiguous-label, binary, multipart, compressed, image, audio, or file-upload content remains rejected. The model remains exactly `gpt-5.6-terra` until separately revised. A non-success response is classified from status only; response content is not inspected or retained.
 
-A failure at any stage returns a bounded local error and causes no upstream request.
+#### DNS and Egress Contract
 
-#### Redaction Scope Contract
+- `assistant` keeps its current deny-by-default public egress policy and reaches only the loopback gateway plus already reviewed management destinations. No ChatGPT exception is added for `assistant`.
+- Only `aiops-provider` performs upstream transport. The gateway passes the literal fixed hostname `chatgpt.com` to the verified HTTPS client so certificate and SNI validation use that hostname.
+- Name resolution uses only the host’s operator-managed system resolver. The application must not accept a resolver, IP address, URL, proxy, or Host override from the request or environment.
+- The service remains restricted to `AF_INET` until an IPv6 path is separately designed and tested. Resolution with no approved IPv4 result fails closed; it must not trigger an IPv6 or alternate-host fallback.
+- Network policy for `aiops-provider` may permit only resolver traffic required by the operator-managed host baseline and outbound TCP/443. Application-layer host fixation is mandatory because CDN address drift makes an unreviewed static destination list unsafe to claim as the sole host control.
+- Chunk 0 must confirm whether proxy environment variables can influence the current standard-library transport. The deployed service must clear or reject proxy variables and must use a transport that does not honor caller- or environment-selected proxies.
+- DNS failure, address-family drift, certificate mismatch, SNI mismatch, redirect, or connection to any caller-selected destination fails closed. HTTP redirects are never followed.
 
-The enforceable meaning of the policy is:
+#### Evidence and Migration Contract
 
-1. JSON object values whose normalized field names match `username`, `group`, or reviewed aliases are replaced with a fixed marker.
-2. Values whose field names are secret-like, including `password`, `passwd`, `secret`, `token`, `api_key`, `private_key`, `credential`, and reviewed aliases, are removed or replaced according to policy.
-3. Values discovered in sensitive structured fields are added to an in-memory sensitive-value set and replaced wherever the exact value appears elsewhere in string content in the same request.
-4. Canonical text forms such as `username=value`, `username: value`, `group=value`, and JSON embedded in text are redacted when the parser can classify them deterministically.
-5. A reserved sensitive label in an unsupported or ambiguous text form causes fail-closed rejection rather than best-effort transmission.
-6. Binary, image, audio, file-upload, compressed, multipart, or otherwise unsupported provider input is rejected until separately designed and reviewed.
+The existing metadata-only ledger remains append-only, `aiops-provider` owned, mode `0600`, and bounded to 64 KiB. It must never contain account data, authentication data, header names or values, DNS answers, provider URLs, request/response bodies, prompts, or raw exception text.
 
-This boundary guarantees syntactic redaction of reviewed fields and exact-value propagation within the request. It does not claim semantic recognition of an unlabeled identity hidden in arbitrary natural language. Operators and upstream diagnostic producers must represent protected values using the reviewed structured fields or canonical labeled forms. If policy requires discovery of arbitrary unlabeled personal identifiers, remote mode remains disabled until a separate data-classification design is approved.
+Route semantics change and therefore require an evidence schema revision:
 
-#### Function Contracts
+| Evidence schema | `route` meaning | Allowed value |
+| --- | --- | --- |
+| `1` | Historical fixed API-key-oriented upstream attempted by the prior gateway | `/v1/responses` |
+| `2` | Fixed ChatGPT/device-auth upstream selected by this revision | `/backend-api/codex/responses` |
 
-```text
-parse_provider_request(raw_body, headers, path, method) -> ParsedProviderRequest
-validate_provider_request_shape(payload, schema_version) -> ValidatedProviderRequest
-redact_remote_payload(payload) -> RedactionResult
-scan_redacted_payload(result) -> LeakScanResult
-build_upstream_request(result, fixed_config) -> UpstreamRequest
-forward_responses_request(request) -> streamed provider response
-```
+Schema 2 keeps the existing field allowlist. It changes only the schema value and route semantics; it does not add an auth mode, account identifier, hostname, or header metadata field. New gateway code writes schema 2 only. Existing schema 1 records are never rewritten, deleted, relabeled, or treated as ChatGPT attempts.
 
-`RedactionResult` contains only:
-
-- the redacted payload;
-- counts by redaction category;
-- classification status;
-- request schema version;
-- a generated local correlation ID.
-
-It must not contain, log, persist, or return the original values.
+A mixed schema 1/schema 2 ledger is valid when each record satisfies its own schema/route pair and the existing retention bound. The metadata retrieval parser must validate both known pairs and reject unknown versions or pairings. Rollback stops remote mode before restoring old code; it preserves the mixed ledger in place and does not resume schema 1 provider traffic. Ledger deletion, truncation, rotation, or migration requires separate operator approval.
 
 ### II. Observed Evidence and Assumptions
 
 #### Observed Evidence
 
-- The existing Codex runtime is fixed at `/opt/nodejs/bin/codex`, version `0.144.1`, with runtime home `/opt/openstack-ai-ops/codex-home`.
-- Existing runtime evidence proves fixed-home version/help execution but does not prove remote provider use.
-- The MCP server returns trusted-runner envelopes in MCP text and structured content; that is not an end-to-end remote-provider redaction boundary.
-- The trusted runner sanitizes selected audit arguments but does not sanitize complete provider requests.
-- Official Codex hook behavior permits blocking a submitted prompt and rewriting selected pre-tool inputs, but does not provide a verified full final provider-request rewrite seam.
-- Official Codex hook behavior does not support replacing MCP tool output through `PostToolUse` in the reviewed behavior.
-- Official Codex configuration supports custom model providers with a `base_url`, optional OpenAI authentication reuse, the Responses API wire format, request retry controls, stream retry controls, and WebSocket capability declaration.
-- The reviewed MCP surface remains the three low-risk API diagnostics; restricted-host tools remain disabled by default.
+- `aiops_provider_gateway.py` fixes the current upstream to `api.openai.com:443/v1/responses` and accepts only one Bearer authorization value.
+- `gateway_policy.json` repeats that fixed API-key-oriented endpoint.
+- The current upstream request allowlist is `Accept`, `Content-Type`, and `Authorization`; it does not forward `ChatGPT-Account-ID`.
+- Gateway tests prove strict loopback routing, request bounds, redaction, rebuilt JSON, fixed upstream forwarding, SSE bounds, and status-only provider error classification.
+- The current evidence event is schema 1 and hard-codes `/v1/responses`; the runbook excludes headers, account data, provider URLs, and raw ledger lines.
+- The gateway service runs as `aiops-provider`, permits only `AF_INET`, and writes only its state directory. `assistant` direct public egress remains denied by UID-owner UFW rules.
+- Local no-forward acceptance proved exactly one Responses POST reached the redaction boundary and no prohibited marker reached a fake sink.
+- The deployed redaction fix passed focused tests and the real provider attempt reached verified TLS, then produced metadata-only HTTP `4xx` category `authentication`.
+- Reviewed official Codex `rust-v0.144.1` source uses `https://chatgpt.com/backend-api/codex`, appends `/responses`, and sends `Authorization` plus `ChatGPT-Account-ID` for ChatGPT sessions. It may send `X-OpenAI-Fedramp` for applicable accounts.
 
-#### Assumptions Requiring Local Confirmation
+#### Assumptions and Open Confirmations for Chunk 0
 
-- Codex `0.144.1` honors a custom provider `base_url` for every model request in the selected mode.
-- `requires_openai_auth=true` can reuse the operator's manual OpenAI authentication while sending the request to the custom provider endpoint.
-- The selected Codex mode can operate through Responses API HTTPS/SSE without WebSockets.
-- Request and stream retry counts can be set to zero for acceptance testing.
-- The actual request body produced by Codex can be fully parsed as bounded JSON without content encoding or multipart data.
-- The selected model identifier is accepted after manual authentication.
-- The gateway can run under a separate non-interactive service identity while Codex and MCP remain under `assistant`.
+- The active authenticated runtime emits exactly one Bearer authorization field and exactly one account-routing field on the loopback request.
+- The selected account does not require FedRAMP routing or an agent-assertion authorization path.
+- The standard-library HTTPS client performs verified SNI/certificate validation for `chatgpt.com`, does not follow redirects, and does not use proxy environment variables in the current call path.
+- The selected model is accepted by the ChatGPT backend. This remains unproven and must not be tested remotely until all local gates pass.
+- Conservative size bounds for the two transient header values can be selected from official-source constants or synthetic emitted-shape evidence without reading either real value.
 
-### III. Required Technical Dependencies and Proposed Artifacts
+If any assumption cannot be confirmed without inspecting credential/account values, stop and request a new design decision.
 
-#### Existing Dependencies
+### III. Required Technical Dependencies and Imports
 
-- Accepted `07-01-codex-runtime-home-ads-revised.md` runtime-home and local-MCP evidence.
-- Accepted `07-02-extended-mcp-client-lifecycle-ads-revised.md` remove/restore evidence with MCP restored and the client entry disabled.
-- Fixed Codex runtime and runtime home.
-- Restored local stdio MCP adapter.
-- Existing runner registry, runner, result envelope, timeout, redaction, and audit path.
-- Manual operator authentication, used only in the later authentication chunk.
-- Python runtime already used by the AI-OPS deployment.
+- Existing Python standard-library gateway, strict JSON parser, redactor, leak scanner, HTTPS client, and injected fake-upstream test seams.
+- Existing `ai_client_runtime` deployment role, systemd service, gateway policy, evidence ledger, and focused unit tests.
+- Existing `assistant_egress` and validation roles; these remain unchanged unless Chunk 6 proves a separate `aiops-provider` egress change is required.
+- Existing runtime documents:
+  - `docs/ai-ops/runtime/codex-custom-provider-profile-contract.md`
+  - `docs/ai-ops/runtime/provider-gateway-metadata-evidence.md`
+  - `docs/ai-ops/runtime/phase07-remote-provider-decision-2026-07-14.md`
+- No provider SDK, generic proxy, credential store, telemetry library, TLS interception, browser automation, OpenStack dependency, or new network-facing listener is approved.
 
-#### Proposed Runtime Components
-
-- A loopback-only HTTP server capable of bounded JSON request handling and SSE response streaming.
-- A reviewed HTTP client using system TLS validation.
-- No generic proxy framework, browser automation, packet interception, TLS man-in-the-middle certificate, shell command execution, OpenStack SDK, SSH library, database client, or file-browser capability belongs in the gateway.
-
-Exact dependency choice and version must be pinned after the local payload-shape probe. Standard-library HTTP components are acceptable only if cancellation, streaming, header controls, and request bounds can be proven clearly; otherwise use one narrowly scoped pinned HTTP library.
-
-#### Proposed Repository Artifacts
+**Function Signature Contract (Conceptual):**
 
 ```text
-ansible/ai_ops_runtime/roles/ai_client_runtime/files/provider_gateway/aiops_provider_gateway.py
-ansible/ai_ops_runtime/roles/ai_client_runtime/files/provider_gateway/redaction.py
-ansible/ai_ops_runtime/roles/ai_client_runtime/templates/provider_gateway/gateway_policy.json.j2
-ansible/ai_ops_runtime/roles/ai_client_runtime/templates/provider_gateway/aiops-provider-gateway.service.j2
-tests/ai_ops/test_provider_redaction.py
-tests/ai_ops/test_provider_gateway.py
-ansible/ai_ops_runtime/playbook_validate_phase07_provider_gateway.yml
-docs/ai-ops/runtime/openai-provider-gateway.md
+validate_chatgpt_auth_headers(all_inbound_header_values)
+  -> transient validated Authorization and ChatGPT-Account-ID values
+build_upstream_request(redaction_result, fixed_policy, validated_auth_headers)
+  -> fixed ChatGPT UpstreamRequest
+serialize_gateway_evidence_event(event)
+  -> schema-specific metadata bytes
 ```
 
-Proposed runtime paths:
+The exact Python names and temporary value types must be confirmed in Chunk 0. A stub must fail with a bounded local error; it must never return synthetic success or permit forwarding before both required headers validate.
 
-```text
-/opt/openstack-ai-ops/provider-gateway/aiops_provider_gateway.py
-/opt/openstack-ai-ops/provider-gateway/redaction.py
-/opt/openstack-ai-ops/provider-gateway/gateway_policy.json
-/opt/openstack-ai-ops/provider-gateway/venv/
-```
+### IV. Step-by-Step Procedure / Execution Flow
 
-Proposed identities:
-
-```text
-assistant
-  - runs Codex
-  - runs local MCP adapter and trusted runner
-  - accesses approved OpenStack management endpoints
-  - may connect to the gateway loopback port
-  - must not connect directly to public provider endpoints
-
-aiops-provider
-  - runs only the redaction gateway
-  - has no OpenStack credentials
-  - has no sudo
-  - may connect outbound using HTTPS
-  - receives provider authorization only in process memory
-```
-
-### IV. Step-by-Step Execution Flow
-
-1. The operator starts Codex as `assistant` using the fixed runtime home.
-2. Codex loads a reviewed non-secret custom provider definition whose base URL is the loopback gateway. The provider configuration disables WebSockets and automatic retries for initial acceptance.
-3. When diagnostics are needed, Codex calls the existing local MCP server over stdio. MCP delegates to the trusted runner exactly as before.
-4. Codex assembles its complete provider request, including current prompt, instructions, client-maintained context, tool calls, and MCP tool results.
-5. Codex submits the Responses API request to the loopback gateway rather than directly to OpenAI.
-6. The gateway accepts only the configured local interface, exact route, exact method, allowed content type, and bounded body size.
-7. The gateway authenticates the local caller using the reviewed local control selected during implementation, such as UID-scoped firewall policy and an optional runtime-local header secret. It never treats the provider bearer token as sufficient local authorization by itself.
-8. The gateway parses the complete JSON payload and validates it against the reviewed Codex request-shape contract.
-9. The gateway redacts structured sensitive fields, propagates discovered sensitive values across string content, handles canonical text forms, and rejects ambiguous sensitive-label forms.
-10. The gateway scans the redacted payload for original synthetic markers, unredacted reserved fields, secret-like keys, unsupported content, and schema drift.
-11. The gateway checks that the requested model is exactly the reviewed model and that no caller-selected upstream URL or transport exists.
-12. The gateway creates a new outbound request from the redacted object, forwards only the minimum required headers, and sends it to the fixed OpenAI HTTPS endpoint with normal TLS verification.
-13. The gateway streams the provider response back to Codex without recording response bodies. It emits only bounded non-sensitive lifecycle metadata.
-14. Codex presents the answer to the operator. Local MCP and runner audit correlation remain unchanged.
-15. On any gateway, redaction, TLS, schema, authentication, or evidence failure, the request is not sent and remote mode remains disabled.
+1. Codex runs as `assistant` in the fixed runtime home and uses the accepted ephemeral runtime overrides.
+2. Codex discovers the local reviewed model and sends exactly one `POST /v1/responses` to loopback.
+3. The gateway validates route, singleton transport headers, content type/encoding, and body bounds.
+4. It strictly parses JSON, validates model/input shape, redacts, leak-scans, and serializes a new body.
+5. It rejects FedRAMP, non-Bearer, duplicate, missing, malformed, or unbounded authentication-routing headers before evidence or network I/O.
+6. It constructs a request containing only the four reviewed outbound headers and fixed ChatGPT endpoint.
+7. It appends a schema 2 `forward_started` event without any auth/account/DNS data. Failure prevents network I/O.
+8. The verified HTTPS client resolves and connects to `chatgpt.com`, validates SNI/certificate, sends one POST, follows no redirect, and performs no retry.
+9. The gateway appends one schema 2 terminal metadata event and streams only a valid bounded SSE success response. Non-success bodies are discarded unread where practical and never retained.
+10. The gateway clears transient references after completion or failure and returns a bounded local result.
+11. Remote mode remains disabled after local testing. A real request requires fresh explicit approval and all deployment, egress, ledger, and fake-upstream gates to pass immediately beforehand.
 
 ### V. Failure Modes and Resilience
 
-| Stage | Failure Mode | Required Action | Result |
-|---|---|---|---|
-| Client configuration | Codex bypasses the custom provider or contacts OpenAI directly | Block direct public egress for `assistant`; disable remote mode | `ERR_PROVIDER_BYPASS` |
-| Local listener | Gateway binds a non-loopback interface | Fail service startup | `ERR_GATEWAY_BIND_SCOPE` |
-| Local authorization | Caller is not the reviewed local client identity | Reject without parsing or forwarding | `ERR_GATEWAY_LOCAL_AUTH` |
-| Route | Method or path differs from the reviewed Responses API route | Return local not-found/method error | `ERR_GATEWAY_ROUTE` |
-| Request bounds | Body exceeds the reviewed maximum | Stop reading, reject, send nothing upstream | `ERR_GATEWAY_REQUEST_SIZE` |
-| Encoding | Compressed, multipart, binary, file, image, or audio input is received | Reject until separately reviewed | `ERR_GATEWAY_UNSUPPORTED_CONTENT` |
-| JSON parsing | Request is malformed or contains duplicate-key ambiguity | Reject and do not log the body | `ERR_GATEWAY_JSON` |
-| Schema validation | Request shape differs from the reviewed Codex schema | Fail closed; require a new compatibility review | `ERR_GATEWAY_SCHEMA_DRIFT` |
-| Redaction | Sensitive value cannot be classified safely | Reject without upstream transmission | `ERR_OPENAI_REDACTION_UNCLASSIFIED` |
-| Redaction | Synthetic marker remains after redaction | Reject and disable acceptance configuration | `ERR_OPENAI_REDACTION_LEAK` |
-| Model policy | Model differs from `gpt-5.6-terra` | Reject rather than rewriting silently | `ERR_OPENAI_MODEL_SELECTION` |
-| Upstream policy | Caller attempts to select host, URL, proxy, or transport | Reject; upstream is fixed | `ERR_GATEWAY_UPSTREAM_POLICY` |
-| Authentication | Provider token is absent or invalid | Return bounded authentication failure; never log token | `ERR_OPENAI_AUTH_MANUAL` |
-| TLS | Certificate validation or HTTPS connection fails | Stop; never disable verification | `ERR_OPENAI_TLS` |
-| Provider response | Stream is malformed, oversized, or stalls | Terminate only the gateway-owned upstream request and return bounded error | `ERR_OPENAI_RESPONSE` |
-| Evidence | Raw payload, header, token, prompt, response, or configuration is retained | Delete unsafe evidence and repeat with metadata-only recording | `ERR_OPENAI_EVIDENCE_SANITIZATION` |
+| Stage | Failure Mode | Agent/System Action | Next State/Error Report |
+| --- | --- | --- | --- |
+| Local route | Method/path differs or a second Responses POST occurs | Reject; no upstream request | `ERR_GATEWAY_ROUTE` |
+| Header framing | Duplicate protected singleton header | Reject before body forwarding | `ERR_GATEWAY_HEADER_AMBIGUITY` (proposed) |
+| Authorization | Missing, empty, malformed, non-Bearer, or multiple values | Reject without retaining value | `ERR_CHATGPT_AUTH` (proposed) |
+| Account routing | Missing, empty, malformed, unbounded, or multiple account IDs | Reject without retaining value | `ERR_CHATGPT_ACCOUNT_ROUTE` (proposed) |
+| FedRAMP | `X-OpenAI-Fedramp` is present | Reject; require separate design | `ERR_CHATGPT_FEDRAMP_UNSUPPORTED` (proposed) |
+| Payload | JSON/schema/redaction/leak-scan gate fails | Preserve existing fail-closed behavior | Existing bounded gateway error |
+| Upstream policy | Any caller/environment attempts host, route, proxy, resolver, or transport selection | Reject or clear influence; no network I/O | `ERR_GATEWAY_UPSTREAM_POLICY` |
+| DNS | Resolution fails, yields no usable IPv4 result, or drifts family | Do not fall back to another host/family | `ERR_CHATGPT_DNS` (proposed) |
+| TLS | Certificate/SNI verification fails | Never disable verification | `ERR_OPENAI_TLS` |
+| Redirect | Upstream returns redirect | Do not follow it; record status class only | `ERR_CHATGPT_REDIRECT` (proposed) |
+| Provider | Non-success status | Discard body; append status class only | Existing bounded provider failure |
+| Evidence | Schema/route pair invalid or append fails | Do not forward, or return sanitized terminal failure | `ERR_GATEWAY_EVIDENCE` |
+| Migration | Unknown or mismatched historical evidence record | Stop metadata review; preserve ledger | `ERR_GATEWAY_EVIDENCE_POLICY` |
+| Cleanup | Temporary value appears in logs, files, errors, or tests | Disable remote mode and treat as security failure | `ERR_CHATGPT_AUTH_RETENTION` (proposed) |
 
-No failure may fall back to direct Codex-to-provider access, a different model, a generic proxy, an unredacted retry, or a URL-mode MCP server.
+No failure may fall back to `api.openai.com`, omit account routing, add FedRAMP routing, switch authorization schemes, follow redirects, retry automatically, or permit direct `assistant` egress.
 
 ### VI. Security, Integrity, Idempotency, and Cleanup
 
-#### Security Boundary
-
-- MCP remains local stdio and is not changed into HTTP, SSE, WebSocket, or URL mode.
-- The provider gateway is a separate explicit loopback Responses API boundary. It must not expose MCP tools, OpenStack operations, shell execution, file access, or remediation.
-- Codex hooks are optional defense-in-depth controls. They may block obvious secrets in user prompts or deny unsafe tools, but successful hook execution is not evidence of full-payload redaction.
-- Direct provider egress by the `assistant` identity must be denied. The `assistant` identity retains only loopback access, required OpenStack management destinations, package/runtime destinations explicitly needed by policy, and no general public provider route.
-- The `aiops-provider` identity has no OpenStack credentials or management-plane role.
-- The upstream host and path are fixed by reviewed configuration. Request data may never choose them.
-- The gateway forwards only required authentication and protocol headers. It removes cookies, proxy headers, inbound host, forwarding headers, connection headers, content length, and unreviewed tracing headers before constructing the upstream request.
-- Provider bearer material is memory-only and must be redacted from exception messages, process inspection evidence, access logs, and tests.
-- Gateway access logs must be disabled or metadata-only. Request and response bodies are never logged.
-- The gateway must not persist conversation state. Codex remains the owner of local conversation state.
-
-#### Redaction Integrity
-
-- Matching is case-insensitive after deterministic field-name normalization.
-- The original sensitive values exist only in the parsed inbound object and ephemeral in-memory sensitive-value set for the duration of one request.
-- The redactor returns a new object rather than mutating and later reusing the raw parsed object.
-- Duplicate JSON keys are rejected because parser overwrite semantics could bypass field policy.
-- Post-redaction serialization is scanned again before network transmission.
-- Tests must use unique synthetic markers and prove that no marker reaches the fake upstream sink.
-- Redaction counts may be logged; source values may not.
-
-#### Idempotency and Retries
-
-- Local validation and gateway deployment must converge without changing OpenStack resources.
-- Codex request and stream retries are set to zero during acceptance. Any later retry policy requires a separate review because each retry is a new provider submission.
-- The gateway performs no automatic retry in the initial release.
-- Every accepted submission receives a fresh correlation ID. Correlation metadata must not include prompt or diagnostic content.
-
-#### Cleanup and Rollback
-
-- Disable the Codex custom-provider selection first.
-- Stop and disable the gateway service.
-- Restore the remote-disabled Codex profile; do not switch to direct OpenAI as fallback.
-- Remove temporary synthetic fixtures and fake upstream sinks.
-- Preserve the local MCP adapter, trusted runner, registry, OpenStack credentials, audit records, and Codex runtime home.
-- Do not delete operator-managed authentication state unless the operator explicitly requests logout or credential revocation.
+- **Security:** Authentication and account values are opaque transient secrets/account data. Validate shape only; never inspect meaning, print, persist, compare against fixtures, or include them in errors/evidence.
+- **Integrity:** Endpoint constants must agree between Python policy validation, deployed JSON policy, tests, evidence schema, and runbook. Any mismatch prevents service start or forwarding.
+- **Header integrity:** Build a new header mapping from the four-field allowlist. Do not mutate or copy the inbound header mapping.
+- **Redaction integrity:** Header changes occur only after the existing payload redaction and leak scan. They do not weaken unsupported-content or ambiguity rejection.
+- **Network integrity:** Keep loopback listener scope and `assistant` deny rules. Do not grant public ChatGPT access to `assistant` for testing.
+- **Idempotency:** No automatic request or stream retries. Each accepted turn has one new correlation UUID and at most one started/terminal pair.
+- **Cleanup:** Unconditionally remove temporary workspaces, listeners, fake sinks, runtime overrides, and controller-local metadata. Preserve operator authentication state and the production ledger.
+- **Rollback:** Disable runtime selection, stop the gateway if needed, restore the prior package only for local rollback, retain mixed ledger records, and do not resume the known-incompatible API endpoint.
 
 ### VII. Validation Strategy
 
-#### Static Validation
+All validation before deployment uses synthetic values and injected/local fake upstreams only.
 
-```bash
-rtk python3 -m py_compile <provider-gateway-python-files>
-rtk python3 -m unittest tests.ai_ops.test_provider_redaction tests.ai_ops.test_provider_gateway
-rtk python3 -m json.tool <rendered-gateway-policy>
-rtk ansible-playbook --syntax-check -i ansible/ai_ops_runtime/inventories/local/local.yml <phase07-provider-playbook>
-rtk git diff --check
-```
+- **Syntax:** `rtk python3 -m py_compile ansible/ai_ops_runtime/roles/ai_client_runtime/files/provider_gateway/aiops_provider_gateway.py`
+- **Focused tests:** `rtk python3 -m unittest tests.ai_ops.test_provider_gateway tests.ai_ops.test_provider_redaction`
+- **Policy syntax:** `rtk python3 -m json.tool ansible/ai_ops_runtime/roles/ai_client_runtime/files/provider_gateway/gateway_policy.json >/dev/null`
+- **Ansible syntax:** `rtk ansible-playbook --syntax-check -i ansible/ai_ops_runtime/inventories/local/local.yml ansible/ai_ops_runtime/playbook_setup_ai_client_runtime.yml`
+- **Diff checks:** `rtk git diff --check` and scoped `rtk git diff -- <changed-files>`.
 
-#### Redaction Unit Tests
+Targeted tests must prove:
 
-Test at minimum:
+- one Bearer plus one account ID produces exactly four upstream headers;
+- missing, duplicate, empty, whitespace-ambiguous, CR/LF, oversized, non-Bearer, and FedRAMP cases perform zero upstream submissions and zero started-event writes;
+- no unlisted inbound header reaches the fake upstream;
+- fixed host/port/route and verified HTTPS are used; no redirect or retry occurs;
+- schema 1 and schema 2 evidence records remain distinguishable, while invalid pairings fail;
+- serialized evidence and all captured logs/errors exclude synthetic auth/account markers;
+- existing redaction, request-bound, model, SSE, status-classification, and ledger-retention tests still pass;
+- an actual local Codex invocation reaches a local fake sink exactly once at the expected upstream route after gateway rebuilding;
+- listener scope, service identity, ledger modes, direct `assistant` egress denial, and required management access remain intact.
 
-- nested `username` and `group` fields;
-- case and separator aliases such as `user_name` and `group-name` only when explicitly approved;
-- arrays containing sensitive objects;
-- exact sensitive values repeated in unrelated string fields;
-- canonical `key=value` and `key: value` text forms;
-- JSON embedded in string content;
-- empty, null, numeric, boolean, and collection values under protected keys;
-- secret-like keys;
-- duplicate JSON keys;
-- malformed JSON;
-- ambiguous sensitive-label text;
-- payloads containing unsupported file, image, audio, or binary representations;
-- proof that a non-sensitive marker remains intact;
-- proof that redaction metadata contains counts but no original values.
-
-#### Local End-to-End Acceptance
-
-Use a fake local upstream before any OpenAI access:
-
-```text
-Codex synthetic prompt and synthetic MCP result
-  -> loopback redaction gateway
-  -> fake upstream capture sink
-```
-
-The fake sink must assert:
-
-- zero prohibited synthetic markers;
-- the approved non-sensitive marker remains;
-- the model field is the reviewed value;
-- only reviewed headers arrive;
-- no unexpected route or second request occurs;
-- retries are zero;
-- no WebSocket connection is attempted.
-
-Synthetic requests should place unique markers in:
-
-- current operator prompt;
-- prior conversation context;
-- system/developer context where controllable;
-- nested MCP structured content;
-- MCP text content;
-- tool arguments;
-- tool results;
-- compacted or resumed context if the client supports those flows.
-
-#### Process and Network Validation
-
-- Prove the gateway listens only on loopback.
-- Prove MCP still uses stdio and creates no listener.
-- Prove `assistant` cannot connect directly to the public provider endpoint.
-- Prove `assistant` can still reach required OpenStack management endpoints.
-- Prove `aiops-provider` has no OpenStack credentials and cannot invoke the trusted runner through an alternate path.
-- Prove the gateway uses normal TLS verification and a fixed upstream URL.
-- Inspect logs and evidence for forbidden payloads, credentials, authorization headers, and raw response data.
-
-#### Remote Acceptance
-
-Only after local acceptance passes:
-
-- the operator authenticates manually;
-- the reviewed custom provider is selected runtime-locally;
-- one minimal synthetic request is sent;
-- only metadata is retained: provider, model, timestamp, correlation ID, redaction counts, TLS result, listener result, and pass/fail status;
-- no raw prompt, response, provider token, client configuration, MCP payload, or audit line is retained.
+No deployment or provider request is permitted on unit-test failure. No real provider request is permitted merely because local tests pass.
 
 ### VIII. Thin Vertical Slice Chunk Design
 
-Implementation must proceed one chunk at a time. Each chunk ends with targeted validation, scoped diff review, risk assessment, and an explicit stop.
+The implementation must proceed through `chunked-implementation`. Do not implement the full feature in one pass.
 
-#### Revised Chunk 0: Custom-Provider and Payload-Shape Confirmation
+#### Chunk 0: Discovery and Integration Confirmation
 
-- **Prerequisites:** Accepted runtime-home/local-MCP evidence; accepted lifecycle remove/restore evidence; exact MCP deployment restored; runtime-local MCP entry disabled; remote mode inactive.
-- **Goal:** Prove that installed Codex `0.144.1` can route all model requests to a custom Responses API base URL and characterize the exact synthetic request shape without contacting OpenAI.
-- **Actions:** Use a temporary loopback fake provider, a synthetic prompt, dummy local authentication, retry counts of zero, and no MCP production data. Do not alter the accepted MCP lifecycle contract or runtime-home role.
-- **Confirm:** `base_url`, `wire_api=responses`, `requires_openai_auth` behavior, request path, method, headers, JSON shape, SSE expectations, cancellation, retry behavior, WebSocket behavior, and direct-egress controls.
-- **Files changed:** none in the repository; temporary fixtures only.
-- **Stop condition:** Either the full request reaches the fake provider through one deterministic route, or remote mode remains disabled and this architecture is blocked.
+- **Goal:** Confirm exact official-source header emission, conservative header bounds, current proxy/DNS behavior, test seams, and all policy/evidence call sites without inspecting real values.
+- **Files to read:** gateway source/policy/tests, service template, egress roles, evidence runbook, runtime override contract, and reviewed official-source references if a fresh temporary checkout is explicitly approved.
+- **Commands:** targeted symbol searches and local synthetic inspection only; no provider request.
+- **Evidence to confirm:** Bearer-only current runtime, exactly-one account header expectation, no FedRAMP requirement, no environment-proxy use, and all schema 1 route dependencies.
+- **Stop condition:** Stop with no edits if agent assertion, FedRAMP, unbounded headers, proxy influence, or credential inspection would be required.
 
-#### Chunk 1: Redaction Contract and Pure Unit Tests
+#### Chunk 1: Transient Header Validation Contract
 
-- **Goal:** Implement the standalone fail-closed redaction engine with no listener and no network code.
-- **Files:** `redaction.py` and `test_provider_redaction.py` only.
-- **Implementation:** New-object transformation, normalized protected keys, exact-value propagation, canonical text parsing, duplicate-key protection support, ambiguity rejection, no logging.
-- **Validation:** Focused compile and unit tests.
-- **Stop condition:** No prohibited synthetic marker survives; unsupported or ambiguous content is rejected.
+- **Goal:** Add and test a fail-closed helper for exactly one Bearer value, exactly one account ID, duplicate protected headers, and default FedRAMP rejection without changing forwarding.
+- **Files to change:** `aiops_provider_gateway.py`, `test_provider_gateway.py`.
+- **Symbols to add/change:** conceptual `validate_chatgpt_auth_headers` and a transient immutable value type.
+- **Implementation shape:** The helper returns validated opaque values; all failures return bounded errors. No call site changes and no endpoint change.
+- **Validation:** Python compile plus focused helper and no-retention tests.
+- **Stop condition:** The new helper is unused by production forwarding and every invalid shape fails without exposing values.
 
-#### Chunk 2: Fail-Closed Gateway Stub
+#### Chunk 2: Fixed ChatGPT Upstream Policy
 
-- **Goal:** Add a loopback-only provider endpoint that validates local route, method, content type, request bounds, and JSON but never forwards upstream.
-- **Files:** gateway entrypoint, gateway tests, and minimal policy fixture.
-- **Implementation:** Exact route only, bounded body, no access logging, explicit unavailable response after validation, fixed identity.
-- **Validation:** Bind-scope, route, size, encoding, malformed JSON, cancellation, and no-forward tests.
-- **Stop condition:** The service accepts only the reviewed local request shape and cannot perform remote I/O.
+- **Goal:** Atomically replace the fixed API endpoint contract with the fixed ChatGPT endpoint while keeping production forwarding disabled until Chunk 3 wiring.
+- **Files to change:** gateway source, `gateway_policy.json`, and focused gateway tests. Three files are justified because code, deployed policy, and executable contract must remain consistent in one compile-safe slice.
+- **Symbols to add/change:** fixed host/port/route constants and policy assertions.
+- **Implementation shape:** Update constants and request-builder tests; retain the old handler auth call until the next chunk only if a deliberate local fail-closed gate prevents service forwarding. Otherwise combine this chunk with Chunk 3 rather than leave a deployable mismatch.
+- **Validation:** Compile, JSON syntax, focused policy/build tests, and no-network gateway tests.
+- **Stop condition:** No code path can send a request to either endpoint with an incomplete header contract.
 
-#### Chunk 3: Redaction-to-Fake-Upstream Slice
+#### Chunk 3: Header-to-Upstream Wiring
 
-- **Goal:** Connect the validated gateway request to the redactor and a fixed fake upstream transport.
-- **Implementation:** Parse, validate, redact, scan, rebuild, send to test sink. Do not use OpenAI or real credentials.
-- **Validation:** Full marker matrix, header stripping, fixed route, fixed upstream, zero retries, no raw logging, streaming response behavior.
-- **Stop condition:** The fake upstream receives only sanitized payloads for all accepted cases.
+- **Goal:** Wire validated transient authentication-routing headers into the rebuilt ChatGPT request.
+- **Files to change:** gateway source and focused tests.
+- **Symbols to add/change:** `build_upstream_request`, `GatewayRequestHandler.do_POST`, and upstream request tests.
+- **Implementation shape:** Extract all protected header values, validate once, construct only the four allowlisted outbound fields, then clear references after request completion.
+- **Validation:** Full header matrix, zero-submit assertions, fake HTTPS connection assertions, compile, and focused tests.
+- **Stop condition:** Synthetic fake transport receives exactly one sanitized request with no unlisted header; no deployment.
 
-#### Chunk 4: Codex-to-Gateway Local Integration
+#### Chunk 4: Evidence Schema 2 and Mixed-Ledger Compatibility
 
-- **Goal:** Configure a temporary synthetic Codex custom provider and prove an actual Codex session flows through the gateway to the fake upstream.
-- **Implementation:** Runtime-local temporary profile only; no committed credential or permanent provider selection.
-- **Validation:** Current prompt, history, MCP synthetic result, compaction/resume where supported, cancellation, one request per turn, and no direct public egress.
-- **Stop condition:** Every observed Codex provider request uses the gateway and passes redaction or fails closed.
+- **Goal:** Make the ChatGPT route unambiguous while preserving historical schema 1 records.
+- **Files to change:** gateway source and focused tests.
+- **Symbols to add/change:** evidence schema/route validation and mixed-record parser test seam.
+- **Implementation shape:** New events use schema 2 plus ChatGPT route; known schema 1 remains historical/readable; unknown pairs reject. No header/account fields are added.
+- **Validation:** Serialization, mixed-ledger, invalid-pair, retention, and no-sensitive-marker tests.
+- **Stop condition:** Existing records need no rewrite and every new event is unambiguously ChatGPT schema 2.
 
-#### Chunk 5: Identity, Service, and Egress Controls
+#### Chunk 5: Runtime Evidence Contract and Runbook Migration
 
-- **Goal:** Deploy the gateway under `aiops-provider`, bind only to loopback, and enforce that `assistant` cannot bypass it.
-- **Files:** Ansible defaults/tasks/templates and gateway policy.
-- **Implementation:** Separate service identity, minimal modes, fixed upstream, UID-aware network policy, required OpenStack management exceptions for `assistant`, no provider credential in automation.
-- **Validation:** Ansible syntax, first/second-run idempotency, process ownership, listener scope, direct-egress denial, OpenStack access preservation, rollback.
-- **Stop condition:** Bypass is technically blocked and local MCP remains unchanged.
+- **Goal:** Update operator retrieval, rollback, and status documentation for schema 2 and resolved redaction.
+- **Files to change:** `provider-gateway-metadata-evidence.md` and `codex-custom-provider-profile-contract.md`.
+- **Symbols to add/change:** documented schema/route pair validation and current acceptance gap.
+- **Implementation shape:** Documentation/parser example only; never copy raw ledger data.
+- **Validation:** Markdown diff review, command-prefix review, and `rtk git diff --check`.
+- **Stop condition:** Operators can distinguish schema versions without viewing raw lines or account/header data.
 
-#### Chunk 6: Manual Authentication Compatibility
+#### Chunk 6: Deployment and Egress Validation
 
-- **Goal:** Confirm manual OpenAI authentication can be reused through the reviewed custom provider without exposing credentials.
-- **Actions:** Operator-owned login only; inspect only non-sensitive status. Never print, copy, or capture tokens.
-- **Validation:** Authentication success/failure behavior, gateway header suppression, no credential in logs/process arguments/evidence, exact model acceptance.
-- **Stop condition:** Authentication reaches the fixed upstream only through the gateway, or remote mode remains disabled.
+- **Goal:** Deploy the reviewed gateway under `aiops-provider` and prove DNS/TLS/egress boundaries without provider traffic.
+- **Files to change:** only confirmed Ansible task/template/validation files; no `assistant` public-egress exception.
+- **Symbols to add/change:** proxy-environment clearing/assertion and any separately justified `aiops-provider` resolver/TCP-443 enforcement checks.
+- **Implementation shape:** Syntax first, local fake TLS or injected transport, service restart, listener/identity/ledger checks, direct-`assistant` denial recheck, rollback proof.
+- **Validation:** Ansible syntax, first/second-run idempotency, service sandbox, loopback listener, IPv4-only DNS behavior, and egress materialization.
+- **Stop condition:** Production gateway is locally ready but remote mode remains disabled and no provider request has occurred.
 
-#### Chunk 7: Remote Synthetic Acceptance and Evidence
+#### Chunk 7: Codex Local Fake-Upstream Acceptance
 
-- **Goal:** Send one minimal synthetic request through the complete boundary and create sanitized evidence.
-- **Validation:** Redaction counts, provider/model status, TLS verification, no listener beyond loopback gateway, no direct Codex egress, unchanged MCP stdio and runner behavior.
-- **Files:** validation playbook, operator runbook, dated metadata-only evidence, and phase checklist updates only after success.
-- **Stop condition:** Remote use is accepted with sanitized proof, or the custom provider and gateway are disabled with the blocker recorded.
+- **Goal:** Prove the actual authenticated runtime sends the required headers to loopback and the gateway rebuilds exactly one ChatGPT-path request to a local fake upstream.
+- **Files to change:** none; temporary runtime artifacts only.
+- **Implementation shape:** Ephemeral runtime overrides, assistant-owned temporary Git workspace, non-production gateway port, fake upstream, `evidence_writer=None`, retries disabled, unconditional cleanup.
+- **Validation:** Exactly reviewed model-discovery calls and one Responses POST; required header presence/count only, never values; expected rebuilt path; no public connection; no retained bodies/configuration.
+- **Stop condition:** Pass all local gates and write a sanitized handoff, or disable the path and report the blocker. Do not proceed to a real request.
 
 ### IX. Handoff to `chunked-implementation`
 
-Use this prompt for the next agent:
+Recommended agent prompt:
 
 ```text
 Use the chunked-implementation skill.
 Use pre-read-discipline, safe-python-edit, and post-edit-discipline if available.
 
 Task:
-Execute Revised Chunk 0 of the Phase 07 OpenAI Remote Provider via Reviewed Redaction Gateway ADS.
+Execute Chunk 0 only of the Phase 07 ChatGPT Device-Authentication Provider Boundary ADS.
 
 Mode:
-Execute Chunk 0 only. Treat the accepted runtime-home/local-MCP evidence and accepted MCP lifecycle remove/restore evidence as prerequisites. Confirm the exact MCP deployment is restored and the runtime-local MCP entry is disabled. Do not edit repository files, alter lifecycle tasks, contact OpenAI, log in, use a real provider credential, or enable permanent remote mode.
-
-Create a temporary loopback fake Responses API provider and a temporary Codex custom-provider profile using synthetic data only. Confirm whether installed Codex 0.144.1 routes the complete request to the configured base_url, and record the exact method, route, bounded JSON shape, SSE expectations, retry behavior, WebSocket behavior, cancellation behavior, and whether direct public egress can be blocked while the custom provider remains usable.
-
-Do not proceed to the redactor. If the complete request cannot be captured at the explicit custom-provider boundary, report the blocker and stop.
+Do not edit files, inspect authentication/account values, alter egress, deploy, or contact a provider. Confirm official-source header shape, conservative bounds, proxy/DNS behavior, exact code/test/evidence integration points, and whether the active account requires FedRAMP or agent assertion using value-free evidence only. Stop on uncertainty.
 ```
 
-After Revised Chunk 0 is accepted:
+After Chunk 0 is accepted:
 
 ```text
-Resume from the accepted Revised Chunk 0 handoff.
-Execute Revised Chunk 1 only: the pure redaction module and focused synthetic tests.
-Do not add a listener, gateway forwarding, Codex configuration, authentication, or network traffic.
-Run targeted validation, review the scoped diff, assess residual risk, write the next handoff, and stop.
+Use the chunked-implementation skill.
+Execute Chunk 1 only.
+Do not continue to Chunk 2. Add only the transient header validation contract and focused synthetic tests. Do not change the endpoint, wire forwarding, deploy, or make network requests. Run targeted validation and show the scoped diff.
 ```
 
 ### X. Conclusion and Next Steps
 
-The previous ADS correctly blocked implementation because Codex does not provide a verified client-native hook for rewriting the complete final provider-bound payload. This revised architecture starts only after the Codex runtime-home and MCP lifecycle ADSs are accepted, then removes the unsupported hook dependency while retaining Codex as the local client.
+The previous gateway successfully proved routing, redaction, rebuilt-request forwarding, verified TLS, and metadata-only classification, but its API-key-oriented endpoint cannot consume the authenticated Codex ChatGPT/device-auth contract. The approved design direction is now one fixed ChatGPT Codex backend with exactly one transient Bearer authorization field and one transient account-routing field. FedRAMP and agent assertion fail closed, and the API-key endpoint is not a fallback.
 
-The mandatory security boundary becomes an explicit loopback Responses API gateway configured as a custom Codex provider. This gateway receives the final assembled request, validates and redacts the entire supported payload, rebuilds a new outbound request, and forwards only to a fixed OpenAI HTTPS endpoint. Codex hooks remain useful for early blocking but are not trusted as the redaction mechanism.
-
-The next action is Revised Chunk 0 only: prove the custom-provider request seam and payload shape locally with synthetic data and a fake provider. No redactor, gateway deployment, provider login, or remote request should be implemented until that seam is confirmed.
+The next implementation action is Chunk 0 only. No gateway code, egress policy, authentication state, deployment, or provider traffic may change until that discovery confirms the value-free contract and produces a handoff.

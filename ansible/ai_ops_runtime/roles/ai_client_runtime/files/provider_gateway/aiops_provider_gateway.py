@@ -475,6 +475,97 @@ UPSTREAM_PROTOCOL_HEADERS = {
     "Content-Type": "application/json",
 }
 
+CHATGPT_AUTHORIZATION_MAX_BYTES = 16384
+CHATGPT_ACCOUNT_ID_MAX_BYTES = 256
+CHATGPT_PROTECTED_SINGLETON_HEADERS = (
+    "Authorization",
+    "ChatGPT-Account-ID",
+    "X-OpenAI-Fedramp",
+    "Content-Type",
+    "Content-Length",
+    "Content-Encoding",
+    "Transfer-Encoding",
+    "Host",
+)
+
+
+@dataclass(frozen=True, repr=False)
+class ChatGPTAuthHeaders:
+    """Transient validated ChatGPT authentication-routing values."""
+
+    authorization: str
+    account_id: str
+
+
+def _header_values(headers: Any, name: str) -> list[str]:
+    """Return all values for one header or fail without exposing a value."""
+    try:
+        values = headers.get_all(name, [])
+    except (AttributeError, TypeError):
+        raise ProviderRequestError(
+            "provider authentication headers are unavailable"
+        ) from None
+    if not isinstance(values, list) or not all(
+        isinstance(value, str) for value in values
+    ):
+        raise ProviderRequestError("provider authentication headers are unavailable")
+    return values
+
+
+def _validate_transient_header_value(
+    values: list[str], *, max_bytes: int, prefix: str | None = None
+) -> str:
+    """Validate one bounded opaque value without including it in an error."""
+    if len(values) != 1:
+        raise ProviderRequestError("provider authentication headers are unavailable")
+    value = values[0]
+    try:
+        encoded = value.encode("latin-1")
+    except UnicodeEncodeError:
+        raise ProviderRequestError(
+            "provider authentication headers are unavailable"
+        ) from None
+    if (
+        not value
+        or value != value.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or len(encoded) > max_bytes
+    ):
+        raise ProviderRequestError("provider authentication headers are unavailable")
+    if prefix is not None:
+        if not value.startswith(prefix):
+            raise ProviderRequestError(
+                "provider authentication headers are unavailable"
+            )
+        opaque_value = value[len(prefix) :]
+        if not opaque_value or opaque_value != opaque_value.strip():
+            raise ProviderRequestError(
+                "provider authentication headers are unavailable"
+            )
+    return value
+
+
+def validate_chatgpt_auth_headers(headers: Any) -> ChatGPTAuthHeaders:
+    """Validate the fail-closed ChatGPT header contract without forwarding it."""
+    values_by_name = {
+        name: _header_values(headers, name)
+        for name in CHATGPT_PROTECTED_SINGLETON_HEADERS
+    }
+    if any(len(values) > 1 for values in values_by_name.values()):
+        raise ProviderRequestError("provider authentication headers are unavailable")
+    if values_by_name["X-OpenAI-Fedramp"]:
+        raise ProviderRequestError("provider authentication headers are unavailable")
+    authorization = _validate_transient_header_value(
+        values_by_name["Authorization"],
+        max_bytes=CHATGPT_AUTHORIZATION_MAX_BYTES,
+        prefix="Bearer ",
+    )
+    account_id = _validate_transient_header_value(
+        values_by_name["ChatGPT-Account-ID"],
+        max_bytes=CHATGPT_ACCOUNT_ID_MAX_BYTES,
+    )
+    return ChatGPTAuthHeaders(authorization=authorization, account_id=account_id)
+
 
 def extract_bearer_authorization(values: list[str]) -> str:
     """Return one non-empty bearer value without retaining or logging it."""

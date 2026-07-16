@@ -4,8 +4,13 @@
 
 **Locally route-validated runtime-override contract — not accepted for remote use.**
 The official Codex 0.144.1 runtime-override form reached the no-forward loopback
-gateway. Profile-file selection remains unaccepted. Remote provider mode remains
-disabled until redaction classification is resolved.
+gateway, and the nested-input redaction ambiguity has been resolved and deployed.
+A bounded provider attempt subsequently reached verified TLS through the production
+gateway and returned metadata-only category `authentication`. Official Codex source
+confirms the remaining blocker is the gateway's API-key-oriented upstream contract:
+the authenticated ChatGPT/device-auth runtime requires the ChatGPT Codex backend
+plus transient account routing. Remote provider mode remains disabled pending the
+revised provider-boundary ADS chunks and a separately approved provider request.
 
 ## Scope and boundaries
 
@@ -57,13 +62,18 @@ Before a synthetic invocation:
 ## Known acceptance gap
 
 The runtime override shape is grounded in the Phase 07 provider-boundary ADS, the
-official `rust-v0.144.1` source proxy example, and one metadata-only loopback run.
-That run reached the reviewed model-discovery and Responses routes, then failed
-closed as `ERR_OPENAI_REDACTION_UNCLASSIFIED` with category `ambiguous_label`,
-reason `plain_text_label`, and label category `secret`.
+official `rust-v0.144.1` source proxy example, and metadata-only loopback runs. The
+redaction ambiguity is resolved: local no-forward acceptance reached the reviewed
+model-discovery routes and exactly one `POST /v1/responses`, and the deployed gateway
+later reached verified upstream TLS with redacted metadata.
 
-The next bounded fix is redactor classification; do not change the runtime-override
-shape, inspect active Codex configuration, or retry a real provider request.
+Remote acceptance remains blocked because the current gateway sends the device-auth
+credential to `api.openai.com/v1/responses` and does not forward the required
+`ChatGPT-Account-ID`. The revised ADS selects a fixed
+`chatgpt.com/backend-api/codex/responses` upstream with a tightly allowlisted,
+transient account-routing header. Do not change this runtime-override shape, inspect
+authentication or account values, implement the upstream change outside the ADS
+chunk ladder, or retry a real provider request without fresh explicit approval.
 
 ## References
 

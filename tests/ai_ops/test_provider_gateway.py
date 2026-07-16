@@ -44,6 +44,17 @@ class RecordingFakeUpstream:
         )
 
 
+class SyntheticHeaders:
+    def __init__(self, values):
+        self.values = {
+            name.casefold(): list(header_values)
+            for name, header_values in values.items()
+        }
+
+    def get_all(self, name, default=None):
+        return self.values.get(name.casefold(), default)
+
+
 class TestProviderGatewayStub(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -116,6 +127,110 @@ class TestProviderGatewayStub(unittest.TestCase):
             with self.subTest(overrides=overrides):
                 with self.assertRaises(self.gateway.GatewayPolicyError):
                     self.policy(**overrides)
+
+    def chatgpt_headers(self, **overrides):
+        values = {
+            "Authorization": ["Bearer SYNTHETIC_AUTHORIZATION"],
+            "ChatGPT-Account-ID": ["SYNTHETIC_ACCOUNT_ID"],
+            "Content-Type": ["application/json"],
+            "Content-Length": ["64"],
+            "Host": ["127.0.0.1:8765"],
+        }
+        values.update(overrides)
+        return SyntheticHeaders(values)
+
+    def test_validates_transient_chatgpt_auth_headers_without_repr_values(self):
+        validated = self.gateway.validate_chatgpt_auth_headers(self.chatgpt_headers())
+
+        self.assertEqual(validated.authorization, "Bearer SYNTHETIC_AUTHORIZATION")
+        self.assertEqual(validated.account_id, "SYNTHETIC_ACCOUNT_ID")
+        self.assertNotIn("SYNTHETIC_AUTHORIZATION", repr(validated))
+        self.assertNotIn("SYNTHETIC_ACCOUNT_ID", repr(validated))
+
+    def test_rejects_invalid_chatgpt_auth_headers_without_value_disclosure(self):
+        invalid_cases = (
+            ("missing authorization", {"Authorization": []}),
+            (
+                "duplicate authorization",
+                {"Authorization": ["Bearer SYNTHETIC_ONE", "Bearer SYNTHETIC_TWO"]},
+            ),
+            ("non bearer authorization", {"Authorization": ["Basic SYNTHETIC"]}),
+            ("empty bearer authorization", {"Authorization": ["Bearer "]}),
+            (
+                "authorization leading whitespace",
+                {"Authorization": [" Bearer SYNTHETIC_AUTHORIZATION"]},
+            ),
+            (
+                "authorization trailing whitespace",
+                {"Authorization": ["Bearer SYNTHETIC_AUTHORIZATION "]},
+            ),
+            (
+                "authorization control character",
+                {"Authorization": ["Bearer SYNTHETIC_AUTHORIZATION\x7f"]},
+            ),
+            (
+                "authorization over bound",
+                {
+                    "Authorization": [
+                        "Bearer " + "A" * self.gateway.CHATGPT_AUTHORIZATION_MAX_BYTES
+                    ]
+                },
+            ),
+            ("missing account", {"ChatGPT-Account-ID": []}),
+            (
+                "duplicate account",
+                {"ChatGPT-Account-ID": ["SYNTHETIC_ONE", "SYNTHETIC_TWO"]},
+            ),
+            ("empty account", {"ChatGPT-Account-ID": [""]}),
+            (
+                "account leading whitespace",
+                {"ChatGPT-Account-ID": [" SYNTHETIC_ACCOUNT_ID"]},
+            ),
+            (
+                "account trailing whitespace",
+                {"ChatGPT-Account-ID": ["SYNTHETIC_ACCOUNT_ID "]},
+            ),
+            (
+                "account control character",
+                {"ChatGPT-Account-ID": ["SYNTHETIC_ACCOUNT_ID\x00"]},
+            ),
+            (
+                "account over bound",
+                {
+                    "ChatGPT-Account-ID": [
+                        "A" * (self.gateway.CHATGPT_ACCOUNT_ID_MAX_BYTES + 1)
+                    ]
+                },
+            ),
+            ("fedramp present", {"X-OpenAI-Fedramp": ["synthetic"]}),
+        )
+
+        for label, overrides in invalid_cases:
+            with self.subTest(label=label):
+                with self.assertRaises(self.gateway.ProviderRequestError) as raised:
+                    self.gateway.validate_chatgpt_auth_headers(
+                        self.chatgpt_headers(**overrides)
+                    )
+                self.assertEqual(
+                    str(raised.exception),
+                    "provider authentication headers are unavailable",
+                )
+                self.assertNotIn("SYNTHETIC_AUTHORIZATION", str(raised.exception))
+                self.assertNotIn("SYNTHETIC_ACCOUNT_ID", str(raised.exception))
+
+    def test_rejects_duplicate_protected_singleton_headers(self):
+        for name in (
+            "Content-Type",
+            "Content-Length",
+            "Content-Encoding",
+            "Transfer-Encoding",
+            "Host",
+        ):
+            with self.subTest(name=name):
+                with self.assertRaises(self.gateway.ProviderRequestError):
+                    self.gateway.validate_chatgpt_auth_headers(
+                        self.chatgpt_headers(**{name: ["synthetic-one", "synthetic-two"]})
+                    )
 
     def test_rebuilds_fixed_upstream_request_with_allowlisted_headers(self):
         result = self.gateway.redact_remote_payload(
