@@ -209,9 +209,27 @@ GATEWAY_EVIDENCE_COUNT_CATEGORIES = frozenset(
 GATEWAY_EVIDENCE_OUTCOMES = frozenset(
     {
         "forward_started",
+        "upstream_connection_failed",
+        "upstream_request_transport_failed",
+        "upstream_response_transport_failed",
+        "upstream_response_invalid",
+        "upstream_response_status_invalid",
+        "upstream_response_content_type_invalid",
+        "upstream_response_stream_invalid",
         "upstream_non_success",
         "upstream_succeeded",
         "upstream_transport_failed",
+    }
+)
+GATEWAY_EVIDENCE_STAGED_FAILURE_OUTCOMES = frozenset(
+    {
+        "upstream_connection_failed",
+        "upstream_request_transport_failed",
+        "upstream_response_transport_failed",
+        "upstream_response_invalid",
+        "upstream_response_status_invalid",
+        "upstream_response_content_type_invalid",
+        "upstream_response_stream_invalid",
     }
 )
 GATEWAY_EVIDENCE_STATUS_CLASSES = frozenset({"1xx", "2xx", "3xx", "4xx", "5xx"})
@@ -290,6 +308,9 @@ def serialize_gateway_evidence_event(event: GatewayEvidenceEvent) -> bytes:
             raise GatewayEvidenceError("gateway evidence start state is invalid")
     elif event.outcome == "upstream_transport_failed":
         if event.upstream_status_class is not None or event.tls_verified is not False:
+            raise GatewayEvidenceError("gateway evidence transport state is invalid")
+    elif event.outcome in GATEWAY_EVIDENCE_STAGED_FAILURE_OUTCOMES:
+        if event.upstream_status_class is not None or event.tls_verified is not None:
             raise GatewayEvidenceError("gateway evidence transport state is invalid")
     elif (
         event.upstream_status_class not in GATEWAY_EVIDENCE_STATUS_CLASSES
@@ -669,7 +690,13 @@ def build_upstream_request(
 
 
 class UpstreamTransportError(RuntimeError):
-    """Raised without transport details when fixed HTTPS forwarding fails."""
+    """Raised with a bounded failure stage and no transport details."""
+
+    def __init__(self, outcome: str):
+        if outcome not in GATEWAY_EVIDENCE_STAGED_FAILURE_OUTCOMES:
+            raise ValueError("upstream transport outcome is invalid")
+        self.outcome = outcome
+        super().__init__("provider transport failed")
 
 
 def forward_upstream_request(
@@ -681,31 +708,38 @@ def forward_upstream_request(
         connection = connection_factory(
             request.host, port=request.port, timeout=request.timeout_seconds
         )
-        connection.request("POST", request.path, body=request.body, headers=request.headers)
-        response = connection.getresponse()
-        status = response.status
-        if isinstance(status, bool) or not isinstance(status, int) or not 100 <= status < 600:
-            raise UpstreamTransportError("provider response is invalid")
-        if not 200 <= status < 300:
-            return FakeUpstreamResponse(status=status, body_chunks=())
-        content_type = response.getheader("Content-Type", "")
-        if content_type.split(";", 1)[0].strip().casefold() != "text/event-stream":
-            raise UpstreamTransportError("provider response is invalid")
-        chunks: list[bytes] = []
-        remaining = request.max_response_bytes
-        while True:
-            chunk = response.read(min(65536, remaining + 1))
-            if not chunk:
-                break
-            if not isinstance(chunk, bytes) or len(chunk) > remaining:
-                raise UpstreamTransportError("provider response is invalid")
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        return FakeUpstreamResponse(status=status, body_chunks=tuple(chunks))
-    except (OSError, http.client.HTTPException, UpstreamTransportError) as exc:
-        if isinstance(exc, UpstreamTransportError):
+    except (OSError, http.client.HTTPException):
+        raise UpstreamTransportError("upstream_connection_failed") from None
+    try:
+        try:
+            connection.request("POST", request.path, body=request.body, headers=request.headers)
+        except (OSError, http.client.HTTPException):
+            raise UpstreamTransportError("upstream_request_transport_failed") from None
+        try:
+            response = connection.getresponse()
+            status = response.status
+            if isinstance(status, bool) or not isinstance(status, int) or not 100 <= status < 600:
+                raise UpstreamTransportError("upstream_response_status_invalid")
+            if not 200 <= status < 300:
+                return FakeUpstreamResponse(status=status, body_chunks=())
+            content_type = response.getheader("Content-Type", "")
+            if content_type.split(";", 1)[0].strip().casefold() != "text/event-stream":
+                raise UpstreamTransportError("upstream_response_content_type_invalid")
+            chunks: list[bytes] = []
+            remaining = request.max_response_bytes
+            while True:
+                chunk = response.read(min(65536, remaining + 1))
+                if not chunk:
+                    break
+                if not isinstance(chunk, bytes) or len(chunk) > remaining:
+                    raise UpstreamTransportError("upstream_response_stream_invalid")
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            return FakeUpstreamResponse(status=status, body_chunks=tuple(chunks))
+        except UpstreamTransportError:
             raise
-        raise UpstreamTransportError("provider transport failed") from None
+        except (OSError, http.client.HTTPException):
+            raise UpstreamTransportError("upstream_response_transport_failed") from None
     finally:
         if connection is not None:
             connection.close()
@@ -789,12 +823,12 @@ class GatewayRequestHandler(BaseHTTPRequestHandler):
                     response = forward_upstream_request(
                         request, self.server.upstream_connection_factory
                     )
-                except UpstreamTransportError:
+                except UpstreamTransportError as exc:
                     if not self._append_gateway_evidence(
                         result,
-                        outcome="upstream_transport_failed",
+                        outcome=exc.outcome,
                         upstream_status_class=None,
-                        tls_verified=False,
+                        tls_verified=None,
                     ):
                         return
                     self._send_error_json(502, "ERR_OPENAI_RESPONSE")

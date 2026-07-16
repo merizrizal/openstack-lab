@@ -476,6 +476,94 @@ class TestProviderGatewayStub(unittest.TestCase):
         self.assertEqual(response.body_chunks, (b"data: synthetic\n\n",))
         self.assertTrue(connection.closed)
 
+    def test_classifies_upstream_failure_stages_without_transport_details(self):
+        result = self.gateway.redact_remote_payload({"input": "SYNTHETIC_SAFE_MARKER"})
+        request = self.gateway.build_upstream_request(
+            result,
+            self.policy(),
+            self.gateway.validate_chatgpt_auth_headers(self.chatgpt_headers()),
+        )
+
+        class RequestFailureConnection:
+            def request(self, *args, **kwargs):
+                raise OSError("synthetic request failure")
+
+            def close(self):
+                pass
+
+        class ResponseFailureConnection:
+            def request(self, *args, **kwargs):
+                pass
+
+            def getresponse(self):
+                raise http.client.HTTPException("synthetic response failure")
+
+            def close(self):
+                pass
+
+        class InvalidResponse:
+            status = True
+
+        class InvalidResponseConnection:
+            def request(self, *args, **kwargs):
+                pass
+
+            def getresponse(self):
+                return InvalidResponse()
+
+            def close(self):
+                pass
+
+        cases = (
+            (
+                "upstream_connection_failed",
+                lambda *args, **kwargs: (_ for _ in ()).throw(OSError("synthetic creation failure")),
+            ),
+            ("upstream_request_transport_failed", lambda *args, **kwargs: RequestFailureConnection()),
+            ("upstream_response_transport_failed", lambda *args, **kwargs: ResponseFailureConnection()),
+            ("upstream_response_status_invalid", lambda *args, **kwargs: InvalidResponseConnection()),
+        )
+        for outcome, connection_factory in cases:
+            with self.subTest(outcome=outcome):
+                with self.assertRaises(self.gateway.UpstreamTransportError) as raised:
+                    self.gateway.forward_upstream_request(request, connection_factory)
+                self.assertEqual(raised.exception.outcome, outcome)
+
+    def test_writes_staged_transport_failure_metadata_without_details(self):
+        class FailingConnection:
+            def request(self, *args, **kwargs):
+                raise OSError("synthetic request failure")
+
+            def close(self):
+                pass
+
+        class RecordingWriter:
+            def __init__(self):
+                self.records = []
+
+            def append(self, record):
+                self.records.append(record)
+
+        writer = RecordingWriter()
+        _, port = self.start_gateway(
+            upstream_connection_factory=lambda *args, **kwargs: FailingConnection(),
+            evidence_writer=writer,
+        )
+        status, _, body = self.request(
+            port,
+            headers={
+                "Authorization": "Bearer SYNTHETIC_AUTHORIZATION",
+                "ChatGPT-Account-ID": "SYNTHETIC_ACCOUNT_ID",
+            },
+        )
+
+        self.assertEqual(status, 502)
+        self.assertEqual(body, b'{"error":"ERR_OPENAI_RESPONSE"}')
+        events = [self.gateway.parse_gateway_evidence_record(record) for record in writer.records]
+        self.assertEqual(events[-1].outcome, "upstream_request_transport_failed")
+        self.assertIsNone(events[-1].upstream_status_class)
+        self.assertIsNone(events[-1].tls_verified)
+
     def test_classifies_provider_4xx_without_response_content(self):
         cases = {
             400: "bad_request",
@@ -621,6 +709,11 @@ class TestProviderGatewayStub(unittest.TestCase):
                 event = self.gateway.GatewayEvidenceEvent(**(base | override))
                 with self.assertRaises(self.gateway.GatewayEvidenceError):
                     self.gateway.serialize_gateway_evidence_event(event)
+
+        legacy_transport_event = self.gateway.GatewayEvidenceEvent(
+            **(base | {"outcome": "upstream_transport_failed", "tls_verified": False})
+        )
+        self.gateway.serialize_gateway_evidence_event(legacy_transport_event)
 
     def test_appends_valid_metadata_event_to_local_ledger(self):
         event = self.gateway.GatewayEvidenceEvent(

@@ -19,6 +19,28 @@ The ledger must contain only these parsed fields:
 - `classification_status` and `redaction_counts`
 - `outcome`, `upstream_status_class`, and `tls_verified`
 
+## Outcome Contract
+
+Schema 2 records use only bounded outcome values. In addition to lifecycle and
+HTTP-status outcomes, a new record may classify a failure as one of:
+
+- `upstream_connection_failed`: fixed HTTPS connection creation failed.
+- `upstream_request_transport_failed`: fixed request transport failed before a
+  response was obtained.
+- `upstream_response_transport_failed`: response transport failed after the
+  request was submitted.
+- `upstream_response_status_invalid`: response status validation failed.
+- `upstream_response_content_type_invalid`: response content type validation
+  failed.
+- `upstream_response_stream_invalid`: bounded response stream validation failed.
+
+Historical `upstream_response_invalid` records remain valid and parseable.
+
+These values contain no exception text or transport detail. For these staged
+failure outcomes, `upstream_status_class` and `tls_verified` are both `null`;
+the gateway must not imply an HTTP status or TLS conclusion it did not record.
+Historical `upstream_transport_failed` records remain valid and parseable.
+
 ## Schema and Route Contract
 
 The parser accepts only these schema/route pairs:
