@@ -12,3 +12,6 @@ log
 # Compiled files
 *.class
 *.py[cod]
+*.egg-info
+
+.*cache
