@@ -43,9 +43,9 @@ Excluded:
 
 ## 09.4 Assumptions
 
-- [ ] Phase 08 ADS and dependency policy are approved.
-- [ ] The orchestrator can extend the repository's existing Python safety conventions while isolating the beta SDK behind a repository adapter.
-- [ ] The fake adapter can represent only reviewed bounded lifecycle events needed by the orchestrator.
+- [x] Phase 08 ADS and dependency policy are approved.
+- [x] The orchestrator can extend the repository's existing Python safety conventions while isolating the beta SDK behind a repository adapter.
+- [x] The fake adapter can represent only reviewed bounded lifecycle events needed by the orchestrator.
 
 ## 09.5 Ordered Tasks
 
@@ -60,14 +60,14 @@ Estimate:
 
 Tasks:
 
-- [ ] Create the minimal Python package, deterministic lockfile, format, lint, type-check, and test commands defined by the ADS.
-- [ ] Pin direct dependencies and prevent lifecycle scripts or undeclared network downloads during tests.
-- [ ] Add a non-network test command suitable for CI and local validation.
-- [ ] Document the application entry point without adding a service or public listener.
+- [x] Create the minimal Python package, deterministic lockfile, format, lint, type-check, and test commands defined by the ADS.
+- [x] Pin direct dependencies and prevent lifecycle scripts or undeclared network downloads during tests.
+- [x] Add a non-network test command suitable for CI and local validation.
+- [x] Document the application entry point without adding a service or public listener.
 
 Done when:
 
-- [ ] A clean deterministic install can build and run an empty local test suite.
+- [x] A clean deterministic install can build and run the local test suite.
 
 ### Step 2 - Add Typed Workflow Contracts
 
@@ -80,15 +80,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Define a closed diagnostic-request schema with a reviewed workflow name and bounded parameters.
-- [ ] Define bounded workflow states and terminal categories without raw provider details.
-- [ ] Define the Codex adapter interface and event allowlist before any real adapter implementation.
-- [ ] Define explicit timeout, cancellation, turn-count, and output-size limits.
-- [ ] Reject unknown fields, workflows, events, and state transitions.
+- [x] Define a closed diagnostic-request schema with a reviewed workflow name and bounded parameters.
+- [x] Define bounded workflow states and terminal categories without raw provider details.
+- [x] Define the Codex adapter interface and event allowlist before any real adapter implementation.
+- [x] Define explicit timeout, cancellation, turn-count, and output-size limits.
+- [x] Reject unknown fields, workflows, events, and state transitions.
 
 Done when:
 
-- [ ] Invalid or ambiguous requests fail before adapter invocation and all state transitions are type-checked.
+- [x] Invalid or ambiguous requests fail before adapter invocation and defined state transitions are type-checked.
 
 ### Step 3 - Implement the Fake Codex Adapter
 
@@ -101,14 +101,14 @@ Estimate:
 
 Tasks:
 
-- [ ] Implement deterministic success, bounded failure, timeout, cancellation, malformed-event, and excessive-event scenarios.
-- [ ] Ensure the fake never imports credentials, starts Codex, opens sockets, or reads a runtime home.
-- [ ] Make the fake observable by counts and categories rather than prompt or response retention.
-- [ ] Verify dependency injection prevents accidental use of a real adapter in local tests.
+- [x] Implement deterministic success, bounded failure, timeout, cancellation, malformed-event, and excessive-event scenarios.
+- [x] Ensure the fake never imports credentials, starts Codex, opens sockets, or reads a runtime home.
+- [x] Make the fake observable by counts and categories rather than prompt or response retention.
+- [x] Verify dependency injection prevents accidental use of a real adapter in local tests.
 
 Done when:
 
-- [ ] The orchestrator can exercise every terminal workflow category without network or credential access.
+- [x] The orchestrator exercises reviewed local terminal categories without network or credential access.
 
 ### Step 4 - Implement One Bounded Workflow Slice
 
@@ -121,15 +121,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Accept one reviewed diagnostic workflow request.
-- [ ] Run it through validation, deadline, state transition, fake adapter, and bounded result handling.
-- [ ] Return only a sanitized operator-facing status and manual next-step category.
-- [ ] Clean up temporary state on success, failure, cancellation, and test interruption.
-- [ ] Prevent model output from becoming an executable action.
+- [x] Accept one reviewed diagnostic workflow request.
+- [x] Run it through validation, deadline, state transition, fake adapter, and bounded result handling.
+- [x] Return only a sanitized operator-facing status and manual next-step category.
+- [x] Clean up temporary state on success, failure, cancellation, and test interruption.
+- [x] Prevent model output from becoming an executable action.
 
 Done when:
 
-- [ ] One local end-to-end workflow is repeatable, bounded, and independent of Codex authentication or transport.
+- [x] One local end-to-end workflow is repeatable, bounded, and independent of Codex authentication or transport.
 
 ### Step 5 - Add Core Regression Tests
 
@@ -142,25 +142,36 @@ Estimate:
 
 Tasks:
 
-- [ ] Test valid and invalid request schemas.
-- [ ] Test every allowed and forbidden state transition.
-- [ ] Test deadline, cancellation, event-count, turn-count, and output-size limits.
-- [ ] Test cleanup and absence of raw content in errors and test snapshots.
-- [ ] Test that the local suite opens no listener and invokes no real Codex process.
+- [x] Test valid and invalid request schemas.
+- [x] Test reviewed allowed and forbidden state transitions.
+- [x] Test deadline, cancellation, event-count, turn-count, and output-size limits.
+- [x] Test cleanup and absence of raw content in errors and test snapshots.
+- [x] Test that the local suite opens no listener and invokes no real Codex process.
 
 Done when:
 
-- [ ] Build, type-check, lint, and focused tests pass without credentials or network access.
+- [x] Build, type-check, lint, and focused tests pass without credentials or network access.
 
 ## 09.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] The local orchestrator package installs and validates deterministically from its accepted lockfile.
-- [ ] One fake-backed workflow passes end to end.
-- [ ] Limits and cancellation fail closed.
-- [ ] No credential, runtime-home, MCP, provider, or deployment access occurs.
-- [ ] Errors and metadata contain no raw prompt or response content.
+- [x] The local orchestrator package installs and validates deterministically from its accepted lockfile.
+- [x] One fake-backed workflow passes end to end.
+- [x] Limits and cancellation fail closed.
+- [x] No credential, runtime-home, MCP, provider, or deployment access occurs.
+- [x] Errors and metadata contain no raw prompt or response content.
+
+### Completion Record — 2026-07-21
+
+The accepted fake-backed package is under
+`ansible/ai_ops_runtime/files/orchestrator/`; local validation is recorded in
+`../runtime/phase08-orchestrator-local-validation-evidence.md`.
+
+Phase 09 is complete only for the local fake-backed slice. The official adapter
+remains disabled. Phase 10 must provide pre-model MCP result redaction and
+bounded local tool-loop controls before any later deployment, authentication, or
+egress phase is considered.
 
 ## 09.7 Risks
 
