@@ -15,6 +15,10 @@ from openstack_ai_ops_orchestrator.contracts import (
     RuntimePolicy,
     WorkflowState,
 )
+from openstack_ai_ops_orchestrator.evidence import (
+    EvidenceEventCategory,
+    OrchestratorEvidenceRecord,
+)
 from openstack_ai_ops_orchestrator.fake_codex_adapter import (
     FakeCodexAdapter,
     FakeCodexScenario,
@@ -249,11 +253,21 @@ def test_raw_adapter_exception_is_sanitized_and_cleanup_runs() -> None:
 def test_evidence_failure_overrides_completed_result_without_raw_marker() -> None:
     raw_marker = "RAW_EVIDENCE_MARKER"
 
-    def reject_metadata(_: object) -> None:
-        raise RuntimeError(raw_marker)
+    class RejectingEvidenceWriter:
+        def __init__(self) -> None:
+            self.append_count = 0
+
+        def append(self, _: object) -> None:
+            self.append_count += 1
+            if self.append_count > 1:
+                raise RuntimeError(raw_marker)
 
     adapter = FakeCodexAdapter(FakeCodexScenario.successful())
-    orchestrator = LocalOrchestrator(adapter, lambda context: context, reject_metadata)
+    orchestrator = LocalOrchestrator(
+        adapter,
+        lambda context: context,
+        evidence_writer=RejectingEvidenceWriter(),
+    )
 
     async def run() -> WorkflowExecution:
         return await orchestrator.run(request_value(), policy(), asyncio.Event())
@@ -264,3 +278,118 @@ def test_evidence_failure_overrides_completed_result_without_raw_marker() -> Non
     assert execution.result.error_category is AdapterErrorCategory.EVIDENCE_FAILED
     assert adapter.cleanup_completed
     assert raw_marker not in repr(execution)
+
+
+class ToolClient:
+    def __init__(self, result: object | None = None) -> None:
+        self.closed = False
+        self.requests: list[object] = []
+        self._result = result
+
+    async def __aenter__(self) -> ToolClient:
+        return self
+
+    async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        del exc_type, exc, traceback
+        self.closed = True
+
+    async def call_tool(self, request: object) -> object:
+        self.requests.append(request)
+        if self._result is not None:
+            return self._result
+        return {
+            "tool_name": REVIEWED_WORKFLOW,
+            "category": "ok",
+            "content": '{"username":"phase10-user"}',
+            "truncated": False,
+            "request_sequence_number": 1,
+        }
+
+
+def test_fake_tool_loop_redacts_result_and_closes_client() -> None:
+    adapter = FakeCodexAdapter(FakeCodexScenario.successful_with_tool_request())
+    client = ToolClient()
+    orchestrator = LocalOrchestrator(
+        adapter,
+        lambda context: context,
+        mcp_client_factory=lambda _: client,
+    )
+
+    async def run() -> WorkflowExecution:
+        return await orchestrator.run(request_value(), policy(), asyncio.Event())
+
+    execution = asyncio.run(run())
+
+    assert execution.result.state is WorkflowState.COMPLETED
+    assert client.closed
+    assert len(client.requests) == 1
+    assert len(adapter.observed_tool_results) == 1
+    assert "phase10-user" not in repr(adapter.observed_tool_results)
+
+
+def test_fake_tool_loop_writes_only_versioned_metadata_evidence() -> None:
+    class CapturingEvidenceWriter:
+        def __init__(self) -> None:
+            self.records: list[OrchestratorEvidenceRecord] = []
+
+        def append(self, record: OrchestratorEvidenceRecord) -> None:
+            self.records.append(record)
+
+    adapter = FakeCodexAdapter(FakeCodexScenario.successful_with_tool_request())
+    client = ToolClient()
+    writer = CapturingEvidenceWriter()
+    orchestrator = LocalOrchestrator(
+        adapter,
+        lambda context: context,
+        evidence_writer=writer,
+        mcp_client_factory=lambda _: client,
+    )
+
+    async def run() -> WorkflowExecution:
+        return await orchestrator.run(request_value(), policy(), asyncio.Event())
+
+    execution = asyncio.run(run())
+
+    assert execution.result.state is WorkflowState.COMPLETED
+    assert [record.event_category for record in writer.records] == [
+        EvidenceEventCategory.WORKFLOW_STARTED,
+        EvidenceEventCategory.TOOL_COMPLETED,
+        EvidenceEventCategory.WORKFLOW_TERMINAL,
+    ]
+    assert writer.records[1].tool_name == REVIEWED_WORKFLOW
+    assert writer.records[1].content_bytes > 0
+    assert all("phase10-user" not in repr(record) for record in writer.records)
+
+
+def test_fake_tool_loop_fails_closed_without_client_injection() -> None:
+    adapter = FakeCodexAdapter(FakeCodexScenario.successful_with_tool_request())
+    orchestrator = LocalOrchestrator(adapter, lambda context: context)
+
+    async def run() -> WorkflowExecution:
+        return await orchestrator.run(request_value(), policy(), asyncio.Event())
+
+    execution = asyncio.run(run())
+
+    assert execution.result.state is WorkflowState.ADAPTER_FAILED
+    assert execution.result.error_category is AdapterErrorCategory.INVALID_ADAPTER_EVENT
+    assert adapter.cleanup_completed
+
+
+def test_fake_tool_loop_rejects_malformed_result_and_closes_client() -> None:
+    adapter = FakeCodexAdapter(FakeCodexScenario.successful_with_tool_request())
+    client = ToolClient({"unexpected": "phase10-secret"})
+    orchestrator = LocalOrchestrator(
+        adapter,
+        lambda context: context,
+        mcp_client_factory=lambda _: client,
+    )
+
+    async def run() -> WorkflowExecution:
+        return await orchestrator.run(request_value(), policy(), asyncio.Event())
+
+    execution = asyncio.run(run())
+
+    assert execution.result.state is WorkflowState.ADAPTER_FAILED
+    assert execution.result.error_category is AdapterErrorCategory.INVALID_ADAPTER_EVENT
+    assert client.closed
+    assert "phase10-secret" not in repr(execution)

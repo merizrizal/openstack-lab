@@ -8,7 +8,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final
+from typing import Final, cast
 
 from .contracts import SafeToolResult, ToolResultCategory
 
@@ -168,7 +168,7 @@ def strict_json_loads(raw: str) -> JsonValue:
     except (TypeError, json.JSONDecodeError) as error:
         raise RedactionError("malformed_json") from error
     _validate_json_value(value)
-    return value
+    return cast(JsonValue, value)
 
 
 def leak_scan(content: str, protected_values: set[str]) -> None:

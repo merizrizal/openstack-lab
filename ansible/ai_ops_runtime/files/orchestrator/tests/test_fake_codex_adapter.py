@@ -6,17 +6,23 @@ import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+import pytest
+
 from openstack_ai_ops_orchestrator.contracts import (
     AdapterErrorCategory,
     AdapterEvent,
     AdapterEventType,
     DiagnosticTurnRequest,
     RuntimePolicy,
+    SafeToolResult,
+    ToolCallRequest,
+    ToolResultCategory,
     WorkflowState,
 )
 from openstack_ai_ops_orchestrator.fake_codex_adapter import (
     FakeCodexAdapter,
     FakeCodexScenario,
+    FakeToolRequestStep,
 )
 
 
@@ -94,6 +100,8 @@ def test_fake_adapter_source_excludes_runtime_and_network_imports() -> None:
 
     for prohibited_reference in (
         "openai_codex",
+        "mcp_client",
+        "LocalMcpClient",
         "socket",
         "requests",
         "http.client",
@@ -103,3 +111,67 @@ def test_fake_adapter_source_excludes_runtime_and_network_imports() -> None:
         "open(",
     ):
         assert prohibited_reference not in source
+
+
+def safe_result(sequence_number: int = 1) -> SafeToolResult:
+    return SafeToolResult._from_validated(
+        tool_name="project_resource_summary",
+        category=ToolResultCategory.OK,
+        redacted_content='[{"project":"[REDACTED]"}]',
+        truncated=False,
+        content_bytes=26,
+        redaction_count=1,
+        request_sequence_number=sequence_number,
+    )
+
+
+def test_fake_adapter_requires_one_matching_safe_result_before_resuming() -> None:
+    adapter = FakeCodexAdapter(FakeCodexScenario.successful_with_tool_request())
+
+    async def run_handshake() -> list[AdapterEvent]:
+        events = adapter.run_turn(request(), policy(1), asyncio.Event())
+        observed = [await anext(events), await anext(events)]
+        step = adapter.pending_tool_request_step()
+        assert isinstance(step, FakeToolRequestStep)
+        assert step.request == ToolCallRequest("project_resource_summary", (), 1)
+        with pytest.raises(ValueError, match="does not match"):
+            adapter.submit_tool_result(safe_result(2))
+        adapter.submit_tool_result(safe_result())
+        observed.append(await anext(events))
+        with pytest.raises(StopAsyncIteration):
+            await anext(events)
+        return observed
+
+    observed = asyncio.run(run_handshake())
+
+    assert [event.event_type for event in observed] == [
+        AdapterEventType.THREAD_STARTED,
+        AdapterEventType.TURN_STARTED,
+        AdapterEventType.TURN_COMPLETED,
+    ]
+    assert adapter.observed_tool_results == (safe_result(),)
+    assert "phase10-secret" not in repr(adapter.observed_tool_results)
+    assert adapter.result is not None
+    assert adapter.result.state is WorkflowState.COMPLETED
+    assert adapter.cleanup_completed
+    with pytest.raises(ValueError, match="currently expected"):
+        adapter.submit_tool_result(safe_result())
+
+
+def test_fake_adapter_fails_closed_when_safe_result_is_not_submitted() -> None:
+    adapter = FakeCodexAdapter(FakeCodexScenario.successful_with_tool_request())
+
+    async def run_without_result() -> list[AdapterEvent]:
+        events = adapter.run_turn(request(), policy(1), asyncio.Event())
+        observed = [await anext(events), await anext(events)]
+        assert isinstance(adapter.pending_tool_request_step(), FakeToolRequestStep)
+        observed.append(await anext(events))
+        return observed
+
+    observed = asyncio.run(run_without_result())
+
+    assert observed[2] == AdapterEvent(event_type=AdapterEventType.ADAPTER_FAILED)
+    assert adapter.result is not None
+    assert adapter.result.state is WorkflowState.ADAPTER_FAILED
+    assert adapter.result.error_category is AdapterErrorCategory.INVALID_ADAPTER_EVENT
+    assert adapter.cleanup_completed
