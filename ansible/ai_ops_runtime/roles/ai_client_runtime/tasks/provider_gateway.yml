@@ -1,0 +1,110 @@
+---
+- name: Assert provider gateway deployment contract
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'assistant01'
+      - ai_ops_provider_gateway is mapping
+      - >-
+        ai_ops_provider_gateway.keys() | list | sort ==
+        ['evidence_ledger', 'group', 'root', 'service_name', 'state_directory', 'user']
+      - ai_ops_provider_gateway.user == 'aiops-provider'
+      - ai_ops_provider_gateway.group == 'aiops-provider'
+      - ai_ops_provider_gateway.root == '/opt/openstack-ai-ops/provider-gateway'
+      - ai_ops_provider_gateway.service_name == 'aiops-provider-gateway'
+      - ai_ops_provider_gateway.state_directory == 'aiops-provider-gateway'
+      - >-
+        ai_ops_provider_gateway.evidence_ledger ==
+        '/var/lib/aiops-provider-gateway/gateway-evidence.jsonl'
+    fail_msg: >-
+      Provider gateway deployment settings are outside the reviewed boundary.
+
+- name: Ensure provider gateway group exists
+  ansible.builtin.group:
+    name: "{{ ai_ops_provider_gateway.group }}"
+    system: true
+    state: present
+
+- name: Ensure provider gateway service identity exists
+  ansible.builtin.user:
+    name: "{{ ai_ops_provider_gateway.user }}"
+    group: "{{ ai_ops_provider_gateway.group }}"
+    groups: ""
+    append: false
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+    password_lock: true
+    state: present
+
+- name: Create provider gateway root
+  ansible.builtin.file:
+    path: "{{ ai_ops_provider_gateway.root }}"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_provider_gateway.group }}"
+    mode: "0750"
+
+- name: Create provider gateway Python virtual environment
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -m
+      - venv
+      - "{{ ai_ops_provider_gateway.root }}/venv"
+    creates: "{{ ai_ops_provider_gateway.root }}/venv/bin/python"
+
+- name: Install fail-closed provider gateway files
+  ansible.builtin.copy:
+    src: "provider_gateway/{{ item }}"
+    dest: "{{ ai_ops_provider_gateway.root }}/{{ item }}"
+    owner: root
+    group: "{{ ai_ops_provider_gateway.group }}"
+    mode: "0640"
+  loop:
+    - aiops_provider_gateway.py
+    - gateway_policy.json
+    - redaction.py
+  notify: Restart provider gateway
+
+- name: Install provider gateway service unit
+  ansible.builtin.template:
+    src: provider_gateway/aiops-provider-gateway.service.j2
+    dest: >-
+      /etc/systemd/system/{{ ai_ops_provider_gateway.service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+  notify: Restart provider gateway
+
+- name: Enable and start provider gateway service
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_provider_gateway.service_name }}"
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Apply pending provider gateway restart before service validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Read active provider gateway environment
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/systemctl
+      - show
+      - --property=Environment
+      - --value
+      - "{{ ai_ops_provider_gateway.service_name }}"
+  register: ai_ops_provider_gateway_environment
+  changed_when: false
+  no_log: true
+
+- name: Assert active provider gateway clears proxy environment
+  ansible.builtin.assert:
+    that:
+      - ai_ops_provider_gateway_environment.rc == 0
+      - >-
+        ai_ops_provider_gateway_environment.stdout is not search(
+        '(?:^|\\s)(?:ALL_PROXY|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|all_proxy|http_proxy|https_proxy|no_proxy)=')
+    fail_msg: ERR_PROVIDER_GATEWAY_PROXY_ENVIRONMENT
+  no_log: true

@@ -248,6 +248,63 @@ class TestToolRunnerStub(unittest.TestCase):
         self.assertEqual(payload["arguments"], {})
         self.assertIn("server_identifier contains unsafe characters", payload["stderr"])
 
+    def test_validate_identifier_accepts_declared_max_length(self):
+        identifier = "a" * 128
+        argument_definition = {
+            "name": "server_identifier",
+            "validation": "safe_identifier_pattern",
+            "pattern": "^[A-Za-z0-9._:-]+$",
+            "max_length": 128,
+        }
+
+        self.assertEqual(
+            self.runner.validate_argument_value(
+                argument_definition,
+                identifier,
+                {"safe_identifier_pattern"},
+            ),
+            identifier,
+        )
+
+    def test_main_rejects_overlength_identifier_argument_and_audits(self):
+        registry_path = self.write_registry(
+            [
+                {
+                    "name": "server_basic_info",
+                    "available": True,
+                    "arguments": [
+                        {
+                            "name": "server_identifier",
+                            "position": 1,
+                            "required": True,
+                            "validation": "safe_identifier_pattern",
+                            "pattern": "^[A-Za-z0-9._:-]+$",
+                            "max_length": 128,
+                        }
+                    ],
+                }
+            ]
+        )
+
+        exit_code, payload, events = self.invoke_main_with_audit(
+            [
+                "server_basic_info",
+                "--registry",
+                str(registry_path),
+                "--arg",
+                f"server_identifier={'a' * 129}",
+            ]
+        )
+
+        self.assertEqual(exit_code, self.runner.STATUS_EXIT_CODES["validation_error"])
+        self.assertEqual(payload["status"], "validation_error")
+        self.assertEqual(payload["arguments"], {})
+        self.assertIn("server_identifier exceeds maximum length of 128", payload["stderr"])
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["status"], "validation_error")
+        self.assertEqual(events[0]["request_id"], payload["request_id"])
+        self.assertIn("server_identifier exceeds maximum length of 128", events[0]["reason"])
+
     def test_host_and_window_validations_accept_only_declared_values(self):
         supported_validation_types = {
             "allowed_host_list",
@@ -592,7 +649,66 @@ class TestToolRunnerStub(unittest.TestCase):
         self.assertEqual(events[0]["tool"], "not_registered")
         self.assertEqual(events[0]["status"], "denied")
         self.assertEqual(events[0]["arguments"], {})
+        self.assertNotIn("client_id", events[0])
+        self.assertNotIn("transport", events[0])
         self.assertIn("allowlist", events[0]["reason"])
+
+    def test_main_writes_fixed_mcp_origin_metadata_only_to_audit_event(self):
+        registry_path = self.write_registry(
+            [
+                {
+                    "name": "project_resource_summary",
+                    "available": True,
+                    "arguments": [],
+                }
+            ]
+        )
+
+        exit_code, payload, events = self.invoke_main_with_audit(
+            [
+                "not_registered",
+                "--registry",
+                str(registry_path),
+                "--client-id",
+                self.runner.MCP_AUDIT_CLIENT_ID,
+                "--transport",
+                self.runner.MCP_AUDIT_TRANSPORT,
+            ]
+        )
+
+        self.assertEqual(exit_code, self.runner.STATUS_EXIT_CODES["denied"])
+        self.assertEqual(payload["status"], "denied")
+        self.assertNotIn("client_id", payload)
+        self.assertNotIn("transport", payload)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["client_id"], self.runner.MCP_AUDIT_CLIENT_ID)
+        self.assertEqual(events[0]["transport"], self.runner.MCP_AUDIT_TRANSPORT)
+
+    def test_audit_origin_rejects_unreviewed_values(self):
+        envelope = self.runner.build_result_envelope(
+            "project_resource_summary",
+            "denied",
+            request_id="req-123",
+        )
+
+        with self.assertRaisesRegex(ValueError, "client identifier"):
+            self.runner.build_audit_event(
+                envelope,
+                client_id="untrusted-client",
+            )
+        with self.assertRaisesRegex(ValueError, "transport"):
+            self.runner.build_audit_event(
+                envelope,
+                transport="https",
+            )
+        with self.assertRaises(SystemExit):
+            self.runner.parse_cli_args(
+                ["project_resource_summary", "--client-id", "untrusted-client"]
+            )
+        with self.assertRaises(SystemExit):
+            self.runner.parse_cli_args(
+                ["project_resource_summary", "--transport", "https"]
+            )
 
     def test_main_writes_audit_event_for_validation_error(self):
         registry_path = self.write_registry(

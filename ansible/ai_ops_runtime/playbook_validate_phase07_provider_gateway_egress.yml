@@ -1,0 +1,65 @@
+---
+- name: Validate Phase 07 provider gateway egress enforcement
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/ai_client_runtime/defaults/main.yml"
+  vars:
+    ai_ops_egress_validation_apply: false
+    ai_ops_egress_validation_synthetic_approved: false
+    ai_ops_egress_validation_synthetic_host: ""
+    ai_ops_egress_validation_synthetic_port: 0
+    ai_ops_egress_validation_management_targets:
+      - { host: "{{ controller01.mgmtnet_ip_address }}", port: 22 }
+      - { host: "{{ compute01.mgmtnet_ip_address }}", port: 22 }
+      - { host: "{{ compute02.mgmtnet_ip_address }}", port: 22 }
+  tasks:
+    - name: Assert egress validation is explicitly approved and bounded
+      ansible.builtin.assert:
+        that:
+          - ai_ops_egress_validation_apply | bool
+          - ai_ops_egress_validation_synthetic_approved | bool
+          - ai_ops_egress_validation_synthetic_host is string
+          - ai_ops_egress_validation_synthetic_host | regex_search('^[0-9]{1,3}(\.[0-9]{1,3}){3}$') is not none
+          - ai_ops_egress_validation_synthetic_host | regex_search('^127\.') is none
+          - ai_ops_egress_validation_synthetic_host not in ai_ops_egress_validation_management_targets | map(attribute='host') | list
+          - ai_ops_egress_validation_synthetic_port | int > 0
+          - ai_ops_egress_validation_synthetic_port | int <= 65535
+        fail_msg: >-
+          Egress validation requires explicit operator approval and an approved
+          non-provider, non-allowlisted synthetic IPv4 endpoint and port.
+
+    - name: Enable the reviewed egress policy for this validation run
+      ansible.builtin.set_fact:
+        ai_ops_assistant_egress: "{{ ai_ops_assistant_egress | combine({'enabled': true}) }}"
+
+    - name: Apply, validate, and roll back the reviewed egress policy
+      block:
+        - name: Run assistant egress validation preflight
+          ansible.builtin.include_role:
+            name: assistant_egress_validation
+            tasks_from: preflight.yml
+
+        - name: Apply and verify assistant egress policy
+          ansible.builtin.include_role:
+            name: assistant_egress
+
+        - name: Flush UFW reload before materialization validation
+          ansible.builtin.meta: flush_handlers
+
+        - name: Validate materialized assistant egress rules
+          ansible.builtin.include_role:
+            name: assistant_egress_validation
+            tasks_from: materialization.yml
+
+        - name: Run assistant egress acceptance validation
+          ansible.builtin.include_role:
+            name: assistant_egress_validation
+            tasks_from: acceptance.yml
+      always:
+        - name: Roll back assistant egress validation
+          ansible.builtin.include_role:
+            name: assistant_egress_validation
+            tasks_from: rollback.yml

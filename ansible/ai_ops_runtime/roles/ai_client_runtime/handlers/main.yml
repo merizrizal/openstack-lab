@@ -1,0 +1,6 @@
+---
+- name: Restart provider gateway
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_provider_gateway.service_name }}"
+    daemon_reload: true
+    state: restarted

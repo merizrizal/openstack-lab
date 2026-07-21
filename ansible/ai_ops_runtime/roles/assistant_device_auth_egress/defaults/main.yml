@@ -1,0 +1,26 @@
+---
+ai_ops_device_auth_egress:
+  enabled: false
+  state: absent
+  user: assistant
+  approval:
+    id: ""
+    expires_at_utc: ""
+
+ai_ops_device_auth_egress_approved:
+  tcp_port: 443
+  max_duration_seconds: 600
+  ipv4_destinations:
+    - 104.18.41.241
+    - 172.64.146.15
+  ipv6_destinations:
+    - 2606:4700:4400::6812:29f1
+    - 2a06:98c1:310c::ac40:920f
+
+ai_ops_device_auth_egress_ufw:
+  ipv4_rules_path: /etc/ufw/before.rules
+  ipv6_rules_path: /etc/ufw/before6.rules
+  marker: AI-OPS device-auth egress exception
+  permanent_marker: AI-OPS assistant egress policy
+  ipv4_chain: aiops-dev-auth-out
+  ipv6_chain: aiops-dev-auth6-out

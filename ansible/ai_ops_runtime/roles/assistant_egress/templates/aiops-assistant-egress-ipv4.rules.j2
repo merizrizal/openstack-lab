@@ -1,0 +1,4 @@
+-A ufw-before-output -m owner --uid-owner {{ ai_ops_assistant_egress.user }} -o lo -j ACCEPT
+{% for port in ai_ops_assistant_egress.ipv4.openstack_api_ports %}-A ufw-before-output -m owner --uid-owner {{ ai_ops_assistant_egress.user }} -d {{ ai_ops_assistant_egress.ipv4.openstack_api_destination }} -p tcp --dport {{ port }} -j ACCEPT
+{% endfor %}{% for destination in ai_ops_assistant_egress.ipv4.diagnostic_ssh_destinations %}-A ufw-before-output -m owner --uid-owner {{ ai_ops_assistant_egress.user }} -d {{ destination }} -p tcp --dport {{ ai_ops_assistant_egress.ipv4.diagnostic_ssh_port }} -j ACCEPT
+{% endfor %}-A ufw-before-output -m owner --uid-owner {{ ai_ops_assistant_egress.user }} -j REJECT

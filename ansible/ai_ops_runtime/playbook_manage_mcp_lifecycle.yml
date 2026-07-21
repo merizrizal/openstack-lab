@@ -1,0 +1,12 @@
+---
+- name: Manage AI-OPS MCP lifecycle
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  tasks:
+    - name: Run AI-OPS MCP lifecycle entrypoint
+      ansible.builtin.include_role:
+        name: assistant_runtime
+        tasks_from: mcp_lifecycle.yml

@@ -25,3 +25,7 @@
 - name: Install baseline AI-OPS runtime packages
   ansible.builtin.include_tasks:
     file: tooling.yml
+
+- name: Manage AI-OPS MCP lifecycle
+  ansible.builtin.include_tasks:
+    file: mcp_lifecycle.yml

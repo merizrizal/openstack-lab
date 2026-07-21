@@ -1,0 +1,33 @@
+[Unit]
+Description=AI-OPS fail-closed provider gateway
+After=network.target
+
+[Service]
+Type=simple
+User={{ ai_ops_provider_gateway.user }}
+Group={{ ai_ops_provider_gateway.group }}
+WorkingDirectory={{ ai_ops_provider_gateway.root }}
+Environment=PYTHONDONTWRITEBYTECODE=1
+UnsetEnvironment=ALL_PROXY HTTP_PROXY HTTPS_PROXY NO_PROXY all_proxy http_proxy https_proxy no_proxy
+ExecStart={{ ai_ops_provider_gateway.root }}/venv/bin/python {{ ai_ops_provider_gateway.root }}/aiops_provider_gateway.py --policy {{ ai_ops_provider_gateway.root }}/gateway_policy.json --evidence-ledger {{ ai_ops_provider_gateway.evidence_ledger }}
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+StateDirectory={{ ai_ops_provider_gateway.state_directory }}
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/{{ ai_ops_provider_gateway.state_directory }}
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

@@ -4,3 +4,84 @@ compute: |
   echo "Provision on compute node"
 assistant: |
   echo "Provision on assistant node"
+dummy: |
+  if [ "$(hostname -s)" != "dummy01" ]; then
+    exit 0
+  fi
+
+  sudo install -d -m 0755 /usr/local/lib/aiops-synthetic-denial-listener
+  sudo tee /usr/local/lib/aiops-synthetic-denial-listener/listener.py >/dev/null <<'PYTHON'
+  #!/usr/bin/env python3
+  import os
+  import socket
+  from pathlib import Path
+
+  BIND_HOST = "dummy01.local"
+  PORT_FILE = Path("/run/aiops-synthetic-denial-listener.port")
+
+
+  def management_address(hosts_file: Path = Path("/etc/hosts")) -> str:
+      for line in hosts_file.read_text(encoding="utf-8").splitlines():
+          fields = line.split()
+          if len(fields) < 2 or fields[0].startswith("#") or BIND_HOST not in fields[1:]:
+              continue
+          address = fields[0]
+          try:
+              socket.inet_aton(address)
+          except OSError:
+              continue
+          if not address.startswith("127."):
+              return address
+      raise RuntimeError(f"no non-loopback IPv4 address found for {BIND_HOST}")
+
+
+  def main() -> None:
+      PORT_FILE.unlink(missing_ok=True)
+      with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+          listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+          listener.bind((management_address(), 0))
+          listener.listen(16)
+          with os.fdopen(
+              os.open(PORT_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o640),
+              "w",
+              encoding="utf-8",
+          ) as port_file:
+              os.chmod(PORT_FILE, 0o640)
+              port_file.write(f"{listener.getsockname()[1]}\n")
+          try:
+              while True:
+                  connection, _ = listener.accept()
+                  connection.close()
+          finally:
+              PORT_FILE.unlink(missing_ok=True)
+
+
+  if __name__ == "__main__":
+      main()
+  PYTHON
+  sudo chmod 0755 /usr/local/lib/aiops-synthetic-denial-listener/listener.py
+
+  sudo tee /etc/systemd/system/aiops-synthetic-denial-listener.service >/dev/null <<'UNIT'
+  [Unit]
+  Description=AI-OPS synthetic egress-denial TCP listener
+  Wants=network-online.target
+  After=network-online.target
+
+  [Service]
+  Type=simple
+  ExecStart=/usr/bin/python3 /usr/local/lib/aiops-synthetic-denial-listener/listener.py
+  Restart=on-failure
+  RestartSec=2
+  NoNewPrivileges=true
+  PrivateTmp=true
+  ProtectSystem=strict
+  ProtectHome=true
+  ReadWritePaths=/run
+
+  [Install]
+  WantedBy=multi-user.target
+  UNIT
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now aiops-synthetic-denial-listener.service
+  sudo systemctl restart aiops-synthetic-denial-listener.service

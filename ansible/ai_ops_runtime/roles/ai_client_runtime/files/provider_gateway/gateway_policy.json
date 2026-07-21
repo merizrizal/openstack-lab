@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "bind_host": "127.0.0.1",
+  "bind_port": 8765,
+  "service_identity": "aiops-provider",
+  "route": "/v1/responses",
+  "max_request_bytes": 1048576,
+  "upstream_host": "chatgpt.com",
+  "upstream_port": 443,
+  "upstream_route": "/backend-api/codex/responses",
+  "upstream_timeout_seconds": 30,
+  "max_response_bytes": 1048576
+}

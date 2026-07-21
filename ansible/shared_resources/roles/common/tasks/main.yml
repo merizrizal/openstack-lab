@@ -50,6 +50,11 @@
   community.general.timezone:
     name: UTC
 
+- name: Install firewall
+  ansible.builtin.include_tasks:
+    file: install_firewall.yml
+  when: enable_firewall is defined and (enable_firewall | bool)
+
 - name: Reboot to update the changes
   ansible.builtin.reboot:
     post_reboot_delay: 2

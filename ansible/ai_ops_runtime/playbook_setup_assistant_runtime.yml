@@ -6,4 +6,7 @@
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   roles:
     - role: common
+      vars:
+        enable_firewall: true
+
     - role: assistant_runtime
