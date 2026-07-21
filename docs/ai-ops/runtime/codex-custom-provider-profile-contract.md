@@ -2,15 +2,15 @@
 
 ## Status
 
-**Locally route-validated runtime-override contract — not accepted for remote use.**
+**Superseded for future remote integration; retained as a historical validated contract.**
 The official Codex 0.144.1 runtime-override form reached the no-forward loopback
-gateway, and the nested-input redaction ambiguity has been resolved and deployed.
-The reviewed gateway source now rebuilds the authenticated ChatGPT/device-auth
-request for the fixed ChatGPT Codex backend with transient account routing and
-schema 2 metadata-only evidence. These local source and injected-transport checks
-do not authorize deployment or a provider request. Remote provider mode remains
-disabled pending the remaining revised provider-boundary ADS chunks and a separately
-approved provider request.
+gateway, and the nested-input redaction ambiguity was resolved and deployed. The
+custom-provider gateway recovery path was closed by the decision recorded on
+2026-07-21. Do not deploy, retry, or extend this profile contract for provider
+traffic. Future work follows
+`docs/ai-ops/runtime/phase07-codex-sdk-orchestrator-decision-2026-07-21.md`, in
+which the official Codex SDK/runtime owns ChatGPT authentication and transport
+without exposing credential values to repository code.
 
 ## Scope and boundaries
 
@@ -59,21 +59,19 @@ Before a synthetic invocation:
 8. Remove the workspace, runner, listener, metadata, and local temporary files in
    an unconditional cleanup path.
 
-## Known acceptance gap
+## Historical disposition
 
 The runtime override shape is grounded in the Phase 07 provider-boundary ADS, the
-official `rust-v0.144.1` source proxy example, and metadata-only loopback runs. The
-redaction ambiguity is resolved: local no-forward acceptance reached the reviewed
-model-discovery routes and exactly one `POST /v1/responses`, and the deployed gateway
-later reached verified upstream TLS with redacted metadata.
+official `rust-v0.144.1` source proxy example, and metadata-only loopback runs. Local
+validation established the request shape, redaction boundary, deployed gateway, and
+egress controls. A later bounded provider attempt exposed another private-protocol
+compatibility mismatch, so the project closed this recovery path rather than widen
+or infer the provider contract.
 
-Remote acceptance remains blocked pending deployment and egress validation plus the
-local fake-upstream acceptance gate. The reviewed source fixes the upstream to
-`chatgpt.com/backend-api/codex/responses`, forwards only the transient allowlisted
-Bearer and `ChatGPT-Account-ID` headers, and writes schema 2 metadata-only evidence;
-it has not been deployed or used for a provider request. Do not change this
-runtime-override shape, inspect authentication or account values, or retry a real
-provider request without fresh explicit approval.
+Do not change this runtime-override shape, inspect authentication or account values,
+or retry a provider request through the custom gateway. The successor architecture
+uses the supported Codex SDK/runtime directly as an opaque authentication and
+provider-transport boundary.
 
 ## References
 

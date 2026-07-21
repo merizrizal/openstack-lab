@@ -1,6 +1,6 @@
 ## Architectural Design Specification: Phase 07 ChatGPT Device-Authentication Provider Boundary
 
-**Status:** Revised design after the authenticated upstream-contract mismatch; implementation and provider traffic remain prohibited until the local chunks pass and a provider request receives separate explicit approval.
+**Status:** Superseded for future remote integration by `docs/ai-ops/runtime/phase07-codex-sdk-orchestrator-decision-2026-07-21.md`; retained as historical design and validation evidence. Do not resume custom-provider gateway recovery or provider traffic from this ADS.
 
 **Dependency order:** Accepted Codex runtime home and MCP lifecycle -> accepted loopback routing, redaction, gateway, evidence, and `assistant` egress controls -> this ChatGPT/device-auth revision Chunks 0-7 -> separately approved remote acceptance -> Phase 99.
 
@@ -313,6 +313,6 @@ Do not continue to Chunk 2. Add only the transient header validation contract an
 
 ### X. Conclusion and Next Steps
 
-The previous gateway successfully proved routing, redaction, rebuilt-request forwarding, verified TLS, and metadata-only classification, but its API-key-oriented endpoint cannot consume the authenticated Codex ChatGPT/device-auth contract. The approved design direction is now one fixed ChatGPT Codex backend with exactly one transient Bearer authorization field and one transient account-routing field. FedRAMP and agent assertion fail closed, and the API-key endpoint is not a fallback.
+This ADS historically proved routing, redaction, rebuilt-request forwarding, verified TLS, bounded metadata, and direct-`assistant` egress controls. Subsequent provider compatibility uncertainty made continued private ChatGPT protocol recovery unbounded.
 
-The next implementation action is Chunk 0 only. No gateway code, egress policy, authentication state, deployment, or provider traffic may change until that discovery confirms the value-free contract and produces a handoff.
+The custom-provider gateway path is now closed for future remote integration. Its chunks are not current implementation instructions. Preserve its historical evidence and controls, make no further provider request through it, and proceed only from the Codex SDK orchestrator successor decision and a new approved ADS.

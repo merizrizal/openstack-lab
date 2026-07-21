@@ -1,8 +1,10 @@
 # Phase 07 Remote Provider: Decision, Recovery, and Alternatives
 
 **Date:** 2026-07-14  
-**Status:** Decision required; remote-provider acceptance is blocked  
+**Status:** Decision recorded on 2026-07-21; the Codex custom-provider gateway recovery path is closed for future remote integration
 **Scope:** Phase 07 remote-model integration only. This document does not change the accepted read-only tool, runner, or local-MCP safety boundaries.
+
+> **Decision update (2026-07-21):** Select a hybrid purpose-built orchestrator that owns the AI-OPS workflow, redaction boundary, tool policy, process isolation, and bounded evidence while using the official Codex SDK/runtime for ChatGPT authentication and provider transport. The orchestrator must never extract or directly use a Codex token. The prior custom-provider gateway remains historical validated work and must not be used for new provider attempts. The authoritative successor decision is `docs/ai-ops/runtime/phase07-codex-sdk-orchestrator-decision-2026-07-21.md`.
 
 ## 1. Executive Summary
 
@@ -146,7 +148,7 @@ Only after the preceding gates pass:
 - Manual authentication and profile selection remain operator-managed integration points.
 - Remote acceptance cannot be accelerated safely with repeated live retries.
 
-**Best next action:** execute the authenticated-profile fake-provider recovery slice in Section 6.1.
+**Historical best next action (superseded on 2026-07-21):** execute the authenticated-profile fake-provider recovery slice in Section 6.1.
 
 ### Alternative B: Deliver the local AI-OPS assistant without remote-model automation
 
@@ -279,13 +281,18 @@ Any selected approach must preserve:
 - explicit approval for each real-provider acceptance request; and
 - fail-closed behavior when routing, redaction, evidence, TLS, authentication, or egress validation is uncertain.
 
-## 12. Decision Requested
+## 12. Decision Recorded
 
-Choose one of the following:
+On 2026-07-21, the project stopped the Codex custom-provider gateway recovery path and selected a hybrid purpose-built orchestrator.
 
-1. **Recover current architecture:** approve the local authenticated-profile fake-provider recovery slice only.
-2. **Deliver local AI-OPS first:** accept local MCP/manual AI assistance as the current milestone and defer remote-provider integration.
-3. **Design a purpose-built orchestrator:** start a new architecture and implementation plan for a repository-owned model client.
-4. **Prototype local inference:** run a capacity and model-quality prototype before committing to a local-model agent.
+The selected approach is intentionally narrower than the original fully repository-owned provider client described by Alternative C:
 
-Until a decision is made, keep remote-provider mode disabled and do not retry the real request.
+1. The repository-owned orchestrator controls input validation, redaction, the allowlisted read-only tool loop, timeouts, cancellation policy, process isolation, and bounded metadata.
+2. The official Codex SDK/runtime controls ChatGPT sign-in, credential refresh, provider routing, and provider stream compatibility.
+3. The orchestrator never reads, copies, logs, forwards, or directly uses Codex credential or account values.
+4. The project will not infer, proxy, patch, or reproduce Codex's private ChatGPT provider protocol.
+5. The existing provider gateway remains disabled for remote requests and is retained only as historical validated security work until a separately approved retirement plan is implemented.
+
+This decision accepts Codex provider transport as a vendor-managed opaque boundary. If the supported SDK/runtime fails, the project must stop at that boundary and evaluate a pinned-version update or vendor blocker; it must not resume private-protocol gateway recovery.
+
+The next action is a new architectural design specification and phased implementation plan based on `docs/ai-ops/runtime/phase07-codex-sdk-orchestrator-decision-2026-07-21.md`. No deployment or provider request is authorized by this decision record.

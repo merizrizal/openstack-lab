@@ -1,5 +1,7 @@
 # 07. MCP Integration
 
+**Status:** Local stdio MCP foundation validated; the runtime client entry is currently disabled. Future integrated AI-OPS work proceeds through the hybrid Codex SDK orchestrator decision in `docs/ai-ops/runtime/phase07-codex-sdk-orchestrator-decision-2026-07-21.md`.
+
 ## 07.1 Goal
 
 Expose the already-trusted diagnostic toolbox through MCP so an AI client can discover and call approved read-only tools without gaining arbitrary command execution.
@@ -7,8 +9,14 @@ Expose the already-trusted diagnostic toolbox through MCP so an AI client can di
 Target outcome:
 
 ```text
-trusted local runner -> MCP tool schema -> AI client calls approved tool -> same validation/execution/audit path -> structured result returned
+trusted local runner
+  -> local stdio MCP tool/resource/prompt schema
+  -> repository-owned AI-OPS orchestrator calls approved capability
+  -> same validation/execution/audit path
+  -> bounded structured result returned
 ```
+
+The future orchestrator may use the official Codex SDK/runtime for ChatGPT authentication and provider transport, but that dependency remains outside the MCP execution boundary. Codex must not gain a second or less-restricted path to OpenStack diagnostics.
 
 ## 07.2 Estimate
 
@@ -18,6 +26,8 @@ Total estimate:
 3-5 engineer-days
 18-30 focused hours
 ```
+
+This is the original estimate for the local MCP integration only. It excludes the hybrid Codex SDK orchestrator, authentication/runtime lifecycle, remote-provider transport, sandboxed deployment, egress validation, and remote acceptance. Those concerns require a separate phased implementation plan.
 
 ## 07.3 Scope
 
@@ -29,6 +39,7 @@ Included:
 * Add prompts for repeatable diagnostic workflows.
 * Validate MCP uses the same allowlist, input validation, timeouts, output limits, and audit logs.
 * Add local stdio-first integration guidance.
+* Provide the sole approved model-facing path to the existing runner for the future repository-owned orchestrator.
 
 Excluded:
 
@@ -37,13 +48,17 @@ Excluded:
 * Remediation tools.
 * Generic shell, SSH, sudo, OpenStack CLI, file, or database tools.
 * Replacing the local runner safety boundary.
+* Implementing the hybrid orchestrator or its Codex SDK/runtime dependency.
+* Managing, extracting, or forwarding ChatGPT/Codex credentials.
+* Implementing or proxying private provider routes, headers, or stream protocols.
+* Provider egress, remote acceptance, or retirement of the historical provider gateway.
 
 ## 07.4 Assumptions
 
 - [x] The local runner already works and is trusted.
 - [x] The first MCP transport is local/stdin-stdout unless a secure remote design is explicitly approved later.
 - [x] The MCP server delegates execution to the runner or shared execution layer rather than reimplementing looser behavior.
-- [ ] The initial AI client can connect to a local MCP server on the assistant runtime.
+- [x] A temporary local stdio client validated discovery, approved calls, rejection behavior, audit correlation, and adapter cleanup on the assistant runtime.
 
 ## 07.5 Ordered Tasks
 
@@ -204,6 +219,7 @@ This phase is done when:
 - [x] MCP prompts encode repeatable diagnostic workflows.
 - [x] MCP tests verify no generic command execution capability exists.
 - [x] Remote unauthenticated exposure remains out of scope.
+- [x] Local stdio MCP remains the sole approved model-facing route to the diagnostic runner.
 
 ## 07.7 Risks
 
@@ -213,3 +229,21 @@ This phase is done when:
 | AI client treats tools as remediation | Tool descriptions and prompts must explicitly state diagnostic-only behavior. |
 | MCP resources expose sensitive files | Expose curated resources only; never implement arbitrary file read. |
 | Remote MCP exposure creates a new attack surface | Start with local stdio only; require a separate design for authenticated remote access. |
+| The orchestrator bypasses MCP and reaches diagnostics directly | Keep MCP/runner as the only approved execution path and test that no generic or alternate diagnostic interface is available. |
+| Codex SDK/runtime concerns leak into the MCP safety boundary | Keep authentication, provider transport, SDK lifecycle, and provider failures in the separate orchestrator plan; MCP remains provider-agnostic. |
+
+## 07.8 Successor Architecture Boundary
+
+The local MCP phase is complete and remains an accepted prerequisite. The selected successor is the hybrid Codex SDK orchestrator described in `docs/ai-ops/runtime/phase07-codex-sdk-orchestrator-decision-2026-07-21.md`.
+
+That successor must preserve this phase's contracts:
+
+1. MCP remains local stdio with no network listener.
+2. The orchestrator receives only curated resources, prompts, and allowlisted read-only tools through the local MCP boundary.
+3. The Codex SDK/runtime cannot select a broader diagnostic interface or bypass runner validation, limits, and audit behavior.
+4. Authentication and provider transport remain inside the supported Codex boundary; MCP never receives or handles Codex credentials.
+5. Model output remains untrusted and cannot authorize remediation.
+
+The historical custom-provider gateway is not part of this successor path. Its preservation and eventual retirement require a separate ADS and must not be combined with initial orchestrator implementation.
+
+The next planning action is a separate phased implementation plan for the hybrid orchestrator. It must begin with local dependency and integration discovery, use an injected or fake SDK adapter before any authentication or provider traffic, and retain a separate approval gate for deployment and remote acceptance.
