@@ -34,7 +34,7 @@ Included:
 
 Excluded:
 
-* Orchestrator implementation.
+* Orchestrator implementation beyond the accepted fake-first local vertical slice.
 * Codex login, credential access, or provider traffic.
 * Deployment, firewall, or service changes.
 * Custom provider routes, headers, response parsing, or gateway recovery.
@@ -60,15 +60,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Record the reviewed public Codex SDK installation, runtime dependency, invocation, cancellation, event, configuration, and error contracts.
-- [ ] Confirm the supported Python, `openai-codex`, and pinned `openai-codex-cli-bin` versions without installing or invoking them.
-- [ ] Identify publicly supported controls for retries, concurrency, working directory, sandboxing, MCP configuration, and output events.
-- [ ] Mark unsupported or undocumented controls as blockers rather than inferred behavior.
-- [ ] Confirm repository code will never read or directly use Codex credential material.
+- [x] Record the reviewed public Codex SDK installation, runtime dependency, invocation, cancellation, event, configuration, and error contracts.
+- [x] Confirm the supported Python, `openai-codex`, and pinned `openai-codex-cli-bin` versions without installing or invoking them.
+- [x] Identify publicly supported controls for retries, concurrency, working directory, sandboxing, MCP configuration, and output events.
+- [x] Mark unsupported or undocumented controls as blockers rather than inferred behavior.
+- [x] Confirm repository code will never read or directly use Codex credential material.
 
 Done when:
 
-- [ ] Every planned SDK interaction is grounded in a public supported contract or explicitly deferred.
+- [x] Every planned SDK interaction is grounded in a public supported contract or explicitly deferred.
 
 ### Step 2 - Produce the Hybrid Orchestrator ADS
 
@@ -81,15 +81,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Define orchestrator input, workflow-state, Codex-adapter, MCP, output, and evidence contracts.
-- [ ] Define the dedicated runtime identity and runtime-home ownership model conceptually.
-- [ ] Define fail-closed boundaries for redaction, tool selection, turn limits, cancellation, authentication expiry, SDK failure, and evidence failure.
-- [ ] Define the no-private-protocol and vendor-blocker stop rules.
-- [ ] Include a compile-safe thin-vertical-slice ladder beginning with a fake Codex adapter.
+- [x] Define orchestrator input, workflow-state, Codex-adapter, MCP, output, and evidence contracts.
+- [x] Define the dedicated runtime identity and runtime-home ownership model conceptually.
+- [x] Define fail-closed boundaries for redaction, tool selection, turn limits, cancellation, authentication expiry, SDK failure, and evidence failure.
+- [x] Define the no-private-protocol and vendor-blocker stop rules.
+- [x] Include a compile-safe thin-vertical-slice ladder beginning with a fake Codex adapter.
 
 Done when:
 
-- [ ] An approved ADS can guide implementation without relying on credentials, provider traffic, or hidden session knowledge.
+- [x] An approved ADS can guide implementation without relying on credentials, provider traffic, or hidden session knowledge.
 
 ### Step 3 - Define Dependency and Supply-Chain Policy
 
@@ -102,15 +102,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Pin `openai-codex==0.144.4`, its exact `openai-codex-cli-bin==0.144.4` runtime dependency, the supported Python runtime policy, and deterministic package-manager/lockfile policy.
-- [ ] Require a lockfile and deterministic install path.
-- [ ] Define package provenance, integrity, vulnerability-review, and upgrade-review checks.
-- [ ] Define rollback to the previously validated dependency set.
-- [ ] Require local contract tests before every SDK/runtime version change.
+- [x] Pin `openai-codex==0.144.4`, its exact `openai-codex-cli-bin==0.144.4` runtime dependency, the supported Python runtime policy, and deterministic package-manager/lockfile policy.
+- [x] Require a lockfile and deterministic install path.
+- [x] Define package provenance, integrity, vulnerability-review, and upgrade-review checks.
+- [x] Define rollback to the previously validated dependency set.
+- [x] Require local contract tests before every SDK/runtime version change.
 
 Done when:
 
-- [ ] Dependency installation and upgrades have deterministic review and rollback rules.
+- [x] Dependency installation and upgrades have deterministic review and rollback rules.
 
 ### Step 4 - Define Validation and Threat-Model Matrix
 
@@ -123,24 +123,36 @@ Estimate:
 
 Tasks:
 
-- [ ] Map trust boundaries among operator, orchestrator, Codex SDK/runtime, local MCP, runner, credentials, filesystem, network, and evidence.
-- [ ] Define tests proving no token access, no generic tool path, no MCP listener, no private-protocol handling, and no provider call in local phases.
-- [ ] Define synthetic failure tests for cancellation, timeout, malformed events, excessive turns, denied tools, and evidence failure.
-- [ ] Define explicit approval gates for deployment, login, synthetic egress validation, and one remote request.
+- [x] Map trust boundaries among operator, orchestrator, Codex SDK/runtime, local MCP, runner, credentials, filesystem, network, and evidence.
+- [x] Define tests proving no token access, no generic tool path, no MCP listener, no private-protocol handling, and no provider call in local phases.
+- [x] Define synthetic failure tests for cancellation, timeout, malformed events, excessive turns, denied tools, and evidence failure.
+- [x] Define explicit approval gates for deployment, login, synthetic egress validation, and one remote request.
 
 Done when:
 
-- [ ] Each identified threat has a prevention control and a verifiable acceptance test.
+- [x] Each identified threat has a prevention control and a verifiable acceptance test.
 
 ## 08.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] The hybrid orchestrator ADS is approved.
-- [ ] SDK/runtime interactions are grounded in public contracts.
-- [ ] Dependency pinning and rollback rules are documented.
-- [ ] Authentication values remain entirely outside repository code.
-- [ ] The local-only validation matrix and remote approval gates are explicit.
+- [x] The hybrid orchestrator ADS is approved.
+- [x] SDK/runtime interactions are grounded in public contracts.
+- [x] Dependency pinning and rollback rules are documented.
+- [x] Authentication values remain entirely outside repository code.
+- [x] The local-only validation matrix and remote approval gates are explicit.
+
+### Completion Record — 2026-07-21
+
+The approved ADS is `ads/08-00-orchestrator-architecture-and-sdk-contracts-ads.md`.
+Its accepted fake-first local vertical slice is implemented under
+`ansible/ai_ops_runtime/files/orchestrator/` and accepted by
+`../runtime/phase08-orchestrator-local-validation-evidence.md`.
+
+This completion is local-only. `OfficialCodexAdapter` remains disabled. MCP
+pre-model result redaction, the dedicated deployment identity and opaque
+runtime-home controls, supported operator authentication, bounded egress, and
+separately approved remote acceptance remain mandatory gates for later phases.
 
 ## 08.7 Risks
 

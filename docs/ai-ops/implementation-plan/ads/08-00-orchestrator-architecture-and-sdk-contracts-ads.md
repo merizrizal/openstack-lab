@@ -168,13 +168,13 @@ Therefore:
 
 - **MCP result-redaction placement:** must be resolved before a real adapter can invoke Codex with MCP.
 - **Authentication-expiry classification:** no stable public Python discriminator is confirmed. Initial real-adapter design may map only a conservative process/turn failure category; an operator-facing auth category requires a supported public discriminator.
-- **Exact deployment toolchain:** the exact Python patch, deterministic lockfile-generation command, and repository package root need operator approval before Phase 09 scaffolding.
+- **Deployment toolchain:** accepted for Phase 09 scaffolding: Python `>=3.12`, pip `24.0`, and `pip-tools==7.4.1`; the deterministic hash-lock command is recorded below. The repository-owned Ansible payload root is accepted below.
 - **Dedicated identity and egress implementation:** deferred to Phase 11 and must not reuse `assistant` or gateway assumptions.
 - **Vendor version compatibility:** no runtime experiment was performed. The first real-adapter contract test remains a separately approved local app-server test without provider traffic where possible.
 
 #### Assumptions
 
-- `openai-codex==0.144.4` and its exact `openai-codex-cli-bin==0.144.4` dependency are the accepted initial pair; beta/prerelease upgrades are excluded until separately reviewed.
+- `openai-codex==0.144.4` and its exact `openai-codex-cli-bin==0.144.4` dependency are the accepted initial pair; Python 3.12 or later is required; beta/prerelease upgrades are excluded until separately reviewed.
 - No package has been installed during Phase 08 documentation work.
 - A repository-owned concurrency limit of one active workflow is the safe initial policy despite SDK support for concurrent turns.
 - SDK retry helpers and all automatic orchestrator retries are disabled.
@@ -188,8 +188,8 @@ Therefore:
 |---|---|---|
 | `openai-codex` | Exact `0.144.4`; no range | Reviewed published PyPI package |
 | `openai-codex-cli-bin` | Exact transitive `0.144.4` | SDK package metadata pins the same version |
-| Python | Must satisfy `>=3.10`; exact deployment patch required in Chunk 0 | Public package/runtime requirement |
-| pip/lock generator | Exact approved versions | Record alongside deterministic hash-locked requirements |
+| Python | `>=3.12` | Satisfies the public `>=3.10` requirement; Python 3.12 is the supported baseline |
+| pip/lock generator | Exact `pip==24.0` and `pip-tools==7.4.1` | Accepted Chunk 0 toolchain; generate and install only through the reviewed hash-locked procedure |
 | Pydantic/test/lint/type tools | Exact resolved versions with hashes | Select and lock in Phase 09; no floating runtime environment |
 
 No SDK package is needed to define the repository adapter protocol or fake. The first contracts/tests chunk should avoid importing `openai_codex`; the vendor dependency enters only with the disabled real-adapter module and contract tests.
@@ -197,7 +197,7 @@ No SDK package is needed to define the repository adapter protocol or fake. The 
 #### Supply-chain policy
 
 - Commit a direct-input requirements file and a fully resolved lockfile with hashes; install with `pip --require-hashes` inside a dedicated virtual environment.
-- Record the exact supported Python patch, pip version, and lockfile-generation command accepted in Chunk 0.
+- Use Python `>=3.12`, pip `24.0`, and `pip-tools==7.4.1`. Generate the lock with `python -m piptools compile --generate-hashes --allow-unsafe --resolver=backtracking --strip-extras --output-file requirements.lock requirements.in`; install only with `python -m pip install --require-hashes -r requirements.lock` in the dedicated virtual environment.
 - Review PyPI provenance, wheel/sdist hashes, license, direct/transitive dependency diff, package build metadata, vulnerabilities, and public API/type diff before initial acceptance and every update.
 - CI/local safety tests run with network denied after dependencies are materialized through the separately approved dependency process.
 - Never execute unreviewed package installation hooks or build an sdist when an accepted reviewed wheel is required.
@@ -205,12 +205,12 @@ No SDK package is needed to define the repository adapter protocol or fake. The 
 - Rollback restores the previously committed input/lockfile pair and virtual-environment build procedure; it never edits installed package contents or patches private protocol behavior.
 - A supported-version failure is either a reviewed pair upgrade/rollback or `VENDOR_BLOCKED`; it is not a gateway recovery trigger.
 
-#### Proposed repository artifacts
+#### Repository artifacts
 
-Paths are proposed and must be confirmed in Chunk 0:
+The accepted repository source root is `ansible/ai_ops_runtime/files/orchestrator/`. It is an Ansible-owned payload for later deployment to `assistant01`; it is not a role-local `files/` directory and this ADS does not add a deployment task.
 
 ```text
-orchestrator/
+ansible/ai_ops_runtime/files/orchestrator/
   pyproject.toml
   requirements.in
   requirements.lock
@@ -225,7 +225,7 @@ orchestrator/
   tests/test_orchestrator.py
 ```
 
-Deployment, runtime-home, service, firewall, and evidence-ledger files are intentionally excluded from this ADS's implementation chunks.
+A later approved Ansible deployment change must add explicit copy/install tasks from this source root. Deployment, runtime-home, service, firewall, and evidence-ledger files are intentionally excluded from this ADS's implementation chunks.
 
 ### IV. Step-by-Step Procedure / Execution Flow
 
@@ -298,11 +298,11 @@ Exact scripts are finalized with the package root in Chunk 0. The intended seque
 ```bash
 rtk python3 -m venv /tmp/openstack-ai-ops-orchestrator-venv
 source /tmp/openstack-ai-ops-orchestrator-venv/bin/activate
-rtk python -m pip install --require-hashes -r orchestrator/requirements.lock
-rtk python -m ruff format --check orchestrator
-rtk python -m ruff check orchestrator
-rtk python -m mypy orchestrator/src orchestrator/tests
-rtk python -m pytest -q orchestrator/tests
+rtk python -m pip install --require-hashes -r ansible/ai_ops_runtime/files/orchestrator/requirements.lock
+rtk python -m ruff format --check ansible/ai_ops_runtime/files/orchestrator
+rtk python -m ruff check ansible/ai_ops_runtime/files/orchestrator
+rtk python -m mypy ansible/ai_ops_runtime/files/orchestrator/src ansible/ai_ops_runtime/files/orchestrator/tests
+rtk python -m pytest -q ansible/ai_ops_runtime/files/orchestrator/tests
 rtk git diff --check
 ```
 
@@ -334,7 +334,7 @@ The implementation must proceed through `chunked-implementation`. Do not impleme
 #### Chunk 1: Package Skeleton and Closed Contracts
 
 - **Goal:** Add a deterministic Python package and compile-safe workflow/adapter protocols without importing or invoking the Codex SDK.
-- **Files to change:** proposed `orchestrator/pyproject.toml`, input/lock requirements, `src/openstack_ai_ops_orchestrator/contracts.py`, and one focused contract test file; final paths come from Chunk 0.
+- **Files to change:** `ansible/ai_ops_runtime/files/orchestrator/pyproject.toml`, input/lock requirements, `src/openstack_ai_ops_orchestrator/contracts.py`, and one focused contract test file.
 - **Symbols to add/change:** request schema, workflow states, repository event union, adapter result/error categories, limits, and conceptual `CodexAdapter` `Protocol`.
 - **Implementation shape:** exact pins and hash-locked requirements; closed enums/unions; fake adapter not yet functional; no network/runtime code.
 - **Validation:** Ruff formatting/lint, mypy, and focused pytest contract tests through accepted package commands.
