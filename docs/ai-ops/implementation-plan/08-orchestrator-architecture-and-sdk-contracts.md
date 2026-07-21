@@ -42,7 +42,7 @@ Excluded:
 
 ## 08.4 Assumptions
 
-- [ ] The official Codex SDK remains a supported TypeScript library for controlling a local Codex runtime.
+- [ ] The official `openai-codex` Python SDK remains a supported beta library for controlling its pinned local Codex runtime.
 - [ ] ChatGPT subscription authentication remains available through the supported Codex login flow.
 - [ ] The existing local stdio MCP boundary is the sole model-facing route to diagnostics.
 - [ ] The existing `assistant` direct-public-egress denial remains in force.
@@ -61,7 +61,7 @@ Estimate:
 Tasks:
 
 - [ ] Record the reviewed public Codex SDK installation, runtime dependency, invocation, cancellation, event, configuration, and error contracts.
-- [ ] Confirm the supported Node.js and Codex runtime versions without installing or invoking them.
+- [ ] Confirm the supported Python, `openai-codex`, and pinned `openai-codex-cli-bin` versions without installing or invoking them.
 - [ ] Identify publicly supported controls for retries, concurrency, working directory, sandboxing, MCP configuration, and output events.
 - [ ] Mark unsupported or undocumented controls as blockers rather than inferred behavior.
 - [ ] Confirm repository code will never read or directly use Codex credential material.
@@ -102,7 +102,7 @@ Estimate:
 
 Tasks:
 
-- [ ] Select exact SDK, Codex runtime, Node.js, and package-manager version policies.
+- [ ] Pin `openai-codex==0.144.4`, its exact `openai-codex-cli-bin==0.144.4` runtime dependency, the supported Python runtime policy, and deterministic package-manager/lockfile policy.
 - [ ] Require a lockfile and deterministic install path.
 - [ ] Define package provenance, integrity, vulnerability-review, and upgrade-review checks.
 - [ ] Define rollback to the previously validated dependency set.

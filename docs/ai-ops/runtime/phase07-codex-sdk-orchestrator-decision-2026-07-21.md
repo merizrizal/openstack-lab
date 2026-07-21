@@ -163,7 +163,8 @@ The first implementation slice must be local-only and must use a fake SDK adapte
 
 ## Public Documentation Basis
 
-- Official Codex SDK documentation describes `@openai/codex-sdk` as a TypeScript library for programmatically controlling local Codex agents and identifies the Codex CLI as a runtime dependency.
+- Official Codex SDK documentation describes `openai-codex` as a supported beta Python SDK for controlling the local Codex app-server; published builds include an exact `openai-codex-cli-bin` runtime dependency.
+- The reviewed `openai-codex==0.144.4` package requires Python 3.10 or later and pins `openai-codex-cli-bin==0.144.4`; its public API supports synchronous/asynchronous threads, streamed turns, structured output, sandbox selection, and explicit turn interruption.
 - Official Codex authentication documentation supports ChatGPT sign-in and states that Codex caches and refreshes its credentials.
 
 These public contracts support delegating authentication and transport to Codex. They do not authorize extracting its token or treating the SDK as a fully independent provider client.

@@ -27,7 +27,7 @@ Total estimate:
 
 Included:
 
-* Minimal TypeScript application compatible with the supported Codex SDK.
+* Minimal Python application compatible with `openai-codex==0.144.4` and its pinned CLI runtime.
 * Typed input, workflow-state, adapter, event, result, and error contracts.
 * Fake/injected Codex adapter as the default test seam.
 * Bounded turns, deadlines, cancellation, output handling, and metadata categories.
@@ -44,7 +44,7 @@ Excluded:
 ## 09.4 Assumptions
 
 - [ ] Phase 08 ADS and dependency policy are approved.
-- [ ] The repository can add a small pinned TypeScript package without changing existing Python safety components.
+- [ ] The orchestrator can extend the repository's existing Python safety conventions while isolating the beta SDK behind a repository adapter.
 - [ ] The fake adapter can represent only reviewed bounded lifecycle events needed by the orchestrator.
 
 ## 09.5 Ordered Tasks
@@ -60,7 +60,7 @@ Estimate:
 
 Tasks:
 
-- [ ] Create the minimal package, lockfile, build, test, lint, and type-check commands defined by the ADS.
+- [ ] Create the minimal Python package, deterministic lockfile, format, lint, type-check, and test commands defined by the ADS.
 - [ ] Pin direct dependencies and prevent lifecycle scripts or undeclared network downloads during tests.
 - [ ] Add a non-network test command suitable for CI and local validation.
 - [ ] Document the application entry point without adding a service or public listener.
@@ -156,7 +156,7 @@ Done when:
 
 This phase is done when:
 
-- [ ] The local orchestrator package builds deterministically.
+- [ ] The local orchestrator package installs and validates deterministically from its accepted lockfile.
 - [ ] One fake-backed workflow passes end to end.
 - [ ] Limits and cancellation fail closed.
 - [ ] No credential, runtime-home, MCP, provider, or deployment access occurs.
@@ -167,6 +167,6 @@ This phase is done when:
 | Risk | Mitigation |
 | ---- | ---------- |
 | The fake diverges from supported SDK lifecycle semantics | Base its event contract only on reviewed public SDK types and add real-adapter contract tests later. |
-| TypeScript introduces an unmanaged toolchain | Pin versions, lock dependencies, and provide one deterministic validation sequence. |
+| The Python SDK is beta and may change before 1.0 | Pin `openai-codex==0.144.4` with `openai-codex-cli-bin==0.144.4`, isolate it behind the adapter, lock dependencies, and require contract tests before upgrades. |
 | Workflow state grows into an autonomous remediation engine | Keep one diagnostic-only workflow, bounded turns, and untrusted text output. |
 | Tests accidentally invoke the real runtime | Require explicit adapter injection and make the fake the only test/default adapter. |
