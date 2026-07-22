@@ -1,0 +1,216 @@
+---
+- name: Validate fake-only orchestrator deployment boundary
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_runtime/defaults/main.yml"
+  vars:
+    ai_ops_orchestrator_wheelhouse_path: >-
+      {{ ai_ops_orchestrator.wheelhouse.publication_root }}/{{ ai_ops_orchestrator.wheelhouse.approval_id }}
+    ai_ops_orchestrator_wheelhouse_wheels_path: "{{ ai_ops_orchestrator_wheelhouse_path }}/wheels"
+    ai_ops_orchestrator_unit_path: >-
+      /etc/systemd/system/{{ ai_ops_orchestrator.service_name }}.service
+    ai_ops_orchestrator_artifacts:
+      - { path: "{{ ai_ops_orchestrator_wheelhouse_path }}", type: directory, owner: root, group: root, mode: "0550" }
+      - { path: "{{ ai_ops_orchestrator_wheelhouse_wheels_path }}", type: directory, owner: root, group: root, mode: "0550" }
+      - { path: "{{ ai_ops_orchestrator_wheelhouse_path }}/manifest.sha256", type: file, owner: root, group: root, mode: "0440" }
+      - { path: "{{ ai_ops_orchestrator_wheelhouse_path }}/requirements.lock", type: file, owner: root, group: root, mode: "0440" }
+      - { path: "{{ ai_ops_orchestrator.root }}", type: directory, owner: root, group: root, mode: "0755" }
+      - { path: "{{ ai_ops_orchestrator.venv }}", type: directory, owner: root, group: root, mode: "0755" }
+      - path: "{{ ai_ops_orchestrator.root }}/src/openstack_ai_ops_orchestrator/runtime_entrypoint.py"
+        type: file
+        owner: root
+        group: root
+        mode: "0644"
+      - { path: "{{ ai_ops_orchestrator_unit_path }}", type: file, owner: root, group: root, mode: "0644" }
+      - path: "{{ ai_ops_orchestrator.work_root }}"
+        type: directory
+        owner: "{{ ai_ops_orchestrator.user }}"
+        group: "{{ ai_ops_orchestrator.group }}"
+        mode: "0700"
+      - path: "{{ ai_ops_orchestrator.codex_home }}"
+        type: directory
+        owner: "{{ ai_ops_orchestrator.user }}"
+        group: "{{ ai_ops_orchestrator.group }}"
+        mode: "0700"
+      - path: "{{ ai_ops_orchestrator.evidence_root }}"
+        type: directory
+        owner: "{{ ai_ops_orchestrator.user }}"
+        group: "{{ ai_ops_orchestrator.group }}"
+        mode: "0700"
+    ai_ops_orchestrator_protected_paths:
+      - /opt/openstack-ai-ops/credentials/profiles/clouds.yaml
+      - /opt/openstack-ai-ops/credentials/profiles/secure.yaml
+      - /opt/openstack-ai-ops/codex-home
+      - /var/lib/aiops-provider-gateway/gateway-evidence.jsonl
+  tasks:
+    - name: Assert orchestrator validation target and contract are bounded
+      ansible.builtin.assert:
+        that:
+          - "'assistant01' in (groups['assistant'] | default([]))"
+          - "(groups['assistant'] | default([])) | length == 1"
+          - inventory_hostname == 'assistant01'
+          - assistant01.environment == 'assistant'
+          - ai_ops_orchestrator.user == 'aiops-orchestrator'
+          - ai_ops_orchestrator.group == 'aiops-orchestrator'
+          - ai_ops_orchestrator.profile == 'validate-local-fake'
+          - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
+          - ai_ops_orchestrator.wheelhouse is mapping
+          - ai_ops_orchestrator.wheelhouse.keys() | list | sort == ['approval_id', 'publication_root']
+          - ai_ops_orchestrator.wheelhouse.approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+          - >-
+            ai_ops_orchestrator.wheelhouse.publication_root ==
+            '/var/lib/openstack-ai-ops/wheelhouse/orchestrator'
+        fail_msg: ERR_ORCHESTRATOR_VALIDATION_SCOPE
+
+    - name: Inspect orchestrator deployment artifacts
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_orchestrator_artifacts }}"
+      register: ai_ops_orchestrator_artifact_stats
+      changed_when: false
+
+    - name: Assert orchestrator artifact protections and writable-path allowlist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - "(item.item.type == 'directory') == item.stat.isdir"
+          - "(item.item.type == 'file') == item.stat.isreg"
+          - item.stat.pw_name == item.item.owner
+          - item.stat.gr_name == item.item.group
+          - item.stat.mode == item.item.mode
+          - not item.stat.islnk
+        fail_msg: ERR_ORCHESTRATOR_ARTIFACT_BOUNDARY
+      loop: "{{ ai_ops_orchestrator_artifact_stats.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Verify assistant wheelhouse manifest
+      ansible.builtin.command:
+        argv: [/usr/bin/sha256sum, --check, --strict, --status, manifest.sha256]
+        chdir: "{{ ai_ops_orchestrator_wheelhouse_path }}"
+      changed_when: false
+      no_log: true
+
+    - name: Validate fixed offline orchestrator pip arguments against assistant wheelhouse
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_orchestrator.venv }}/bin/pip"
+          - install
+          - --dry-run
+          - --no-index
+          - --require-hashes
+          - --no-cache-dir
+          - --find-links
+          - "{{ ai_ops_orchestrator_wheelhouse_wheels_path }}"
+          - -r
+          - "{{ ai_ops_orchestrator.root }}/requirements.lock"
+      changed_when: false
+      no_log: true
+
+    - name: Read orchestrator unit hardening metadata
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/systemctl
+          - show
+          - "{{ ai_ops_orchestrator.service_name }}"
+          - --property=User
+          - --property=Group
+          - --property=Type
+          - --property=PrivateNetwork
+          - --property=RestrictAddressFamilies
+          - --property=NoNewPrivileges
+          - --property=PrivateTmp
+          - --property=PrivateDevices
+          - --property=ProtectSystem
+          - --property=ProtectHome
+          - --property=ReadWritePaths
+      register: ai_ops_orchestrator_unit_properties
+      changed_when: false
+      no_log: true
+
+    - name: Assert orchestrator unit remains sandboxed and network-disabled
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^User=aiops-orchestrator$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^Group=aiops-orchestrator$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^Type=oneshot$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^PrivateNetwork=yes$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^RestrictAddressFamilies=AF_UNIX$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^NoNewPrivileges=yes$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^PrivateTmp=yes$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^PrivateDevices=yes$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^ProtectSystem=strict$')
+          - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^ProtectHome=yes$')
+          - >-
+            ai_ops_orchestrator_unit_properties.stdout is search(
+            '^ReadWritePaths={{ ai_ops_orchestrator.work_root | regex_escape }} {{ ai_ops_orchestrator.codex_home | regex_escape }} {{ ai_ops_orchestrator.evidence_root
+            | regex_escape }}$')
+        fail_msg: ERR_ORCHESTRATOR_SANDBOX
+      no_log: true
+
+    - name: Read orchestrator service enablement metadata
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-enabled, "{{ ai_ops_orchestrator.service_name }}"]
+      register: ai_ops_orchestrator_service_enabled
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert orchestrator service remains on-demand
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_service_enabled.rc != 0
+        fail_msg: ERR_ORCHESTRATOR_SERVICE_ENABLEMENT
+      no_log: true
+
+    - name: Check orchestrator identity cannot read protected boundaries
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/runuser
+          - -u
+          - "{{ ai_ops_orchestrator.user }}"
+          - --
+          - /usr/bin/test
+          - -r
+          - "{{ item }}"
+      loop: "{{ ai_ops_orchestrator_protected_paths }}"
+      register: ai_ops_orchestrator_credential_access
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert protected credential and historical runtime boundaries are denied
+      ansible.builtin.assert:
+        that:
+          - item.rc != 0
+        fail_msg: ERR_ORCHESTRATOR_CREDENTIAL_BOUNDARY
+      loop: "{{ ai_ops_orchestrator_credential_access.results }}"
+      loop_control:
+        label: protected-boundary
+      no_log: true
+
+    - name: Run fixed fake-only orchestrator validation unit
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, start, "{{ ai_ops_orchestrator.service_name }}"]
+      register: ai_ops_orchestrator_fake_invocation
+      changed_when: false
+      no_log: true
+
+    - name: Read post-invocation orchestrator process metadata
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, show, "{{ ai_ops_orchestrator.service_name }}", --property=ActiveState, --property=SubState]
+      register: ai_ops_orchestrator_post_invocation_state
+      changed_when: false
+      no_log: true
+
+    - name: Assert fake-only invocation completed with no retained service process
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_fake_invocation.rc == 0
+          - ai_ops_orchestrator_post_invocation_state.stdout is search('(?m)^ActiveState=inactive$')
+          - ai_ops_orchestrator_post_invocation_state.stdout is search('(?m)^SubState=dead$')
+        fail_msg: ERR_ORCHESTRATOR_LOCAL_VALIDATION
+      no_log: true

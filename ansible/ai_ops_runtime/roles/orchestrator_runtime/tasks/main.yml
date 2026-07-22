@@ -15,7 +15,7 @@
       - >-
         ai_ops_orchestrator.keys() | list | sort ==
         ['codex_home', 'evidence_root', 'group', 'profile', 'root', 'service_name',
-        'user', 'venv', 'work_root']
+        'user', 'venv', 'wheelhouse', 'work_root']
       - ai_ops_orchestrator.user == 'aiops-orchestrator'
       - ai_ops_orchestrator.group == 'aiops-orchestrator'
       - ai_ops_orchestrator.root == '/opt/openstack-ai-ops/orchestrator'
@@ -25,6 +25,12 @@
       - ai_ops_orchestrator.evidence_root == '/var/lib/aiops-orchestrator/evidence'
       - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
       - ai_ops_orchestrator.profile == 'validate-local-fake'
+      - ai_ops_orchestrator.wheelhouse is mapping
+      - ai_ops_orchestrator.wheelhouse.keys() | list | sort == ['approval_id', 'publication_root']
+      - ai_ops_orchestrator.wheelhouse.approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+      - >-
+        ai_ops_orchestrator.wheelhouse.publication_root ==
+        '/var/lib/openstack-ai-ops/wheelhouse/orchestrator'
       - ai_ops_orchestrator_packages == ['python3-venv']
     fail_msg: ERR_ORCHESTRATOR_DEPLOYMENT_CONTRACT
 
@@ -98,7 +104,9 @@
   ansible.builtin.pip:
     requirements: "{{ ai_ops_orchestrator.root }}/requirements.lock"
     executable: "{{ ai_ops_orchestrator.venv }}/bin/pip"
-    extra_args: --no-index --require-hashes --no-cache-dir
+    extra_args: >-
+      --no-index --require-hashes --no-cache-dir --find-links
+      {{ ai_ops_orchestrator.wheelhouse.publication_root }}/{{ ai_ops_orchestrator.wheelhouse.approval_id }}/wheels
 
 - name: Install fixed fake-only orchestrator sources
   ansible.builtin.copy:

@@ -7,6 +7,9 @@ ai_ops_orchestrator:
   work_root: /var/lib/aiops-orchestrator/work
   codex_home: /var/lib/aiops-orchestrator/codex-home
   evidence_root: /var/lib/aiops-orchestrator/evidence
+  wheelhouse:
+    approval_id: ""
+    publication_root: /var/lib/openstack-ai-ops/wheelhouse/orchestrator
   service_name: aiops-orchestrator
   profile: validate-local-fake
 ai_ops_orchestrator_packages:

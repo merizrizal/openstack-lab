@@ -4,6 +4,8 @@ compute: |
   echo "Provision on compute node"
 assistant: |
   echo "Provision on assistant node"
+builder: |
+  echo "Provision on builder node"
 dummy: |
   if [ "$(hostname -s)" != "dummy01" ]; then
     exit 0

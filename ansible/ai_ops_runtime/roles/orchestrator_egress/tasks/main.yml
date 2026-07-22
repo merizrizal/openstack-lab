@@ -1,0 +1,152 @@
+---
+- name: Assert orchestrator disabled egress contract
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'assistant01'
+      - ai_ops_orchestrator_egress is mapping
+      - >-
+        ai_ops_orchestrator_egress.keys() | list | sort ==
+        ['approval', 'enabled', 'mode', 'ufw', 'user']
+      - ai_ops_orchestrator_egress.enabled | type_debug == 'bool'
+      - ai_ops_orchestrator_egress.enabled
+      - ai_ops_orchestrator_egress.mode in ['disabled', 'synthetic', 'login', 'remote']
+      - ai_ops_orchestrator_egress.mode == 'disabled'
+      - ai_ops_orchestrator_egress.user == 'aiops-orchestrator'
+      - ai_ops_orchestrator_egress.approval is mapping
+      - >-
+        ai_ops_orchestrator_egress.approval.keys() | list | sort ==
+        ['expires_at_utc', 'id']
+      - ai_ops_orchestrator_egress.approval.id == ''
+      - ai_ops_orchestrator_egress.approval.expires_at_utc == ''
+      - ai_ops_orchestrator_egress.ufw is mapping
+      - >-
+        ai_ops_orchestrator_egress.ufw.keys() | list | sort ==
+        ['ipv4_chain', 'ipv4_rules_path', 'ipv6_chain', 'ipv6_rules_path', 'marker']
+      - ai_ops_orchestrator_egress.ufw.ipv4_rules_path == '/etc/ufw/before.rules'
+      - ai_ops_orchestrator_egress.ufw.ipv6_rules_path == '/etc/ufw/before6.rules'
+      - ai_ops_orchestrator_egress.ufw.marker == 'AI-OPS orchestrator disabled egress policy'
+      - ai_ops_orchestrator_egress.ufw.ipv4_chain == 'ufw-before-output'
+      - ai_ops_orchestrator_egress.ufw.ipv6_chain == 'ufw6-before-output'
+    fail_msg: ERR_ORCHESTRATOR_EGRESS_CONTRACT
+
+- name: Read UFW state before permanent orchestrator policy writes
+  ansible.builtin.command:
+    argv: [/usr/sbin/ufw, status, verbose]
+  register: ai_ops_orchestrator_egress_ufw_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Resolve dedicated orchestrator numeric UID
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u, "{{ ai_ops_orchestrator_egress.user }}"]
+  register: ai_ops_orchestrator_egress_user_uid
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read independent assistant egress policy markers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -F
+      - "# BEGIN AI-OPS assistant egress policy"
+      - "{{ item }}"
+  loop:
+    - "{{ ai_ops_orchestrator_egress.ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_orchestrator_egress.ufw.ipv6_rules_path }}"
+  register: ai_ops_orchestrator_assistant_policy_markers
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert UFW baseline and assistant policy remain independent
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_egress_ufw_status.rc == 0
+      - "(ai_ops_orchestrator_egress_ufw_status.stdout_lines | first) == 'Status: active'"
+      - ai_ops_orchestrator_egress_user_uid.rc == 0
+      - ai_ops_orchestrator_egress_user_uid.stdout is match('^[0-9]+$')
+      - ai_ops_orchestrator_assistant_policy_markers.results | map(attribute='rc') | list == [0, 0]
+    fail_msg: ERR_ORCHESTRATOR_EGRESS_PREFLIGHT
+  no_log: true
+
+- name: Install permanent disabled IPv4 orchestrator egress block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_orchestrator_egress.ufw.ipv4_rules_path }}"
+    marker: "# {mark} {{ ai_ops_orchestrator_egress.ufw.marker }}"
+    insertbefore: "^COMMIT$"
+    block: |
+      -A {{ ai_ops_orchestrator_egress.ufw.ipv4_chain }} -m owner --uid-owner {{ ai_ops_orchestrator_egress_user_uid.stdout }} -o lo -j ACCEPT
+      -A {{ ai_ops_orchestrator_egress.ufw.ipv4_chain }} -m owner --uid-owner {{ ai_ops_orchestrator_egress_user_uid.stdout }} -j REJECT
+    validate: /usr/sbin/iptables-restore --test %s
+  register: ai_ops_orchestrator_egress_ipv4_block
+
+- name: Install permanent disabled IPv6 orchestrator egress block
+  ansible.builtin.blockinfile:
+    path: "{{ ai_ops_orchestrator_egress.ufw.ipv6_rules_path }}"
+    marker: "# {mark} {{ ai_ops_orchestrator_egress.ufw.marker }}"
+    insertbefore: "^COMMIT$"
+    block: |
+      -A {{ ai_ops_orchestrator_egress.ufw.ipv6_chain }} -m owner --uid-owner {{ ai_ops_orchestrator_egress_user_uid.stdout }} -o lo -j ACCEPT
+      -A {{ ai_ops_orchestrator_egress.ufw.ipv6_chain }} -m owner --uid-owner {{ ai_ops_orchestrator_egress_user_uid.stdout }} -j REJECT
+    validate: /usr/sbin/ip6tables-restore --test %s
+  register: ai_ops_orchestrator_egress_ipv6_block
+
+- name: Reload UFW after permanent disabled orchestrator policy update
+  ansible.builtin.command:
+    argv: [/usr/sbin/ufw, reload]
+  changed_when: false
+  check_mode: false
+  when: >-
+    ai_ops_orchestrator_egress_ipv4_block.changed or
+    ai_ops_orchestrator_egress_ipv6_block.changed
+
+- name: Read permanent orchestrator owner rules after reload
+  ansible.builtin.command:
+    argv: [/usr/sbin/iptables, -S, "{{ ai_ops_orchestrator_egress.ufw.ipv4_chain }}"]
+  register: ai_ops_orchestrator_egress_ipv4_rules
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read permanent orchestrator IPv6 owner rules after reload
+  ansible.builtin.command:
+    argv: [/usr/sbin/ip6tables, -S, "{{ ai_ops_orchestrator_egress.ufw.ipv6_chain }}"]
+  register: ai_ops_orchestrator_egress_ipv6_rules
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert exact loopback allow followed by permanent owner reject
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_egress_ipv4_rules.rc == 0
+      - ai_ops_orchestrator_egress_ipv6_rules.rc == 0
+      - >-
+        ai_ops_orchestrator_egress_ipv4_rules.stdout_lines |
+        select('equalto', '-A ufw-before-output -m owner --uid-owner ' ~
+        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -o lo -j ACCEPT') |
+        list | length == 1
+      - >-
+        ai_ops_orchestrator_egress_ipv4_rules.stdout_lines |
+        select('equalto', '-A ufw-before-output -m owner --uid-owner ' ~
+        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -j REJECT') |
+        list | length == 1
+      - >-
+        ai_ops_orchestrator_egress_ipv6_rules.stdout_lines |
+        select('equalto', '-A ufw6-before-output -m owner --uid-owner ' ~
+        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -o lo -j ACCEPT') |
+        list | length == 1
+      - >-
+        ai_ops_orchestrator_egress_ipv6_rules.stdout_lines |
+        select('equalto', '-A ufw6-before-output -m owner --uid-owner ' ~
+        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -j REJECT') |
+        list | length == 1
+    fail_msg: ERR_ORCHESTRATOR_EGRESS_MATERIALIZATION
+  no_log: true

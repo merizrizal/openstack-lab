@@ -1,0 +1,146 @@
+---
+- name: Copy reviewed offline orchestrator wheel seed to builder
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+  vars:
+    ai_ops_orchestrator_wheelhouse_seed_copy:
+      enabled: false
+      approval: { id: "" }
+      source_root: /tmp/openstack-ai-ops-wheelhouse-seed/orchestrator
+      destination: /var/lib/openstack-ai-ops/wheelhouse-seed/orchestrator
+      target:
+        python_version: "3.12"
+        platform: manylinux_2_17_x86_64
+        implementation: cp
+        architecture: x86_64
+    ai_ops_orchestrator_wheelhouse_seed_lock: "{{ playbook_dir }}/files/orchestrator/requirements.lock"
+  tasks:
+    - name: Assert reviewed wheel seed copy contract
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_wheelhouse_seed_copy is mapping
+          - ai_ops_orchestrator_wheelhouse_seed_copy.keys() | list | sort == ['approval', 'destination', 'enabled', 'source_root', 'target']
+          - ai_ops_orchestrator_wheelhouse_seed_copy.enabled | type_debug == 'bool'
+          - ai_ops_orchestrator_wheelhouse_seed_copy.approval.keys() | list | sort == ['id']
+          - ai_ops_orchestrator_wheelhouse_seed_copy.source_root == '/tmp/openstack-ai-ops-wheelhouse-seed/orchestrator'
+          - ai_ops_orchestrator_wheelhouse_seed_copy.destination == '/var/lib/openstack-ai-ops/wheelhouse-seed/orchestrator'
+          - ai_ops_orchestrator_wheelhouse_seed_copy.target.python_version == '3.12'
+          - ai_ops_orchestrator_wheelhouse_seed_copy.target.platform == 'manylinux_2_17_x86_64'
+          - ai_ops_orchestrator_wheelhouse_seed_copy.target.implementation == 'cp'
+          - ai_ops_orchestrator_wheelhouse_seed_lock is file
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_COPY_CONTRACT
+
+    - name: Assert enabled reviewed wheel seed copy approval
+      ansible.builtin.assert:
+        that: ai_ops_orchestrator_wheelhouse_seed_copy.approval.id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_COPY_APPROVAL
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Define fixed reviewed localhost wheel source
+      ansible.builtin.set_fact:
+        ai_ops_orchestrator_wheelhouse_seed_source: "{{ ai_ops_orchestrator_wheelhouse_seed_copy.source_root }}/{{ ai_ops_orchestrator_wheelhouse_seed_copy.approval.id
+          }}/wheels"
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Inspect reviewed localhost wheel source boundary
+      ansible.builtin.stat:
+        path: "{{ ai_ops_orchestrator_wheelhouse_seed_source }}"
+      register: ai_ops_orchestrator_wheelhouse_seed_source_stat
+      changed_when: false
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Assert reviewed localhost wheel source boundary
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_wheelhouse_seed_source_stat.stat.exists
+          - ai_ops_orchestrator_wheelhouse_seed_source_stat.stat.isdir
+          - not ai_ops_orchestrator_wheelhouse_seed_source_stat.stat.islnk
+          - ai_ops_orchestrator_wheelhouse_seed_source_stat.stat.pw_name == 'root'
+          - ai_ops_orchestrator_wheelhouse_seed_source_stat.stat.gr_name == 'root'
+          - ai_ops_orchestrator_wheelhouse_seed_source_stat.stat.mode == '0550'
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_COPY_SOURCE_BOUNDARY
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Discover reviewed localhost wheel files
+      ansible.builtin.find:
+        paths: "{{ ai_ops_orchestrator_wheelhouse_seed_source }}"
+        patterns: "*.whl"
+        file_type: file
+        recurse: false
+      register: ai_ops_orchestrator_wheelhouse_seed_source_wheels
+      changed_when: false
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Assert reviewed localhost wheel files exist
+      ansible.builtin.assert:
+        that: ai_ops_orchestrator_wheelhouse_seed_source_wheels.matched | int > 0
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_COPY_SOURCE_CONTENTS
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Inspect builder wheel seed destination
+      ansible.builtin.stat:
+        path: "{{ ai_ops_orchestrator_wheelhouse_seed_copy.destination }}"
+      delegate_to: builder01
+      register: ai_ops_orchestrator_wheelhouse_seed_destination_stat
+      changed_when: false
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Reject replacement of builder wheel seed
+      ansible.builtin.assert:
+        that: not ai_ops_orchestrator_wheelhouse_seed_destination_stat.stat.exists
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_COPY_DESTINATION_EXISTS
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Create root-owned builder wheel seed destination
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_seed_copy.destination }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+      delegate_to: builder01
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Copy reviewed wheel files to builder seed destination
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ ai_ops_orchestrator_wheelhouse_seed_copy.destination }}/{{ item.path | basename }}"
+        owner: root
+        group: root
+        mode: "0640"
+      delegate_to: builder01
+      loop: "{{ ai_ops_orchestrator_wheelhouse_seed_source_wheels.files }}"
+      no_log: true
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
+
+    - name: Verify copied builder wheel seed without package egress
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -m
+          - pip
+          - download
+          - --no-index
+          - --require-hashes
+          - --no-cache-dir
+          - "--only-binary=:all:"
+          - --platform
+          - manylinux_2_17_x86_64
+          - --python-version
+          - "3.12"
+          - --implementation
+          - cp
+          - --find-links
+          - "{{ ai_ops_orchestrator_wheelhouse_seed_copy.destination }}"
+          - --dest
+          - /tmp/openstack-ai-ops-wheelhouse-seed-verify
+          - -r
+          - "{{ ai_ops_orchestrator_wheelhouse_seed_lock }}"
+      delegate_to: builder01
+      changed_when: false
+      no_log: false
+      when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled

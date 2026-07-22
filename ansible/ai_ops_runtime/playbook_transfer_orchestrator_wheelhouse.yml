@@ -1,0 +1,9 @@
+---
+- name: Transfer approved offline orchestrator wheelhouse to assistant
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+  roles:
+    - role: orchestrator_wheelhouse_transfer

@@ -59,6 +59,15 @@ assistant01:
   cpus: 2
   disks: 25
 
+builder01:
+  environment: builder
+  mgmtnet_ip_address: 192.168.121.71
+  provider_ip_address: 192.168.123.71
+  hostname: builder01.local
+  memory: 2048
+  cpus: 2
+  disks: 20
+
 # ceph02:
 #   environment: ceph
 #   mgmtnet_ip_address: 192.168.121.10

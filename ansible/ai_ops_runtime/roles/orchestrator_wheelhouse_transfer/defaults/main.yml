@@ -1,0 +1,13 @@
+---
+ai_ops_orchestrator_wheelhouse_transfer:
+  enabled: false
+  approval:
+    id: ""
+  builder:
+    host: builder01
+    publication_root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator
+  controller:
+    staging_root: /tmp/openstack-ai-ops-wheelhouse-transfer/orchestrator
+  assistant:
+    publication_root: /var/lib/openstack-ai-ops/wheelhouse/orchestrator
+    staging_root: /var/lib/openstack-ai-ops/wheelhouse/orchestrator/.staging

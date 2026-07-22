@@ -1,0 +1,74 @@
+---
+- name: Assert wheelhouse builder target and contract
+  ansible.builtin.assert:
+    that:
+      - "'builder01' in (groups['wheelhouse_builders'] | default([]))"
+      - "(groups['wheelhouse_builders'] | default([])) | length == 1"
+      - inventory_hostname == 'builder01'
+      - builder01.environment == 'builder'
+      - ai_ops_orchestrator_wheelhouse_build is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.keys() | list | sort ==
+        ['approval', 'enabled', 'publication', 'seed', 'target']
+      - ai_ops_orchestrator_wheelhouse_build.enabled | type_debug == 'bool'
+      - ai_ops_orchestrator_wheelhouse_build.approval is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.approval.keys() | list | sort ==
+        ['expires_at_utc', 'id']
+      - ai_ops_orchestrator_wheelhouse_build.publication is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.publication.keys() | list | sort ==
+        ['root', 'staging_root']
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.publication.root ==
+        '/var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator'
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.publication.staging_root ==
+        '/var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator/.staging'
+      - ai_ops_orchestrator_wheelhouse_build.seed is mapping
+      - ai_ops_orchestrator_wheelhouse_build.seed.keys() | list | sort == ['directory']
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.seed.directory ==
+        '/var/lib/openstack-ai-ops/wheelhouse-seed/orchestrator'
+      - ai_ops_orchestrator_wheelhouse_build.target is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.target.keys() | list | sort ==
+        ['architecture', 'implementation', 'platform', 'python_version']
+      - ai_ops_orchestrator_wheelhouse_build.target.python_version == '3.12'
+      - ai_ops_orchestrator_wheelhouse_build.target.platform == 'manylinux_2_17_x86_64'
+      - ai_ops_orchestrator_wheelhouse_build.target.implementation == 'cp'
+      - ai_ops_orchestrator_wheelhouse_build.target.architecture == 'x86_64'
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_BUILD_CONTRACT
+
+- name: Assert enabled wheelhouse build approval shape
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_wheelhouse_build.approval.id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+      - >-
+        ai_ops_orchestrator_wheelhouse_build.approval.expires_at_utc is match(
+        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_BUILD_APPROVAL
+  when: ai_ops_orchestrator_wheelhouse_build.enabled
+
+- name: Inspect offline wheelhouse seed directory
+  ansible.builtin.stat:
+    path: "{{ ai_ops_orchestrator_wheelhouse_build.seed.directory }}"
+  register: ai_ops_orchestrator_wheelhouse_seed_stat
+  changed_when: false
+  when: ai_ops_orchestrator_wheelhouse_build.enabled
+
+- name: Assert offline wheelhouse seed directory boundary
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.exists
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.isdir
+      - not ai_ops_orchestrator_wheelhouse_seed_stat.stat.islnk
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.pw_name == 'root'
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.gr_name == 'root'
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.mode == '0750'
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_BOUNDARY
+  when: ai_ops_orchestrator_wheelhouse_build.enabled
+
+- name: Verify and publish approved offline wheelhouse
+  ansible.builtin.include_tasks: publish.yml
+  when: ai_ops_orchestrator_wheelhouse_build.enabled

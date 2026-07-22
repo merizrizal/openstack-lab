@@ -1,0 +1,176 @@
+---
+- name: Define approval-scoped wheelhouse paths
+  ansible.builtin.set_fact:
+    ai_ops_orchestrator_wheelhouse_stage: "{{ ai_ops_orchestrator_wheelhouse_build.publication.staging_root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id
+      }}"
+    ai_ops_orchestrator_wheelhouse_artifact: "{{ ai_ops_orchestrator_wheelhouse_build.publication.root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id }}"
+
+- name: Create wheelhouse publication root
+  ansible.builtin.file:
+    path: "{{ ai_ops_orchestrator_wheelhouse_build.publication.root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Create wheelhouse staging root
+  ansible.builtin.file:
+    path: "{{ ai_ops_orchestrator_wheelhouse_build.publication.staging_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Inspect approval-scoped wheelhouse publication path
+  ansible.builtin.stat:
+    path: "{{ ai_ops_orchestrator_wheelhouse_artifact }}"
+  register: ai_ops_orchestrator_wheelhouse_artifact_stat
+  changed_when: false
+
+- name: Reject replacement of an existing wheelhouse publication
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_orchestrator_wheelhouse_artifact_stat.stat.exists
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_PUBLICATION_EXISTS
+
+- name: Verify and publish offline wheelhouse
+  block:
+    - name: Remove stale approval-scoped wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_stage }}"
+        state: absent
+
+    - name: Create approval-scoped wheelhouse staging directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ ai_ops_orchestrator_wheelhouse_stage }}"
+        - "{{ ai_ops_orchestrator_wheelhouse_stage }}/wheels"
+
+    - name: Copy reviewed dependency lock into wheelhouse staging
+      ansible.builtin.copy:
+        src: orchestrator/requirements.lock
+        dest: "{{ ai_ops_orchestrator_wheelhouse_stage }}/requirements.lock"
+        owner: root
+        group: root
+        mode: "0400"
+
+    - name: Select only hash-locked offline wheels from the seed directory
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -m
+          - pip
+          - download
+          - --no-index
+          - --require-hashes
+          - --no-cache-dir
+          - "--only-binary=:all:"
+          - --find-links
+          - "{{ ai_ops_orchestrator_wheelhouse_build.seed.directory }}"
+          - --dest
+          - "{{ ai_ops_orchestrator_wheelhouse_stage }}/wheels"
+          - -r
+          - "{{ ai_ops_orchestrator_wheelhouse_stage }}/requirements.lock"
+      changed_when: false
+      no_log: true
+
+    - name: Discover hash-verified wheel artifacts
+      ansible.builtin.find:
+        paths: "{{ ai_ops_orchestrator_wheelhouse_stage }}/wheels"
+        patterns: "*.whl"
+        file_type: file
+        recurse: false
+      register: ai_ops_orchestrator_wheelhouse_wheels
+      changed_when: false
+
+    - name: Assert hash-verified wheel artifacts were selected
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_wheelhouse_wheels.matched | int > 0
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_INTEGRITY
+
+    - name: Define staged wheelhouse manifest inputs
+      ansible.builtin.set_fact:
+        ai_ops_orchestrator_wheelhouse_manifest_inputs: >-
+          {{
+            [{"path": ai_ops_orchestrator_wheelhouse_stage ~ "/requirements.lock"}] +
+            (ai_ops_orchestrator_wheelhouse_wheels.files | sort(attribute="path"))
+          }}
+
+    - name: Calculate staged wheelhouse manifest checksums
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+        checksum_algorithm: sha256
+      loop: "{{ ai_ops_orchestrator_wheelhouse_manifest_inputs }}"
+      register: ai_ops_orchestrator_wheelhouse_manifest_stats
+      changed_when: false
+
+    - name: Assert staged wheelhouse manifest inputs are regular files
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.checksum is match("^[a-f0-9]{64}$")
+        fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_INTEGRITY
+      loop: "{{ ai_ops_orchestrator_wheelhouse_manifest_stats.results }}"
+      loop_control:
+        label: manifest-input
+
+    - name: Write staged wheelhouse SHA-256 manifest
+      ansible.builtin.copy:
+        content: |-
+          {% for item in ai_ops_orchestrator_wheelhouse_manifest_stats.results %}
+          {{ item.stat.checksum }}  {{ item.item.path | regex_replace("^" ~ (ai_ops_orchestrator_wheelhouse_stage | regex_escape) ~ "/", "") }}
+          {% endfor %}
+        dest: "{{ ai_ops_orchestrator_wheelhouse_stage }}/manifest.sha256"
+        owner: root
+        group: root
+        mode: "0440"
+
+    - name: Seal staged wheel artifacts as root-owned read-only files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: "0440"
+      loop: "{{ ai_ops_orchestrator_wheelhouse_wheels.files }}"
+
+    - name: Seal reviewed dependency lock in staged wheelhouse
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_stage }}/requirements.lock"
+        owner: root
+        group: root
+        mode: "0440"
+
+    - name: Seal staged wheel directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_stage }}/wheels"
+        owner: root
+        group: root
+        mode: "0550"
+
+    - name: Publish immutable approval-scoped wheelhouse atomically
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/mv
+          - "{{ ai_ops_orchestrator_wheelhouse_stage }}"
+          - "{{ ai_ops_orchestrator_wheelhouse_artifact }}"
+      changed_when: true
+
+    - name: Seal published wheelhouse directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_artifact }}"
+        owner: root
+        group: root
+        mode: "0550"
+  always:
+    - name: Remove approval-scoped wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_stage }}"
+        state: absent

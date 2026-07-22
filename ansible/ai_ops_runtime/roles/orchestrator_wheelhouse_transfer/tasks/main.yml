@@ -1,0 +1,53 @@
+---
+- name: Assert assistant wheelhouse transfer scope and closed contract
+  ansible.builtin.assert:
+    that:
+      - "'assistant01' in (groups['assistant'] | default([]))"
+      - "(groups['assistant'] | default([])) | length == 1"
+      - inventory_hostname == 'assistant01'
+      - assistant01.environment == 'assistant'
+      - "'builder01' in (groups['wheelhouse_builders'] | default([]))"
+      - "(groups['wheelhouse_builders'] | default([])) | length == 1"
+      - builder01.environment == 'builder'
+      - ai_ops_orchestrator_wheelhouse_transfer is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.keys() | list | sort ==
+        ['approval', 'assistant', 'builder', 'controller', 'enabled']
+      - ai_ops_orchestrator_wheelhouse_transfer.enabled | type_debug == 'bool'
+      - ai_ops_orchestrator_wheelhouse_transfer.approval is mapping
+      - ai_ops_orchestrator_wheelhouse_transfer.approval.keys() | list | sort == ['id']
+      - ai_ops_orchestrator_wheelhouse_transfer.builder is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.builder.keys() | list | sort ==
+        ['host', 'publication_root']
+      - ai_ops_orchestrator_wheelhouse_transfer.builder.host == 'builder01'
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.builder.publication_root ==
+        '/var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator'
+      - ai_ops_orchestrator_wheelhouse_transfer.controller is mapping
+      - ai_ops_orchestrator_wheelhouse_transfer.controller.keys() | list | sort == ['staging_root']
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.controller.staging_root ==
+        '/tmp/openstack-ai-ops-wheelhouse-transfer/orchestrator'
+      - ai_ops_orchestrator_wheelhouse_transfer.assistant is mapping
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.assistant.keys() | list | sort ==
+        ['publication_root', 'staging_root']
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.assistant.publication_root ==
+        '/var/lib/openstack-ai-ops/wheelhouse/orchestrator'
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer.assistant.staging_root ==
+        '/var/lib/openstack-ai-ops/wheelhouse/orchestrator/.staging'
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_TRANSFER_CONTRACT
+
+- name: Assert enabled assistant wheelhouse transfer approval
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_wheelhouse_transfer.approval.id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_TRANSFER_APPROVAL
+  when: ai_ops_orchestrator_wheelhouse_transfer.enabled
+
+- name: Transfer reviewed builder wheelhouse to assistant
+  ansible.builtin.include_tasks: transfer.yml
+  when: ai_ops_orchestrator_wheelhouse_transfer.enabled

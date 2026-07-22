@@ -1,0 +1,16 @@
+---
+ai_ops_orchestrator_wheelhouse_build:
+  enabled: false
+  approval:
+    id: ""
+    expires_at_utc: ""
+  publication:
+    root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator
+    staging_root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator/.staging
+  seed:
+    directory: /var/lib/openstack-ai-ops/wheelhouse-seed/orchestrator
+  target:
+    python_version: "3.12"
+    platform: manylinux_2_17_x86_64
+    implementation: cp
+    architecture: x86_64

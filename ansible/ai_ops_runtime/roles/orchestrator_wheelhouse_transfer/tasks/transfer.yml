@@ -1,0 +1,209 @@
+---
+- name: Define fixed approval-scoped transfer paths
+  ansible.builtin.set_fact:
+    ai_ops_orchestrator_wheelhouse_transfer_source: >-
+      {{ ai_ops_orchestrator_wheelhouse_transfer.builder.publication_root }}/{{ ai_ops_orchestrator_wheelhouse_transfer.approval.id }}
+    ai_ops_orchestrator_wheelhouse_transfer_controller_stage: >-
+      {{ ai_ops_orchestrator_wheelhouse_transfer.controller.staging_root }}/{{ ai_ops_orchestrator_wheelhouse_transfer.approval.id }}
+    ai_ops_orchestrator_wheelhouse_transfer_assistant_stage: >-
+      {{ ai_ops_orchestrator_wheelhouse_transfer.assistant.staging_root }}/{{ ai_ops_orchestrator_wheelhouse_transfer.approval.id }}
+    ai_ops_orchestrator_wheelhouse_transfer_destination: >-
+      {{ ai_ops_orchestrator_wheelhouse_transfer.assistant.publication_root }}/{{ ai_ops_orchestrator_wheelhouse_transfer.approval.id }}
+
+- name: Inspect selected builder wheelhouse publication
+  ansible.builtin.stat:
+    path: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
+  delegate_to: builder01
+  register: ai_ops_orchestrator_wheelhouse_transfer_source_stat
+  changed_when: false
+
+- name: Assert selected builder wheelhouse publication boundary
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_wheelhouse_transfer_source_stat.stat.exists
+      - ai_ops_orchestrator_wheelhouse_transfer_source_stat.stat.isdir
+      - not ai_ops_orchestrator_wheelhouse_transfer_source_stat.stat.islnk
+      - ai_ops_orchestrator_wheelhouse_transfer_source_stat.stat.pw_name == 'root'
+      - ai_ops_orchestrator_wheelhouse_transfer_source_stat.stat.gr_name == 'root'
+      - ai_ops_orchestrator_wheelhouse_transfer_source_stat.stat.mode == '0550'
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_TRANSFER_SOURCE_BOUNDARY
+
+- name: Discover selected builder wheelhouse regular files
+  ansible.builtin.find:
+    paths: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
+    file_type: file
+    recurse: true
+  delegate_to: builder01
+  register: ai_ops_orchestrator_wheelhouse_transfer_source_files
+  changed_when: false
+
+- name: Discover selected builder wheelhouse symlinks
+  ansible.builtin.find:
+    paths: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
+    file_type: link
+    recurse: true
+  delegate_to: builder01
+  register: ai_ops_orchestrator_wheelhouse_transfer_source_links
+  changed_when: false
+
+- name: Define selected builder wheelhouse relative paths
+  ansible.builtin.set_fact:
+    ai_ops_orchestrator_wheelhouse_transfer_relative_paths: >-
+      {{
+        ai_ops_orchestrator_wheelhouse_transfer_source_files.files |
+        map(attribute='path') |
+        map('regex_replace', '^' ~ (ai_ops_orchestrator_wheelhouse_transfer_source | regex_escape) ~ '/', '') |
+        list
+      }}
+
+- name: Assert selected builder wheelhouse contains only reviewed artifact types
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_wheelhouse_transfer_source_links.matched | int == 0
+      - ai_ops_orchestrator_wheelhouse_transfer_source_files.matched | int > 2
+      - "'requirements.lock' in ai_ops_orchestrator_wheelhouse_transfer_relative_paths"
+      - "'manifest.sha256' in ai_ops_orchestrator_wheelhouse_transfer_relative_paths"
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer_source_files.files |
+        map(attribute='path') | map('basename') | list | unique | length ==
+        ai_ops_orchestrator_wheelhouse_transfer_source_files.matched | int
+      - >-
+        ai_ops_orchestrator_wheelhouse_transfer_relative_paths |
+        reject('match', '^(requirements\\.lock|manifest\\.sha256|wheels/[^/]+\\.whl)$') |
+        list | length == 0
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_TRANSFER_SOURCE_CONTENTS
+
+- name: Inspect selected builder wheelhouse file boundaries
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ ai_ops_orchestrator_wheelhouse_transfer_source_files.files }}"
+  delegate_to: builder01
+  register: ai_ops_orchestrator_wheelhouse_transfer_source_file_stats
+  changed_when: false
+
+- name: Assert selected builder wheelhouse file boundaries
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == 'root'
+      - item.stat.mode == '0440'
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_TRANSFER_SOURCE_BOUNDARY
+  loop: "{{ ai_ops_orchestrator_wheelhouse_transfer_source_file_stats.results }}"
+  loop_control:
+    label: source-artifact
+
+- name: Verify selected builder wheelhouse manifest
+  ansible.builtin.command:
+    argv: [/usr/bin/sha256sum, --check, --strict, --status, manifest.sha256]
+    chdir: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
+  delegate_to: builder01
+  changed_when: false
+  no_log: true
+
+- name: Inspect selected assistant wheelhouse destination
+  ansible.builtin.stat:
+    path: "{{ ai_ops_orchestrator_wheelhouse_transfer_destination }}"
+  register: ai_ops_orchestrator_wheelhouse_transfer_destination_stat
+  changed_when: false
+
+- name: Reject replacement of an assistant wheelhouse publication
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_orchestrator_wheelhouse_transfer_destination_stat.stat.exists
+    fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_TRANSFER_DESTINATION_EXISTS
+
+- name: Transfer and publish selected wheelhouse
+  block:
+    - name: Remove stale controller wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_transfer_controller_stage }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+
+    - name: Create user-owned controller wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_transfer_controller_stage }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Fetch selected builder wheelhouse files to controller staging
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "{{ ai_ops_orchestrator_wheelhouse_transfer_controller_stage }}/"
+        flat: true
+      loop: "{{ ai_ops_orchestrator_wheelhouse_transfer_source_files.files }}"
+      delegate_to: builder01
+      become: true
+      no_log: true
+
+    - name: Create root-owned assistant wheelhouse publication roots
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ ai_ops_orchestrator_wheelhouse_transfer.assistant.publication_root }}", mode: "0750" }
+        - { path: "{{ ai_ops_orchestrator_wheelhouse_transfer.assistant.staging_root }}", mode: "0700" }
+        - { path: "{{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}", mode: "0700" }
+        - { path: "{{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}/wheels", mode: "0700" }
+
+    - name: Copy selected builder wheelhouse files to assistant staging
+      ansible.builtin.copy:
+        src: "{{ ai_ops_orchestrator_wheelhouse_transfer_controller_stage }}/{{ item.path | basename }}"
+        dest: >-
+          {{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}/{{
+          item.path | regex_replace('^' ~ (ai_ops_orchestrator_wheelhouse_transfer_source | regex_escape) ~ '/', '') }}
+        owner: root
+        group: root
+        mode: "0440"
+      loop: "{{ ai_ops_orchestrator_wheelhouse_transfer_source_files.files }}"
+      no_log: true
+
+    - name: Verify copied assistant wheelhouse manifest
+      ansible.builtin.command:
+        argv: [/usr/bin/sha256sum, --check, --strict, --status, manifest.sha256]
+        chdir: "{{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}"
+      changed_when: false
+      no_log: true
+
+    - name: Seal copied assistant wheel directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}/wheels"
+        owner: root
+        group: root
+        mode: "0550"
+
+    - name: Publish immutable assistant wheelhouse atomically
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/mv
+          - "{{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}"
+          - "{{ ai_ops_orchestrator_wheelhouse_transfer_destination }}"
+      changed_when: true
+
+    - name: Seal published assistant wheelhouse directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_transfer_destination }}"
+        owner: root
+        group: root
+        mode: "0550"
+  always:
+    - name: Remove controller wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_transfer_controller_stage }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+
+    - name: Remove assistant wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_wheelhouse_transfer_assistant_stage }}"
+        state: absent
