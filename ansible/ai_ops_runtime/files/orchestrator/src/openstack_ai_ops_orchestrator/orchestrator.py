@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Mapping
 from contextlib import aclosing
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Protocol, cast
 
 from .contracts import (
@@ -15,9 +16,21 @@ from .contracts import (
     AdapterEventType,
     AdapterResult,
     DiagnosticTurnRequest,
+    LocalMcpClientProtocol,
     RuntimePolicy,
+    SafeToolResult,
+    ToolCallRequest,
     WorkflowState,
 )
+from .evidence import (
+    CleanupOutcome,
+    EvidenceEventCategory,
+    EvidenceWriter,
+    OrchestratorEvidenceRecord,
+    TruncationOutcome,
+)
+from .fake_codex_adapter import FakeCodexAdapter
+from .redaction import RedactionCategory, redact_tool_result
 
 REVIEWED_WORKFLOW = "project_resource_summary"
 
@@ -61,25 +74,24 @@ class TerminalResultAdapter(Protocol):
         """Yield repository events only."""
 
 
-@dataclass(frozen=True, slots=True)
-class WorkflowMetadata:
-    """Allowlisted lifecycle metadata with no adapter payload content."""
+@dataclass(slots=True)
+class _EvidenceProgress:
+    """Counters retained only as closed evidence metadata."""
 
     correlation_id: str
-    state: WorkflowState
-    error_category: AdapterErrorCategory | None
-    event_count: int
-    turn_count: int
-    output_bytes: int
+    input_classification: RedactionCategory
+    event_count: int = 1
+    tool_call_count: int = 0
+    redaction_count: int = 0
+    content_bytes: int = 0
 
 
 @dataclass(frozen=True, slots=True)
 class WorkflowExecution:
-    """Sanitized terminal result, state history, and optional metadata."""
+    """Sanitized terminal result and workflow state history."""
 
     states: tuple[WorkflowState, ...]
     result: AdapterResult
-    metadata: WorkflowMetadata | None = None
 
 
 def validate_advisory_output(
@@ -91,21 +103,6 @@ def validate_advisory_output(
     if len(advisory_text.encode()) > maximum_output_bytes:
         raise ValueError("advisory output exceeds the configured byte limit")
     return advisory_text
-
-
-def validate_metadata(metadata: WorkflowMetadata) -> None:
-    """Reject metadata that is not limited to terminal lifecycle counters."""
-    if not metadata.correlation_id.replace("-", "").replace("_", "").isalnum():
-        raise ValueError("metadata correlation identifier is invalid")
-    if metadata.state not in TERMINAL_WORKFLOW_STATES:
-        raise ValueError("metadata state must be terminal")
-    if min(metadata.event_count, metadata.turn_count, metadata.output_bytes) < 0:
-        raise ValueError("metadata counters must be non-negative")
-    if (
-        metadata.state is WorkflowState.COMPLETED
-        and metadata.error_category is not None
-    ):
-        raise ValueError("completed metadata cannot contain an error category")
 
 
 def classify_failure(error: BaseException) -> AdapterResult:
@@ -180,11 +177,15 @@ class LocalOrchestrator:
         self,
         adapter: TerminalResultAdapter,
         redact_context: Callable[[str], str],
-        record_metadata: Callable[[WorkflowMetadata], None] | None = None,
+        evidence_writer: EvidenceWriter | None = None,
+        mcp_client_factory: Callable[[RuntimePolicy], LocalMcpClientProtocol]
+        | None = None,
     ) -> None:
         self._adapter = adapter
         self._redact_context = redact_context
-        self._record_metadata = record_metadata
+        self._evidence_writer = evidence_writer
+        self._evidence_progress: _EvidenceProgress | None = None
+        self._mcp_client_factory = mcp_client_factory
 
     async def run(
         self,
@@ -201,14 +202,29 @@ class LocalOrchestrator:
             return self._terminal(states, WorkflowState.REJECTED)
 
         self._transition(states, WorkflowState.VALIDATED)
+        original_context = request.redacted_context
+        redacted_context = self._redact_context(original_context)
         request = DiagnosticTurnRequest(
             workflow=request.workflow,
             correlation_id=request.correlation_id,
-            redacted_context=self._redact_context(request.redacted_context),
+            redacted_context=redacted_context,
+        )
+        input_classification = (
+            RedactionCategory.REDACTED
+            if redacted_context != original_context
+            else RedactionCategory.CLEAR
         )
         self._transition(states, WorkflowState.REDACTED)
         self._transition(states, WorkflowState.ADAPTER_STARTED)
         self._transition(states, WorkflowState.RUNNING)
+        try:
+            self._begin_evidence(request.correlation_id, input_classification)
+        except Exception:
+            return self._terminal(
+                states,
+                WorkflowState.EVIDENCE_FAILED,
+                AdapterErrorCategory.EVIDENCE_FAILED,
+            )
 
         event_count = 0
         turn_count = 0
@@ -230,6 +246,7 @@ class LocalOrchestrator:
                         turn_count,
                         policy.maximum_turn_count,
                     )
+                    await self._complete_fake_tool(policy, cancellation)
         except asyncio.CancelledError as error:
             classified_result = classify_failure(error)
             return self._finalize(
@@ -298,6 +315,41 @@ class LocalOrchestrator:
             len(advisory_text.encode()) if advisory_text is not None else 0,
         )
 
+    async def _complete_fake_tool(
+        self, policy: RuntimePolicy, cancellation: asyncio.Event
+    ) -> None:
+        if not isinstance(self._adapter, FakeCodexAdapter):
+            return
+        step = self._adapter.pending_tool_request_step()
+        if step is None:
+            return
+        request = step.request
+        if (
+            self._mcp_client_factory is None
+            or request != ToolCallRequest(REVIEWED_WORKFLOW, (), 1)
+            or cancellation.is_set()
+        ):
+            raise ValueError("invalid tool request")
+        async with self._mcp_client_factory(policy) as client:
+            raw_result = await asyncio.wait_for(
+                client.call_tool(request), timeout=policy.per_tool_call_timeout_seconds
+            )
+        if not isinstance(raw_result, Mapping):
+            raise ValueError("invalid tool result")
+        safe_result = redact_tool_result(
+            raw_result,
+            maximum_raw_bytes=policy.maximum_mcp_result_bytes,
+            maximum_content_bytes=policy.maximum_tool_content_bytes,
+            maximum_redactions=policy.maximum_redaction_count,
+        )
+        if (
+            safe_result.tool_name != request.tool_name
+            or safe_result.request_sequence_number != request.sequence_number
+        ):
+            raise ValueError("invalid tool result")
+        self._adapter.submit_tool_result(safe_result)
+        self._record_tool_evidence(safe_result)
+
     def _finalize(
         self,
         states: list[WorkflowState],
@@ -307,31 +359,113 @@ class LocalOrchestrator:
         turn_count: int,
         output_bytes: int = 0,
     ) -> WorkflowExecution:
-        metadata = WorkflowMetadata(
-            correlation_id=correlation_id,
-            state=result.state,
-            error_category=result.error_category,
-            event_count=event_count,
-            turn_count=turn_count,
-            output_bytes=output_bytes,
-        )
+        del correlation_id, event_count, output_bytes
+        progress = self._evidence_progress
         try:
-            validate_metadata(metadata)
-            if self._record_metadata is not None:
-                self._record_metadata(metadata)
+            if progress is not None and self._evidence_writer is not None:
+                progress.event_count += 1
+                self._evidence_writer.append(
+                    OrchestratorEvidenceRecord(
+                        schema_version=1,
+                        timestamp=self._timestamp(),
+                        correlation_id=progress.correlation_id,
+                        workflow=REVIEWED_WORKFLOW,
+                        event_category=EvidenceEventCategory.WORKFLOW_TERMINAL,
+                        workflow_state=result.state,
+                        error_category=result.error_category,
+                        input_classification=progress.input_classification,
+                        tool_name=None,
+                        result_category=None,
+                        event_count=progress.event_count,
+                        turn_count=turn_count,
+                        tool_call_count=progress.tool_call_count,
+                        redaction_count=progress.redaction_count,
+                        content_bytes=progress.content_bytes,
+                        truncation_outcome=TruncationOutcome.NOT_APPLICABLE,
+                        cleanup_outcome=CleanupOutcome.CLEAN,
+                    )
+                )
         except Exception:
             return self._terminal(
                 states,
                 WorkflowState.EVIDENCE_FAILED,
                 AdapterErrorCategory.EVIDENCE_FAILED,
             )
-        execution = self._terminal(
+        finally:
+            self._evidence_progress = None
+        return self._terminal(
             states,
             result.state,
             result.error_category,
             result.advisory_text,
         )
-        return WorkflowExecution(execution.states, execution.result, metadata)
+
+    def _begin_evidence(
+        self, correlation_id: str, input_classification: RedactionCategory
+    ) -> None:
+        if self._evidence_writer is None:
+            return
+        progress = _EvidenceProgress(correlation_id, input_classification)
+        self._evidence_writer.append(
+            OrchestratorEvidenceRecord(
+                schema_version=1,
+                timestamp=self._timestamp(),
+                correlation_id=correlation_id,
+                workflow=REVIEWED_WORKFLOW,
+                event_category=EvidenceEventCategory.WORKFLOW_STARTED,
+                workflow_state=WorkflowState.RUNNING,
+                error_category=None,
+                input_classification=input_classification,
+                tool_name=None,
+                result_category=None,
+                event_count=progress.event_count,
+                turn_count=0,
+                tool_call_count=0,
+                redaction_count=0,
+                content_bytes=0,
+                truncation_outcome=TruncationOutcome.NOT_APPLICABLE,
+                cleanup_outcome=CleanupOutcome.NOT_APPLICABLE,
+            )
+        )
+        self._evidence_progress = progress
+
+    def _record_tool_evidence(self, result: SafeToolResult) -> None:
+        progress = self._evidence_progress
+        if progress is None or self._evidence_writer is None:
+            return
+        progress.event_count += 1
+        progress.tool_call_count += 1
+        progress.redaction_count += result.redaction_count
+        progress.content_bytes += result.content_bytes
+        self._evidence_writer.append(
+            OrchestratorEvidenceRecord(
+                schema_version=1,
+                timestamp=self._timestamp(),
+                correlation_id=progress.correlation_id,
+                workflow=REVIEWED_WORKFLOW,
+                event_category=EvidenceEventCategory.TOOL_COMPLETED,
+                workflow_state=WorkflowState.RUNNING,
+                error_category=None,
+                input_classification=progress.input_classification,
+                tool_name=result.tool_name,
+                result_category=result.category,
+                event_count=progress.event_count,
+                turn_count=1,
+                tool_call_count=progress.tool_call_count,
+                redaction_count=progress.redaction_count,
+                content_bytes=progress.content_bytes,
+                truncation_outcome=(
+                    TruncationOutcome.TRUNCATED
+                    if result.truncated
+                    else TruncationOutcome.NOT_TRUNCATED
+                ),
+                cleanup_outcome=CleanupOutcome.NOT_APPLICABLE,
+            )
+        )
+
+    @staticmethod
+    def _timestamp() -> str:
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @staticmethod
     def _transition(states: list[WorkflowState], next_state: WorkflowState) -> None:

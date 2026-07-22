@@ -1,5 +1,6 @@
 # Direct inputs for the fake-first orchestrator package and its local checks.
 # Update only through the reviewed hash-lock procedure in pyproject.toml/ADS policy.
+mcp==1.28.1
 openai-codex==0.144.4
 mypy==1.15.0
 pytest==8.3.5

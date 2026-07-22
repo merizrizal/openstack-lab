@@ -43,6 +43,12 @@ Excluded:
 * Reuse or migration of provider-gateway evidence schemas.
 * Deployed service or firewall changes.
 
+> **Implementation status (local-only):** Steps 2–4 and the repository-side
+> bounded tool-loop integration are implemented and covered by local fake-backed
+> tests. Real local MCP/runner acceptance, audit correlation, listener checks,
+> and provider-safety acceptance remain pending; they have not been exercised by
+> this implementation.
+
 ## 10.4 Assumptions
 
 - [ ] Phase 09 core contracts and fake adapter pass.
@@ -62,10 +68,10 @@ Estimate:
 
 Tasks:
 
-- [ ] Launch only the reviewed stdio MCP adapter with fixed executable and arguments.
-- [ ] Validate negotiated capabilities and exact allowed tool, resource, and prompt names.
-- [ ] Reject capability drift before a workflow begins.
-- [ ] Tie adapter lifetime to one orchestrator workflow and prove cleanup after disconnect or cancellation.
+- [x] Launch only the reviewed stdio MCP adapter with fixed executable and arguments.
+- [x] Validate negotiated capabilities and exact allowed tool, resource, and prompt names.
+- [x] Reject capability drift before a workflow begins.
+- [x] Tie adapter lifetime to one orchestrator workflow and prove cleanup after disconnect or cancellation.
 - [ ] Assert that no MCP network listener is created.
 
 Done when:
@@ -83,15 +89,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Reuse or adapt the existing fail-closed redaction rules through a reviewed language boundary.
-- [ ] Validate and redact operator context before it reaches the Codex adapter.
-- [ ] Independently validate, bound, redact, and leak-scan every MCP result before model submission.
-- [ ] Reject binary, malformed, ambiguous, oversized, or secret-like content.
-- [ ] Ensure errors never contain rejected raw values.
+- [x] Reuse or adapt the existing fail-closed redaction rules through a reviewed language boundary.
+- [x] Validate and redact operator context before it reaches the Codex adapter.
+- [x] Independently validate, bound, redact, and leak-scan every MCP result before model submission.
+- [x] Reject binary, malformed, ambiguous, oversized, or secret-like content.
+- [x] Ensure errors never contain rejected raw values.
 
 Done when:
 
-- [ ] Synthetic protected markers cannot reach the fake Codex adapter, returned result, evidence, or logs.
+- [x] Synthetic protected markers cannot reach the fake Codex adapter, returned result, evidence, or logs.
 
 ### Step 3 - Implement the Bounded Tool Loop
 
@@ -104,15 +110,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Permit only reviewed diagnostic workflows and MCP capabilities.
-- [ ] Enforce maximum turns, tool calls, concurrency, per-call timeout, workflow deadline, and cumulative content bounds.
-- [ ] Reject duplicate, unknown, malformed, or out-of-order tool requests.
-- [ ] Preserve runner denial, validation, timeout, truncation, unavailable, and error categories.
-- [ ] Treat all model text as untrusted and require manual next steps.
+- [x] Permit only reviewed diagnostic workflows and MCP capabilities.
+- [x] Enforce maximum turns, tool calls, concurrency, per-call timeout, workflow deadline, and cumulative content bounds.
+- [x] Reject duplicate, unknown, malformed, or out-of-order tool requests.
+- [x] Preserve runner denial, validation, timeout, truncation, unavailable, and error categories.
+- [x] Treat all model text as untrusted and require manual next steps.
 
 Done when:
 
-- [ ] A fake model cannot escape the allowlist, exceed bounds, or convert text into remediation.
+- [x] A fake model cannot escape the allowlist, exceed bounds, or convert text into remediation.
 
 ### Step 4 - Add Orchestrator Metadata Evidence
 
@@ -125,15 +131,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Define a new versioned metadata allowlist specific to orchestrator lifecycle and local tool categories.
-- [ ] Exclude prompts, model responses, tool output, headers, routes, credentials, account data, raw SDK events, and exception text.
-- [ ] Add duplicate-key, exact-field, type, size, and lifecycle-transition validation.
-- [ ] Fail closed if evidence cannot be safely written or validated.
-- [ ] Keep historical provider-gateway ledgers separate and untouched.
+- [x] Define a new versioned metadata allowlist specific to orchestrator lifecycle and local tool categories.
+- [x] Exclude prompts, model responses, tool output, headers, routes, credentials, account data, raw SDK events, and exception text.
+- [x] Add duplicate-key, exact-field, type, size, and lifecycle-transition validation.
+- [x] Fail closed if evidence cannot be safely written or validated.
+- [x] Keep historical provider-gateway ledgers separate and untouched.
 
 Done when:
 
-- [ ] Evidence records only approved bounded metadata and rejects any extra field or sensitive marker.
+- [x] Evidence records only approved bounded metadata and rejects any extra field or sensitive marker.
 
 ### Step 5 - Run Local End-to-End Safety Validation
 
@@ -150,7 +156,7 @@ Tasks:
 - [ ] Verify approved calls, denied generic calls, redaction, structured statuses, audit correlation, and evidence categories.
 - [ ] Verify adapter/process cleanup and no listener delta.
 - [ ] Prove no Codex runtime, credential path, DNS lookup, or provider socket is accessed.
-- [ ] Add regression coverage to the documented validation sequence.
+- [x] Add regression coverage to the documented validation sequence.
 
 Done when:
 
@@ -161,9 +167,9 @@ Done when:
 This phase is done when:
 
 - [ ] The orchestrator uses only the reviewed local stdio MCP surface.
-- [ ] Input and tool-result redaction fail closed.
-- [ ] Tool-loop bounds and cancellation are enforced.
-- [ ] The new evidence schema retains metadata only.
+- [x] Input and tool-result redaction fail closed.
+- [x] Tool-loop bounds and cancellation are enforced.
+- [x] The new evidence schema retains metadata only.
 - [ ] Local end-to-end validation proves no provider or credential access.
 
 ## 10.7 Risks
