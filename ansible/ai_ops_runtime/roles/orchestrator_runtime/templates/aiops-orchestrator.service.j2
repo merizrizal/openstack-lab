@@ -1,0 +1,30 @@
+[Unit]
+Description=AI-OPS fake-only orchestrator validation
+
+[Service]
+Type=oneshot
+User={{ ai_ops_orchestrator.user }}
+Group={{ ai_ops_orchestrator.group }}
+WorkingDirectory={{ ai_ops_orchestrator.work_root }}
+Environment=HOME={{ ai_ops_orchestrator.codex_home }}
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH={{ ai_ops_orchestrator.root }}/src
+UnsetEnvironment=ALL_PROXY HTTP_PROXY HTTPS_PROXY NO_PROXY all_proxy http_proxy https_proxy no_proxy
+ExecStart={{ ai_ops_orchestrator.venv }}/bin/python -m openstack_ai_ops_orchestrator.runtime_entrypoint
+StandardInput=null
+UMask=0077
+PrivateNetwork=true
+RestrictAddressFamilies=AF_UNIX
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths={{ ai_ops_orchestrator.work_root }} {{ ai_ops_orchestrator.codex_home }} {{ ai_ops_orchestrator.evidence_root }}

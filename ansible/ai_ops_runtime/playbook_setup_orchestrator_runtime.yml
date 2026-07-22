@@ -1,0 +1,9 @@
+---
+- name: Setup fake-only AI-OPS orchestrator runtime
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: orchestrator_runtime

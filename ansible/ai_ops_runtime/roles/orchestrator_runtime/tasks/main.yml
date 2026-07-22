@@ -1,0 +1,145 @@
+---
+- name: Assert orchestrator deployment target is assistant01 only
+  ansible.builtin.assert:
+    that:
+      - "'assistant01' in (groups['assistant'] | default([]))"
+      - "(groups['assistant'] | default([])) | length == 1"
+      - inventory_hostname == 'assistant01'
+      - assistant01.environment == 'assistant'
+    fail_msg: ERR_ORCHESTRATOR_DEPLOYMENT_SCOPE
+
+- name: Assert orchestrator deployment contract is closed
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator is mapping
+      - >-
+        ai_ops_orchestrator.keys() | list | sort ==
+        ['codex_home', 'evidence_root', 'group', 'profile', 'root', 'service_name',
+        'user', 'venv', 'work_root']
+      - ai_ops_orchestrator.user == 'aiops-orchestrator'
+      - ai_ops_orchestrator.group == 'aiops-orchestrator'
+      - ai_ops_orchestrator.root == '/opt/openstack-ai-ops/orchestrator'
+      - ai_ops_orchestrator.venv == '/opt/openstack-ai-ops/orchestrator/venv'
+      - ai_ops_orchestrator.work_root == '/var/lib/aiops-orchestrator/work'
+      - ai_ops_orchestrator.codex_home == '/var/lib/aiops-orchestrator/codex-home'
+      - ai_ops_orchestrator.evidence_root == '/var/lib/aiops-orchestrator/evidence'
+      - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
+      - ai_ops_orchestrator.profile == 'validate-local-fake'
+      - ai_ops_orchestrator_packages == ['python3-venv']
+    fail_msg: ERR_ORCHESTRATOR_DEPLOYMENT_CONTRACT
+
+- name: Inspect orchestrator Codex home boundary
+  ansible.builtin.stat:
+    path: "{{ ai_ops_orchestrator.codex_home }}"
+  register: ai_ops_orchestrator_codex_home_stat
+
+- name: Reject unsafe orchestrator Codex home boundary
+  ansible.builtin.assert:
+    that:
+      - >-
+        not ai_ops_orchestrator_codex_home_stat.stat.exists or
+        ai_ops_orchestrator_codex_home_stat.stat.isdir
+      - not (ai_ops_orchestrator_codex_home_stat.stat.islnk | default(false))
+    fail_msg: ERR_ORCHESTRATOR_CODEX_HOME_BOUNDARY
+
+- name: Install orchestrator virtual environment prerequisite
+  ansible.builtin.package:
+    name: "{{ ai_ops_orchestrator_packages }}"
+    state: present
+
+- name: Ensure orchestrator group exists
+  ansible.builtin.group:
+    name: "{{ ai_ops_orchestrator.group }}"
+    system: true
+    state: present
+
+- name: Ensure orchestrator service identity exists
+  ansible.builtin.user:
+    name: "{{ ai_ops_orchestrator.user }}"
+    group: "{{ ai_ops_orchestrator.group }}"
+    groups: ""
+    append: false
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+    password_lock: true
+    state: present
+
+- name: Create root-owned orchestrator application directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ ai_ops_orchestrator.root }}"
+    - "{{ ai_ops_orchestrator.root }}/src"
+    - "{{ ai_ops_orchestrator.root }}/src/openstack_ai_ops_orchestrator"
+
+- name: Create root-owned orchestrator virtual environment
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -m
+      - venv
+      - "{{ ai_ops_orchestrator.venv }}"
+    creates: "{{ ai_ops_orchestrator.venv }}/bin/python"
+
+- name: Install hash-locked orchestrator dependency manifest
+  ansible.builtin.copy:
+    src: orchestrator/requirements.lock
+    dest: "{{ ai_ops_orchestrator.root }}/requirements.lock"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install hash-locked orchestrator dependencies
+  ansible.builtin.pip:
+    requirements: "{{ ai_ops_orchestrator.root }}/requirements.lock"
+    executable: "{{ ai_ops_orchestrator.venv }}/bin/pip"
+    extra_args: --no-index --require-hashes --no-cache-dir
+
+- name: Install fixed fake-only orchestrator sources
+  ansible.builtin.copy:
+    src: "orchestrator/src/openstack_ai_ops_orchestrator/{{ item }}"
+    dest: "{{ ai_ops_orchestrator.root }}/src/openstack_ai_ops_orchestrator/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - __init__.py
+    - contracts.py
+    - evidence.py
+    - fake_codex_adapter.py
+    - orchestrator.py
+    - redaction.py
+    - runtime_entrypoint.py
+
+- name: Create service-owned orchestrator writable directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ai_ops_orchestrator.user }}"
+    group: "{{ ai_ops_orchestrator.group }}"
+    mode: "0700"
+  loop:
+    - "{{ ai_ops_orchestrator.work_root }}"
+    - "{{ ai_ops_orchestrator.codex_home }}"
+    - "{{ ai_ops_orchestrator.evidence_root }}"
+
+- name: Install fake-only orchestrator service unit
+  ansible.builtin.template:
+    src: aiops-orchestrator.service.j2
+    dest: "/etc/systemd/system/{{ ai_ops_orchestrator.service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+
+- name: Keep orchestrator service disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.service_name }}"
+    daemon_reload: true
+    enabled: false
+    state: stopped

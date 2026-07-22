@@ -1,0 +1,13 @@
+---
+ai_ops_orchestrator:
+  user: aiops-orchestrator
+  group: aiops-orchestrator
+  root: /opt/openstack-ai-ops/orchestrator
+  venv: /opt/openstack-ai-ops/orchestrator/venv
+  work_root: /var/lib/aiops-orchestrator/work
+  codex_home: /var/lib/aiops-orchestrator/codex-home
+  evidence_root: /var/lib/aiops-orchestrator/evidence
+  service_name: aiops-orchestrator
+  profile: validate-local-fake
+ai_ops_orchestrator_packages:
+  - python3-venv
