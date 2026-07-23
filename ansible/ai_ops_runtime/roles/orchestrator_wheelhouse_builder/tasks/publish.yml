@@ -1,9 +1,10 @@
 ---
 - name: Define approval-scoped wheelhouse paths
   ansible.builtin.set_fact:
-    ai_ops_orchestrator_wheelhouse_stage: "{{ ai_ops_orchestrator_wheelhouse_build.publication.staging_root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id
-      }}"
-    ai_ops_orchestrator_wheelhouse_artifact: "{{ ai_ops_orchestrator_wheelhouse_build.publication.root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id }}"
+    ai_ops_orchestrator_wheelhouse_stage: >-
+      {{ ai_ops_orchestrator_wheelhouse_build.publication.staging_root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id }}
+    ai_ops_orchestrator_wheelhouse_artifact: >-
+      {{ ai_ops_orchestrator_wheelhouse_build.publication.root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id }}
 
 - name: Create wheelhouse publication root
   ansible.builtin.file:
@@ -71,7 +72,7 @@
           - --no-cache-dir
           - "--only-binary=:all:"
           - --find-links
-          - "{{ ai_ops_orchestrator_wheelhouse_build.seed.directory }}"
+          - "{{ ai_ops_orchestrator_wheelhouse_seed_path }}"
           - --dest
           - "{{ ai_ops_orchestrator_wheelhouse_stage }}/wheels"
           - -r

@@ -8,5 +8,8 @@
     - role: common
       vars:
         enable_firewall: true
+        additional_packages:
+          - python3-pip
+          - python3-venv
 
     - role: assistant_runtime

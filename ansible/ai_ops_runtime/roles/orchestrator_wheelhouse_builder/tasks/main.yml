@@ -26,10 +26,10 @@
         ai_ops_orchestrator_wheelhouse_build.publication.staging_root ==
         '/var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator/.staging'
       - ai_ops_orchestrator_wheelhouse_build.seed is mapping
-      - ai_ops_orchestrator_wheelhouse_build.seed.keys() | list | sort == ['directory']
+      - ai_ops_orchestrator_wheelhouse_build.seed.keys() | list | sort == ['inbox_root']
       - >-
-        ai_ops_orchestrator_wheelhouse_build.seed.directory ==
-        '/var/lib/openstack-ai-ops/wheelhouse-seed/orchestrator'
+        ai_ops_orchestrator_wheelhouse_build.seed.inbox_root ==
+        '/tmp/openstack-ai-ops-wheelhouse-seed-inbox/orchestrator'
       - ai_ops_orchestrator_wheelhouse_build.target is mapping
       - >-
         ai_ops_orchestrator_wheelhouse_build.target.keys() | list | sort ==
@@ -50,22 +50,31 @@
     fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_BUILD_APPROVAL
   when: ai_ops_orchestrator_wheelhouse_build.enabled
 
-- name: Inspect offline wheelhouse seed directory
+- name: Define approval-scoped wheel seed inbox path
+  ansible.builtin.set_fact:
+    ai_ops_orchestrator_wheelhouse_seed_path: >-
+      {{ ai_ops_orchestrator_wheelhouse_build.seed.inbox_root }}/{{ ai_ops_orchestrator_wheelhouse_build.approval.id }}/wheels
+  when: ai_ops_orchestrator_wheelhouse_build.enabled
+
+- name: Inspect approval-scoped wheel seed inbox
   ansible.builtin.stat:
-    path: "{{ ai_ops_orchestrator_wheelhouse_build.seed.directory }}"
+    path: "{{ ai_ops_orchestrator_wheelhouse_seed_path }}"
   register: ai_ops_orchestrator_wheelhouse_seed_stat
   changed_when: false
   when: ai_ops_orchestrator_wheelhouse_build.enabled
 
-- name: Assert offline wheelhouse seed directory boundary
+- name: Debug
+  ansible.builtin.debug:
+    msg: "{{ ai_ops_orchestrator_wheelhouse_seed_stat.stat }}"
+
+- name: Assert approval-scoped wheel seed inbox boundary
   ansible.builtin.assert:
     that:
       - ai_ops_orchestrator_wheelhouse_seed_stat.stat.exists
       - ai_ops_orchestrator_wheelhouse_seed_stat.stat.isdir
       - not ai_ops_orchestrator_wheelhouse_seed_stat.stat.islnk
-      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.pw_name == 'root'
-      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.gr_name == 'root'
-      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.mode == '0750'
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.pw_name == ansible_user
+      - ai_ops_orchestrator_wheelhouse_seed_stat.stat.mode == '0700'
     fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_BOUNDARY
   when: ai_ops_orchestrator_wheelhouse_build.enabled
 

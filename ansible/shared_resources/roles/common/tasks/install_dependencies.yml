@@ -27,6 +27,12 @@
       - unzip
     state: present
 
+- name: Install additional packages dependencies
+  ansible.builtin.package:
+    name: "{{ additional_packages }}"
+    state: present
+  when: additional_packages is defined and (additional_packages | length > 0)
+
 - name: Set application list for installation
   ansible.builtin.set_fact:
     applications:

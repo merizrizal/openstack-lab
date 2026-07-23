@@ -146,8 +146,10 @@
           - ai_ops_orchestrator_unit_properties.stdout is search('(?m)^ProtectHome=yes$')
           - >-
             ai_ops_orchestrator_unit_properties.stdout is search(
-            '^ReadWritePaths={{ ai_ops_orchestrator.work_root | regex_escape }} {{ ai_ops_orchestrator.codex_home | regex_escape }} {{ ai_ops_orchestrator.evidence_root
-            | regex_escape }}$')
+            '(?m)^ReadWritePaths=' ~
+            (ai_ops_orchestrator.work_root | regex_escape) ~ ' ' ~
+            (ai_ops_orchestrator.codex_home | regex_escape) ~ ' ' ~
+            (ai_ops_orchestrator.evidence_root | regex_escape) ~ '$')
         fail_msg: ERR_ORCHESTRATOR_SANDBOX
       no_log: true
 
@@ -162,9 +164,9 @@
     - name: Assert orchestrator service remains on-demand
       ansible.builtin.assert:
         that:
-          - ai_ops_orchestrator_service_enabled.rc != 0
+          - ai_ops_orchestrator_service_enabled.rc == 0
+          - ai_ops_orchestrator_service_enabled.stdout | trim == 'static'
         fail_msg: ERR_ORCHESTRATOR_SERVICE_ENABLEMENT
-      no_log: true
 
     - name: Check orchestrator identity cannot read protected boundaries
       ansible.builtin.command:

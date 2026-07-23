@@ -2,8 +2,13 @@
 - name: Assert the fail-closed orchestrator wheelhouse build contract
   hosts: wheelhouse_builders
   become: true
-  gather_facts: false
   vars_files:
     - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
   roles:
+    - role: common
+      vars:
+        additional_packages:
+          - python3-pip
+          - python3-venv
+
     - role: orchestrator_wheelhouse_builder

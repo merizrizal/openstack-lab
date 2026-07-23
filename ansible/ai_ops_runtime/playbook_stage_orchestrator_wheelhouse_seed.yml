@@ -2,15 +2,15 @@
 - name: Stage reviewed offline orchestrator wheel seed on localhost
   hosts: localhost
   connection: local
-  become: true
+  become: false
   gather_facts: false
   vars:
     ai_ops_orchestrator_wheelhouse_seed_stage:
       enabled: false
       approval:
         id: ""
-      staging_root: /tmp/openstack-ai-ops-wheelhouse-seed/orchestrator/.staging
-      publication_root: /tmp/openstack-ai-ops-wheelhouse-seed/orchestrator
+      staging_root: /tmp/openstack-ai-ops-wheelhouse-seed-user/orchestrator/.staging
+      publication_root: /tmp/openstack-ai-ops-wheelhouse-seed-user/orchestrator
       index_url: https://pypi.org/simple
       target:
         python_version: "3.12"
@@ -31,10 +31,10 @@
           - ai_ops_orchestrator_wheelhouse_seed_stage.approval.keys() | list | sort == ['id']
           - >-
             ai_ops_orchestrator_wheelhouse_seed_stage.staging_root ==
-            '/tmp/openstack-ai-ops-wheelhouse-seed/orchestrator/.staging'
+            '/tmp/openstack-ai-ops-wheelhouse-seed-user/orchestrator/.staging'
           - >-
             ai_ops_orchestrator_wheelhouse_seed_stage.publication_root ==
-            '/tmp/openstack-ai-ops-wheelhouse-seed/orchestrator'
+            '/tmp/openstack-ai-ops-wheelhouse-seed-user/orchestrator'
           - ai_ops_orchestrator_wheelhouse_seed_stage.index_url == 'https://pypi.org/simple'
           - ai_ops_orchestrator_wheelhouse_seed_stage.target is mapping
           - >-
@@ -79,15 +79,13 @@
     - name: Download and verify approved localhost wheel seed
       when: ai_ops_orchestrator_wheelhouse_seed_stage.enabled
       block:
-        - name: Create localhost wheel seed roots
+        - name: Create user-owned localhost wheel seed paths
           ansible.builtin.file:
             path: "{{ item.path }}"
             state: directory
-            owner: root
-            group: root
             mode: "{{ item.mode }}"
           loop:
-            - { path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage.publication_root }}", mode: "0750" }
+            - { path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage.publication_root }}", mode: "0700" }
             - { path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage.staging_root }}", mode: "0700" }
             - { path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage_path }}", mode: "0700" }
             - { path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage_path }}/wheels", mode: "0700" }
@@ -159,12 +157,10 @@
               - ai_ops_orchestrator_wheelhouse_seed_wheels.matched | int > 0
             fail_msg: ERR_ORCHESTRATOR_WHEELHOUSE_SEED_STAGE_INTEGRITY
 
-        - name: Seal verified staged wheels
+        - name: Seal verified staged wheels for unprivileged transport
           ansible.builtin.file:
             path: "{{ item.path }}"
-            owner: root
-            group: root
-            mode: "0440"
+            mode: "0400"
           loop: "{{ ai_ops_orchestrator_wheelhouse_seed_wheels.files }}"
 
         - name: Remove local wheel verification output
@@ -172,12 +168,10 @@
             path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage_path }}/verify"
             state: absent
 
-        - name: Seal staged wheel seed directory
+        - name: Seal staged wheel seed directory for unprivileged transport
           ansible.builtin.file:
             path: "{{ ai_ops_orchestrator_wheelhouse_seed_stage_path }}/wheels"
-            owner: root
-            group: root
-            mode: "0550"
+            mode: "0500"
 
         - name: Publish immutable localhost wheel seed atomically
           ansible.builtin.command:
@@ -187,12 +181,10 @@
               - "{{ ai_ops_orchestrator_wheelhouse_seed_publication_path }}"
           changed_when: true
 
-        - name: Seal published localhost wheel seed directory
+        - name: Seal published localhost wheel seed directory for transport
           ansible.builtin.file:
             path: "{{ ai_ops_orchestrator_wheelhouse_seed_publication_path }}"
-            owner: root
-            group: root
-            mode: "0550"
+            mode: "0500"
       always:
         - name: Remove incomplete localhost wheel seed staging path
           ansible.builtin.file:

@@ -4,6 +4,6 @@
   become: true
   gather_facts: false
   vars_files:
-    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
   roles:
     - role: orchestrator_runtime
