@@ -123,30 +123,54 @@
   check_mode: false
   no_log: true
 
-- name: Assert exact loopback allow followed by permanent owner reject
+- name: Verify permanent owner rules permit only loopback before reject
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/awk
+      - -v
+      - "chain={{ item.chain }}"
+      - -v
+      - "uid={{ ai_ops_orchestrator_egress_user_uid.stdout }}"
+      - |
+        index($0, "-m owner --uid-owner " uid " ") { owner_rule_count += 1 }
+        index($0, "-m owner --uid-owner " uid " ") &&
+        index($0, " -o lo ") && index($0, " -j ACCEPT") {
+          loopback_allow_count += 1
+          loopback_allow_position = NR
+        }
+        index($0, "-m owner --uid-owner " uid " ") &&
+        index($0, " -j REJECT") {
+          reject_count += 1
+          reject_position = NR
+        }
+        END {
+          valid = owner_rule_count == 2 &&
+            loopback_allow_count == 1 &&
+            reject_count == 1 &&
+            loopback_allow_position < reject_position
+          exit !valid
+        }
+    stdin: "{{ item.rules.stdout }}"
+    stdin_add_newline: false
+  loop:
+    - chain: "{{ ai_ops_orchestrator_egress.ufw.ipv4_chain }}"
+      rules: "{{ ai_ops_orchestrator_egress_ipv4_rules }}"
+    - chain: "{{ ai_ops_orchestrator_egress.ufw.ipv6_chain }}"
+      rules: "{{ ai_ops_orchestrator_egress_ipv6_rules }}"
+  register: ai_ops_orchestrator_egress_rule_ordering
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert permanent loopback allow precedes the only owner reject
   ansible.builtin.assert:
     that:
       - ai_ops_orchestrator_egress_ipv4_rules.rc == 0
       - ai_ops_orchestrator_egress_ipv6_rules.rc == 0
+      - ai_ops_orchestrator_egress_rule_ordering.results | length == 2
       - >-
-        ai_ops_orchestrator_egress_ipv4_rules.stdout_lines |
-        select('equalto', '-A ufw-before-output -m owner --uid-owner ' ~
-        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -o lo -j ACCEPT') |
-        list | length == 1
-      - >-
-        ai_ops_orchestrator_egress_ipv4_rules.stdout_lines |
-        select('equalto', '-A ufw-before-output -m owner --uid-owner ' ~
-        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -j REJECT') |
-        list | length == 1
-      - >-
-        ai_ops_orchestrator_egress_ipv6_rules.stdout_lines |
-        select('equalto', '-A ufw6-before-output -m owner --uid-owner ' ~
-        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -o lo -j ACCEPT') |
-        list | length == 1
-      - >-
-        ai_ops_orchestrator_egress_ipv6_rules.stdout_lines |
-        select('equalto', '-A ufw6-before-output -m owner --uid-owner ' ~
-        ai_ops_orchestrator_egress_user_uid.stdout ~ ' -j REJECT') |
-        list | length == 1
+        ai_ops_orchestrator_egress_rule_ordering.results |
+        map(attribute='rc') | list == [0, 0]
     fail_msg: ERR_ORCHESTRATOR_EGRESS_MATERIALIZATION
   no_log: true

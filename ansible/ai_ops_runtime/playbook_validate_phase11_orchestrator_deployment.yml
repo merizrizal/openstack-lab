@@ -194,6 +194,13 @@
         label: protected-boundary
       no_log: true
 
+    - name: Read TCP and UDP listener snapshot before fake invocation
+      ansible.builtin.command:
+        argv: [/usr/bin/ss, -H, -lntu]
+      register: ai_ops_orchestrator_listeners_before
+      changed_when: false
+      no_log: true
+
     - name: Run fixed fake-only orchestrator validation unit
       ansible.builtin.command:
         argv: [/usr/bin/systemctl, start, "{{ ai_ops_orchestrator.service_name }}"]
@@ -203,16 +210,25 @@
 
     - name: Read post-invocation orchestrator process metadata
       ansible.builtin.command:
-        argv: [/usr/bin/systemctl, show, "{{ ai_ops_orchestrator.service_name }}", --property=ActiveState, --property=SubState]
+        argv: [/usr/bin/systemctl, show, "{{ ai_ops_orchestrator.service_name }}", --property=ActiveState, --property=SubState, --property=MainPID]
       register: ai_ops_orchestrator_post_invocation_state
       changed_when: false
       no_log: true
 
-    - name: Assert fake-only invocation completed with no retained service process
+    - name: Read TCP and UDP listener snapshot after fake invocation
+      ansible.builtin.command:
+        argv: [/usr/bin/ss, -H, -lntu]
+      register: ai_ops_orchestrator_listeners_after
+      changed_when: false
+      no_log: true
+
+    - name: Assert fake-only invocation completed with no retained process or listener
       ansible.builtin.assert:
         that:
           - ai_ops_orchestrator_fake_invocation.rc == 0
           - ai_ops_orchestrator_post_invocation_state.stdout is search('(?m)^ActiveState=inactive$')
           - ai_ops_orchestrator_post_invocation_state.stdout is search('(?m)^SubState=dead$')
+          - ai_ops_orchestrator_post_invocation_state.stdout is search('(?m)^MainPID=0$')
+          - ai_ops_orchestrator_listeners_before.stdout_lines | sort == ai_ops_orchestrator_listeners_after.stdout_lines | sort
         fail_msg: ERR_ORCHESTRATOR_LOCAL_VALIDATION
       no_log: true
