@@ -41,7 +41,7 @@ dummy: |
       PORT_FILE.unlink(missing_ok=True)
       with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
           listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-          listener.bind((management_address(), 0))
+          listener.bind((management_address(), 3000))
           listener.listen(16)
           with os.fdopen(
               os.open(PORT_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o640),

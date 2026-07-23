@@ -1,0 +1,161 @@
+---
+- name: Operate approved temporary orchestrator synthetic egress window
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/ai_client_runtime/defaults/main.yml"
+  vars:
+    ai_ops_orchestrator_window_apply: false
+    ai_ops_orchestrator_window_approval_id: ""
+    ai_ops_orchestrator_window_expires_at_utc: ""
+    ai_ops_orchestrator_window_host: ""
+    ai_ops_orchestrator_window_port: 0
+    ai_ops_orchestrator_window_inject_failure: false
+    ai_ops_orchestrator_window_marker: AI-OPS orchestrator synthetic egress exception
+  tasks:
+    - name: Assert approved synthetic window inputs
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_window_apply | bool
+          - ai_ops_orchestrator_window_approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+          - ai_ops_orchestrator_window_expires_at_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+          - ai_ops_orchestrator_window_host == dummy01.mgmtnet_ip_address
+          - ai_ops_orchestrator_window_port | int == 3000
+        fail_msg: ERR_ORCHESTRATOR_SYNTHETIC_APPROVAL
+      no_log: true
+
+    - name: Read target UTC epoch
+      ansible.builtin.command:
+        argv: [/bin/date, -u, +%s]
+      register: ai_ops_orchestrator_window_now
+      changed_when: false
+      no_log: true
+
+    - name: Parse approved expiry
+      ansible.builtin.command:
+        argv: [/bin/date, -u, "--date={{ ai_ops_orchestrator_window_expires_at_utc }}", +%s]
+      register: ai_ops_orchestrator_window_expiry
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert approved expiry is bounded and current
+      ansible.builtin.assert:
+        that:
+          - ai_ops_orchestrator_window_expiry.rc == 0
+          - ai_ops_orchestrator_window_expiry.stdout | int > ai_ops_orchestrator_window_now.stdout | int
+          - ai_ops_orchestrator_window_expiry.stdout | int <= ai_ops_orchestrator_window_now.stdout | int + 600
+        fail_msg: ERR_ORCHESTRATOR_SYNTHETIC_EXPIRY
+      no_log: true
+
+    - name: Materialize, test, and unconditionally remove temporary egress
+      block:
+        - name: Materialize permanent disabled orchestrator policy
+          ansible.builtin.include_role:
+            name: orchestrator_egress
+
+        - name: Resolve orchestrator numeric UID
+          ansible.builtin.command:
+            argv: [/usr/bin/id, -u, aiops-orchestrator]
+          register: ai_ops_orchestrator_window_uid
+          changed_when: false
+          no_log: true
+
+        - name: Install exact temporary IPv4 owner allow
+          ansible.builtin.blockinfile:
+            path: /etc/ufw/before.rules
+            marker: "# {mark} {{ ai_ops_orchestrator_window_marker }}"
+            insertbefore: "^# BEGIN AI-OPS orchestrator disabled egress policy$"
+            block: >-
+              -A ufw-before-output -m owner --uid-owner {{ ai_ops_orchestrator_window_uid.stdout }} -d {{ ai_ops_orchestrator_window_host }} -p tcp --dport {{ ai_ops_orchestrator_window_port
+              | int }} -j ACCEPT
+            validate: /usr/sbin/iptables-restore --test %s
+          no_log: true
+
+        - name: Reload UFW after temporary allow
+          ansible.builtin.command:
+            argv: [/usr/sbin/ufw, reload]
+          changed_when: false
+          no_log: true
+
+        - name: Probe approved synthetic endpoint as orchestrator
+          ansible.builtin.command:
+            argv:
+              - /usr/sbin/runuser
+              - -u
+              - aiops-orchestrator
+              - --
+              - /usr/bin/env
+              - -i
+              - PATH=/usr/bin:/bin
+              - /usr/bin/python3
+              - -c
+              - |
+                import socket
+                import sys
+                with socket.create_connection((sys.argv[1], int(sys.argv[2])), timeout=3):
+                    pass
+              - "{{ ai_ops_orchestrator_window_host }}"
+              - "{{ ai_ops_orchestrator_window_port | string }}"
+          register: ai_ops_orchestrator_window_probe
+          changed_when: false
+          no_log: true
+
+        - name: Assert synthetic probe succeeded
+          ansible.builtin.assert:
+            that: [ai_ops_orchestrator_window_probe.rc == 0]
+            fail_msg: ERR_ORCHESTRATOR_SYNTHETIC_PROBE
+          no_log: true
+
+        - name: Assert assistant remains denied for synthetic endpoint
+          ansible.builtin.include_role:
+            name: assistant_egress_validation
+            tasks_from: acceptance.yml
+          vars:
+            ai_ops_egress_validation_synthetic_approved: true
+            ai_ops_egress_validation_synthetic_host: "{{ ai_ops_orchestrator_window_host }}"
+            ai_ops_egress_validation_synthetic_port: "{{ ai_ops_orchestrator_window_port | int }}"
+            ai_ops_egress_validation_management_targets:
+              - { host: "{{ controller01.mgmtnet_ip_address }}", port: 22 }
+              - { host: "{{ compute01.mgmtnet_ip_address }}", port: 22 }
+              - { host: "{{ compute02.mgmtnet_ip_address }}", port: 22 }
+          no_log: true
+
+        - name: Inject approved rollback failure path
+          ansible.builtin.fail:
+            msg: ERR_ORCHESTRATOR_SYNTHETIC_INJECTED_FAILURE
+          when: ai_ops_orchestrator_window_inject_failure | bool
+      always:
+        - name: Remove temporary IPv4 owner allow
+          ansible.builtin.blockinfile:
+            path: /etc/ufw/before.rules
+            marker: "# {mark} {{ ai_ops_orchestrator_window_marker }}"
+            state: absent
+            validate: /usr/sbin/iptables-restore --test %s
+          no_log: true
+
+        - name: Reload UFW after temporary allow removal
+          ansible.builtin.command:
+            argv: [/usr/sbin/ufw, reload]
+          changed_when: false
+          no_log: true
+
+        - name: Revalidate permanent disabled orchestrator policy
+          ansible.builtin.include_role:
+            name: orchestrator_egress
+
+        - name: Assert temporary marker is absent
+          ansible.builtin.command:
+            argv: [/usr/bin/grep, -F, "{{ ai_ops_orchestrator_window_marker }}", /etc/ufw/before.rules]
+          register: ai_ops_orchestrator_window_marker_check
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert temporary marker removal
+          ansible.builtin.assert:
+            that: [ai_ops_orchestrator_window_marker_check.rc == 1]
+            fail_msg: ERR_ORCHESTRATOR_SYNTHETIC_ROLLBACK
+          no_log: true
