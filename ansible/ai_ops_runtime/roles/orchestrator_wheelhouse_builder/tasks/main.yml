@@ -63,10 +63,6 @@
   changed_when: false
   when: ai_ops_orchestrator_wheelhouse_build.enabled
 
-- name: Debug
-  ansible.builtin.debug:
-    msg: "{{ ai_ops_orchestrator_wheelhouse_seed_stat.stat }}"
-
 - name: Assert approval-scoped wheel seed inbox boundary
   ansible.builtin.assert:
     that:
