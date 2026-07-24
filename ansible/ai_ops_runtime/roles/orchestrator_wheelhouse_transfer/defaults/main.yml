@@ -4,7 +4,7 @@ ai_ops_orchestrator_wheelhouse_transfer:
   approval:
     id: ""
   builder:
-    host: builder01
+    host: "{{ groups['wheelhouse_builders'][0] }}"
     publication_root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/orchestrator
   controller:
     staging_root: /tmp/openstack-ai-ops-wheelhouse-transfer/orchestrator

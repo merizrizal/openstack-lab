@@ -83,7 +83,7 @@
     - name: Inspect approval-scoped builder wheel seed inbox
       ansible.builtin.stat:
         path: "{{ ai_ops_orchestrator_wheelhouse_seed_destination }}"
-      delegate_to: builder01
+      delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
       register: ai_ops_orchestrator_wheelhouse_seed_destination_stat
       changed_when: false
       when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
@@ -103,7 +103,7 @@
         - "{{ ai_ops_orchestrator_wheelhouse_seed_copy.destination_root }}"
         - "{{ ai_ops_orchestrator_wheelhouse_seed_copy.destination_root }}/{{ ai_ops_orchestrator_wheelhouse_seed_copy.approval.id }}"
         - "{{ ai_ops_orchestrator_wheelhouse_seed_destination }}"
-      delegate_to: builder01
+      delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
       become: false
       when: ai_ops_orchestrator_wheelhouse_seed_copy.enabled
 
@@ -112,7 +112,7 @@
         src: "{{ item.path }}"
         dest: "{{ ai_ops_orchestrator_wheelhouse_seed_destination }}/{{ item.path | basename }}"
         mode: "0600"
-      delegate_to: builder01
+      delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
       become: false
       loop: "{{ ai_ops_orchestrator_wheelhouse_seed_source_wheels.files }}"
       no_log: true

@@ -13,7 +13,7 @@
 - name: Inspect selected builder wheelhouse publication
   ansible.builtin.stat:
     path: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
-  delegate_to: builder01
+  delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
   register: ai_ops_orchestrator_wheelhouse_transfer_source_stat
   changed_when: false
 
@@ -33,7 +33,7 @@
     paths: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
     file_type: file
     recurse: true
-  delegate_to: builder01
+  delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
   register: ai_ops_orchestrator_wheelhouse_transfer_source_files
   changed_when: false
 
@@ -42,7 +42,7 @@
     paths: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
     file_type: link
     recurse: true
-  delegate_to: builder01
+  delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
   register: ai_ops_orchestrator_wheelhouse_transfer_source_links
   changed_when: false
 
@@ -77,7 +77,7 @@
   ansible.builtin.stat:
     path: "{{ item.path }}"
   loop: "{{ ai_ops_orchestrator_wheelhouse_transfer_source_files.files }}"
-  delegate_to: builder01
+  delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
   register: ai_ops_orchestrator_wheelhouse_transfer_source_file_stats
   changed_when: false
 
@@ -99,7 +99,7 @@
   ansible.builtin.command:
     argv: [/usr/bin/sha256sum, --check, --strict, --status, manifest.sha256]
     chdir: "{{ ai_ops_orchestrator_wheelhouse_transfer_source }}"
-  delegate_to: builder01
+  delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
   changed_when: false
   no_log: true
 
@@ -138,7 +138,7 @@
         dest: "{{ ai_ops_orchestrator_wheelhouse_transfer_controller_stage }}/"
         flat: true
       loop: "{{ ai_ops_orchestrator_wheelhouse_transfer_source_files.files }}"
-      delegate_to: builder01
+      delegate_to: "{{ groups['wheelhouse_builders'][0] }}"
       become: true
       no_log: true
 
