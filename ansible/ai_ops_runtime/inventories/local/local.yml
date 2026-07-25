@@ -8,6 +8,10 @@ lab:
       hosts:
         assistant01:
           ansible_host: "{{ assistant01.mgmtnet_ip_address }}"
+    wheelhouse_builders:
+      hosts:
+        builder01:
+          ansible_host: "{{ builder01.mgmtnet_ip_address }}"
     ai_ops_host_observers:
       hosts:
         controller01:

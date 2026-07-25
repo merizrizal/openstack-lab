@@ -1,0 +1,22 @@
+---
+- name: Materialize and validate disabled orchestrator egress policy
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/ai_client_runtime/defaults/main.yml"
+  tasks:
+    - name: Materialize permanent disabled orchestrator owner policy
+      ansible.builtin.include_role:
+        name: orchestrator_egress
+
+    - name: Validate independent assistant egress policy preflight
+      ansible.builtin.include_role:
+        name: assistant_egress_validation
+        tasks_from: preflight.yml
+
+    - name: Validate independent assistant egress policy materialization
+      ansible.builtin.include_role:
+        name: assistant_egress_validation
+        tasks_from: materialization.yml

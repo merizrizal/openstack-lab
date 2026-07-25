@@ -17,6 +17,15 @@
         "mgmtnet_ip_address": "192.168.121.20",
         "provider_ip_address": "192.168.123.20"
     },
+    "builder01": {
+        "cpus": 2,
+        "disks": 20,
+        "environment": "builder",
+        "hostname": "builder01.local",
+        "memory": 2048,
+        "mgmtnet_ip_address": "192.168.121.71",
+        "provider_ip_address": "192.168.123.71"
+    },
     "cinder_password": "platformpass",
     "dummy01": {
         "cpus": 2,

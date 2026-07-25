@@ -45,10 +45,10 @@ Excluded:
 
 ## 11.4 Assumptions
 
-- [ ] Phase 10 local end-to-end safety validation passes.
-- [ ] The approved ADS selects a dedicated identity and protected runtime-home layout.
-- [ ] The supported Codex login flow can operate under that identity without exposing credentials to automation.
-- [ ] Egress claims can be stated honestly despite vendor-managed provider routing.
+- [x] Phase 10 local end-to-end safety validation passes.
+- [x] The approved ADS selects a dedicated identity and protected runtime-home layout.
+- [x] The supported Codex login flow can operate under that identity without exposing credentials to automation.
+- [x] Egress claims can be stated honestly despite vendor-managed provider routing.
 
 ## 11.5 Ordered Tasks
 
@@ -63,16 +63,16 @@ Estimate:
 
 Tasks:
 
-- [ ] Implement the approved Codex adapter interface using only public SDK APIs.
-- [ ] Map supported SDK lifecycle events into the orchestrator's closed bounded event categories.
-- [ ] Apply supported working-directory, MCP, cancellation, retry, concurrency, and timeout configuration from fixed policy.
-- [ ] Keep real-adapter selection explicit and remote-disabled by default.
-- [ ] Add mocked-SDK contract tests that invoke no Codex process, credential path, DNS lookup, or provider socket.
-- [ ] Treat unknown SDK events or unsupported configuration as fail-closed compatibility errors.
+- [x] Implement the approved Codex adapter interface using only public SDK APIs.
+- [x] Map supported SDK lifecycle events into the orchestrator's closed bounded event categories.
+- [x] Apply supported working-directory, MCP, cancellation, retry, concurrency, and timeout configuration from fixed policy.
+- [x] Keep real-adapter selection explicit and remote-disabled by default.
+- [x] Add mocked-SDK contract tests that invoke no Codex process, credential path, DNS lookup, or provider socket.
+- [x] Treat unknown SDK events or unsupported configuration as fail-closed compatibility errors.
 
 Done when:
 
-- [ ] The real adapter compiles and passes mocked public-contract tests while remote invocation remains disabled.
+- [x] The real adapter compiles and passes mocked public-contract tests while remote invocation remains disabled.
 
 ### Step 2 - Add Deterministic Deployment
 
@@ -85,15 +85,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add role-owned installation for the pinned orchestrator build, lockfile dependencies, and required Codex runtime.
-- [ ] Create the dedicated system identity and exact protected directories with minimal modes.
-- [ ] Keep the existing assistant runtime, credentials, MCP artifacts, and historical provider ledger outside writable scope.
-- [ ] Render an on-demand sandboxed unit or equivalent fixed launcher with no network listener.
-- [ ] Clear or reject proxy and unreviewed environment influence where supported.
+- [x] Add role-owned installation for the pinned orchestrator build, lockfile dependencies, and required Codex runtime.
+- [x] Create the dedicated system identity and exact protected directories with minimal modes.
+- [x] Keep the existing assistant runtime, credentials, MCP artifacts, and historical provider ledger outside writable scope.
+- [x] Render an on-demand sandboxed unit or equivalent fixed launcher with no network listener.
+- [x] Clear or reject proxy and unreviewed environment influence where supported.
 
 Done when:
 
-- [ ] A first and repeated deployment converge and the installed artifact matches the reviewed dependency set.
+- [x] A first and repeated deployment converge and the installed artifact matches the reviewed dependency set.
 
 ### Step 3 - Validate the Local Deployment with Network Disabled
 
@@ -106,15 +106,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Run build/version, ownership, mode, unit-hardening, process, listener, and writable-path assertions.
-- [ ] Execute the fake-adapter workflow through deployed local MCP and runner boundaries.
-- [ ] Verify cleanup, evidence permissions, and no provider/DNS connection.
-- [ ] Verify `assistant` direct-public-egress denial remains unchanged.
-- [ ] Provide a permanent read-only deployment validator.
+- [x] Run build/version, ownership, mode, unit-hardening, process, listener, and writable-path assertions.
+- [x] Execute the fake-adapter workflow through deployed local MCP and runner boundaries.
+- [x] Verify cleanup, evidence permissions, and no provider/DNS connection.
+- [x] Verify `assistant` direct-public-egress denial remains unchanged.
+- [x] Provide a permanent read-only deployment validator.
 
 Done when:
 
-- [ ] The deployed fake-backed workflow passes while public provider access remains unavailable.
+- [x] The deployed fake-backed workflow passes while public provider access remains unavailable.
 
 ### Step 4 - Define and Exercise Codex-Managed Login Operations
 
@@ -127,15 +127,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Document operator-only login, status-category, refresh behavior, logout, and recovery procedures using supported Codex commands.
-- [ ] Require separate approval before opening any temporary authentication egress window.
-- [ ] Suppress command output and retain only success/failure category where validation is required.
-- [ ] Never inspect runtime-home contents, `auth.json`, tokens, account identifiers, or device codes.
-- [ ] Verify runtime-home ownership and modes without reading content.
+- [x] Document operator-only login, status-category, refresh behavior, logout, and recovery procedures using supported Codex commands.
+- [x] Require separate approval before opening any temporary authentication egress window.
+- [x] Suppress command output and retain only success/failure category where validation is required.
+- [x] Never inspect runtime-home contents, `auth.json`, tokens, account identifiers, or device codes.
+- [x] Verify runtime-home ownership and modes without reading content.
 
 Done when:
 
-- [ ] An operator can establish or revoke Codex-managed authentication without repository automation handling credential values.
+- [x] An operator can establish or revoke Codex-managed authentication without repository automation handling credential values.
 
 ### Step 5 - Implement Bounded Egress Policy
 
@@ -148,15 +148,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Define the minimum DNS and HTTPS capabilities required by the supported Codex runtime identity.
-- [ ] Preserve deny-by-default public egress for `assistant` and unrelated identities.
-- [ ] Do not claim fixed private provider host/path controls that Codex does not publicly guarantee.
-- [ ] Add preconditions, explicit approval inputs, automatic rollback, and policy restoration checks.
-- [ ] Avoid generic proxy or caller-selected destination configuration.
+- [x] Define the minimum DNS and HTTPS capabilities required by the supported Codex runtime identity.
+- [x] Preserve deny-by-default public egress for `assistant` and unrelated identities.
+- [x] Do not claim fixed private provider host/path controls that Codex does not publicly guarantee.
+- [x] Add preconditions, explicit approval inputs, automatic rollback, and policy restoration checks.
+- [x] Avoid generic proxy or caller-selected destination configuration.
 
 Done when:
 
-- [ ] The enforceable egress boundary is documented, least-privileged, and fail-closed.
+- [x] The enforceable egress boundary is documented, least-privileged, and fail-closed.
 
 ### Step 6 - Run Synthetic Egress and Rollback Validation
 
@@ -169,28 +169,40 @@ Estimate:
 
 Tasks:
 
-- [ ] Use only an operator-approved non-provider synthetic endpoint.
-- [ ] Prove the orchestrator identity's intended test path and `assistant` denial independently.
-- [ ] Prove temporary policy cleanup in success and failure paths.
-- [ ] Re-run permanent deployment, listener, identity, and egress validators after cleanup.
-- [ ] Record sanitized outcomes without addresses, credentials, or raw firewall output.
+- [x] Use only an operator-approved non-provider synthetic endpoint.
+- [x] Prove the orchestrator identity's intended test path and `assistant` denial independently.
+- [x] Prove temporary policy cleanup in success and failure paths.
+- [x] Re-run permanent deployment, listener, identity, and egress validators after cleanup.
+- [x] Record sanitized outcomes without addresses, credentials, or raw firewall output.
 
 Done when:
 
-- [ ] Synthetic validation and rollback pass without contacting a provider or weakening `assistant` controls.
+- [x] Synthetic validation and rollback pass without contacting a provider or weakening `assistant` controls.
 
-## 11.6 Phase Definition of Done
+## 11.6 Completion Record
+
+**Status:** Accepted on 2026-07-23.
+
+The final fake-only deployment validator, approved synthetic egress success path,
+independent `assistant` denial, and injected-failure rollback all passed. The
+sanitized acceptance record is
+[`phase11-sandboxed-deployment-validation-evidence.md`](../runtime/phase11-sandboxed-deployment-validation-evidence.md).
+
+Phase 12 remains separately approval-gated. This acceptance does not enable the
+official remote adapter, authorize authentication, or authorize a provider request.
+
+## 11.7 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] The supported Codex SDK adapter passes mocked contract tests and remains remote-disabled by default.
-- [ ] Deployment is deterministic and sandboxed.
-- [ ] The fake-backed deployed workflow passes locally.
-- [ ] Codex authentication remains operator-owned and opaque.
-- [ ] Egress policy and synthetic rollback validation pass.
-- [ ] No provider request has occurred.
+- [x] The supported Codex SDK adapter passes mocked contract tests and remains remote-disabled by default.
+- [x] Deployment is deterministic and sandboxed.
+- [x] The fake-backed deployed workflow passes locally.
+- [x] Codex authentication remains operator-owned and opaque.
+- [x] Egress policy and synthetic rollback validation pass.
+- [x] No provider request has occurred.
 
-## 11.7 Risks
+## 11.8 Risks
 
 | Risk | Mitigation |
 | ---- | ---------- |

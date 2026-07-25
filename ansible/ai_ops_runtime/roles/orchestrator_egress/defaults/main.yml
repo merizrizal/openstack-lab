@@ -1,0 +1,14 @@
+---
+ai_ops_orchestrator_egress:
+  enabled: true
+  mode: disabled
+  user: aiops-orchestrator
+  approval:
+    id: ""
+    expires_at_utc: ""
+  ufw:
+    ipv4_rules_path: /etc/ufw/before.rules
+    ipv6_rules_path: /etc/ufw/before6.rules
+    marker: AI-OPS orchestrator disabled egress policy
+    ipv4_chain: ufw-before-output
+    ipv6_chain: ufw6-before-output
