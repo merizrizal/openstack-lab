@@ -7,6 +7,8 @@ import socket
 import subprocess
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from itertools import count
 from pathlib import Path
 
 import pytest
@@ -29,6 +31,24 @@ from openstack_ai_ops_orchestrator.official_codex_adapter import (
     map_public_event_method,
     map_turn_result,
 )
+from openstack_ai_ops_orchestrator.remote_acceptance import (
+    ConsumedApproval,
+    RemoteAcceptancePolicy,
+    consume_one_shot_approval,
+    validate_remote_acceptance_policy,
+)
+
+_approval_identifiers = count()
+
+
+def consumed_approval() -> ConsumedApproval:
+    policy = RemoteAcceptancePolicy(
+        approval_id=f"approval-{next(_approval_identifiers)}",
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+    )
+    return consume_one_shot_approval(
+        validate_remote_acceptance_policy(policy, datetime.now(UTC))
+    )
 
 
 def request() -> DiagnosticTurnRequest:
@@ -170,7 +190,11 @@ def test_disabled_adapter_never_enters_runtime_boundaries(
 @dataclass(frozen=True, slots=True)
 class MockPublicSdkEvent:
     method: str
-    ignored_content: str = "raw SDK content must not escape"
+
+
+@dataclass(frozen=True, slots=True)
+class MockContentBearingSdkEvent(MockPublicSdkEvent):
+    content: str = "raw SDK content must not escape"
 
 
 class MockPublicSdkStream:
@@ -239,6 +263,22 @@ class MockPublicAsyncCodex:
         self.closed = True
 
 
+def test_mocked_factory_requires_a_consumed_approval() -> None:
+    client = MockPublicAsyncCodex(
+        MockPublicAsyncThread(MockPublicAsyncTurn(MockPublicSdkStream(())))
+    )
+    adapter = OfficialCodexAdapter(mocked_sdk_factory=lambda: client)
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert events == []
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.VENDOR_BLOCKED,
+        error_category=AdapterErrorCategory.REAL_ADAPTER_DISABLED,
+    )
+    assert not client.closed
+
+
 def test_injected_mocked_lifecycle_emits_metadata_only_events_and_cleans_up() -> None:
     stream = MockPublicSdkStream(
         (
@@ -250,7 +290,7 @@ def test_injected_mocked_lifecycle_emits_metadata_only_events_and_cleans_up() ->
     turn = MockPublicAsyncTurn(stream)
     thread = MockPublicAsyncThread(turn)
     client = MockPublicAsyncCodex(thread)
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
 
@@ -271,7 +311,7 @@ def test_injected_mocked_unknown_event_fails_closed_and_cleans_up() -> None:
     stream = MockPublicSdkStream((MockPublicSdkEvent("item/completed"),))
     turn = MockPublicAsyncTurn(stream)
     client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
 
@@ -285,11 +325,52 @@ def test_injected_mocked_unknown_event_fails_closed_and_cleans_up() -> None:
     assert client.closed
 
 
+def test_content_bearing_event_fails_closed_without_exposure() -> None:
+    stream = MockPublicSdkStream((MockContentBearingSdkEvent("thread/started"),))
+    turn = MockPublicAsyncTurn(stream)
+    client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert events == [AdapterEvent(event_type=AdapterEventType.ADAPTER_FAILED)]
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.ADAPTER_FAILED,
+        error_category=AdapterErrorCategory.INVALID_ADAPTER_EVENT,
+    )
+    assert stream.closed
+    assert client.closed
+
+
+def test_out_of_order_event_fails_closed_before_extra_lifecycle_progress() -> None:
+    stream = MockPublicSdkStream(
+        (
+            MockPublicSdkEvent("thread/started"),
+            MockPublicSdkEvent("thread/started"),
+        )
+    )
+    client = MockPublicAsyncCodex(MockPublicAsyncThread(MockPublicAsyncTurn(stream)))
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert events == [
+        AdapterEvent(event_type=AdapterEventType.THREAD_STARTED),
+        AdapterEvent(event_type=AdapterEventType.ADAPTER_FAILED),
+    ]
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.ADAPTER_FAILED,
+        error_category=AdapterErrorCategory.INVALID_ADAPTER_EVENT,
+    )
+    assert stream.closed
+    assert client.closed
+
+
 def test_mocked_factory_failure_is_sanitized_and_does_not_start_a_client() -> None:
     def fail_factory() -> MockPublicAsyncCodex:
         raise RuntimeError("raw SDK failure")
 
-    adapter = OfficialCodexAdapter(fail_factory)
+    adapter = OfficialCodexAdapter(consumed_approval(), fail_factory)
 
     events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
 
@@ -301,6 +382,28 @@ def test_mocked_factory_failure_is_sanitized_and_does_not_start_a_client() -> No
     assert adapter.cleanup_completed
 
 
+def test_consumed_approval_cannot_start_a_second_adapter_lifecycle() -> None:
+    approval = consumed_approval()
+    stream = MockPublicSdkStream(
+        (
+            MockPublicSdkEvent("thread/started"),
+            MockPublicSdkEvent("turn/started"),
+            MockPublicSdkEvent("turn/completed"),
+        )
+    )
+    client = MockPublicAsyncCodex(MockPublicAsyncThread(MockPublicAsyncTurn(stream)))
+
+    first = OfficialCodexAdapter(approval, lambda: client)
+    second = OfficialCodexAdapter(approval, lambda: client)
+
+    assert collect_events(first.run_turn(request(), policy(), asyncio.Event()))
+    assert collect_events(second.run_turn(request(), policy(), asyncio.Event())) == []
+    assert second.result == AdapterResult(
+        state=WorkflowState.VENDOR_BLOCKED,
+        error_category=AdapterErrorCategory.REAL_ADAPTER_DISABLED,
+    )
+
+
 def test_mocked_cancellation_interrupts_once_and_cleans_up() -> None:
     cancellation = asyncio.Event()
     stream = MockPublicSdkStream(
@@ -308,7 +411,7 @@ def test_mocked_cancellation_interrupts_once_and_cleans_up() -> None:
     )
     turn = MockPublicAsyncTurn(stream)
     client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(), cancellation))
 
@@ -328,7 +431,7 @@ def test_mocked_deadline_interrupts_once_and_cleans_up() -> None:
     stream = MockPublicSdkStream((), block=True)
     turn = MockPublicAsyncTurn(stream)
     client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(0), asyncio.Event()))
 

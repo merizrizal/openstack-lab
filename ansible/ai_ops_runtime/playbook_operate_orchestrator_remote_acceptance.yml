@@ -1,0 +1,32 @@
+---
+- name: Keep remote acceptance operation fail closed
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_runtime/defaults/main.yml"
+  vars:
+    ai_ops_remote_acceptance_apply: false
+    ai_ops_remote_approval_path: /run/aiops-orchestrator/remote-approval
+  tasks:
+    - name: Reject remote acceptance until a separately approved operation exists
+      block:
+        - name: Reject remote operation request
+          ansible.builtin.assert:
+            that: [not (ai_ops_remote_acceptance_apply | bool)]
+            fail_msg: ERR_REMOTE_OPERATION_DISABLED
+          no_log: true
+      always:
+        - name: Stop and disable remote acceptance service
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_orchestrator.remote_service_name }}"
+            enabled: false
+            state: stopped
+          no_log: true
+
+        - name: Remove remote approval artifact
+          ansible.builtin.file:
+            path: "{{ ai_ops_remote_approval_path }}"
+            state: absent
+          no_log: true

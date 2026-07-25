@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import json
+import re
+import stat
 from dataclasses import InitVar, dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from pathlib import Path
 from typing import ClassVar
 
 MAXIMUM_APPROVAL_LIFETIME = timedelta(minutes=5)
 _VALIDATION_TOKEN = object()
 _CONSUMPTION_TOKEN = object()
+
+_APPROVAL_ARTIFACT_FIELDS = frozenset({"approval_id", "expires_at_utc"})
+_MAXIMUM_APPROVAL_ARTIFACT_BYTES = 512
+_APPROVAL_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$")
 
 
 class RemoteAcceptanceErrorCategory(StrEnum):
@@ -50,8 +58,11 @@ class RemoteAcceptancePolicy:
     )
 
     def __post_init__(self) -> None:
-        if not isinstance(self.approval_id, str) or not self.approval_id:
-            raise ValueError("approval identifier must be a non-empty string")
+        if (
+            not isinstance(self.approval_id, str)
+            or _APPROVAL_ID_PATTERN.fullmatch(self.approval_id) is None
+        ):
+            raise ValueError("approval identifier is invalid")
         if not isinstance(self.expires_at, datetime):
             raise ValueError("approval expiry must be a datetime")
 
@@ -96,6 +107,45 @@ def validate_remote_acceptance_policy(
             RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
         )
     return ValidatedOneShotApproval(policy, _VALIDATION_TOKEN)
+
+
+def load_remote_acceptance_artifact(
+    artifact_path: Path, current_utc: datetime
+) -> ValidatedOneShotApproval:
+    """Load one bounded, non-secret approval artifact without consuming it."""
+    try:
+        artifact_stat = artifact_path.lstat()
+        if (
+            not stat.S_ISREG(artifact_stat.st_mode)
+            or stat.S_IMODE(artifact_stat.st_mode) & 0o077
+            or artifact_stat.st_size > _MAXIMUM_APPROVAL_ARTIFACT_BYTES
+        ):
+            raise ValueError("approval artifact metadata is invalid")
+        raw_artifact = artifact_path.read_bytes()
+        if not raw_artifact or len(raw_artifact) > _MAXIMUM_APPROVAL_ARTIFACT_BYTES:
+            raise ValueError("approval artifact size is invalid")
+        artifact = json.loads(raw_artifact)
+        if not isinstance(artifact, dict) or set(artifact) != _APPROVAL_ARTIFACT_FIELDS:
+            raise ValueError("approval artifact schema is invalid")
+        approval_id = artifact["approval_id"]
+        expires_at_utc = artifact["expires_at_utc"]
+        if not isinstance(approval_id, str) or not isinstance(expires_at_utc, str):
+            raise ValueError("approval artifact values are invalid")
+        expires_at = datetime.fromisoformat(expires_at_utc.replace("Z", "+00:00"))
+        return validate_remote_acceptance_policy(
+            RemoteAcceptancePolicy(approval_id=approval_id, expires_at=expires_at),
+            current_utc,
+        )
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        RemoteAcceptanceError,
+    ):
+        raise RemoteAcceptanceError(
+            RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+        ) from None
 
 
 def consume_one_shot_approval(approval: ValidatedOneShotApproval) -> ConsumedApproval:

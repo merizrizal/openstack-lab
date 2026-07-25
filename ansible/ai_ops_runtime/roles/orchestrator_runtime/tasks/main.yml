@@ -14,8 +14,8 @@
       - ai_ops_orchestrator is mapping
       - >-
         ai_ops_orchestrator.keys() | list | sort ==
-        ['codex_home', 'evidence_root', 'group', 'profile', 'root', 'service_name',
-        'user', 'venv', 'wheelhouse', 'work_root']
+        ['codex_home', 'evidence_root', 'group', 'profile', 'remote_service_name',
+        'root', 'service_name', 'user', 'venv', 'wheelhouse', 'work_root']
       - ai_ops_orchestrator.user == 'aiops-orchestrator'
       - ai_ops_orchestrator.group == 'aiops-orchestrator'
       - ai_ops_orchestrator.root == '/opt/openstack-ai-ops/orchestrator'
@@ -24,6 +24,7 @@
       - ai_ops_orchestrator.codex_home == '/var/lib/aiops-orchestrator/codex-home'
       - ai_ops_orchestrator.evidence_root == '/var/lib/aiops-orchestrator/evidence'
       - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
+      - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
       - ai_ops_orchestrator.profile == 'validate-local-fake'
       - ai_ops_orchestrator.wheelhouse is mapping
       - ai_ops_orchestrator.wheelhouse.keys() | list | sort == ['approval_id', 'publication_root']
@@ -120,8 +121,10 @@
     - contracts.py
     - evidence.py
     - fake_codex_adapter.py
+    - official_codex_adapter.py
     - orchestrator.py
     - redaction.py
+    - remote_acceptance.py
     - runtime_entrypoint.py
 
 - name: Create service-owned orchestrator writable directories
@@ -144,6 +147,22 @@
     group: root
     mode: "0644"
     validate: /usr/bin/systemd-analyze verify %s
+
+- name: Install remote acceptance service unit without enabling it
+  ansible.builtin.template:
+    src: aiops-orchestrator-remote.service.j2
+    dest: "/etc/systemd/system/{{ ai_ops_orchestrator.remote_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+
+- name: Keep remote acceptance service disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.remote_service_name }}"
+    daemon_reload: true
+    enabled: false
+    state: stopped
 
 - name: Keep orchestrator service disabled and stopped
   ansible.builtin.systemd_service:

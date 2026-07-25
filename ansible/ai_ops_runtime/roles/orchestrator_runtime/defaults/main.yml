@@ -11,6 +11,7 @@ ai_ops_orchestrator:
     approval_id: ""
     publication_root: /var/lib/openstack-ai-ops/wheelhouse/orchestrator
   service_name: aiops-orchestrator
+  remote_service_name: aiops-orchestrator-remote
   profile: validate-local-fake
 ai_ops_orchestrator_packages:
   - python3-venv

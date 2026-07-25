@@ -57,6 +57,7 @@
           - ai_ops_orchestrator.group == 'aiops-orchestrator'
           - ai_ops_orchestrator.profile == 'validate-local-fake'
           - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
+          - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
           - ai_ops_orchestrator.wheelhouse is mapping
           - ai_ops_orchestrator.wheelhouse.keys() | list | sort == ['approval_id', 'publication_root']
           - ai_ops_orchestrator.wheelhouse.approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')

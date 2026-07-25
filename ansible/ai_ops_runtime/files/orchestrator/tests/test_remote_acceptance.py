@@ -16,6 +16,7 @@ from openstack_ai_ops_orchestrator.remote_acceptance import (
     RemoteAcceptanceErrorCategory,
     RemoteAcceptancePolicy,
     consume_one_shot_approval,
+    load_remote_acceptance_artifact,
     run_disabled_remote_acceptance,
     validate_remote_acceptance_policy,
 )
@@ -49,8 +50,11 @@ def test_policy_has_only_fixed_reviewed_profile_values() -> None:
 
 
 def test_policy_rejects_missing_or_invalid_approval_identifier() -> None:
-    with pytest.raises(ValueError, match="approval identifier"):
-        RemoteAcceptancePolicy(approval_id="", expires_at=NOW + timedelta(minutes=1))
+    for approval_id in ("", "approval id"):
+        with pytest.raises(ValueError, match="approval identifier"):
+            RemoteAcceptancePolicy(
+                approval_id=approval_id, expires_at=NOW + timedelta(minutes=1)
+            )
 
 
 def test_validator_rejects_expired_or_overlong_approval() -> None:
@@ -115,4 +119,50 @@ def test_disabled_operation_never_enters_runtime_boundaries(
     assert (
         disabled.value.category
         is RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED
+    )
+
+
+def test_loader_accepts_only_bounded_private_approval_artifact(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.write_text(
+        '{"approval_id":"approval-20260309-0001","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    artifact_path.chmod(0o600)
+
+    approval = load_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert approval.policy.approval_id == "approval-20260309-0001"
+    assert approval.policy.expires_at == NOW + timedelta(minutes=1)
+
+
+@pytest.mark.parametrize("mode", (0o640, 0o604))
+def test_loader_rejects_permissive_or_invalid_approval_artifact(
+    tmp_path: Path, mode: int
+) -> None:
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.write_text('{"approval_id":"approval-20260309-0001"}')
+    artifact_path.chmod(mode)
+
+    with pytest.raises(RemoteAcceptanceError) as rejected:
+        load_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert (
+        rejected.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+    )
+
+
+def test_loader_rejects_symlinked_approval_artifact(tmp_path: Path) -> None:
+    target_path = tmp_path / "target.json"
+    target_path.write_text(
+        '{"approval_id":"approval-20260309-0001","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    target_path.chmod(0o600)
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.symlink_to(target_path)
+
+    with pytest.raises(RemoteAcceptanceError) as rejected:
+        load_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert (
+        rejected.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
     )

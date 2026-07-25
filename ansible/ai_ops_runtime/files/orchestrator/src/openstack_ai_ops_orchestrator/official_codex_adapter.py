@@ -16,11 +16,13 @@ from .contracts import (
     RuntimePolicy,
     WorkflowState,
 )
+from .remote_acceptance import ConsumedApproval
 
 if TYPE_CHECKING:
     from openai_codex import AsyncCodex, CodexConfig
 
 OFFICIAL_ADAPTER_ENABLED = False
+_used_approval_ids: set[str] = set()
 
 
 class PublicTurnStatus(Protocol):
@@ -103,9 +105,13 @@ class OfficialAdapterDisabledError(RuntimeError):
     """Raised before any Codex configuration or runtime can be entered."""
 
 
-def build_curated_codex_config(policy: RuntimePolicy) -> CodexConfig:
+def build_curated_codex_config(
+    policy: RuntimePolicy, consumed_approval: ConsumedApproval | None = None
+) -> CodexConfig:
     """Describe the sole future SDK configuration after an explicit approval gate."""
-    if not OFFICIAL_ADAPTER_ENABLED:
+    if not OFFICIAL_ADAPTER_ENABLED or not isinstance(
+        consumed_approval, ConsumedApproval
+    ):
         raise OfficialAdapterDisabledError("official adapter remains disabled")
     return CodexConfig(
         config_overrides=(),
@@ -124,6 +130,23 @@ def map_public_event_method(method: str) -> AdapterEvent:
     if event_type is None:
         raise OfficialAdapterCompatibilityError("unrecognized public event")
     return AdapterEvent(event_type=event_type)
+
+
+def contains_public_event_content(event: PublicSdkEvent) -> bool:
+    """Reject event shapes that expose unreviewed SDK payload fields."""
+    return any(
+        hasattr(event, attribute)
+        for attribute in (
+            "content",
+            "item",
+            "message",
+            "payload",
+            "response",
+            "result",
+            "text",
+            "usage",
+        )
+    )
 
 
 def map_turn_result(result: PublicTurnResult) -> AdapterResult:
@@ -151,9 +174,13 @@ class OfficialCodexAdapter:
     """Explicitly disabled adapter; it never constructs ``AsyncCodex``."""
 
     def __init__(
-        self, mocked_sdk_factory: MockedSdkLifecycleFactory | None = None
+        self,
+        consumed_approval: ConsumedApproval | None = None,
+        mocked_sdk_factory: MockedSdkLifecycleFactory | None = None,
     ) -> None:
+        self._consumed_approval = consumed_approval
         self._mocked_sdk_factory = mocked_sdk_factory
+        self._approval_used = False
         self.cleanup_completed = False
         self.interruption_attempted = False
         self.result: AdapterResult | None = None
@@ -165,9 +192,17 @@ class OfficialCodexAdapter:
         cancellation: asyncio.Event,
     ) -> AsyncIterator[AdapterEvent]:
         """Run only an injected mock; ordinary construction remains disabled."""
-        if self._mocked_sdk_factory is None:
+        approval = self._consumed_approval
+        if (
+            not isinstance(approval, ConsumedApproval)
+            or self._mocked_sdk_factory is None
+            or self._approval_used
+            or approval.approval_id in _used_approval_ids
+        ):
             del request, policy, cancellation
             return self._disabled_events()
+        _used_approval_ids.add(approval.approval_id)
+        self._approval_used = True
         return self._mocked_events(request, policy, cancellation)
 
     async def _disabled_events(self) -> AsyncIterator[AdapterEvent]:
@@ -216,6 +251,12 @@ class OfficialCodexAdapter:
                     yield AdapterEvent(event_type=AdapterEventType.CANCELLED)
                     return
                 saw_terminal_event = False
+                expected_event_types = (
+                    AdapterEventType.THREAD_STARTED,
+                    AdapterEventType.TURN_STARTED,
+                    AdapterEventType.TURN_COMPLETED,
+                )
+                event_count = 0
                 async with aclosing(turn.stream()) as stream:
                     async for raw_event in stream:
                         if cancellation.is_set():
@@ -226,7 +267,21 @@ class OfficialCodexAdapter:
                             )
                             yield AdapterEvent(event_type=AdapterEventType.CANCELLED)
                             return
+                        if contains_public_event_content(raw_event):
+                            raise OfficialAdapterCompatibilityError(
+                                "content-bearing public event"
+                            )
                         event = map_public_event_method(raw_event.method)
+                        event_count += 1
+                        if (
+                            event_count > policy.maximum_event_count
+                            or event_count > len(expected_event_types)
+                            or event.event_type
+                            is not expected_event_types[event_count - 1]
+                        ):
+                            raise OfficialAdapterCompatibilityError(
+                                "out-of-order public event"
+                            )
                         saw_terminal_event = (
                             saw_terminal_event
                             or event.event_type is AdapterEventType.TURN_COMPLETED
