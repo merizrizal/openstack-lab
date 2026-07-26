@@ -12,6 +12,8 @@ ai_ops_orchestrator:
     publication_root: /var/lib/openstack-ai-ops/wheelhouse/orchestrator
   service_name: aiops-orchestrator
   remote_service_name: aiops-orchestrator-remote
+  bridge_socket_name: aiops-assistant-mcp-bridge
+  bridge_service_name: aiops-assistant-mcp-bridge
   profile: validate-local-fake
 ai_ops_orchestrator_packages:
   - python3-venv

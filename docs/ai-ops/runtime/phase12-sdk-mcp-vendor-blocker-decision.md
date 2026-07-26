@@ -4,7 +4,7 @@
 
 **Decision:** remote acceptance remains blocked.
 
-**Closed category:** `VENDOR_BLOCKED / SDK_CONTRACT_DRIFT`.
+**Closed category:** `VENDOR_BLOCKED / MCP_INTERCEPTION_UNSUPPORTED`.
 
 This record documents local no-provider contract discovery only. It does not record
 SDK events, provider data, credentials, Codex-home contents, endpoint data, firewall
@@ -14,9 +14,12 @@ output, prompts, responses, tool output, or authentication output.
 
 The reviewed pinned SDK exposes `CodexConfig`, `AsyncCodex`, `AsyncThread.turn()`,
 `AsyncTurnHandle.stream()`, and `AsyncTurnHandle.interrupt()` through its public
-Python surface. The public SDK launches the local Codex app-server subprocess and
-accepts generic `config_overrides`; the repository has not proven a reviewed public
-configuration that binds the SDK to the fixed local MCP bridge.
+Python surface. Public Codex configuration documentation and
+`docs/ai-ops/runtime/mcp-integration.md` establish the fixed local stdio MCP
+command/arguments, working directory, enabled-tool, startup, and timeout contract.
+The remaining proof is narrower: the repository-owned proxy/bridge must validate and
+redact every result before Codex consumes it; the public SDK has no callback for that
+pre-consumption interception.
 
 The public async turn stream emits notification objects with payloads. The repository
 adapter intentionally rejects payload-bearing events and currently models a different
@@ -47,8 +50,8 @@ baseline.
 A new reviewed design may reopen this work only after all of the following are proven
 without provider contact:
 
-1. A supported public SDK configuration binds exactly one fixed local MCP boundary
-   without caller-selectable routing or overrides.
+1. The documented fixed stdio MCP configuration is rendered to launch exactly one
+   repository-owned local boundary without caller-selectable routing or overrides.
 2. A metadata-only reducer can consume the documented lifecycle without retaining or
    exposing payload content.
 3. An assistant-owned bridge executor maps only the reviewed tool request to the

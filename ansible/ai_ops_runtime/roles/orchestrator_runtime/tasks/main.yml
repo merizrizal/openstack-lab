@@ -14,8 +14,9 @@
       - ai_ops_orchestrator is mapping
       - >-
         ai_ops_orchestrator.keys() | list | sort ==
-        ['codex_home', 'evidence_root', 'group', 'profile', 'remote_service_name',
-        'root', 'service_name', 'user', 'venv', 'wheelhouse', 'work_root']
+        ['bridge_service_name', 'bridge_socket_name', 'codex_home', 'evidence_root',
+        'group', 'profile', 'remote_service_name', 'root', 'service_name', 'user',
+        'venv', 'wheelhouse', 'work_root']
       - ai_ops_orchestrator.user == 'aiops-orchestrator'
       - ai_ops_orchestrator.group == 'aiops-orchestrator'
       - ai_ops_orchestrator.root == '/opt/openstack-ai-ops/orchestrator'
@@ -25,6 +26,8 @@
       - ai_ops_orchestrator.evidence_root == '/var/lib/aiops-orchestrator/evidence'
       - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
       - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
+      - ai_ops_orchestrator.bridge_socket_name == 'aiops-assistant-mcp-bridge'
+      - ai_ops_orchestrator.bridge_service_name == 'aiops-assistant-mcp-bridge'
       - ai_ops_orchestrator.profile == 'validate-local-fake'
       - ai_ops_orchestrator.wheelhouse is mapping
       - ai_ops_orchestrator.wheelhouse.keys() | list | sort == ['approval_id', 'publication_root']
@@ -121,11 +124,34 @@
     - contracts.py
     - evidence.py
     - fake_codex_adapter.py
+    - mcp_bridge.py
     - official_codex_adapter.py
     - orchestrator.py
     - redaction.py
     - remote_acceptance.py
     - runtime_entrypoint.py
+
+- name: Resolve orchestrator numeric UID for assistant bridge peer validation
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u, "{{ ai_ops_orchestrator.user }}"]
+  register: ai_ops_orchestrator_bridge_peer_uid
+  changed_when: false
+  no_log: true
+
+- name: Assert orchestrator bridge peer UID is numeric
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_bridge_peer_uid.stdout | trim is match('^[0-9]+$')
+    fail_msg: ERR_ORCHESTRATOR_BRIDGE_PEER_UID
+  no_log: true
+
+- name: Create root-owned assistant bridge runtime directory
+  ansible.builtin.file:
+    path: /run/openstack-ai-ops
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Create service-owned orchestrator writable directories
   ansible.builtin.file:
@@ -156,6 +182,38 @@
     group: root
     mode: "0644"
     validate: /usr/bin/systemd-analyze verify %s
+
+- name: Install assistant bridge socket unit without enabling it
+  ansible.builtin.template:
+    src: aiops-assistant-mcp-bridge.socket.j2
+    dest: "/etc/systemd/system/{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+
+- name: Install assistant bridge service unit without enabling it
+  ansible.builtin.template:
+    src: aiops-assistant-mcp-bridge.service.j2
+    dest: "/etc/systemd/system/{{ ai_ops_orchestrator.bridge_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+
+- name: Keep assistant bridge socket disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+    daemon_reload: true
+    enabled: false
+    state: stopped
+
+- name: Keep assistant bridge service disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+    daemon_reload: true
+    enabled: false
+    state: stopped
 
 - name: Keep remote acceptance service disabled and stopped
   ansible.builtin.systemd_service:

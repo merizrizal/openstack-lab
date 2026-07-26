@@ -1,0 +1,29 @@
+[Unit]
+Description=AI-OPS assistant MCP bridge executor
+Requires={{ ai_ops_orchestrator.bridge_socket_name }}.socket
+After={{ ai_ops_orchestrator.bridge_socket_name }}.socket
+
+[Service]
+Type=simple
+User=assistant
+Group=assistant
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/openstack-ai-ops/mcp:{{ ai_ops_orchestrator.root }}/src
+UnsetEnvironment=ALL_PROXY HTTP_PROXY HTTPS_PROXY NO_PROXY all_proxy http_proxy https_proxy no_proxy
+ExecStart=/opt/openstack-ai-ops/.venv/bin/python /opt/openstack-ai-ops/mcp/aiops_assistant_bridge.py --approved-peer-uid={{ ai_ops_orchestrator_bridge_peer_uid.stdout | trim }}
+Restart=no
+StandardInput=null
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/opt/openstack-ai-ops/audit
