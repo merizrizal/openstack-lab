@@ -125,6 +125,8 @@
     - evidence.py
     - fake_codex_adapter.py
     - mcp_bridge.py
+    - mcp_client.py
+    - mcp_stdio_proxy.py
     - official_codex_adapter.py
     - orchestrator.py
     - redaction.py

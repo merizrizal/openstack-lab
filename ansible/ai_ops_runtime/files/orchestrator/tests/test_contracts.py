@@ -168,8 +168,11 @@ def test_runtime_policy_contains_confirmed_tool_bounds() -> None:
 
 
 def test_reviewed_mcp_contract_is_fixed() -> None:
-    assert FIXED_MCP_COMMAND == "/opt/openstack-ai-ops/.venv/bin/python"
-    assert FIXED_MCP_ARGUMENTS == ("/opt/openstack-ai-ops/mcp/aiops_mcp_server.py",)
+    assert FIXED_MCP_COMMAND == "/opt/openstack-ai-ops/orchestrator/venv/bin/python"
+    assert FIXED_MCP_ARGUMENTS == (
+        "-m",
+        "openstack_ai_ops_orchestrator.mcp_stdio_proxy",
+    )
     assert REVIEWED_MCP_CAPABILITIES.tools == (
         "project_resource_summary",
         "server_basic_info",

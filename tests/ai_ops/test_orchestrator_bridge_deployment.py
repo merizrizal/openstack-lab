@@ -171,10 +171,14 @@ class TestOrchestratorBridgeDeploymentContract(unittest.TestCase):
         self.assertEqual(
             argv[2:],
             [
-                "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/"
-                "{{ ai_ops_orchestrator.bridge_socket_name }}.socket",
-                "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/"
-                "{{ ai_ops_orchestrator.bridge_service_name }}.service",
+                (
+                    "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/"
+                    "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+                ),
+                (
+                    "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/"
+                    "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+                ),
             ],
         )
 
@@ -192,6 +196,18 @@ class TestOrchestratorBridgeDeploymentContract(unittest.TestCase):
             "Remove temporary assistant bridge unit validation directory",
         )
         self.assertEqual(cleanup["ansible.builtin.file"]["state"], "absent")
+
+    def test_role_deploys_credential_free_proxy_and_client_sources(self):
+        source_task = named_task(
+            self.tasks, "Install fixed fake-only orchestrator sources"
+        )
+        deployed_sources = source_task["loop"]
+        self.assertIn("mcp_client.py", deployed_sources)
+        self.assertIn("mcp_stdio_proxy.py", deployed_sources)
+        copy = source_task["ansible.builtin.copy"]
+        self.assertEqual(
+            (copy["owner"], copy["group"], copy["mode"]), ("root", "root", "0644")
+        )
 
     def test_role_materializes_uid_and_keeps_bridge_stopped(self):
         runtime_directory = named_task(
