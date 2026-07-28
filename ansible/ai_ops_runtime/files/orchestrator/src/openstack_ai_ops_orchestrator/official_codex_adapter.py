@@ -49,8 +49,14 @@ class PublicSdkEvent(Protocol):
         """Return the public lifecycle method name only."""
 
 
-class PublicSdkEventStream(AsyncIterator[PublicSdkEvent], Protocol):
+class PublicSdkEventStream(Protocol):
     """Closable public event stream owned by one mocked turn."""
+
+    def __aiter__(self) -> AsyncIterator[PublicSdkEvent]:
+        """Return the exact owned asynchronous iterator."""
+
+    async def __anext__(self) -> PublicSdkEvent:
+        """Return the next public lifecycle event."""
 
     async def aclose(self) -> None:
         """Close the exact mocked stream."""

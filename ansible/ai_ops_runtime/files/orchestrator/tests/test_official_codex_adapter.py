@@ -27,6 +27,7 @@ from openstack_ai_ops_orchestrator.official_codex_adapter import (
     OfficialAdapterCompatibilityError,
     OfficialAdapterDisabledError,
     OfficialCodexAdapter,
+    PublicSdkEventStream,
     build_curated_codex_config,
     map_public_event_method,
     map_turn_result,
@@ -68,6 +69,12 @@ def collect_events(events: AsyncIterator[AdapterEvent]) -> list[AdapterEvent]:
         return [event async for event in events]
 
     return asyncio.run(collect())
+
+
+def test_public_sdk_event_stream_has_only_protocol_bases() -> None:
+    assert all(
+        getattr(base, "_is_protocol", False) for base in PublicSdkEventStream.__bases__
+    )
 
 
 def test_official_adapter_is_disabled_before_any_sdk_runtime_entry() -> None:
