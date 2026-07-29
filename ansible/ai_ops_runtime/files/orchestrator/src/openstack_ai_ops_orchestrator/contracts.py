@@ -400,8 +400,8 @@ class LocalMcpClientStub:
         raise McpClientNotReadyError(MCP_CLIENT_NOT_READY_MESSAGE)
 
 
-class CodexAdapter(Protocol):
-    """Repository boundary that isolates all beta SDK interactions."""
+class ModelAdapter(Protocol):
+    """Repository boundary that isolates provider SDK interactions."""
 
     def run_turn(
         self,
@@ -410,3 +410,7 @@ class CodexAdapter(Protocol):
         cancellation: asyncio.Event,
     ) -> AsyncIterator[AdapterEvent]:
         """Yield only repository events; terminal handling is adapter-owned."""
+
+
+# Backward-compatible name for existing Codex-specific callers.
+CodexAdapter = ModelAdapter

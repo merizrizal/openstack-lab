@@ -5,7 +5,20 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import aclosing
-from typing import TYPE_CHECKING, Protocol
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol, cast
+
+from openai_codex.generated.v2_all import (
+    AgentMessageThreadItem,
+    Thread,
+    ThreadItem,
+    ThreadStartedNotification,
+    Turn,
+    TurnCompletedNotification,
+    TurnStartedNotification,
+    TurnStatus,
+)
+from openai_codex.models import Notification
 
 from .contracts import (
     AdapterErrorCategory,
@@ -16,6 +29,7 @@ from .contracts import (
     RuntimePolicy,
     WorkflowState,
 )
+from .redaction import RedactionError, redact_operator_context
 from .remote_acceptance import ConsumedApproval
 
 if TYPE_CHECKING:
@@ -49,21 +63,37 @@ class PublicSdkEvent(Protocol):
         """Return the public lifecycle method name only."""
 
 
-class PublicSdkEventStream(Protocol):
-    """Closable public event stream owned by one mocked turn."""
+class PublicSdkNotification(Protocol):
+    """Tainted pinned-SDK notification shape available only to the reducer."""
 
-    def __aiter__(self) -> AsyncIterator[PublicSdkEvent]:
+    @property
+    def method(self) -> str:
+        """Return the public notification method name."""
+
+    @property
+    def payload(self) -> object:
+        """Return the opaque tainted payload for immediate local reduction."""
+
+
+class PublicSdkEventStream(Protocol):
+    """Closable public event stream owned by one injected turn."""
+
+    def __aiter__(self) -> AsyncIterator[PublicSdkNotification]:
         """Return the exact owned asynchronous iterator."""
 
-    async def __anext__(self) -> PublicSdkEvent:
-        """Return the next public lifecycle event."""
+    async def __anext__(self) -> PublicSdkNotification:
+        """Return the next tainted public notification."""
 
     async def aclose(self) -> None:
-        """Close the exact mocked stream."""
+        """Close the exact injected stream."""
 
 
 class PublicAsyncTurn(Protocol):
-    """Public turn-handle shape needed by the finite mocked lifecycle."""
+    """Public turn-handle shape needed by the finite injected lifecycle."""
+
+    @property
+    def id(self) -> str:
+        """Return the public turn identity."""
 
     def stream(self) -> PublicSdkEventStream:
         """Return the public event stream."""
@@ -73,10 +103,14 @@ class PublicAsyncTurn(Protocol):
 
 
 class PublicAsyncThread(Protocol):
-    """Public thread shape needed by the finite mocked lifecycle."""
+    """Public thread shape needed by the finite injected lifecycle."""
+
+    @property
+    def id(self) -> str:
+        """Return the public thread identity."""
 
     async def turn(self, input: str) -> PublicAsyncTurn:
-        """Start one mocked turn from already-redacted input."""
+        """Start one injected turn from already-redacted input."""
 
 
 class MockedSdkClient(Protocol):
@@ -109,6 +143,159 @@ class OfficialAdapterCompatibilityError(RuntimeError):
 
 class OfficialAdapterDisabledError(RuntimeError):
     """Raised before any Codex configuration or runtime can be entered."""
+
+
+@dataclass(frozen=True, slots=True)
+class TaintedNotificationReduction:
+    """Repository-owned reducer output with no raw SDK values."""
+
+    event: AdapterEvent
+    advisory_text: str | None = None
+
+
+class TaintedNotificationReducer:
+    """Reduce one bounded, ordered pinned-SDK notification sequence in memory."""
+
+    _EXPECTED_EVENTS = (
+        ("thread/started", ThreadStartedNotification, AdapterEventType.THREAD_STARTED),
+        ("turn/started", TurnStartedNotification, AdapterEventType.TURN_STARTED),
+        ("turn/completed", TurnCompletedNotification, AdapterEventType.TURN_COMPLETED),
+    )
+
+    def __init__(
+        self,
+        *,
+        expected_thread_id: str,
+        expected_turn_id: str,
+        maximum_payload_bytes: int,
+        maximum_advisory_bytes: int,
+        maximum_redactions: int,
+    ) -> None:
+        if (
+            not isinstance(expected_thread_id, str)
+            or not expected_thread_id
+            or not isinstance(expected_turn_id, str)
+            or not expected_turn_id
+            or any(
+                isinstance(limit, bool) or not isinstance(limit, int) or limit < 1
+                for limit in (
+                    maximum_payload_bytes,
+                    maximum_advisory_bytes,
+                    maximum_redactions,
+                )
+            )
+        ):
+            raise OfficialAdapterCompatibilityError(
+                "invalid tainted reducer configuration"
+            )
+        self._expected_thread_id = expected_thread_id
+        self._expected_turn_id = expected_turn_id
+        self._maximum_payload_bytes = maximum_payload_bytes
+        self._maximum_advisory_bytes = maximum_advisory_bytes
+        self._maximum_redactions = maximum_redactions
+        self._next_event_index = 0
+
+    def reduce(
+        self, notification: PublicSdkNotification
+    ) -> TaintedNotificationReduction:
+        """Validate and discard one tainted notification after safe reduction."""
+        if type(notification) is not Notification:
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+        if self._next_event_index >= len(self._EXPECTED_EVENTS):
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+
+        method, payload_type, event_type = self._EXPECTED_EVENTS[self._next_event_index]
+        payload = notification.payload
+        if notification.method != method or type(payload) is not payload_type:
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+        self._validate_payload_size(
+            cast(
+                ThreadStartedNotification
+                | TurnStartedNotification
+                | TurnCompletedNotification,
+                payload,
+            )
+        )
+
+        if type(payload) is ThreadStartedNotification:
+            self._validate_thread_started(payload)
+            advisory_text = None
+        elif type(payload) is TurnStartedNotification:
+            self._validate_turn(payload)
+            advisory_text = None
+        elif type(payload) is TurnCompletedNotification:
+            self._validate_turn(payload)
+            advisory_text = self._reduce_terminal_advisory(payload.turn)
+        else:
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+
+        self._next_event_index += 1
+        return TaintedNotificationReduction(
+            event=AdapterEvent(event_type=event_type), advisory_text=advisory_text
+        )
+
+    def _validate_payload_size(
+        self,
+        payload: ThreadStartedNotification
+        | TurnStartedNotification
+        | TurnCompletedNotification,
+    ) -> None:
+        try:
+            serialized_payload = payload.model_dump_json().encode("utf-8")
+        except Exception:
+            raise OfficialAdapterCompatibilityError(
+                "invalid tainted notification"
+            ) from None
+        if len(serialized_payload) > self._maximum_payload_bytes:
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+        del serialized_payload
+
+    def _validate_thread_started(self, payload: ThreadStartedNotification) -> None:
+        if (
+            type(payload.thread) is not Thread
+            or payload.thread.id != self._expected_thread_id
+        ):
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+
+    def _validate_turn(
+        self, payload: TurnStartedNotification | TurnCompletedNotification
+    ) -> None:
+        if (
+            payload.thread_id != self._expected_thread_id
+            or type(payload.turn) is not Turn
+            or payload.turn.id != self._expected_turn_id
+        ):
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+
+    def _reduce_terminal_advisory(self, turn: Turn) -> str:
+        if (
+            turn.status is not TurnStatus.completed
+            or type(turn.items) is not list
+            or not turn.items
+        ):
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+        final_item = turn.items[-1]
+        if (
+            type(final_item) is not ThreadItem
+            or type(final_item.root) is not AgentMessageThreadItem
+            or not isinstance(final_item.root.text, str)
+            or not final_item.root.text
+            or any(
+                ord(character) < 32 or ord(character) == 127
+                for character in final_item.root.text
+            )
+        ):
+            raise OfficialAdapterCompatibilityError("invalid tainted notification")
+        try:
+            return redact_operator_context(
+                final_item.root.text,
+                self._maximum_advisory_bytes,
+                self._maximum_redactions,
+            ).content
+        except RedactionError:
+            raise OfficialAdapterCompatibilityError(
+                "invalid tainted notification"
+            ) from None
 
 
 def build_curated_codex_config(
@@ -256,15 +443,17 @@ class OfficialCodexAdapter:
                     )
                     yield AdapterEvent(event_type=AdapterEventType.CANCELLED)
                     return
-                saw_terminal_event = False
-                expected_event_types = (
-                    AdapterEventType.THREAD_STARTED,
-                    AdapterEventType.TURN_STARTED,
-                    AdapterEventType.TURN_COMPLETED,
+                reducer = TaintedNotificationReducer(
+                    expected_thread_id=thread.id,
+                    expected_turn_id=turn.id,
+                    maximum_payload_bytes=policy.maximum_mcp_result_bytes,
+                    maximum_advisory_bytes=policy.maximum_output_bytes,
+                    maximum_redactions=policy.maximum_redaction_count,
                 )
+                saw_terminal_event = False
                 event_count = 0
                 async with aclosing(turn.stream()) as stream:
-                    async for raw_event in stream:
+                    async for raw_notification in stream:
                         if cancellation.is_set():
                             await self._interrupt_once(turn, policy)
                             self.result = AdapterResult(
@@ -273,29 +462,21 @@ class OfficialCodexAdapter:
                             )
                             yield AdapterEvent(event_type=AdapterEventType.CANCELLED)
                             return
-                        if contains_public_event_content(raw_event):
-                            raise OfficialAdapterCompatibilityError(
-                                "content-bearing public event"
-                            )
-                        event = map_public_event_method(raw_event.method)
                         event_count += 1
-                        if (
-                            event_count > policy.maximum_event_count
-                            or event_count > len(expected_event_types)
-                            or event.event_type
-                            is not expected_event_types[event_count - 1]
-                        ):
+                        if event_count > policy.maximum_event_count:
                             raise OfficialAdapterCompatibilityError(
-                                "out-of-order public event"
+                                "too many public notifications"
                             )
+                        reduction = reducer.reduce(raw_notification)
+                        event = reduction.event
                         saw_terminal_event = (
-                            saw_terminal_event
-                            or event.event_type is AdapterEventType.TURN_COMPLETED
+                            event.event_type is AdapterEventType.TURN_COMPLETED
                         )
+                        del raw_notification, reduction
                         yield event
                 if not saw_terminal_event:
                     raise OfficialAdapterCompatibilityError(
-                        "mocked stream is incomplete"
+                        "incomplete public notification stream"
                     )
                 self.result = AdapterResult(state=WorkflowState.COMPLETED)
         except TimeoutError:

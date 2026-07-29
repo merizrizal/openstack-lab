@@ -20,12 +20,18 @@ from openstack_ai_ops_orchestrator.contracts import (
     LocalMcpClientProtocol,
     LocalMcpClientStub,
     McpCapabilityContract,
+    ModelAdapter,
     RuntimePolicy,
     SafeToolResult,
     ToolCallRequest,
     ToolResultCategory,
     WorkflowState,
 )
+from openstack_ai_ops_orchestrator.fake_codex_adapter import (
+    FakeCodexAdapter,
+    FakeCodexScenario,
+)
+from openstack_ai_ops_orchestrator.official_codex_adapter import OfficialCodexAdapter
 
 
 def test_request_accepts_exact_closed_schema() -> None:
@@ -80,13 +86,19 @@ class ContractOnlyAdapter:
         return events()
 
 
-def test_protocol_has_no_sdk_runtime_requirement() -> None:
-    adapter: CodexAdapter = ContractOnlyAdapter()
-    assert adapter.run_turn(
+def test_model_adapter_protocol_preserves_codex_compatibility() -> None:
+    adapter: ModelAdapter = ContractOnlyAdapter()
+    legacy_adapter: CodexAdapter = adapter
+    fake_adapter: ModelAdapter = FakeCodexAdapter(FakeCodexScenario.successful())
+    official_adapter: ModelAdapter = OfficialCodexAdapter()
+
+    assert CodexAdapter is ModelAdapter
+    assert legacy_adapter.run_turn(
         DiagnosticTurnRequest("project_resource_summary", "correlation-1", "safe"),
         RuntimePolicy(30, 4, 1024, "reviewed-model", "/fixed/workdir"),
         asyncio.Event(),
     )
+    del fake_adapter, official_adapter
 
 
 def test_tool_request_is_closed_and_immutable() -> None:

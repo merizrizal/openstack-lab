@@ -1,67 +1,74 @@
-# Phase 12 SDK and MCP Vendor-Blocker Decision
+# Phase 12 SDK and MCP Live MVP Policy Decision
 
 ## Status
 
-**Decision:** remote acceptance remains blocked.
+**Decision:** the former vendor blocker is superseded for the fixed live Codex
+MVP by an explicit bounded in-memory payload-reduction policy.
 
-**Closed category:** `VENDOR_BLOCKED / MCP_INTERCEPTION_UNSUPPORTED`.
+**Prior closed category:** `VENDOR_BLOCKED / MCP_INTERCEPTION_UNSUPPORTED`.
 
-This record documents local no-provider contract discovery only. It does not record
-SDK events, provider data, credentials, Codex-home contents, endpoint data, firewall
-output, prompts, responses, tool output, or authentication output.
+This record documents the reviewed policy change only. It contains no SDK events,
+provider data, credentials, Codex-home contents, endpoint data, firewall output,
+prompts, responses, tool output, or authentication output. It does not authorize a
+live request, authentication action, egress change, or remote-unit activation.
 
 ## Evidence
 
-The reviewed pinned SDK exposes `CodexConfig`, `AsyncCodex`, `AsyncThread.turn()`,
-`AsyncTurnHandle.stream()`, and `AsyncTurnHandle.interrupt()` through its public
-Python surface. Public Codex configuration documentation and
-`docs/ai-ops/runtime/mcp-integration.md` establish the fixed local stdio MCP
-command/arguments, working directory, enabled-tool, startup, and timeout contract.
-The remaining proof is narrower: the repository-owned proxy/bridge must validate and
-redact every result before Codex consumes it; the public SDK has no callback for that
-pre-consumption interception.
+The offline review of pinned `openai-codex==0.144.4` confirmed the public
+`CodexConfig`, `AsyncCodex`, `AsyncThread.turn()`, `AsyncTurnHandle.stream()`, and
+`AsyncTurnHandle.interrupt()` surface. Public `Notification` objects contain both
+`method` and `payload`; no payload-free lifecycle or pre-consumption metadata callback
+was found.
 
-The public async turn stream emits notification objects with payloads. The repository
-adapter intentionally rejects payload-bearing events and currently models a different
-mock-only stream shape. Enabling it would weaken the reviewed metadata-only boundary.
+The fixed local stdio MCP command, working directory, enabled tool, startup, and
+timeout contracts remain valid. The repository-owned proxy/bridge validates and
+redacts each OpenStack tool result before Codex consumes it. The separate official
+adapter must then treat SDK notifications as tainted process-memory objects and reduce
+only reviewed public shapes to repository-owned metadata and sanitized advisory text.
 
-The repository contains a tested Unix bridge and credential-free proxy, but no
-assistant-owned bridge executor/service deployment. The existing assistant MCP server
-owns the credential-bearing runner through stdio and is not a bridge executor.
+The repository contains a tested Unix bridge, credential-free proxy, and an
+assistant-owned bridge executor/service deployment. The units are static, disabled,
+and stopped; the separately gated activation playbook uses a fake runner only. The
+existing assistant MCP server still owns the credential-bearing runner through stdio;
+the bridge executor delegates only through that reviewed runner contract.
 
 ## Decision
 
-Do not:
+The MVP may implement the pinned official SDK behind the repository-owned model
+adapter contract under these conditions:
 
-- enable `OFFICIAL_ADAPTER_ENABLED`;
-- enable or start `aiops-orchestrator-remote`;
-- create a service-readable approval artifact;
-- deploy an assistant bridge socket or executor;
-- change egress, authenticate, resolve DNS, construct a live SDK client, or contact a
-  provider;
-- use generic SDK overrides, custom process arguments, a proxy, gateway fallback, or
-  private-protocol inspection to bypass the missing contract.
+- raw notification payloads exist only as tainted values in the one-shot adapter
+  process and reducer call stack;
+- exact public method/payload types, turn identity, order, count, and byte bounds are
+  checked before repository output is produced;
+- only sanitized `AdapterEvent` metadata and bounded `AdapterResult.advisory_text`
+  cross the adapter boundary;
+- raw payloads never enter logs, exceptions, evidence, presenters, callbacks, test
+  snapshots, or persistent files;
+- the fixed MCP proxy/bridge redacts OpenStack tool results before Codex receives
+  them;
+- orchestration depends on a provider-neutral structural adapter contract so Codex
+  can later be replaced without changing tool or evidence boundaries.
 
-The existing fake-only service and permanent egress denial remain the accepted
-baseline.
+Python memory zeroization is not claimed. Exposure is minimized with immediate
+reduction, bounded values, dropped references, disabled raw logging, exact cleanup,
+and termination of the one-shot process.
 
-## Reopening criteria
+## Remaining gates
 
-A new reviewed design may reopen this work only after all of the following are proven
-without provider contact:
+This policy decision authorizes offline implementation under
+`12-01-phase12-gated-remote-boundary-ads.md`; it does not authorize a live operation.
+Before one provider request:
 
-1. The documented fixed stdio MCP configuration is rendered to launch exactly one
-   repository-owned local boundary without caller-selectable routing or overrides.
-2. A metadata-only reducer can consume the documented lifecycle without retaining or
-   exposing payload content.
-3. An assistant-owned bridge executor maps only the reviewed tool request to the
-   existing credential-bearing runner and redacts results before the orchestrator can
-   receive them.
-4. Socket ownership, mode, peer-UID verification, service lifecycle, timeout, and
-   cleanup are defined and tested.
-5. A root-controlled one-shot approval artifact has an atomic consume/remove contract
-   that does not grant broad write access to the orchestrator identity.
-6. A separately approved temporary egress and rollback design exists.
+1. The provider-neutral contract, tainted reducer, pinned lifecycle wiring, one-shot
+   entrypoint, and offline end-to-end simulation must pass their reviewed chunks.
+2. `OFFICIAL_ADAPTER_ENABLED` and ordinary remote execution must remain disabled by
+   default; no unconditional global enablement is permitted.
+3. A fresh one-request approval and separate temporary-egress approval must be
+   obtained and consumed through the reviewed operation boundary.
+4. Exactly one attempt, no retry, bounded ephemeral presentation, unconditional
+   cleanup, baseline restoration, and metadata-only evidence are required.
 
-Until then, classify the remote path as a vendor blocker. Do not treat this decision
-as an authentication, egress, retry, upgrade, or provider-request approval.
+Do not use generic SDK overrides, private-protocol inspection, provider gateways,
+API-key fallback, copied credentials, or recurring remote operation. Any failed
+validation or cleanup blocks the live request and preserves the fake-only baseline.
