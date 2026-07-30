@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
@@ -20,7 +21,11 @@ def policy() -> RuntimePolicy:
 class Fake:
     def __init__(
         self,
-        tools=("project_resource_summary", "server_basic_info", "server_network_info"),
+        tools: tuple[str, ...] = (
+            "project_resource_summary",
+            "server_basic_info",
+            "server_network_info",
+        ),
     ) -> None:
         self.closed = False
         self.tools = tools
@@ -28,10 +33,10 @@ class Fake:
     async def initialize(self) -> None:
         pass
 
-    async def list_tools(self):
+    async def list_tools(self) -> object:
         return SimpleNamespace(tools=[SimpleNamespace(name=x) for x in self.tools])
 
-    async def list_resources(self):
+    async def list_resources(self) -> object:
         return SimpleNamespace(
             resources=[
                 SimpleNamespace(uri=x)
@@ -43,7 +48,7 @@ class Fake:
             ]
         )
 
-    async def list_prompts(self):
+    async def list_prompts(self) -> object:
         return SimpleNamespace(
             prompts=[
                 SimpleNamespace(name=x)
@@ -51,12 +56,12 @@ class Fake:
             ]
         )
 
-    async def call_tool(self, n, a):
+    async def call_tool(self, n: str, a: dict[str, str]) -> object:
         return {"name": n, "arguments": a}
 
 
 @asynccontextmanager
-async def context(fake):
+async def context(fake: Fake) -> AsyncIterator[Fake]:
     try:
         yield fake
     finally:
@@ -66,7 +71,7 @@ async def context(fake):
 def test_fixed_client_validates_and_closes_fixture() -> None:
     fake = Fake()
 
-    async def run():
+    async def run() -> None:
         async with LocalMcpClient(
             policy(), session_factory=lambda: context(fake)
         ) as client:
@@ -81,7 +86,7 @@ def test_fixed_client_validates_and_closes_fixture() -> None:
 def test_capability_drift_closes_fixture() -> None:
     fake = Fake(("project_resource_summary",))
 
-    async def run():
+    async def run() -> None:
         with pytest.raises(McpClientContractError, match="MCP contract failed"):
             async with LocalMcpClient(policy(), session_factory=lambda: context(fake)):
                 pass

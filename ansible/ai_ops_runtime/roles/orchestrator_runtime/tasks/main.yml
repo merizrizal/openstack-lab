@@ -21,9 +21,9 @@
       - ai_ops_orchestrator.group == 'aiops-orchestrator'
       - ai_ops_orchestrator.root == '/opt/openstack-ai-ops/orchestrator'
       - ai_ops_orchestrator.venv == '/opt/openstack-ai-ops/orchestrator/venv'
-      - ai_ops_orchestrator.work_root == '/var/lib/aiops-orchestrator/work'
-      - ai_ops_orchestrator.codex_home == '/var/lib/aiops-orchestrator/codex-home'
-      - ai_ops_orchestrator.evidence_root == '/var/lib/aiops-orchestrator/evidence'
+      - ai_ops_orchestrator.work_root == '/run/openstack-ai-ops/remote-work'
+      - ai_ops_orchestrator.codex_home == '/run/openstack-ai-ops/codex-home'
+      - ai_ops_orchestrator.evidence_root == '/run/openstack-ai-ops/evidence'
       - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
       - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
       - ai_ops_orchestrator.bridge_socket_name == 'aiops-assistant-mcp-bridge'
@@ -154,6 +154,14 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Create private remote approval parent directory
+  ansible.builtin.file:
+    path: /run/aiops-orchestrator
+    state: directory
+    owner: root
+    group: "{{ ai_ops_orchestrator.group }}"
+    mode: "0730"
 
 - name: Create service-owned orchestrator writable directories
   ansible.builtin.file:

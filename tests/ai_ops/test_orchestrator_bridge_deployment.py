@@ -223,6 +223,24 @@ class TestOrchestratorBridgeDeploymentContract(unittest.TestCase):
             ("root", "root", "0755"),
         )
 
+        approval_directory = named_task(
+            self.tasks, "Create private remote approval parent directory"
+        )["ansible.builtin.file"]
+        self.assertEqual(
+            (
+                approval_directory["path"],
+                approval_directory["owner"],
+                approval_directory["group"],
+                approval_directory["mode"],
+            ),
+            (
+                "/run/aiops-orchestrator",
+                "root",
+                "{{ ai_ops_orchestrator.group }}",
+                "0730",
+            ),
+        )
+
         resolve_uid = named_task(
             self.tasks,
             "Resolve orchestrator numeric UID for assistant bridge peer validation",

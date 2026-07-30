@@ -45,9 +45,9 @@ def render_remote_unit():
         ai_ops_orchestrator={
             "user": "aiops-orchestrator",
             "group": "aiops-orchestrator",
-            "work_root": "/var/lib/aiops-orchestrator/work",
-            "codex_home": "/var/lib/aiops-orchestrator/codex-home",
-            "evidence_root": "/var/lib/aiops-orchestrator/evidence",
+            "work_root": "/run/openstack-ai-ops/remote-work",
+            "codex_home": "/run/openstack-ai-ops/codex-home",
+            "evidence_root": "/run/openstack-ai-ops/evidence",
             "root": "/opt/openstack-ai-ops/orchestrator",
             "venv": "/opt/openstack-ai-ops/orchestrator/venv",
         }
@@ -116,37 +116,62 @@ class TestOrchestratorRemoteOperationsContract(unittest.TestCase):
         static = named_task(tasks, "Assert remote service is installed but not enabled")
         self.assertIn("'static'", static["ansible.builtin.assert"]["that"][1])
 
-    def test_operation_fails_closed_and_always_restores_static_baseline(self):
-        self.assertFalse(self.operation["vars"]["ai_ops_remote_acceptance_apply"])
+    def test_operation_is_default_false_and_always_restores_static_baseline(self):
+        variables = self.operation["vars"]
+        self.assertFalse(variables["ai_ops_remote_acceptance_apply"])
+        self.assertEqual(variables["ai_ops_remote_approval_id"], "")
+        self.assertEqual(variables["ai_ops_remote_egress_approval_id"], "")
         operation = named_task(
             self.operation["tasks"],
-            "Reject remote acceptance until a separately approved operation exists",
+            "Run approved remote acceptance with unconditional cleanup",
         )
-        reject = named_task(operation["block"], "Reject remote operation request")
+        self.assertEqual(operation["when"], "ai_ops_remote_acceptance_apply | bool")
+        approval = named_task(
+            operation["block"], "Assert approved remote operation inputs"
+        )
+        self.assertTrue(approval["no_log"])
+        assertions = approval["ansible.builtin.assert"]["that"]
         self.assertIn(
-            "not (ai_ops_remote_acceptance_apply | bool)",
-            reject["ansible.builtin.assert"]["that"],
+            "ai_ops_remote_egress_approval_id != ai_ops_remote_approval_id",
+            assertions,
         )
-        self.assertTrue(reject["no_log"])
+        self.assertIn(
+            "ai_ops_remote_egress_policy == 'dedicated_identity_dns_and_https'",
+            assertions,
+        )
+        starts = [
+            named_task(operation["block"], name)["ansible.builtin.systemd_service"]
+            for name in (
+                "Start exact assistant bridge socket once",
+                "Start exact remote acceptance service once",
+            )
+        ]
+        for start in starts:
+            self.assertFalse(start["enabled"])
+            self.assertEqual(start["state"], "started")
         cleanup_names = [task["name"] for task in operation["always"]]
-        self.assertEqual(
-            cleanup_names,
-            [
-                "Stop and disable remote acceptance service",
-                "Remove remote approval artifact",
-            ],
+        self.assertLess(
+            cleanup_names.index("Stop assistant bridge socket before service"),
+            cleanup_names.index("Stop assistant bridge service after socket"),
         )
-        stop = operation["always"][0]["ansible.builtin.systemd_service"]
-        self.assertFalse(stop["enabled"])
-        self.assertEqual(stop["state"], "stopped")
-        self.assertTrue(operation["always"][0]["no_log"])
-        self.assertTrue(operation["always"][1]["no_log"])
+        for required in (
+            "Stop remote acceptance service",
+            "Remove exact remote approval artifact",
+            "Remove temporary IPv4 remote owner allows",
+            "Remove temporary IPv6 remote owner allows",
+            "Restore permanent disabled orchestrator policy",
+            "Assert remote operation cleanup restored static baseline",
+            "Assert temporary remote egress marker removal",
+        ):
+            self.assertIn(required, cleanup_names)
         source = OPERATION_PATH.read_text(encoding="utf-8")
         for prohibited in (
             "ansible.builtin.shell",
             "retries:",
             "until:",
             "enabled: true",
+            "ansible.builtin.uri",
+            "login status",
         ):
             self.assertNotIn(prohibited, source)
 

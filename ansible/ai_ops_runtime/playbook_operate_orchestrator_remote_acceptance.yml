@@ -1,5 +1,5 @@
 ---
-- name: Keep remote acceptance operation fail closed
+- name: Operate one approved remote acceptance request
   hosts: assistant
   become: true
   gather_facts: false
@@ -8,25 +8,292 @@
     - "{{ playbook_dir }}/roles/orchestrator_runtime/defaults/main.yml"
   vars:
     ai_ops_remote_acceptance_apply: false
+    ai_ops_remote_approval_id: ""
+    ai_ops_remote_approval_expires_at_utc: ""
+    ai_ops_remote_egress_approval_id: ""
+    ai_ops_remote_egress_expires_at_utc: ""
+    ai_ops_remote_egress_policy: dedicated_identity_dns_and_https
+    ai_ops_remote_operation_inject_failure: false
     ai_ops_remote_approval_path: /run/aiops-orchestrator/remote-approval
+    ai_ops_remote_egress_marker: AI-OPS orchestrator remote egress exception
+    ai_ops_remote_socket_path: /run/openstack-ai-ops/assistant-mcp-bridge.sock
   tasks:
-    - name: Reject remote acceptance until a separately approved operation exists
+    - name: Run approved remote acceptance with unconditional cleanup
+      when: ai_ops_remote_acceptance_apply | bool
       block:
-        - name: Reject remote operation request
+        - name: Assert approved remote operation inputs
           ansible.builtin.assert:
-            that: [not (ai_ops_remote_acceptance_apply | bool)]
-            fail_msg: ERR_REMOTE_OPERATION_DISABLED
+            that:
+              - ai_ops_remote_acceptance_apply | type_debug == 'bool'
+              - ai_ops_remote_approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+              - ai_ops_remote_approval_expires_at_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+              - ai_ops_remote_egress_approval_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$')
+              - ai_ops_remote_egress_approval_id != ai_ops_remote_approval_id
+              - ai_ops_remote_egress_expires_at_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+              - ai_ops_remote_egress_policy == 'dedicated_identity_dns_and_https'
+            fail_msg: ERR_REMOTE_OPERATION_APPROVAL
+          no_log: true
+
+        - name: Read target UTC epoch
+          ansible.builtin.command:
+            argv: [/bin/date, -u, +%s]
+          register: ai_ops_remote_operation_now_epoch
+          changed_when: false
+          check_mode: false
+          no_log: true
+
+        - name: Parse approved operation and egress expiry
+          ansible.builtin.command:
+            argv: [/bin/date, -u, "--date={{ item }}", +%s]
+          loop:
+            - "{{ ai_ops_remote_approval_expires_at_utc }}"
+            - "{{ ai_ops_remote_egress_expires_at_utc }}"
+          register: ai_ops_remote_operation_expiry_epochs
+          changed_when: false
+          failed_when: false
+          check_mode: false
+          no_log: true
+
+        - name: Assert approved operation and egress expiry are bounded and current
+          ansible.builtin.assert:
+            that:
+              - ai_ops_remote_operation_expiry_epochs.results | map(attribute='rc') | list == [0, 0]
+              - ai_ops_remote_operation_expiry_epochs.results | map(attribute='stdout') | map('trim') | map('int') | min >
+                ai_ops_remote_operation_now_epoch.stdout | int
+              - ai_ops_remote_operation_expiry_epochs.results | map(attribute='stdout') | map('trim') | map('int') | max <=
+                ai_ops_remote_operation_now_epoch.stdout | int + 600
+            fail_msg: ERR_REMOTE_OPERATION_EXPIRY
+          no_log: true
+
+        - name: Read remote and bridge unit states before operation
+          ansible.builtin.command:
+            argv: [/usr/bin/systemctl, is-active, "{{ item }}"]
+          loop:
+            - "{{ ai_ops_orchestrator.remote_service_name }}"
+            - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+            - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+          register: ai_ops_remote_operation_initial_states
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert remote and bridge units begin inactive
+          ansible.builtin.assert:
+            that: >-
+              ai_ops_remote_operation_initial_states.results |
+              map(attribute='stdout') | map('trim') | unique | list == ['inactive']
+            fail_msg: ERR_REMOTE_OPERATION_INITIAL_STATE
+          no_log: true
+
+        - name: Read remote and bridge unit enablement before operation
+          ansible.builtin.command:
+            argv: [/usr/bin/systemctl, is-enabled, "{{ item }}"]
+          loop:
+            - "{{ ai_ops_orchestrator.remote_service_name }}"
+            - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+            - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+          register: ai_ops_remote_operation_enablement
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert remote and bridge units remain static
+          ansible.builtin.assert:
+            that: >-
+              ai_ops_remote_operation_enablement.results |
+              map(attribute='stdout') | map('trim') | unique | list == ['static']
+            fail_msg: ERR_REMOTE_OPERATION_ENABLEMENT
+          no_log: true
+
+        - name: Inspect remote operation stale boundaries
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - "{{ ai_ops_remote_approval_path }}"
+            - "{{ ai_ops_remote_socket_path }}"
+          register: ai_ops_remote_operation_stale_boundaries
+          changed_when: false
+          no_log: true
+
+        - name: Reject stale remote approval artifact or bridge socket
+          ansible.builtin.assert:
+            that: not item.stat.exists
+            fail_msg: ERR_REMOTE_OPERATION_STALE_STATE
+          loop: "{{ ai_ops_remote_operation_stale_boundaries.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          no_log: true
+
+        - name: Materialize permanent disabled orchestrator policy
+          ansible.builtin.include_role:
+            name: orchestrator_egress
+
+        - name: Resolve remote operation owner UID
+          ansible.builtin.command:
+            argv: [/usr/bin/id, -u, "{{ ai_ops_orchestrator.user }}"]
+          register: ai_ops_remote_operation_uid
+          changed_when: false
+          no_log: true
+
+        - name: Materialize exact remote approval artifact
+          ansible.builtin.copy:
+            dest: "{{ ai_ops_remote_approval_path }}"
+            content: >-
+              {{ {'approval_id': ai_ops_remote_approval_id,
+                  'expires_at_utc': ai_ops_remote_approval_expires_at_utc} | to_json }}
+            owner: root
+            group: "{{ ai_ops_orchestrator.group }}"
+            mode: "0640"
+          no_log: true
+
+        - name: Install temporary IPv4 remote owner allows
+          ansible.builtin.blockinfile:
+            path: /etc/ufw/before.rules
+            marker: "# {mark} {{ ai_ops_remote_egress_marker }}"
+            insertbefore: "^# BEGIN AI-OPS orchestrator disabled egress policy$"
+            block: |
+              -A ufw-before-output -m owner --uid-owner {{ ai_ops_remote_operation_uid.stdout }} -p udp --dport 53 -j ACCEPT
+              -A ufw-before-output -m owner --uid-owner {{ ai_ops_remote_operation_uid.stdout }} -p tcp --dport 53 -j ACCEPT
+              -A ufw-before-output -m owner --uid-owner {{ ai_ops_remote_operation_uid.stdout }} -p tcp --dport 443 -j ACCEPT
+            validate: /usr/sbin/iptables-restore --test %s
+          no_log: true
+
+        - name: Install temporary IPv6 remote owner allows
+          ansible.builtin.blockinfile:
+            path: /etc/ufw/before6.rules
+            marker: "# {mark} {{ ai_ops_remote_egress_marker }}"
+            insertbefore: "^# BEGIN AI-OPS orchestrator disabled egress policy$"
+            block: |
+              -A ufw6-before-output -m owner --uid-owner {{ ai_ops_remote_operation_uid.stdout }} -p udp --dport 53 -j ACCEPT
+              -A ufw6-before-output -m owner --uid-owner {{ ai_ops_remote_operation_uid.stdout }} -p tcp --dport 53 -j ACCEPT
+              -A ufw6-before-output -m owner --uid-owner {{ ai_ops_remote_operation_uid.stdout }} -p tcp --dport 443 -j ACCEPT
+            validate: /usr/sbin/ip6tables-restore --test %s
+          no_log: true
+
+        - name: Reload UFW after temporary remote allows
+          ansible.builtin.command:
+            argv: [/usr/sbin/ufw, reload]
+          changed_when: false
+          no_log: true
+
+        - name: Inject remote operation failure before unit starts
+          ansible.builtin.fail:
+            msg: ERR_REMOTE_OPERATION_INJECTED_FAILURE
+          when: ai_ops_remote_operation_inject_failure | bool
+          no_log: true
+
+        - name: Start exact assistant bridge socket once
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+            enabled: false
+            state: started
+          no_log: true
+
+        - name: Start exact remote acceptance service once
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_orchestrator.remote_service_name }}"
+            enabled: false
+            state: started
           no_log: true
       always:
-        - name: Stop and disable remote acceptance service
+        - name: Stop assistant bridge socket before service
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+            enabled: false
+            state: stopped
+          no_log: true
+
+        - name: Stop assistant bridge service after socket
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+            enabled: false
+            state: stopped
+          no_log: true
+
+        - name: Stop remote acceptance service
           ansible.builtin.systemd_service:
             name: "{{ ai_ops_orchestrator.remote_service_name }}"
             enabled: false
             state: stopped
           no_log: true
 
-        - name: Remove remote approval artifact
+        - name: Remove exact remote approval artifact
           ansible.builtin.file:
             path: "{{ ai_ops_remote_approval_path }}"
             state: absent
+          no_log: true
+
+        - name: Remove temporary IPv4 remote owner allows
+          ansible.builtin.blockinfile:
+            path: /etc/ufw/before.rules
+            marker: "# {mark} {{ ai_ops_remote_egress_marker }}"
+            state: absent
+            validate: /usr/sbin/iptables-restore --test %s
+          no_log: true
+
+        - name: Remove temporary IPv6 remote owner allows
+          ansible.builtin.blockinfile:
+            path: /etc/ufw/before6.rules
+            marker: "# {mark} {{ ai_ops_remote_egress_marker }}"
+            state: absent
+            validate: /usr/sbin/ip6tables-restore --test %s
+          no_log: true
+
+        - name: Reload UFW after temporary remote allow removal
+          ansible.builtin.command:
+            argv: [/usr/sbin/ufw, reload]
+          changed_when: false
+          no_log: true
+
+        - name: Restore permanent disabled orchestrator policy
+          ansible.builtin.include_role:
+            name: orchestrator_egress
+
+        - name: Inspect remote operation cleanup boundaries
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - "{{ ai_ops_remote_approval_path }}"
+            - "{{ ai_ops_remote_socket_path }}"
+          register: ai_ops_remote_operation_final_boundaries
+          changed_when: false
+          no_log: true
+
+        - name: Read remote and bridge unit states after cleanup
+          ansible.builtin.command:
+            argv: [/usr/bin/systemctl, is-active, "{{ item }}"]
+          loop:
+            - "{{ ai_ops_orchestrator.remote_service_name }}"
+            - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+            - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+          register: ai_ops_remote_operation_final_states
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert remote operation cleanup restored static baseline
+          ansible.builtin.assert:
+            that:
+              - ai_ops_remote_operation_final_boundaries.results | map(attribute='stat.exists') | select | list | length == 0
+              - ai_ops_remote_operation_final_states.results | map(attribute='stdout') | map('trim') | unique | list == ['inactive']
+            fail_msg: ERR_REMOTE_OPERATION_CLEANUP
+          no_log: true
+
+        - name: Assert temporary remote egress markers are absent
+          ansible.builtin.command:
+            argv: [/usr/bin/grep, -F, "{{ ai_ops_remote_egress_marker }}", "{{ item }}"]
+          loop:
+            - /etc/ufw/before.rules
+            - /etc/ufw/before6.rules
+          register: ai_ops_remote_operation_marker_checks
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert temporary remote egress marker removal
+          ansible.builtin.assert:
+            that: >-
+              ai_ops_remote_operation_marker_checks.results |
+              map(attribute='rc') | list == [1, 1]
+            fail_msg: ERR_REMOTE_OPERATION_EGRESS_CLEANUP
           no_log: true

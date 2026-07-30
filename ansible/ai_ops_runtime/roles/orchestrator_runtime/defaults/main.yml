@@ -4,9 +4,9 @@ ai_ops_orchestrator:
   group: aiops-orchestrator
   root: /opt/openstack-ai-ops/orchestrator
   venv: /opt/openstack-ai-ops/orchestrator/venv
-  work_root: /var/lib/aiops-orchestrator/work
-  codex_home: /var/lib/aiops-orchestrator/codex-home
-  evidence_root: /var/lib/aiops-orchestrator/evidence
+  work_root: /run/openstack-ai-ops/remote-work
+  codex_home: /run/openstack-ai-ops/codex-home
+  evidence_root: /run/openstack-ai-ops/evidence
   wheelhouse:
     approval_id: ""
     publication_root: /var/lib/openstack-ai-ops/wheelhouse/orchestrator
