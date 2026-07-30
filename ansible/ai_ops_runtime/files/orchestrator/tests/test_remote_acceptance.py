@@ -15,9 +15,12 @@ from openstack_ai_ops_orchestrator.remote_acceptance import (
     RemoteAcceptanceError,
     RemoteAcceptanceErrorCategory,
     RemoteAcceptancePolicy,
+    RemoteOperationCapability,
     consume_one_shot_approval,
+    consume_remote_acceptance_artifact,
     load_remote_acceptance_artifact,
     run_disabled_remote_acceptance,
+    run_remote_operation_cleanup_stub,
     validate_remote_acceptance_policy,
 )
 
@@ -122,6 +125,30 @@ def test_disabled_operation_never_enters_runtime_boundaries(
     )
 
 
+def test_operation_cleanup_stub_consumes_approval_and_fails_closed() -> None:
+    approval = validate_remote_acceptance_policy(policy(), NOW)
+    cleanup_calls: list[str] = []
+
+    with pytest.raises(ValueError, match="capability is unavailable"):
+        RemoteOperationCapability("approval-20260309-0001")
+
+    with pytest.raises(RemoteAcceptanceError) as disabled:
+        run_remote_operation_cleanup_stub(
+            approval, None, lambda: cleanup_calls.append("cleanup")
+        )
+
+    assert (
+        disabled.value.category
+        is RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED
+    )
+    assert cleanup_calls == ["cleanup"]
+    with pytest.raises(RemoteAcceptanceError) as reused:
+        consume_one_shot_approval(approval)
+    assert (
+        reused.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+    )
+
+
 def test_loader_accepts_only_bounded_private_approval_artifact(tmp_path: Path) -> None:
     artifact_path = tmp_path / "approval.json"
     artifact_path.write_text(
@@ -166,3 +193,93 @@ def test_loader_rejects_symlinked_approval_artifact(tmp_path: Path) -> None:
     assert (
         rejected.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
     )
+
+
+def test_consumer_durably_exhausts_artifact_before_issuing_capability(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.write_text(
+        '{"approval_id":"approval-20260309-0001","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    artifact_path.chmod(0o600)
+
+    consumed, capability = consume_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert consumed.approval_id == "approval-20260309-0001"
+    assert capability.approval_id == consumed.approval_id
+    assert not artifact_path.exists()
+    with pytest.raises(RemoteAcceptanceError) as replayed:
+        consume_remote_acceptance_artifact(artifact_path, NOW)
+    assert (
+        replayed.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+    )
+
+
+def test_consumer_rejects_symlinked_artifact_without_issuing_capability(
+    tmp_path: Path,
+) -> None:
+    target_path = tmp_path / "target.json"
+    target_path.write_text(
+        '{"approval_id":"approval-20260309-0001","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    target_path.chmod(0o600)
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.symlink_to(target_path)
+
+    with pytest.raises(RemoteAcceptanceError) as rejected:
+        consume_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert (
+        rejected.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+    )
+    assert artifact_path.is_symlink()
+
+
+@pytest.mark.parametrize("failing_operation", ("unlink", "fsync"))
+def test_consumer_never_issues_capability_when_exhaustion_is_not_durable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing_operation: str
+) -> None:
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.write_text(
+        '{"approval_id":"approval-20260309-0001","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    artifact_path.chmod(0o600)
+
+    def fail(*args: object) -> None:
+        del args
+        raise OSError("forced artifact exhaustion failure")
+
+    monkeypatch.setattr(
+        f"openstack_ai_ops_orchestrator.remote_acceptance.os.{failing_operation}",
+        fail,
+    )
+
+    with pytest.raises(RemoteAcceptanceError) as rejected:
+        consume_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert (
+        rejected.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+    )
+    if failing_operation == "unlink":
+        assert artifact_path.exists()
+    else:
+        assert not artifact_path.exists()
+
+
+def test_consumer_rejects_permissive_artifact_without_exhausting_it(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.write_text(
+        '{"approval_id":"approval-20260309-0001","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    artifact_path.chmod(0o640)
+
+    with pytest.raises(RemoteAcceptanceError) as rejected:
+        consume_remote_acceptance_artifact(artifact_path, NOW)
+
+    assert (
+        rejected.value.category is RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+    )
+    assert artifact_path.exists()

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from pathlib import Path
+from typing import cast
 
 import pytest
 from openai_codex.generated.v2_all import (
@@ -38,6 +39,7 @@ from openstack_ai_ops_orchestrator.official_codex_adapter import (
     OfficialAdapterCompatibilityError,
     OfficialAdapterDisabledError,
     OfficialCodexAdapter,
+    OfficialSdkFactory,
     PublicSdkEventStream,
     TaintedNotificationReducer,
     build_curated_codex_config,
@@ -47,7 +49,9 @@ from openstack_ai_ops_orchestrator.official_codex_adapter import (
 from openstack_ai_ops_orchestrator.remote_acceptance import (
     ConsumedApproval,
     RemoteAcceptancePolicy,
+    RemoteOperationCapability,
     consume_one_shot_approval,
+    consume_remote_acceptance_artifact,
     validate_remote_acceptance_policy,
 )
 
@@ -62,6 +66,19 @@ def consumed_approval() -> ConsumedApproval:
     return consume_one_shot_approval(
         validate_remote_acceptance_policy(policy, datetime.now(UTC))
     )
+
+
+def consumed_approval_and_capability(
+    tmp_path: Path,
+) -> tuple[ConsumedApproval, RemoteOperationCapability]:
+    approval_id = f"approval-{next(_approval_identifiers)}"
+    expires_at = datetime.now(UTC) + timedelta(minutes=1)
+    artifact_path = tmp_path / f"{approval_id}.json"
+    artifact_path.write_text(
+        f'{{"approval_id":"{approval_id}","expires_at_utc":"{expires_at.isoformat()}"}}'
+    )
+    artifact_path.chmod(0o600)
+    return consume_remote_acceptance_artifact(artifact_path, datetime.now(UTC))
 
 
 def request() -> DiagnosticTurnRequest:
@@ -615,3 +632,63 @@ def test_mocked_deadline_interrupts_once_and_cleans_up() -> None:
     assert adapter.cleanup_completed
     assert stream.closed
     assert client.closed
+
+
+def test_capability_gated_official_factory_runs_one_fixed_lifecycle(
+    tmp_path: Path,
+) -> None:
+    approval, capability = consumed_approval_and_capability(tmp_path)
+    stream = MockPublicSdkStream(tainted_notification_sequence("safe advisory"))
+    turn = MockPublicAsyncTurn(stream)
+    thread = MockPublicAsyncThread(turn)
+    client = MockPublicAsyncCodex(thread)
+    captured_configs: list[object] = []
+
+    def official_factory(config: object) -> MockPublicAsyncCodex:
+        captured_configs.append(config)
+        return client
+
+    adapter = OfficialCodexAdapter(
+        approval,
+        operation_capability=capability,
+        official_sdk_factory=cast(OfficialSdkFactory, official_factory),
+    )
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert [event.event_type for event in events] == [
+        AdapterEventType.THREAD_STARTED,
+        AdapterEventType.TURN_STARTED,
+        AdapterEventType.TURN_COMPLETED,
+    ]
+    assert len(captured_configs) == 1
+    assert getattr(captured_configs[0], "cwd") == "/fixed/workdir"
+    assert thread.input == "safe context"
+    assert adapter.result == AdapterResult(state=WorkflowState.COMPLETED)
+    assert stream.closed
+    assert client.closed
+
+
+def test_official_factory_without_capability_remains_disabled() -> None:
+    client = MockPublicAsyncCodex(
+        MockPublicAsyncThread(MockPublicAsyncTurn(MockPublicSdkStream(())))
+    )
+    factory_calls: list[str] = []
+
+    def official_factory(config: object) -> MockPublicAsyncCodex:
+        del config
+        factory_calls.append("called")
+        return client
+
+    adapter = OfficialCodexAdapter(
+        consumed_approval(),
+        official_sdk_factory=cast(OfficialSdkFactory, official_factory),
+    )
+
+    assert collect_events(adapter.run_turn(request(), policy(), asyncio.Event())) == []
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.VENDOR_BLOCKED,
+        error_category=AdapterErrorCategory.REAL_ADAPTER_DISABLED,
+    )
+    assert factory_calls == []
+    assert not client.closed

@@ -2,18 +2,33 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from pathlib import Path
+from typing import cast
 
 import pytest
+from openai_codex.generated.v2_all import (
+    Thread,
+    ThreadItem,
+    ThreadStartedNotification,
+    Turn,
+    TurnCompletedNotification,
+    TurnItemsView,
+    TurnStartedNotification,
+    TurnStatus,
+)
+from openai_codex.models import Notification
 
 from openstack_ai_ops_orchestrator import runtime_entrypoint
 from openstack_ai_ops_orchestrator.contracts import (
     RuntimePolicy,
     SafeToolResult,
     ToolCallRequest,
+)
+from openstack_ai_ops_orchestrator.official_codex_adapter import (
+    MockedSdkLifecycleFactory,
+    OfficialSdkFactory,
 )
 from openstack_ai_ops_orchestrator.redaction import redact_tool_result
 from openstack_ai_ops_orchestrator.remote_acceptance import (
@@ -28,6 +43,7 @@ from openstack_ai_ops_orchestrator.runtime_entrypoint import (
     _fixed_remote_request,
     _run_disabled_remote_entrypoint,
     _run_fixed_remote_mocked,
+    _run_fixed_remote_operation,
     _run_validate_local_fake,
     main,
 )
@@ -73,11 +89,6 @@ def test_entrypoint_source_excludes_runtime_configuration_and_live_boundaries() 
     source = Path(runtime_entrypoint.__file__).read_text()
 
     for prohibited_reference in (
-        "AsyncCodex(",
-        "open_unix_connection(",
-        "openai_codex",
-        "mcp_client",
-        "socket",
         "subprocess",
         "requests",
         "urllib",
@@ -88,26 +99,55 @@ def test_entrypoint_source_excludes_runtime_configuration_and_live_boundaries() 
         assert prohibited_reference not in source
 
 
-@dataclass(frozen=True, slots=True)
-class MockSdkEvent:
-    method: str
+def mocked_notification_sequence() -> tuple[Notification, ...]:
+    thread = Thread.model_construct(id="thread-1")
+    started_turn = Turn.model_validate(
+        {
+            "id": "turn-1",
+            "items": [],
+            "items_view": TurnItemsView.full,
+            "status": TurnStatus.in_progress,
+        }
+    )
+    terminal_item = ThreadItem.model_validate(
+        {"id": "item-1", "text": "safe advisory", "type": "agentMessage"}
+    )
+    completed_turn = Turn.model_validate(
+        {
+            "id": "turn-1",
+            "items": [terminal_item],
+            "items_view": TurnItemsView.full,
+            "status": TurnStatus.completed,
+        }
+    )
+    return (
+        Notification(
+            "thread/started", ThreadStartedNotification.model_construct(thread=thread)
+        ),
+        Notification(
+            "turn/started",
+            TurnStartedNotification.model_construct(
+                thread_id="thread-1", turn=started_turn
+            ),
+        ),
+        Notification(
+            "turn/completed",
+            TurnCompletedNotification.model_construct(
+                thread_id="thread-1", turn=completed_turn
+            ),
+        ),
+    )
 
 
 class MockSdkStream:
     def __init__(self) -> None:
-        self._events = iter(
-            (
-                MockSdkEvent("thread/started"),
-                MockSdkEvent("turn/started"),
-                MockSdkEvent("turn/completed"),
-            )
-        )
+        self._events = iter(mocked_notification_sequence())
         self.closed = False
 
     def __aiter__(self) -> MockSdkStream:
         return self
 
-    async def __anext__(self) -> MockSdkEvent:
+    async def __anext__(self) -> Notification:
         try:
             return next(self._events)
         except StopIteration as error:
@@ -119,6 +159,7 @@ class MockSdkStream:
 
 class MockSdkTurn:
     def __init__(self, stream: MockSdkStream) -> None:
+        self.id = "turn-1"
         self.stream_value = stream
 
     def stream(self) -> MockSdkStream:
@@ -130,6 +171,7 @@ class MockSdkTurn:
 
 class MockSdkThread:
     def __init__(self, turn: MockSdkTurn) -> None:
+        self.id = "thread-1"
         self.turn_value = turn
         self.input: str | None = None
 
@@ -214,7 +256,7 @@ def test_mocked_remote_slice_consumes_approval_and_retains_metadata_only_evidenc
     result = _run_fixed_remote_mocked(
         approved_remote_acceptance(),
         tmp_path,
-        lambda: client,
+        cast(MockedSdkLifecycleFactory, lambda: client),
         lambda policy: proxy,
         presented.append,
     )
@@ -242,12 +284,13 @@ def test_remote_slice_rejects_missing_or_reused_approval_before_proxy_or_sdk(
     approval = approved_remote_acceptance()
     first_client = MockSdkClient(MockSdkThread(MockSdkTurn(MockSdkStream())))
     first_proxy = MockReviewedProxy()
+    factory = cast(MockedSdkLifecycleFactory, lambda: first_client)
 
     assert (
         _run_fixed_remote_mocked(
             None,
             tmp_path,
-            lambda: first_client,
+            factory,
             lambda policy: first_proxy,
             lambda advisory: None,
         )
@@ -260,7 +303,7 @@ def test_remote_slice_rejects_missing_or_reused_approval_before_proxy_or_sdk(
         _run_fixed_remote_mocked(
             approval,
             tmp_path,
-            lambda: first_client,
+            factory,
             lambda policy: first_proxy,
             lambda advisory: None,
         )
@@ -275,7 +318,7 @@ def test_remote_slice_rejects_missing_or_reused_approval_before_proxy_or_sdk(
         _run_fixed_remote_mocked(
             approval,
             tmp_path / "reused",
-            lambda: first_client,
+            factory,
             unexpected_proxy,
             lambda advisory: None,
         )
@@ -312,3 +355,73 @@ def test_disabled_remote_entrypoint_rejects_invalid_artifact(tmp_path: Path) -> 
         )
         is ExitCategory.REMOTE_PREREQUISITE_FAILED
     )
+
+
+def test_fixed_remote_operation_consumes_artifact_before_injected_runtime(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "approval.json"
+    artifact_path.write_text(
+        '{"approval_id":"entrypoint-operation-1","expires_at_utc":"2026-03-09T12:01:00Z"}'
+    )
+    artifact_path.chmod(0o600)
+    evidence_directory = tmp_path / "evidence"
+    evidence_directory.mkdir(mode=0o700)
+    stream = MockSdkStream()
+    client = MockSdkClient(MockSdkThread(MockSdkTurn(stream)))
+    proxy = MockReviewedProxy()
+    factory_configs: list[object] = []
+    presented: list[str] = []
+
+    def official_factory(config: object) -> MockSdkClient:
+        factory_configs.append(config)
+        return client
+
+    result = _run_fixed_remote_operation(
+        artifact_path,
+        datetime(2026, 3, 9, 12, tzinfo=UTC),
+        evidence_directory,
+        cast(OfficialSdkFactory, official_factory),
+        lambda policy: proxy,
+        presented.append,
+    )
+
+    assert result is ExitCategory.SUCCESS
+    assert not artifact_path.exists()
+    assert len(factory_configs) == 1
+    assert proxy.closed
+    assert client.closed
+    assert stream.closed
+    assert presented == []
+
+
+def test_fixed_remote_operation_rejects_artifact_before_proxy_or_sdk(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "approval.json"
+    evidence_directory = tmp_path / "evidence"
+    evidence_directory.mkdir(mode=0o700)
+    factory_calls: list[object] = []
+    proxy_calls: list[RuntimePolicy] = []
+
+    def official_factory(config: object) -> MockSdkClient:
+        factory_calls.append(config)
+        return MockSdkClient(MockSdkThread(MockSdkTurn(MockSdkStream())))
+
+    def proxy_factory(policy: RuntimePolicy) -> MockReviewedProxy:
+        proxy_calls.append(policy)
+        return MockReviewedProxy()
+
+    assert (
+        _run_fixed_remote_operation(
+            artifact_path,
+            datetime(2026, 3, 9, 12, tzinfo=UTC),
+            evidence_directory,
+            cast(OfficialSdkFactory, official_factory),
+            proxy_factory,
+            lambda advisory: None,
+        )
+        is ExitCategory.REMOTE_PREREQUISITE_FAILED
+    )
+    assert factory_calls == []
+    assert proxy_calls == []

@@ -1,19 +1,26 @@
-"""Fixed fake-only validation entrypoint with no caller runtime configuration."""
+"""Fixed fake and approval-gated remote entrypoint with no caller configuration."""
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import IntEnum, StrEnum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Protocol
 
+from openai_codex import AsyncCodex, CodexConfig
+
 from .contracts import RuntimePolicy, SafeToolResult, ToolCallRequest, WorkflowState
 from .evidence import BoundedJsonlEvidenceWriter
 from .fake_codex_adapter import FakeCodexAdapter, FakeCodexScenario
-from .official_codex_adapter import MockedSdkLifecycleFactory, OfficialCodexAdapter
+from .mcp_stdio_proxy import McpStdioProxy
+from .official_codex_adapter import (
+    MockedSdkLifecycleFactory,
+    OfficialCodexAdapter,
+    OfficialSdkFactory,
+)
 from .orchestrator import REVIEWED_WORKFLOW, LocalOrchestrator
 from .remote_acceptance import (
     RemoteAcceptanceError,
@@ -21,8 +28,9 @@ from .remote_acceptance import (
     RemoteAcceptancePolicy,
     ValidatedOneShotApproval,
     consume_one_shot_approval,
+    consume_remote_acceptance_artifact,
     load_remote_acceptance_artifact,
-    run_disabled_remote_acceptance,
+    run_remote_operation_cleanup_stub,
 )
 
 
@@ -90,6 +98,25 @@ def _fixed_remote_policy() -> RuntimePolicy:
         maximum_turn_count=RemoteAcceptancePolicy.maximum_turn_count,
         maximum_tool_call_count=RemoteAcceptancePolicy.maximum_tool_call_count,
     )
+
+
+_REMOTE_APPROVAL_ARTIFACT = Path("/run/aiops-orchestrator/remote-approval")
+_REMOTE_EVIDENCE_DIRECTORY = Path(RemoteAcceptancePolicy.fixed_evidence_directory)
+
+
+def _fixed_official_sdk_factory(config: CodexConfig) -> AsyncCodex:
+    """Construct the pinned client only from the capability-gated configuration."""
+    return AsyncCodex(config)
+
+
+def _fixed_mcp_proxy_factory(policy: RuntimePolicy) -> ReviewedMcpProxy:
+    """Construct the reviewed Unix-socket proxy from fixed runtime policy."""
+    return McpStdioProxy(policy=policy)
+
+
+def _suppress_remote_advisory(advisory: str) -> None:
+    """Avoid persisting provider-derived advisory text from a one-shot unit."""
+    del advisory
 
 
 def _selected_profile(arguments: Sequence[str]) -> InvocationProfile | None:
@@ -183,13 +210,79 @@ def _run_fixed_remote_mocked(
     return result
 
 
+def _run_fixed_remote_operation(
+    approval_artifact: Path,
+    current_utc: datetime,
+    evidence_directory: Path,
+    official_sdk_factory: OfficialSdkFactory,
+    mcp_proxy_factory: Callable[[RuntimePolicy], ReviewedMcpProxy],
+    present_advisory: Callable[[str], None],
+) -> ExitCategory:
+    """Run one fixed remote operation after durable approval consumption."""
+    try:
+        consumed_approval, operation_capability = consume_remote_acceptance_artifact(
+            approval_artifact, current_utc
+        )
+    except RemoteAcceptanceError:
+        return ExitCategory.REMOTE_PREREQUISITE_FAILED
+
+    policy = _fixed_remote_policy()
+    request_value = _fixed_remote_request()
+    try:
+        evidence_directory.chmod(0o700)
+        ledger_path = evidence_directory / "remote-acceptance.jsonl"
+        ledger_path.touch(mode=0o600, exist_ok=False)
+        writer = BoundedJsonlEvidenceWriter(
+            ledger_path,
+            policy.maximum_evidence_record_bytes,
+            policy.maximum_evidence_ledger_bytes,
+        )
+    except OSError:
+        return ExitCategory.REMOTE_WORKFLOW_FAILED
+
+    async def run() -> ExitCategory:
+        proxy = mcp_proxy_factory(policy)
+        try:
+            tool_request = ToolCallRequest(REVIEWED_WORKFLOW, (), 1)
+            tool_result = await proxy.forward(
+                tool_request, request_value["correlation_id"]
+            )
+            if (
+                tool_result.tool_name != tool_request.tool_name
+                or tool_result.request_sequence_number != tool_request.sequence_number
+            ):
+                return ExitCategory.REMOTE_WORKFLOW_FAILED
+            adapter = OfficialCodexAdapter(
+                consumed_approval,
+                operation_capability=operation_capability,
+                official_sdk_factory=official_sdk_factory,
+            )
+            execution = await LocalOrchestrator(
+                adapter, lambda context: context, evidence_writer=writer
+            ).run(request_value, policy, asyncio.Event())
+            if execution.result.state is not WorkflowState.COMPLETED:
+                return ExitCategory.REMOTE_WORKFLOW_FAILED
+            if execution.result.advisory_text is not None:
+                present_advisory(execution.result.advisory_text)
+            return ExitCategory.SUCCESS
+        finally:
+            await proxy.aclose()
+
+    try:
+        result = asyncio.run(run())
+    except Exception:
+        return ExitCategory.REMOTE_WORKFLOW_FAILED
+    ledger_path.chmod(0o600)
+    return result
+
+
 def _run_disabled_remote_entrypoint(
     approval_artifact: Path, current_utc: datetime
 ) -> ExitCategory:
     """Exercise artifact validation without making the remote path reachable."""
     try:
         approval = load_remote_acceptance_artifact(approval_artifact, current_utc)
-        run_disabled_remote_acceptance(consume_one_shot_approval(approval))
+        run_remote_operation_cleanup_stub(approval, None, lambda: None)
     except RemoteAcceptanceError as error:
         if error.category is RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED:
             return ExitCategory.REMOTE_DISABLED
@@ -198,10 +291,19 @@ def _run_disabled_remote_entrypoint(
 
 
 def main(arguments: Sequence[str] = ()) -> ExitCategory:
-    """Run the fixed fake profile, rejecting remote or arbitrary invocation input."""
+    """Run the fixed fake or approval-gated remote profile."""
     profile = _selected_profile(arguments)
     if profile is InvocationProfile.REMOTE:
-        return ExitCategory.REMOTE_DISABLED
+        if not _REMOTE_APPROVAL_ARTIFACT.is_file():
+            return ExitCategory.REMOTE_DISABLED
+        return _run_fixed_remote_operation(
+            _REMOTE_APPROVAL_ARTIFACT,
+            datetime.now(UTC),
+            _REMOTE_EVIDENCE_DIRECTORY,
+            _fixed_official_sdk_factory,
+            _fixed_mcp_proxy_factory,
+            _suppress_remote_advisory,
+        )
     if profile is None:
         return ExitCategory.INVOCATION_REJECTED
     with TemporaryDirectory(prefix="aiops-validate-local-fake-") as temporary_directory:

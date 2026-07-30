@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import stat
+from collections.abc import Callable
 from dataclasses import InitVar, dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -14,6 +16,7 @@ from typing import ClassVar
 MAXIMUM_APPROVAL_LIFETIME = timedelta(minutes=5)
 _VALIDATION_TOKEN = object()
 _CONSUMPTION_TOKEN = object()
+_OPERATION_CAPABILITY_TOKEN = object()
 
 _APPROVAL_ARTIFACT_FIELDS = frozenset({"approval_id", "expires_at_utc"})
 _MAXIMUM_APPROVAL_ARTIFACT_BYTES = 512
@@ -92,6 +95,18 @@ class ConsumedApproval:
             raise ValueError("consumed approvals require one-shot consumption")
 
 
+@dataclass(frozen=True, slots=True)
+class RemoteOperationCapability:
+    """Opaque authorization bound to one durably consumed approval."""
+
+    approval_id: str
+    _operation_token: InitVar[object | None] = None
+
+    def __post_init__(self, _operation_token: object | None) -> None:
+        if _operation_token is not _OPERATION_CAPABILITY_TOKEN:
+            raise ValueError("remote operation capability is unavailable")
+
+
 def validate_remote_acceptance_policy(
     policy: RemoteAcceptancePolicy, current_utc: datetime
 ) -> ValidatedOneShotApproval:
@@ -148,6 +163,62 @@ def load_remote_acceptance_artifact(
         ) from None
 
 
+def consume_remote_acceptance_artifact(
+    artifact_path: Path, current_utc: datetime
+) -> tuple[ConsumedApproval, RemoteOperationCapability]:
+    """Validate, durably remove, and authorize one private approval artifact."""
+    artifact_fd: int | None = None
+    parent_fd: int | None = None
+    try:
+        artifact_fd = os.open(artifact_path, os.O_RDONLY | os.O_NOFOLLOW)
+        artifact_stat = os.fstat(artifact_fd)
+        if (
+            not stat.S_ISREG(artifact_stat.st_mode)
+            or stat.S_IMODE(artifact_stat.st_mode) & 0o077
+            or artifact_stat.st_size > _MAXIMUM_APPROVAL_ARTIFACT_BYTES
+        ):
+            raise ValueError("approval artifact metadata is invalid")
+        raw_artifact = os.read(artifact_fd, _MAXIMUM_APPROVAL_ARTIFACT_BYTES + 1)
+        if not raw_artifact or len(raw_artifact) > _MAXIMUM_APPROVAL_ARTIFACT_BYTES:
+            raise ValueError("approval artifact size is invalid")
+        artifact = json.loads(raw_artifact)
+        if not isinstance(artifact, dict) or set(artifact) != _APPROVAL_ARTIFACT_FIELDS:
+            raise ValueError("approval artifact schema is invalid")
+        approval_id = artifact["approval_id"]
+        expires_at_utc = artifact["expires_at_utc"]
+        if not isinstance(approval_id, str) or not isinstance(expires_at_utc, str):
+            raise ValueError("approval artifact values are invalid")
+        expires_at = datetime.fromisoformat(expires_at_utc.replace("Z", "+00:00"))
+        approval = validate_remote_acceptance_policy(
+            RemoteAcceptancePolicy(approval_id=approval_id, expires_at=expires_at),
+            current_utc,
+        )
+        parent_fd = os.open(artifact_path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        if not os.path.samestat(artifact_stat, artifact_path.lstat()):
+            raise ValueError("approval artifact changed during consumption")
+        os.unlink(artifact_path)
+        os.fsync(parent_fd)
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        RemoteAcceptanceError,
+    ):
+        raise RemoteAcceptanceError(
+            RemoteAcceptanceErrorCategory.REMOTE_APPROVAL_INVALID
+        ) from None
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
+        if artifact_fd is not None:
+            os.close(artifact_fd)
+    consumed = consume_one_shot_approval(approval)
+    return consumed, RemoteOperationCapability(
+        consumed.approval_id, _OPERATION_CAPABILITY_TOKEN
+    )
+
+
 def consume_one_shot_approval(approval: ValidatedOneShotApproval) -> ConsumedApproval:
     """Consume a validated approval exactly once before any future runtime use."""
     if not isinstance(approval, ValidatedOneShotApproval) or approval._consumed:
@@ -164,3 +235,27 @@ def run_disabled_remote_acceptance(approval: ConsumedApproval) -> None:
     raise RemoteAcceptanceError(
         RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED
     )
+
+
+def run_remote_operation_cleanup_stub(
+    approval: ValidatedOneShotApproval,
+    operation_capability: RemoteOperationCapability | None,
+    cleanup: Callable[[], None],
+) -> None:
+    """Consume approval, run cleanup, and fail until the operation is reviewed."""
+    try:
+        consume_one_shot_approval(approval)
+        if not isinstance(operation_capability, RemoteOperationCapability):
+            raise RemoteAcceptanceError(
+                RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED
+            )
+        raise RemoteAcceptanceError(
+            RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED
+        )
+    finally:
+        try:
+            cleanup()
+        except Exception:
+            raise RemoteAcceptanceError(
+                RemoteAcceptanceErrorCategory.REMOTE_ACCEPTANCE_DISABLED
+            ) from None
