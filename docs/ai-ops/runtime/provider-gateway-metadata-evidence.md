@@ -1,5 +1,20 @@
 # Provider Gateway Metadata Evidence Runbook
 
+## Phase 13 Status
+
+**Historical source and evidence-custody runbook.** Phase 13 removes the
+provider-gateway deployment include from normal AI-client setup; the active
+runtime is the Codex SDK orchestrator path. The gateway source, schemas, and
+prior evidence remain retained history, not an active provider path or a
+fallback.
+
+The approved rebuilt-host disposition is `verified_absent_preexisting` for the
+gateway state directory, ledger, and identity. Under that disposition, do not
+run the retrieval procedure below, create replacement evidence, or attempt to
+restore the historical gateway. Any future rollback requires separate approval
+and must leave any restored artifacts disabled, stopped, and without a
+listener.
+
 ## Scope
 
 This runbook applies only to the local evidence ledger written by
@@ -130,7 +145,7 @@ Stop the gateway and obtain explicit approval before any preservation or
 rollback action. Never remove authentication state, runtime-home data, or
 unrelated system logs as part of this procedure.
 
-## Rollback
+## Historical Rollback Boundary
 
 With explicit approval, disable remote selection and stop
 `aiops-provider-gateway` if required before reversing a service deployment.

@@ -1,0 +1,104 @@
+---
+- name: Stop and disable provider gateway when unit exists
+  block:
+    - name: Stop and disable fixed provider gateway service
+      ansible.builtin.systemd_service:
+        name: "{{ ai_ops_provider_gateway.service_name }}"
+        enabled: false
+        state: stopped
+      when: ai_ops_gateway_retirement_path_stats.results[0].stat.exists
+  rescue:
+    - name: Read provider gateway activity after stop failure
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-active, "{{ ai_ops_provider_gateway.service_name }}"]
+      register: ai_ops_gateway_retirement_stop_rescue_activity
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Assert provider gateway remains closed after stop failure
+      ansible.builtin.assert:
+        that:
+          - ai_ops_gateway_retirement_stop_rescue_activity.stdout | trim != 'active'
+        fail_msg: ERR_GATEWAY_RETIREMENT_DISABLE
+      no_log: true
+
+- name: Read provider gateway service states after stop and disable
+  ansible.builtin.command:
+    argv: [/usr/bin/systemctl, "{{ item }}", "{{ ai_ops_provider_gateway.service_name }}"]
+  loop:
+    - is-active
+    - is-enabled
+  register: ai_ops_gateway_retirement_closed_service_states
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert provider gateway is disabled or absent
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_closed_service_states.results[0].stdout | trim != 'active'
+      - ai_ops_gateway_retirement_closed_service_states.results[1].stdout | trim != 'enabled'
+    fail_msg: ERR_GATEWAY_RETIREMENT_DISABLE
+  no_log: true
+
+- name: Read provider gateway process metadata after stop and disable
+  ansible.builtin.command:
+    argv: [/usr/bin/pgrep, -x, aiops-provider-gateway]
+  register: ai_ops_gateway_retirement_closed_process
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read provider gateway listener metadata after stop and disable
+  ansible.builtin.command:
+    argv: [/usr/bin/ss, -H, -ltn, "sport = :8765"]
+  register: ai_ops_gateway_retirement_closed_listener
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert provider gateway process and listener remain absent
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_closed_process.rc != 0
+      - ai_ops_gateway_retirement_closed_listener.rc == 0
+      - ai_ops_gateway_retirement_closed_listener.stdout | trim == ''
+    fail_msg: ERR_GATEWAY_RETIREMENT_LISTENER
+  no_log: true
+
+- name: Reinspect approved absent provider gateway paths
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ ai_ops_gateway_retirement_unit_path }}"
+    - "{{ ai_ops_provider_gateway.root }}"
+    - "{{ ai_ops_gateway_retirement_ledger_directory }}"
+    - "{{ ai_ops_provider_gateway.evidence_ledger }}"
+  register: ai_ops_gateway_retirement_closed_path_stats
+  changed_when: false
+  no_log: true
+
+- name: Read provider gateway identity metadata after stop and disable
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u, "{{ ai_ops_provider_gateway.user }}"]
+  register: ai_ops_gateway_retirement_closed_identity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert approved absent evidence disposition remains unchanged
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_gateway_retirement_closed_path_stats.results[0].stat.exists
+      - not ai_ops_gateway_retirement_closed_path_stats.results[1].stat.exists
+      - not ai_ops_gateway_retirement_closed_path_stats.results[2].stat.exists
+      - not ai_ops_gateway_retirement_closed_path_stats.results[3].stat.exists
+      - ai_ops_gateway_retirement_closed_identity.rc != 0
+    fail_msg: ERR_GATEWAY_EVIDENCE_DRIFT
+  no_log: true
