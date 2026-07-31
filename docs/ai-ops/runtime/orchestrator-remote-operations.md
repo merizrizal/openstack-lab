@@ -4,14 +4,15 @@
 
 The deployed default remains the static `aiops-orchestrator` fake-only service. The
 separate `aiops-orchestrator-remote` unit is installed, disabled, stopped, and
-conditioned on a private approval artifact. The accompanying operation playbook is
-intentionally fail-closed: it does not materialize egress, authenticate, start the
-remote unit, or issue a provider request. Do not override its default.
+conditioned on a private approval artifact. The reviewed operation playbook is
+default-false and fails closed without distinct, fresh operation and temporary-egress
+approvals. Do not override its default.
 
-No authorization exists for remote acceptance in this repository state. A later
-separately approved operation must first replace the disabled execution seam after
-local preflight has passed; it must not be improvised by changing inventory values or
-starting the unit manually.
+The separately approved one-shot acceptance completed and restored the disabled
+baseline; see `phase12-one-shot-remote-acceptance-evidence-2026-07-31.md`. No active
+authorization exists now. A future separately approved operation requires fresh
+approval and local preflight; it must not be improvised by changing inventory values
+or starting the unit manually.
 
 ## No-provider preflight
 

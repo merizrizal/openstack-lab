@@ -13,7 +13,10 @@ adapter's tainted in-memory reducer. They must never be logged, persisted,
 placed in evidence, returned from the adapter, or exposed to another component.
 This ADS authorizes offline implementation and validation only. Authentication,
 egress changes, remote-unit activation, and a provider request remain subject
-to their separate Phase 12 approvals.
+to their separate Phase 12 approvals. The separately approved one-shot outcome
+is recorded by the successor ADS and its metadata-only acceptance evidence;
+it satisfies this ADS's Chunk 9 stop condition without authorizing any further
+remote operation.
 
 Where `12-00-controlled-remote-acceptance-and-operations-ads.md` requires every
 payload-bearing SDK event to be rejected, this ADS supersedes that requirement
@@ -183,10 +186,12 @@ real SDK client, activate remote units, resolve DNS, or contact a provider.
 
 ## VIII. Thin Vertical Slice Chunk Design
 
-The implementation must proceed through `chunked-implementation`. Chunks 0-2
-record the completed discovery under the former policy. The revised MVP resumes
-at Chunk 3. Each chunk remains offline until the final separately approved live
-acceptance chunk.
+The implementation proceeded through `chunked-implementation`. Chunks 0-2
+record the completed discovery under the former policy. The successor
+`12-02-phase12-one-shot-remote-operation-boundary-ads.md` completed the
+implementation and offline gates represented by Chunks 3-8, then completed its
+separately approved Chunk 6 to satisfy this ADS's Chunk 9. All chunks below are
+therefore complete; the historical slice descriptions remain for traceability.
 
 ### Chunk 0: Evidence and Static-Boundary Reconciliation — Complete
 
@@ -288,47 +293,31 @@ acceptance chunk.
 - **Stop condition:** every offline gate passes and cleanup leaves zero temporary
   artifacts, processes, listeners, or approval capability.
 
-### Chunk 9: One Separately Approved Live Codex MVP Acceptance
+### Chunk 9: One Separately Approved Live Codex MVP Acceptance — Complete
 
 - **Goal:** execute exactly one fixed live workflow and restore the disabled
   baseline.
-- **Files to change:** metadata-only acceptance evidence and runbooks after the
-  outcome is accepted; no request behavior is added during this chunk.
-- **Implementation shape:** fresh one-request approval, separate temporary egress
-  approval, one attempt, no retry, bounded ephemeral advisory presentation,
-  unconditional cleanup, and post-validation.
-- **Validation:** request count, terminal category, approval exhaustion, process/
-  listener/workspace/egress cleanup, fake regression, and metadata-only evidence.
-- **Stop condition:** exactly one approved attempt completes or reaches a bounded
-  SDK/vendor failure; no raw payload is retained; regular remote use remains
-  disabled.
+- **Outcome:** completed by Chunk 6 of
+  `12-02-phase12-one-shot-remote-operation-boundary-ads.md`; the metadata-only
+  evidence is `docs/ai-ops/runtime/phase12-one-shot-remote-acceptance-evidence-2026-07-31.md`.
+- **Validation:** one attempt, closed `SUCCESS` category, approval exhaustion,
+  cleanup, disabled-baseline restoration, no-provider postflight, and fake
+  regression passed.
+- **Stop condition:** met. No raw payload is retained and regular remote use
+  remains disabled.
 
 ## IX. Handoff to `chunked-implementation`
 
-Recommended next agent prompt:
-
-```text
-Use the chunked-implementation skill.
-Use pre-read-discipline, pre-edit-discipline, safe-python-edit, and
-post-edit-discipline if available.
-
-Task:
-Phase 12 live Codex MVP and replaceable model boundary as specified by
-`docs/ai-ops/implementation-plan/ads/12-01-phase12-gated-remote-boundary-ads.md`.
-
-Mode:
-Execute Chunk 3 only. Add only the provider-neutral adapter protocol and a
-compile-safe compatibility alias with targeted tests. Do not implement payload
-reduction, construct an SDK client, enable units, materialize approval, change
-egress, authenticate, perform DNS, or contact a provider. Run targeted Ruff,
-mypy, py_compile, pytest, and scoped diff review; then stop.
-```
+No implementation chunk remains. The successor ADS completed the one-shot
+operation boundary and its accepted Chunk 6 outcome satisfies this ADS's
+Chunk 9. Any future remote operation is a new separately approved one-shot
+operation, not a continuation of this implementation ladder.
 
 ## X. Conclusion and Next Steps
 
 The live Codex MVP is now an explicit product and security decision: raw public
 SDK payloads may be reduced only in bounded process memory and may never cross
 the repository adapter boundary unsanitized. Codex is the first replaceable
-model implementation, not an orchestration dependency. The next permitted work
-is offline Chunk 3 only. A live request remains prohibited until Chunks 3-8 pass
-and Chunk 9 receives fresh one-request and temporary-egress approvals.
+model implementation, not an orchestration dependency. Chunks 3-9 are complete.
+No further remote request is authorized: any future operation requires new,
+separate one-request and temporary-egress approvals.

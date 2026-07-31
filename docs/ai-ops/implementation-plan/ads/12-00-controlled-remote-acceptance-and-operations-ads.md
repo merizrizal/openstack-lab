@@ -4,7 +4,13 @@
 
 **Goal:** Validate exactly one separately approved, non-sensitive diagnostic workflow through the pinned public Codex SDK/runtime and the reviewed local MCP boundary, retain only bounded metadata and sanitized advisory output, restore the Phase 11 deny-by-default state after every outcome, and establish supported operational, upgrade, disablement, and rollback procedures.
 
-**Status:** Draft for review. Phase 11 is complete, so Phase 12 design and local no-provider implementation may begin. This ADS does not authorize authentication, temporary remote egress, official-adapter selection, or a provider request. Those actions require fresh, operation-specific approval at the chunks that perform them.
+**Status:** Historical ADS reconciled after Phase 12 completion. Its design and
+controls were implemented and completed through the successor ADSs
+`12-01-phase12-gated-remote-boundary-ads.md` and
+`12-02-phase12-one-shot-remote-operation-boundary-ads.md`. The completed
+one-shot acceptance is recorded in
+`docs/ai-ops/runtime/phase12-one-shot-remote-acceptance-evidence-2026-07-31.md`.
+No further remote operation is authorized by this historical ADS.
 
 ---
 
@@ -344,7 +350,10 @@ After every implementation chunk, review status, diff stat, `git diff --check`, 
 
 ### VIII. Thin Vertical Slice Chunk Design
 
-The implementation must proceed through `chunked-implementation`. Do not implement the full feature in one pass. Each chunk ends after targeted validation, scoped diff review, risk assessment, and—before any live operation—confirmation of the required fresh approval.
+This is the historical implementation ladder. Its controls were delivered through
+the successor ADSs; their completed one-shot acceptance satisfies this ADS's
+final acceptance intent. The chunk descriptions remain for traceability only and
+must not be used to start another operation.
 
 #### Chunk 0: Discovery and Integration Confirmation
 - **Goal:** Confirm all Phase 12 gates without editing or contacting a provider, especially the missing credential-preserving MCP pre-consumption boundary, pinned public SDK lifecycle, fixed acceptance profile, advisory presentation, one-shot approval, service isolation, and enforceable egress/rollback design.
@@ -402,43 +411,26 @@ The implementation must proceed through `chunked-implementation`. Do not impleme
 - **Validation:** accepted target preflight commands from Chunk 5, repeated Phase 11 validators, bridge/proxy local smoke, temporary-workspace absence, permanent-policy checks, and operator-declared auth category. Store no raw output in repository or handoff.
 - **Stop condition:** all local gates pass immediately and authentication category is `authenticated`. Any drift or other category stops before one-request approval is requested or consumed.
 
-#### Chunk 7: One Approved Remote Workflow, Rollback, and Sanitized Acceptance
-- **Goal:** Execute exactly one freshly approved remote workflow, stop at its first terminal category, restore the Phase 11 baseline, record metadata-only evidence, and finalize runbooks.
-- **Files to change:** proposed `phase12-controlled-remote-acceptance-evidence.md`; runbooks and Phase 12 plan checkboxes only after outcomes are accepted. Operation artifacts may receive only a small evidence-backed correction followed by revalidation and a new approval if the prior approval was consumed.
-- **Symbols to add/change:** sanitized evidence categories/counts/outcomes and final operational clarifications; no new request behavior during the live chunk.
-- **Implementation shape:** obtain explicit approval for one fixed request; materialize temporary egress; consume approval before runtime start; execute once; no retry; present only validated ephemeral advisory output; retain categories/counts only; unconditionally remove process/workspace/approval/egress state; rerun every post-validator. Supported SDK/runtime failure is an acceptable documented vendor blocker.
-- **Validation:** one-request count, terminal category, approval exhaustion, zero retained temporary markers/processes/listeners/workspaces, permanent orchestrator and `assistant` denial, deployment/package/MCP/evidence validators, fake regression, documentation scans, `git diff --check`, security scan, and complete scoped diff.
-- **Stop condition:** exactly one approved attempt occurred; cleanup and post-validation pass; no protected content is retained; regular remote use remains disabled; no gateway fallback exists. If cleanup or evidence fails, Phase 12 remains incomplete and further requests are blocked.
+#### Chunk 7: One Approved Remote Workflow, Rollback, and Sanitized Acceptance — Complete
+- **Outcome:** completed through Chunk 6 of
+  `12-02-phase12-one-shot-remote-operation-boundary-ads.md`.
+- **Validation:** exactly one attempt reached closed `SUCCESS`; cleanup,
+  disabled-baseline restoration, postflight, and fake regression passed.
+- **Evidence:**
+  `docs/ai-ops/runtime/phase12-one-shot-remote-acceptance-evidence-2026-07-31.md`.
+- **Stop condition:** met. No protected content was retained and regular remote
+  use remains disabled.
 
 ### IX. Handoff to `chunked-implementation`
 
-Recommended agent prompt:
-
-```text
-Use the chunked-implementation skill.
-Use pre-read-discipline, pre-edit-discipline, safe-python-edit, and post-edit-discipline if available.
-
-Task:
-Phase 12 controlled one-request remote acceptance and operations as specified by docs/ai-ops/implementation-plan/ads/12-00-controlled-remote-acceptance-and-operations-ads.md.
-
-Mode:
-Execute Chunk 0 only. Do not edit files. Confirm the Phase 11 baseline, pinned public SDK contract, credential-preserving MCP bridge and pre-Codex redaction seam, fixed prompt/model/workflow/limits, one-shot approval lifecycle, non-persistent advisory presentation, separate remote unit, enforceable egress boundary, and unconditional rollback. Do not authenticate, inspect Codex-home or credential contents, change firewall state, perform DNS, start the real SDK, select the official adapter, or contact a provider. Produce an evidence/decision table and stop on any blocker.
-```
-
-After Chunk 0 is accepted:
-
-```text
-Use the chunked-implementation skill.
-Use pre-read-discipline, pre-edit-discipline, safe-python-edit, and post-edit-discipline if available.
-Execute Chunk 1 only from the accepted Phase 12 ADS and Chunk 0 decisions.
-Do not continue to Chunk 2. Implement only the approved assistant-owned Unix-socket bridge and credential-free orchestrator stdio proxy with mocked tests. Do not construct the SDK, invoke the credential-bearing MCP runner, authenticate, inspect credentials, alter egress, perform DNS, or contact a provider. Run targeted Ruff, mypy, py_compile, pytest, prohibited-boundary checks, and show the scoped git diff before stopping.
-```
+No implementation chunk remains. The successor ADSs completed the local boundary,
+offline gates, and one-shot acceptance represented by this historical ladder.
+Any future remote operation requires a new independent approval and must begin
+from its own reviewed operation plan.
 
 ### X. Conclusion and Next Steps
 
-- Phase 11 completion makes Phase 12 **ready for ADS review and no-provider Chunk 0 discovery**, not ready for immediate authentication or a provider request.
-- The current repository remains fake-only: the remote entrypoint is disabled, the official adapter has only mocked lifecycle behavior, the static unit has no network, and permanent dedicated-identity egress is denied.
-- Chunk 0 confirmed that no existing credential-preserving MCP bridge/stdio proxy is implemented. The assistant-owned Unix-socket bridge and credential-free orchestrator stdio-proxy design is approved; Chunk 1 implements and proves that boundary before any SDK lifecycle or remote entrypoint work.
-- The safe implementation shape is a separate, one-shot, approval-capability path. It must not permanently set the official adapter enabled, weaken the fake unit, add retries, or introduce recurring remote use.
-- Authentication status and the one provider request require separate fresh approvals. Neither is authorized by this ADS or by Phase 11 synthetic-validation approval.
-- The next action is Chunk 1 only: implement and prove the approved local bridge/proxy with mocks. Any SDK lifecycle, authentication, egress change, DNS, or provider request remains stopped until its explicit later gate is reached and freshly authorized.
+This historical ADS's implementation and one-shot acceptance intent are complete
+through the successor ADSs. The disabled baseline is restored and no active
+approval exists. Any future remote request is a new separately approved one-shot
+operation; it is not a continuation of this ladder.

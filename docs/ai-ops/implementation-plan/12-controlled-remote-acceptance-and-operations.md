@@ -1,5 +1,13 @@
 # 12. Controlled Remote Acceptance and Operations
 
+**Status:** Complete. The Phase 12 implementation and one separately approved
+acceptance were completed through the successor ADSs
+`ads/12-01-phase12-gated-remote-boundary-ads.md` and
+`ads/12-02-phase12-one-shot-remote-operation-boundary-ads.md`. See
+`../runtime/phase12-one-shot-remote-acceptance-evidence-2026-07-31.md` for the
+metadata-only outcome. Any future remote operation requires a new, independent
+approval.
+
 ## 12.1 Goal
 
 Validate exactly one bounded remote diagnostic workflow through the supported Codex SDK/runtime, then establish operational, upgrade, failure, and rollback procedures without inspecting private provider behavior.
@@ -29,7 +37,7 @@ Total estimate:
 Included:
 
 * Final local preflight and explicit one-request approval.
-* One non-sensitive remote acceptance workflow with bounded turns and retries.
+* One non-sensitive remote acceptance workflow with bounded turns and zero automatic retries.
 * Metadata-only acceptance classification.
 * Post-request deployment, egress, process, listener, MCP, and evidence checks.
 * Operator runbooks for authentication expiry, SDK/runtime failure, version upgrades, disablement, and rollback.
@@ -44,10 +52,10 @@ Excluded:
 
 ## 12.4 Assumptions
 
-- [ ] Phase 11 deployment and synthetic egress validation pass immediately beforehand.
-- [ ] Codex login status succeeds without exposing output or credential values.
-- [ ] The operator explicitly approves one request and one non-sensitive diagnostic prompt.
-- [ ] Failure at the supported SDK/runtime boundary is accepted as a vendor blocker, not a private-protocol investigation trigger.
+- [x] Phase 11 deployment and synthetic egress validation passed immediately beforehand.
+- [x] Codex authentication was established without exposing output or credential values.
+- [x] The operator explicitly approved one request and one non-sensitive diagnostic prompt.
+- [x] Failure at the supported SDK/runtime boundary remains a vendor blocker, not a private-protocol investigation trigger.
 
 ## 12.5 Ordered Tasks
 
@@ -62,15 +70,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Specify exact approval, prompt, model, workflow, maximum turns, tool calls, deadline, output handling, and retry bounds.
-- [ ] Require permanent deployment and egress validators immediately before and after the request.
-- [ ] Define allowed metadata categories and prohibit raw terminal, model, provider, and ledger output.
-- [ ] Define immediate stop conditions for drift, evidence failure, unexpected tools, extra requests, or sensitive markers.
-- [ ] Define cleanup and rollback for every failure stage.
+- [x] Specified exact approval, prompt, model, workflow, maximum turns, tool calls, deadline, output handling, and retry bounds.
+- [x] Required permanent deployment and egress validators immediately before and after the request.
+- [x] Defined allowed metadata categories and prohibited raw terminal, model, provider, and ledger output.
+- [x] Defined immediate stop conditions for drift, evidence failure, unexpected tools, extra requests, or sensitive markers.
+- [x] Defined cleanup and rollback for every failure stage.
 
 Done when:
 
-- [ ] The operator can review the entire one-request procedure without accessing protected data.
+- [x] The operator can review the entire one-request procedure without accessing protected data.
 
 ### Step 2 - Run Final No-Provider Preflight
 
@@ -83,15 +91,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Validate pinned versions, package integrity, service identity, runtime-home metadata, sandboxing, and no listeners.
-- [ ] Re-run fake-adapter and local MCP safety tests.
-- [ ] Validate evidence capacity and schema without reading raw records.
-- [ ] Validate `assistant` direct-egress denial and orchestrator policy materialization.
-- [ ] Stop on any failure or unreviewed drift.
+- [x] Validated pinned versions, package integrity, service identity, runtime-home metadata, sandboxing, and no listeners.
+- [x] Re-ran fake-adapter and local MCP safety tests.
+- [x] Validated evidence capacity and schema without reading raw records.
+- [x] Validated `assistant` direct-egress denial and orchestrator policy materialization.
+- [x] Stopped on any failure or unreviewed drift.
 
 Done when:
 
-- [ ] Every local and synthetic gate passes immediately before remote approval is consumed.
+- [x] Every local and synthetic gate passed immediately before remote approval was consumed.
 
 ### Step 3 - Execute One Approved Remote Workflow
 
@@ -104,15 +112,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Obtain fresh explicit approval for exactly one request.
-- [ ] Use the reviewed non-sensitive input and fixed bounded workflow.
-- [ ] Bound and sanitize advisory model output for the operator while prohibiting raw Codex/model/provider output in logs, evidence, or persistent files; prohibit retries beyond the approved bound.
-- [ ] Retain only parsed approved orchestrator metadata categories.
-- [ ] Stop after the first terminal result; do not troubleshoot private transport behavior.
+- [x] Obtained fresh explicit approval for exactly one request.
+- [x] Used the reviewed non-sensitive input and fixed bounded workflow.
+- [x] Bounded and sanitized advisory model output for the operator while prohibiting raw Codex/model/provider output in logs, evidence, or persistent files; prohibited retries beyond the approved bound.
+- [x] Retained only parsed approved orchestrator metadata categories.
+- [x] Stopped after the first terminal result without troubleshooting private transport behavior.
 
 Done when:
 
-- [ ] Exactly one approved workflow reaches a bounded terminal category, presents only sanitized advisory output, and retains no protected content.
+- [x] Exactly one approved workflow reached a bounded terminal category, presented only sanitized advisory output, and retained no protected content.
 
 ### Step 4 - Revalidate and Record Sanitized Evidence
 
@@ -125,15 +133,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Re-run deployment, egress, process, listener, MCP, and evidence validators.
-- [ ] Confirm temporary workspaces and process state are removed.
-- [ ] Record only approved versions, categories, counts, and validation outcomes.
-- [ ] Classify SDK/runtime failure as a version/update or vendor blocker without private-protocol inspection.
-- [ ] Keep the remote path disabled by default until regular-use policy is separately accepted.
+- [x] Re-ran deployment, egress, process, listener, MCP, and evidence validators.
+- [x] Confirmed temporary workspaces and process state were removed.
+- [x] Recorded only approved versions, categories, counts, and validation outcomes.
+- [x] Kept SDK/runtime failure classification bounded to version/update or vendor blocker without private-protocol inspection.
+- [x] Kept the remote path disabled by default pending any separately accepted regular-use policy.
 
 Done when:
 
-- [ ] Sanitized acceptance evidence and post-operation validation are complete.
+- [x] Sanitized acceptance evidence and post-operation validation are complete.
 
 ### Step 5 - Complete Operational and Upgrade Runbooks
 
@@ -146,25 +154,25 @@ Estimate:
 
 Tasks:
 
-- [ ] Document normal invocation, approval, timeout, cancellation, and disablement procedures.
-- [ ] Document login expiry and operator reauthentication without token inspection.
-- [ ] Document pinned SDK/runtime upgrade tests and rollback.
-- [ ] Document vendor-blocker escalation and the prohibition on private-protocol recovery.
-- [ ] Define review and retention rules for orchestrator metadata.
+- [x] Documented normal invocation, approval, timeout, cancellation, and disablement procedures.
+- [x] Documented login expiry and operator reauthentication without token inspection.
+- [x] Documented pinned SDK/runtime upgrade tests and rollback.
+- [x] Documented vendor-blocker escalation and the prohibition on private-protocol recovery.
+- [x] Defined review and retention rules for orchestrator metadata.
 
 Done when:
 
-- [ ] Operators can use, disable, update, and troubleshoot the supported boundary without bypassing controls.
+- [x] Operators can use, disable, update, and troubleshoot the supported boundary without bypassing controls.
 
 ## 12.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] One explicitly approved remote workflow completes or yields a bounded documented vendor blocker.
-- [ ] No raw sensitive or provider content is retained.
-- [ ] Post-operation safety validators pass.
-- [ ] Operational, authentication-expiry, upgrade, disablement, and rollback runbooks exist.
-- [ ] No custom-provider gateway fallback is available.
+- [x] One explicitly approved remote workflow completed with a bounded terminal category.
+- [x] No raw sensitive or provider content is retained.
+- [x] Post-operation safety validators passed.
+- [x] Operational, authentication-expiry, upgrade, disablement, and rollback runbooks exist.
+- [x] No custom-provider gateway fallback is available.
 
 ## 12.7 Risks
 
