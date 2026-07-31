@@ -1,0 +1,549 @@
+---
+- name: Validate fake-only assistant bridge socket activation
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_runtime/defaults/main.yml"
+  vars:
+    ai_ops_bridge_activation_apply: false
+    ai_ops_bridge_socket_unit: "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+    ai_ops_bridge_service_unit: "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+    ai_ops_bridge_socket_unit_path: "/etc/systemd/system/{{ ai_ops_bridge_socket_unit }}"
+    ai_ops_bridge_service_unit_path: "/etc/systemd/system/{{ ai_ops_bridge_service_unit }}"
+    ai_ops_bridge_socket_path: /run/openstack-ai-ops/assistant-mcp-bridge.sock
+    ai_ops_bridge_validation_root: /run/openstack-ai-ops/assistant-mcp-bridge-validation
+    ai_ops_bridge_validation_client_path: >-
+      /run/openstack-ai-ops/assistant-mcp-bridge-validation-client.py
+    ai_ops_bridge_validation_dropin_dir: >-
+      /run/systemd/system/{{ ai_ops_bridge_service_unit }}.d
+    ai_ops_bridge_validation_dropin_path: >-
+      {{ ai_ops_bridge_validation_dropin_dir }}/90-fake-validation.conf
+    ai_ops_bridge_python: /opt/openstack-ai-ops/.venv/bin/python
+    ai_ops_bridge_entrypoint: /opt/openstack-ai-ops/mcp/aiops_assistant_bridge.py
+  tasks:
+    - name: Assert bridge activation approval and target scope
+      ansible.builtin.assert:
+        that:
+          - ai_ops_bridge_activation_apply | bool
+          - "'assistant01' in (groups['assistant'] | default([]))"
+          - "(groups['assistant'] | default([])) | length == 1"
+          - inventory_hostname == 'assistant01'
+          - assistant01.environment == 'assistant'
+          - ai_ops_orchestrator.user == 'aiops-orchestrator'
+          - ai_ops_orchestrator.group == 'aiops-orchestrator'
+          - ai_ops_orchestrator.bridge_socket_name == 'aiops-assistant-mcp-bridge'
+          - ai_ops_orchestrator.bridge_service_name == 'aiops-assistant-mcp-bridge'
+        fail_msg: ERR_BRIDGE_ACTIVATION_NOT_APPROVED
+
+    - name: Inspect bridge activation preconditions
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop:
+        - path: "{{ ai_ops_bridge_socket_unit_path }}"
+          owner: root
+          group: root
+          mode: "0644"
+          allow_link: false
+          executable: false
+        - path: "{{ ai_ops_bridge_service_unit_path }}"
+          owner: root
+          group: root
+          mode: "0644"
+          allow_link: false
+          executable: false
+        - path: "{{ ai_ops_bridge_python }}"
+          owner: root
+          group: root
+          mode:
+          allow_link: true
+          executable: true
+        - path: "{{ ai_ops_bridge_entrypoint }}"
+          owner: assistant
+          group: assistant
+          mode: "0755"
+          allow_link: false
+          executable: true
+      register: ai_ops_bridge_activation_artifacts
+      changed_when: false
+
+    - name: Assert bridge activation artifacts match deployed ownership contracts
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg or (item.item.allow_link and item.stat.islnk)
+          - item.item.allow_link or not item.stat.islnk
+          - item.stat.pw_name == item.item.owner
+          - item.stat.gr_name == item.item.group
+          - item.item.mode is none or item.stat.mode == item.item.mode
+          - not item.item.executable or item.stat.executable
+        fail_msg: ERR_BRIDGE_ACTIVATION_ARTIFACT
+      loop: "{{ ai_ops_bridge_activation_artifacts.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Inspect pre-activation temporary boundaries
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ ai_ops_bridge_socket_path }}"
+        - "{{ ai_ops_bridge_validation_root }}"
+        - "{{ ai_ops_bridge_validation_client_path }}"
+        - "{{ ai_ops_bridge_validation_dropin_path }}"
+      register: ai_ops_bridge_activation_temporary_stats
+      changed_when: false
+
+    - name: Reject stale bridge activation state
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists
+        fail_msg: ERR_BRIDGE_ACTIVATION_STALE_STATE
+      loop: "{{ ai_ops_bridge_activation_temporary_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read pre-activation bridge service states
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-active, "{{ item }}"]
+      loop:
+        - "{{ ai_ops_bridge_socket_unit }}"
+        - "{{ ai_ops_bridge_service_unit }}"
+      register: ai_ops_bridge_activation_initial_states
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert bridge units begin inactive
+      ansible.builtin.assert:
+        that:
+          - item.stdout | trim == 'inactive'
+        fail_msg: ERR_BRIDGE_ACTIVATION_INITIAL_STATE
+      loop: "{{ ai_ops_bridge_activation_initial_states.results }}"
+      no_log: true
+
+    - name: Read bridge unit enablement states
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-enabled, "{{ item }}"]
+      loop:
+        - "{{ ai_ops_bridge_socket_unit }}"
+        - "{{ ai_ops_bridge_service_unit }}"
+      register: ai_ops_bridge_activation_enablement
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert bridge units remain static
+      ansible.builtin.assert:
+        that:
+          - item.stdout | trim == 'static'
+        fail_msg: ERR_BRIDGE_ACTIVATION_ENABLEMENT
+      loop: "{{ ai_ops_bridge_activation_enablement.results }}"
+      no_log: true
+
+    - name: Resolve approved orchestrator peer UID
+      ansible.builtin.command:
+        argv: [/usr/bin/id, -u, "{{ ai_ops_orchestrator.user }}"]
+      register: ai_ops_bridge_activation_peer_uid
+      changed_when: false
+      no_log: true
+
+    - name: Assert approved orchestrator peer UID is numeric
+      ansible.builtin.assert:
+        that:
+          - ai_ops_bridge_activation_peer_uid.stdout | trim is match('^[0-9]+$')
+        fail_msg: ERR_BRIDGE_ACTIVATION_PEER_UID
+      no_log: true
+
+    - name: Capture metadata-only TCP and UDP listener baseline
+      ansible.builtin.command:
+        argv: [/usr/bin/ss, -H, -lntu]
+      register: ai_ops_bridge_activation_listener_baseline
+      changed_when: false
+      no_log: true
+
+    - name: Exercise fake-only bridge activation with unconditional cleanup
+      block:
+        - name: Create isolated fake bridge validation directory
+          ansible.builtin.file:
+            path: "{{ ai_ops_bridge_validation_root }}"
+            state: directory
+            owner: assistant
+            group: assistant
+            mode: "0700"
+
+        - name: Install temporary fake reviewed runner
+          ansible.builtin.copy:
+            dest: "{{ ai_ops_bridge_validation_root }}/fake_reviewed_runner.py"
+            owner: root
+            group: assistant
+            mode: "0550"
+            content: |
+              import json
+              import sys
+              import time
+              from pathlib import Path
+
+              state_path = Path(__file__).with_name("runner-call-count")
+              count = int(state_path.read_text() if state_path.exists() else "0") + 1
+              state_path.write_text(str(count), encoding="utf-8")
+              if count == 2:
+                  time.sleep(60)
+              request_id = sys.argv[sys.argv.index("--request-id") + 1]
+              payload = {
+                  "tool": sys.argv[1],
+                  "status": "ok",
+                  "arguments": {},
+                  "exit_code": 0,
+                  "stdout": '{"username":"fixture-user","project_count":1}',
+                  "stderr": "",
+                  "duration_ms": 1,
+                  "truncated": False,
+                  "timestamp": "2026-01-01T00:00:00Z",
+                  "request_id": request_id,
+              }
+              print(json.dumps(payload, sort_keys=True))
+
+        - name: Install temporary fake bridge validation entrypoint
+          ansible.builtin.copy:
+            dest: "{{ ai_ops_bridge_validation_root }}/validation_entrypoint.py"
+            owner: root
+            group: assistant
+            mode: "0550"
+            content: |
+              import argparse
+              import asyncio
+              from pathlib import Path
+
+              from aiops_assistant_bridge import run_activated_bridge
+              from aiops_mcp_server import AdapterPaths
+
+              parser = argparse.ArgumentParser(add_help=False)
+              parser.add_argument("--approved-peer-uid", type=int, required=True)
+              parser.add_argument("--validation-root", type=Path, required=True)
+              arguments = parser.parse_args()
+              paths = AdapterPaths(
+                  policy_path=arguments.validation_root / "unused-policy.json",
+                  registry_path=arguments.validation_root / "unused-registry.json",
+                  python_path=Path("/opt/openstack-ai-ops/.venv/bin/python"),
+                  runner_path=arguments.validation_root / "fake_reviewed_runner.py",
+                  audit_path=arguments.validation_root / "fake-audit.jsonl",
+              )
+              asyncio.run(
+                  run_activated_bridge(
+                      approved_peer_uid=arguments.approved_peer_uid,
+                      paths=paths,
+                  )
+              )
+
+        - name: Install temporary closed-result bridge client
+          ansible.builtin.copy:
+            dest: "{{ ai_ops_bridge_validation_client_path }}"
+            owner: root
+            group: root
+            mode: "0555"
+            content: |
+              import json
+              import socket
+              import sys
+
+              mode, socket_path = sys.argv[1:3]
+              request = {
+                  "correlation_id": f"fake-activation-{mode}",
+                  "tool": {
+                      "tool_name": "project_resource_summary",
+                      "arguments": {},
+                      "sequence_number": 1,
+                  },
+              }
+              client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+              client.settimeout(65)
+              try:
+                  client.connect(socket_path)
+                  client.sendall(
+                      json.dumps(request, separators=(",", ":")).encode() + b"\n"
+                  )
+                  chunks = []
+                  while True:
+                      chunk = client.recv(65536)
+                      if not chunk:
+                          break
+                      chunks.append(chunk)
+                      if b"\n" in chunk:
+                          break
+              finally:
+                  client.close()
+              response = b"".join(chunks)
+              passed = False
+              if mode in {"denied", "timeout"}:
+                  passed = response == b""
+              elif mode == "success" and response.endswith(b"\n"):
+                  envelope = json.loads(response)
+                  raw_result = envelope.get("raw_result", {})
+                  content = raw_result.get("content", "")
+                  passed = (
+                      envelope.get("correlation_id") == "fake-activation-success"
+                      and raw_result.get("tool_name") == "project_resource_summary"
+                      and "[REDACTED]" in content
+                      and "fixture-user" not in content
+                  )
+              print(json.dumps({"case": mode, "passed": passed}, sort_keys=True))
+              raise SystemExit(0 if passed else 1)
+
+        - name: Create runtime systemd drop-in directory
+          ansible.builtin.file:
+            path: "{{ ai_ops_bridge_validation_dropin_dir }}"
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
+
+        - name: Install temporary fake-runner service drop-in
+          ansible.builtin.copy:
+            dest: "{{ ai_ops_bridge_validation_dropin_path }}"
+            owner: root
+            group: root
+            mode: "0644"
+            content: |
+              [Service]
+              ExecStart=
+              ExecStart={{ ai_ops_bridge_python }} {{ ai_ops_bridge_validation_root }}/validation_entrypoint.py --approved-peer-uid={{ ai_ops_bridge_activation_peer_uid.stdout | trim }} --validation-root={{ ai_ops_bridge_validation_root }}
+
+        - name: Reload systemd for temporary fake-runner drop-in
+          ansible.builtin.systemd_service:
+            daemon_reload: true
+
+        - name: Verify deployed bridge unit pair with fake-runner drop-in
+          ansible.builtin.command:
+            argv:
+              - /usr/bin/systemd-analyze
+              - verify
+              - "{{ ai_ops_bridge_socket_unit_path }}"
+              - "{{ ai_ops_bridge_service_unit_path }}"
+          changed_when: false
+          no_log: true
+
+        - name: Start exact assistant bridge socket
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_bridge_socket_unit }}"
+            enabled: false
+            state: started
+
+        - name: Inspect activated assistant bridge socket
+          ansible.builtin.stat:
+            path: "{{ ai_ops_bridge_socket_path }}"
+          register: ai_ops_bridge_activation_socket_stat
+          changed_when: false
+
+        - name: Assert activated assistant bridge socket contract
+          ansible.builtin.assert:
+            that:
+              - ai_ops_bridge_activation_socket_stat.stat.exists
+              - ai_ops_bridge_activation_socket_stat.stat.issock
+              - ai_ops_bridge_activation_socket_stat.stat.pw_name == 'assistant'
+              - ai_ops_bridge_activation_socket_stat.stat.gr_name == ai_ops_orchestrator.group
+              - ai_ops_bridge_activation_socket_stat.stat.mode == '0660'
+            fail_msg: ERR_BRIDGE_ACTIVATION_SOCKET
+
+        - name: Capture TCP and UDP listeners during bridge activation
+          ansible.builtin.command:
+            argv: [/usr/bin/ss, -H, -lntu]
+          register: ai_ops_bridge_activation_listener_during
+          changed_when: false
+          no_log: true
+
+        - name: Assert bridge activation adds no TCP or UDP listener
+          ansible.builtin.assert:
+            that:
+              - >-
+                ai_ops_bridge_activation_listener_during.stdout_lines |
+                difference(ai_ops_bridge_activation_listener_baseline.stdout_lines) |
+                length == 0
+            fail_msg: ERR_BRIDGE_ACTIVATION_LISTENER_DELTA
+          no_log: true
+
+        - name: Prove non-approved assistant peer receives no payload
+          ansible.builtin.command:
+            argv:
+              - /usr/sbin/runuser
+              - -u
+              - assistant
+              - --
+              - "{{ ai_ops_bridge_python }}"
+              - "{{ ai_ops_bridge_validation_client_path }}"
+              - denied
+              - "{{ ai_ops_bridge_socket_path }}"
+          register: ai_ops_bridge_activation_denied_result
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert non-approved peer is denied
+          ansible.builtin.assert:
+            that:
+              - ai_ops_bridge_activation_denied_result.rc == 0
+              - (ai_ops_bridge_activation_denied_result.stdout | from_json).passed
+            fail_msg: ERR_BRIDGE_ACTIVATION_PEER_DENIAL
+          no_log: true
+
+        - name: Prove approved peer receives only fake redacted result
+          ansible.builtin.command:
+            argv:
+              - /usr/sbin/runuser
+              - -u
+              - "{{ ai_ops_orchestrator.user }}"
+              - --
+              - "{{ ai_ops_bridge_python }}"
+              - "{{ ai_ops_bridge_validation_client_path }}"
+              - success
+              - "{{ ai_ops_bridge_socket_path }}"
+          register: ai_ops_bridge_activation_success_result
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert approved fake-only bridge result is redacted
+          ansible.builtin.assert:
+            that:
+              - ai_ops_bridge_activation_success_result.rc == 0
+              - (ai_ops_bridge_activation_success_result.stdout | from_json).passed
+            fail_msg: ERR_BRIDGE_ACTIVATION_FAKE_RESULT
+          no_log: true
+
+        - name: Prove bounded runner timeout returns no payload
+          ansible.builtin.command:
+            argv:
+              - /usr/sbin/runuser
+              - -u
+              - "{{ ai_ops_orchestrator.user }}"
+              - --
+              - "{{ ai_ops_bridge_python }}"
+              - "{{ ai_ops_bridge_validation_client_path }}"
+              - timeout
+              - "{{ ai_ops_bridge_socket_path }}"
+          register: ai_ops_bridge_activation_timeout_result
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert bounded runner timeout closes the connection
+          ansible.builtin.assert:
+            that:
+              - ai_ops_bridge_activation_timeout_result.rc == 0
+              - (ai_ops_bridge_activation_timeout_result.stdout | from_json).passed
+            fail_msg: ERR_BRIDGE_ACTIVATION_TIMEOUT
+          no_log: true
+
+        - name: Check fake runner process cleanup before teardown
+          ansible.builtin.command:
+            argv:
+              - /usr/bin/pgrep
+              - -f
+              - --
+              - "{{ ai_ops_bridge_validation_root }}/fake_reviewed_runner.py"
+          register: ai_ops_bridge_activation_fake_process
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Assert timed-out fake runner process was removed
+          ansible.builtin.assert:
+            that:
+              - ai_ops_bridge_activation_fake_process.rc == 1
+            fail_msg: ERR_BRIDGE_ACTIVATION_RUNNER_RETAINED
+          no_log: true
+      always:
+        - name: Stop assistant bridge socket before service
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_bridge_socket_unit }}"
+            enabled: false
+            state: stopped
+          no_log: true
+
+        - name: Stop assistant bridge service after socket
+          ansible.builtin.systemd_service:
+            name: "{{ ai_ops_bridge_service_unit }}"
+            enabled: false
+            state: stopped
+          no_log: true
+
+        - name: Remove temporary fake-runner service drop-in
+          ansible.builtin.file:
+            path: "{{ ai_ops_bridge_validation_dropin_path }}"
+            state: absent
+          no_log: true
+
+        - name: Reload systemd after fake-runner drop-in removal
+          ansible.builtin.systemd_service:
+            daemon_reload: true
+          no_log: true
+
+        - name: Remove isolated fake bridge validation directory
+          ansible.builtin.file:
+            path: "{{ ai_ops_bridge_validation_root }}"
+            state: absent
+          no_log: true
+
+        - name: Remove temporary closed-result bridge client
+          ansible.builtin.file:
+            path: "{{ ai_ops_bridge_validation_client_path }}"
+            state: absent
+          no_log: true
+
+        - name: Remove empty runtime systemd drop-in directory
+          ansible.builtin.command:
+            argv: [/usr/bin/rmdir, "{{ ai_ops_bridge_validation_dropin_dir }}"]
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Inspect bridge socket after cleanup
+          ansible.builtin.stat:
+            path: "{{ ai_ops_bridge_socket_path }}"
+          register: ai_ops_bridge_activation_final_socket
+          changed_when: false
+
+        - name: Read bridge service states after cleanup
+          ansible.builtin.command:
+            argv: [/usr/bin/systemctl, is-active, "{{ item }}"]
+          loop:
+            - "{{ ai_ops_bridge_socket_unit }}"
+            - "{{ ai_ops_bridge_service_unit }}"
+          register: ai_ops_bridge_activation_final_states
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Read bridge service main process ID after cleanup
+          ansible.builtin.command:
+            argv:
+              - /usr/bin/systemctl
+              - show
+              - --property=MainPID
+              - --value
+              - "{{ ai_ops_bridge_service_unit }}"
+          register: ai_ops_bridge_activation_final_pid
+          changed_when: false
+          no_log: true
+
+        - name: Capture TCP and UDP listeners after bridge cleanup
+          ansible.builtin.command:
+            argv: [/usr/bin/ss, -H, -lntu]
+          register: ai_ops_bridge_activation_listener_final
+          changed_when: false
+          no_log: true
+
+        - name: Assert bridge cleanup restored the static baseline
+          ansible.builtin.assert:
+            that:
+              - not ai_ops_bridge_activation_final_socket.stat.exists
+              - >-
+                ai_ops_bridge_activation_final_states.results |
+                map(attribute='stdout') | map('trim') | unique | list == ['inactive']
+              - ai_ops_bridge_activation_final_pid.stdout | trim == '0'
+              - >-
+                ai_ops_bridge_activation_listener_final.stdout_lines |
+                difference(ai_ops_bridge_activation_listener_baseline.stdout_lines) |
+                length == 0
+            fail_msg: ERR_BRIDGE_ACTIVATION_CLEANUP
+          no_log: true

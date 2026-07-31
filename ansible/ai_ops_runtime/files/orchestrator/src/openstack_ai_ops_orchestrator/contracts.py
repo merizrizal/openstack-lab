@@ -70,8 +70,8 @@ class AdapterErrorCategory(StrEnum):
     EVIDENCE_FAILED = "evidence_failed"
 
 
-FIXED_MCP_COMMAND = "/opt/openstack-ai-ops/.venv/bin/python"
-FIXED_MCP_ARGUMENTS = ("/opt/openstack-ai-ops/mcp/aiops_mcp_server.py",)
+FIXED_MCP_COMMAND = "/opt/openstack-ai-ops/orchestrator/venv/bin/python"
+FIXED_MCP_ARGUMENTS = ("-m", "openstack_ai_ops_orchestrator.mcp_stdio_proxy")
 MCP_CLIENT_NOT_READY_MESSAGE = "MCP client is not ready"
 
 
@@ -400,8 +400,8 @@ class LocalMcpClientStub:
         raise McpClientNotReadyError(MCP_CLIENT_NOT_READY_MESSAGE)
 
 
-class CodexAdapter(Protocol):
-    """Repository boundary that isolates all beta SDK interactions."""
+class ModelAdapter(Protocol):
+    """Repository boundary that isolates provider SDK interactions."""
 
     def run_turn(
         self,
@@ -410,3 +410,7 @@ class CodexAdapter(Protocol):
         cancellation: asyncio.Event,
     ) -> AsyncIterator[AdapterEvent]:
         """Yield only repository events; terminal handling is adapter-owned."""
+
+
+# Backward-compatible name for existing Codex-specific callers.
+CodexAdapter = ModelAdapter

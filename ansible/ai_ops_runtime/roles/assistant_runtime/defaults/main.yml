@@ -28,6 +28,7 @@ ai_ops_runtime_packages:
 ai_ops_runtime_venv_path: "{{ ai_ops_runtime_root }}/.venv"
 ai_ops_runtime_mcp_root: "{{ ai_ops_runtime_root }}/mcp"
 ai_ops_runtime_mcp_server_path: "{{ ai_ops_runtime_mcp_root }}/aiops_mcp_server.py"
+ai_ops_runtime_mcp_bridge_path: "{{ ai_ops_runtime_mcp_root }}/aiops_assistant_bridge.py"
 ai_ops_runtime_mcp_policy_path: "{{ ai_ops_runtime_mcp_root }}/mcp_policy.json"
 ai_ops_runtime_mcp_resources_path: "{{ ai_ops_runtime_mcp_root }}/resources"
 ai_ops_runtime_mcp_python_package: "mcp==1.28.1"

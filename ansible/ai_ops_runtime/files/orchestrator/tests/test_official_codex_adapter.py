@@ -7,9 +7,23 @@ import socket
 import subprocess
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from itertools import count
 from pathlib import Path
+from typing import cast
 
 import pytest
+from openai_codex.generated.v2_all import (
+    Thread,
+    ThreadItem,
+    ThreadStartedNotification,
+    Turn,
+    TurnCompletedNotification,
+    TurnItemsView,
+    TurnStartedNotification,
+    TurnStatus,
+)
+from openai_codex.models import Notification
 
 from openstack_ai_ops_orchestrator.contracts import (
     AdapterErrorCategory,
@@ -25,10 +39,46 @@ from openstack_ai_ops_orchestrator.official_codex_adapter import (
     OfficialAdapterCompatibilityError,
     OfficialAdapterDisabledError,
     OfficialCodexAdapter,
+    OfficialSdkFactory,
+    PublicSdkEventStream,
+    TaintedNotificationReducer,
     build_curated_codex_config,
     map_public_event_method,
     map_turn_result,
 )
+from openstack_ai_ops_orchestrator.remote_acceptance import (
+    ConsumedApproval,
+    RemoteAcceptancePolicy,
+    RemoteOperationCapability,
+    consume_one_shot_approval,
+    consume_remote_acceptance_artifact,
+    validate_remote_acceptance_policy,
+)
+
+_approval_identifiers = count()
+
+
+def consumed_approval() -> ConsumedApproval:
+    policy = RemoteAcceptancePolicy(
+        approval_id=f"approval-{next(_approval_identifiers)}",
+        expires_at=datetime.now(UTC) + timedelta(minutes=1),
+    )
+    return consume_one_shot_approval(
+        validate_remote_acceptance_policy(policy, datetime.now(UTC))
+    )
+
+
+def consumed_approval_and_capability(
+    tmp_path: Path,
+) -> tuple[ConsumedApproval, RemoteOperationCapability]:
+    approval_id = f"approval-{next(_approval_identifiers)}"
+    expires_at = datetime.now(UTC) + timedelta(minutes=1)
+    artifact_path = tmp_path / f"{approval_id}.json"
+    artifact_path.write_text(
+        f'{{"approval_id":"{approval_id}","expires_at_utc":"{expires_at.isoformat()}"}}'
+    )
+    artifact_path.chmod(0o600)
+    return consume_remote_acceptance_artifact(artifact_path, datetime.now(UTC))
 
 
 def request() -> DiagnosticTurnRequest:
@@ -50,6 +100,12 @@ def collect_events(events: AsyncIterator[AdapterEvent]) -> list[AdapterEvent]:
     return asyncio.run(collect())
 
 
+def test_public_sdk_event_stream_has_only_protocol_bases() -> None:
+    assert all(
+        getattr(base, "_is_protocol", False) for base in PublicSdkEventStream.__bases__
+    )
+
+
 def test_official_adapter_is_disabled_before_any_sdk_runtime_entry() -> None:
     adapter = OfficialCodexAdapter()
 
@@ -65,6 +121,156 @@ def test_official_adapter_is_disabled_before_any_sdk_runtime_entry() -> None:
 def test_curated_config_cannot_be_constructed_while_disabled() -> None:
     with pytest.raises(OfficialAdapterDisabledError, match="remains disabled"):
         build_curated_codex_config(policy())
+
+
+def tainted_reducer(
+    maximum_payload_bytes: int = 8192,
+    maximum_advisory_bytes: int = 1024,
+) -> TaintedNotificationReducer:
+    return TaintedNotificationReducer(
+        expected_thread_id="thread-1",
+        expected_turn_id="turn-1",
+        maximum_payload_bytes=maximum_payload_bytes,
+        maximum_advisory_bytes=maximum_advisory_bytes,
+        maximum_redactions=10,
+    )
+
+
+def tainted_notification_sequence(advisory_text: str) -> tuple[Notification, ...]:
+    thread = Thread.model_construct(id="thread-1")
+    started_turn = Turn.model_validate(
+        {
+            "id": "turn-1",
+            "items": [],
+            "items_view": TurnItemsView.full,
+            "status": TurnStatus.in_progress,
+        }
+    )
+    terminal_item = ThreadItem.model_validate(
+        {"id": "item-1", "text": advisory_text, "type": "agentMessage"}
+    )
+    completed_turn = Turn.model_validate(
+        {
+            "id": "turn-1",
+            "items": [terminal_item],
+            "items_view": TurnItemsView.full,
+            "status": TurnStatus.completed,
+        }
+    )
+    return (
+        Notification(
+            "thread/started", ThreadStartedNotification.model_construct(thread=thread)
+        ),
+        Notification(
+            "turn/started",
+            TurnStartedNotification.model_construct(
+                thread_id="thread-1", turn=started_turn
+            ),
+        ),
+        Notification(
+            "turn/completed",
+            TurnCompletedNotification.model_construct(
+                thread_id="thread-1", turn=completed_turn
+            ),
+        ),
+    )
+
+
+def test_tainted_notification_reducer_reduces_reviewed_sequence() -> None:
+    reducer = tainted_reducer()
+    reductions = [
+        reducer.reduce(notification)
+        for notification in tainted_notification_sequence(
+            "OpenStack summary is healthy."
+        )
+    ]
+
+    assert [reduction.event.event_type for reduction in reductions] == [
+        AdapterEventType.THREAD_STARTED,
+        AdapterEventType.TURN_STARTED,
+        AdapterEventType.TURN_COMPLETED,
+    ]
+    assert reductions[0].advisory_text is None
+    assert reductions[1].advisory_text is None
+    assert reductions[2].advisory_text == "OpenStack summary is healthy."
+
+
+def test_tainted_notification_reducer_redacts_terminal_advisory() -> None:
+    sentinel = "raw-pinned-sdk-secret"
+    reducer = tainted_reducer()
+
+    reductions = [
+        reducer.reduce(notification)
+        for notification in tainted_notification_sequence(f"token={sentinel}")
+    ]
+
+    assert reductions[-1].advisory_text == "token=[REDACTED]"
+    assert sentinel not in str(reductions[-1])
+
+
+def test_tainted_notification_reducer_rejects_unknown_type_and_order() -> None:
+    sequence = tainted_notification_sequence("safe advisory")
+    reducer = tainted_reducer()
+
+    with pytest.raises(
+        OfficialAdapterCompatibilityError, match="invalid tainted notification"
+    ):
+        reducer.reduce(sequence[1])
+
+    with pytest.raises(
+        OfficialAdapterCompatibilityError, match="invalid tainted notification"
+    ):
+        tainted_reducer().reduce(Notification("thread/started", sequence[1].payload))
+
+
+def test_tainted_notification_reducer_rejects_wrong_turn_and_oversized_payload() -> (
+    None
+):
+    sequence = tainted_notification_sequence("safe advisory")
+    reducer = tainted_reducer()
+    reducer.reduce(sequence[0])
+
+    wrong_turn = Notification(
+        "turn/started",
+        TurnStartedNotification.model_construct(
+            thread_id="thread-1",
+            turn=Turn.model_validate(
+                {
+                    "id": "unexpected-turn",
+                    "items": [],
+                    "items_view": TurnItemsView.full,
+                    "status": TurnStatus.in_progress,
+                }
+            ),
+        ),
+    )
+    with pytest.raises(
+        OfficialAdapterCompatibilityError, match="invalid tainted notification"
+    ):
+        reducer.reduce(wrong_turn)
+
+    oversized = Notification(
+        "thread/started",
+        ThreadStartedNotification.model_construct(
+            thread=Thread.model_construct(id="thread-1", preview="x" * 128)
+        ),
+    )
+    with pytest.raises(
+        OfficialAdapterCompatibilityError, match="invalid tainted notification"
+    ):
+        tainted_reducer(maximum_payload_bytes=1).reduce(oversized)
+
+
+def test_tainted_notification_reducer_rejects_control_bearing_advisory() -> None:
+    reducer = tainted_reducer()
+    sequence = tainted_notification_sequence("safe\nunsafe")
+    reducer.reduce(sequence[0])
+    reducer.reduce(sequence[1])
+
+    with pytest.raises(
+        OfficialAdapterCompatibilityError, match="invalid tainted notification"
+    ):
+        reducer.reduce(sequence[2])
 
 
 def test_official_adapter_source_excludes_runtime_and_auth_calls() -> None:
@@ -170,13 +376,22 @@ def test_disabled_adapter_never_enters_runtime_boundaries(
 @dataclass(frozen=True, slots=True)
 class MockPublicSdkEvent:
     method: str
-    ignored_content: str = "raw SDK content must not escape"
+
+
+@dataclass(frozen=True, slots=True)
+class MockContentBearingSdkEvent(MockPublicSdkEvent):
+    content: str = "raw SDK content must not escape"
+
+
+@dataclass(frozen=True, slots=True)
+class MockPayloadBearingSdkEvent(MockPublicSdkEvent):
+    payload: str = "raw SDK payload must not escape"
 
 
 class MockPublicSdkStream:
     def __init__(
         self,
-        events: tuple[MockPublicSdkEvent, ...],
+        events: tuple[Notification, ...],
         cancellation: asyncio.Event | None = None,
         block: bool = False,
     ) -> None:
@@ -189,7 +404,7 @@ class MockPublicSdkStream:
     def __aiter__(self) -> MockPublicSdkStream:
         return self
 
-    async def __anext__(self) -> MockPublicSdkEvent:
+    async def __anext__(self) -> Notification:
         if self._block:
             await asyncio.sleep(0)
         if self._index >= len(self._events):
@@ -205,8 +420,9 @@ class MockPublicSdkStream:
 
 
 class MockPublicAsyncTurn:
-    def __init__(self, stream: MockPublicSdkStream) -> None:
+    def __init__(self, stream: MockPublicSdkStream, id: str = "turn-1") -> None:
         self._stream = stream
+        self.id = id
         self.interrupt_calls = 0
 
     def stream(self) -> MockPublicSdkStream:
@@ -218,8 +434,9 @@ class MockPublicAsyncTurn:
 
 
 class MockPublicAsyncThread:
-    def __init__(self, turn: MockPublicAsyncTurn) -> None:
+    def __init__(self, turn: MockPublicAsyncTurn, id: str = "thread-1") -> None:
         self._turn = turn
+        self.id = id
         self.input: str | None = None
 
     async def turn(self, input: str) -> MockPublicAsyncTurn:
@@ -239,18 +456,28 @@ class MockPublicAsyncCodex:
         self.closed = True
 
 
-def test_injected_mocked_lifecycle_emits_metadata_only_events_and_cleans_up() -> None:
-    stream = MockPublicSdkStream(
-        (
-            MockPublicSdkEvent("thread/started"),
-            MockPublicSdkEvent("turn/started"),
-            MockPublicSdkEvent("turn/completed"),
-        )
+def test_mocked_factory_requires_a_consumed_approval() -> None:
+    client = MockPublicAsyncCodex(
+        MockPublicAsyncThread(MockPublicAsyncTurn(MockPublicSdkStream(())))
     )
+    adapter = OfficialCodexAdapter(mocked_sdk_factory=lambda: client)
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert events == []
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.VENDOR_BLOCKED,
+        error_category=AdapterErrorCategory.REAL_ADAPTER_DISABLED,
+    )
+    assert not client.closed
+
+
+def test_injected_mocked_lifecycle_emits_metadata_only_events_and_cleans_up() -> None:
+    stream = MockPublicSdkStream(tainted_notification_sequence("safe advisory"))
     turn = MockPublicAsyncTurn(stream)
     thread = MockPublicAsyncThread(turn)
     client = MockPublicAsyncCodex(thread)
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
 
@@ -267,11 +494,18 @@ def test_injected_mocked_lifecycle_emits_metadata_only_events_and_cleans_up() ->
     assert turn.interrupt_calls == 0
 
 
-def test_injected_mocked_unknown_event_fails_closed_and_cleans_up() -> None:
-    stream = MockPublicSdkStream((MockPublicSdkEvent("item/completed"),))
+def test_injected_unknown_notification_fails_closed_and_cleans_up() -> None:
+    stream = MockPublicSdkStream(
+        (
+            Notification(
+                "item/completed",
+                tainted_notification_sequence("safe advisory")[0].payload,
+            ),
+        )
+    )
     turn = MockPublicAsyncTurn(stream)
     client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
 
@@ -285,11 +519,51 @@ def test_injected_mocked_unknown_event_fails_closed_and_cleans_up() -> None:
     assert client.closed
 
 
+def test_invalid_notification_payload_fails_closed_without_exposure() -> None:
+    payload = tainted_notification_sequence("safe advisory")[1].payload
+    stream = MockPublicSdkStream((Notification("thread/started", payload),))
+    turn = MockPublicAsyncTurn(stream)
+    client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert events == [AdapterEvent(event_type=AdapterEventType.ADAPTER_FAILED)]
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.ADAPTER_FAILED,
+        error_category=AdapterErrorCategory.INVALID_ADAPTER_EVENT,
+    )
+    assert "raw SDK" not in str(events)
+    assert "raw SDK" not in str(adapter.result)
+    assert stream.closed
+    assert client.closed
+
+
+def test_out_of_order_event_fails_closed_before_extra_lifecycle_progress() -> None:
+    sequence = tainted_notification_sequence("safe advisory")
+    stream = MockPublicSdkStream((sequence[0], sequence[0]))
+    client = MockPublicAsyncCodex(MockPublicAsyncThread(MockPublicAsyncTurn(stream)))
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert events == [
+        AdapterEvent(event_type=AdapterEventType.THREAD_STARTED),
+        AdapterEvent(event_type=AdapterEventType.ADAPTER_FAILED),
+    ]
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.ADAPTER_FAILED,
+        error_category=AdapterErrorCategory.INVALID_ADAPTER_EVENT,
+    )
+    assert stream.closed
+    assert client.closed
+
+
 def test_mocked_factory_failure_is_sanitized_and_does_not_start_a_client() -> None:
     def fail_factory() -> MockPublicAsyncCodex:
         raise RuntimeError("raw SDK failure")
 
-    adapter = OfficialCodexAdapter(fail_factory)
+    adapter = OfficialCodexAdapter(consumed_approval(), fail_factory)
 
     events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
 
@@ -301,14 +575,30 @@ def test_mocked_factory_failure_is_sanitized_and_does_not_start_a_client() -> No
     assert adapter.cleanup_completed
 
 
+def test_consumed_approval_cannot_start_a_second_adapter_lifecycle() -> None:
+    approval = consumed_approval()
+    stream = MockPublicSdkStream(tainted_notification_sequence("safe advisory"))
+    client = MockPublicAsyncCodex(MockPublicAsyncThread(MockPublicAsyncTurn(stream)))
+
+    first = OfficialCodexAdapter(approval, lambda: client)
+    second = OfficialCodexAdapter(approval, lambda: client)
+
+    assert collect_events(first.run_turn(request(), policy(), asyncio.Event()))
+    assert collect_events(second.run_turn(request(), policy(), asyncio.Event())) == []
+    assert second.result == AdapterResult(
+        state=WorkflowState.VENDOR_BLOCKED,
+        error_category=AdapterErrorCategory.REAL_ADAPTER_DISABLED,
+    )
+
+
 def test_mocked_cancellation_interrupts_once_and_cleans_up() -> None:
     cancellation = asyncio.Event()
     stream = MockPublicSdkStream(
-        (MockPublicSdkEvent("thread/started"),), cancellation=cancellation
+        (tainted_notification_sequence("safe advisory")[0],), cancellation=cancellation
     )
     turn = MockPublicAsyncTurn(stream)
     client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(), cancellation))
 
@@ -328,7 +618,7 @@ def test_mocked_deadline_interrupts_once_and_cleans_up() -> None:
     stream = MockPublicSdkStream((), block=True)
     turn = MockPublicAsyncTurn(stream)
     client = MockPublicAsyncCodex(MockPublicAsyncThread(turn))
-    adapter = OfficialCodexAdapter(lambda: client)
+    adapter = OfficialCodexAdapter(consumed_approval(), lambda: client)
 
     events = collect_events(adapter.run_turn(request(), policy(0), asyncio.Event()))
 
@@ -342,3 +632,63 @@ def test_mocked_deadline_interrupts_once_and_cleans_up() -> None:
     assert adapter.cleanup_completed
     assert stream.closed
     assert client.closed
+
+
+def test_capability_gated_official_factory_runs_one_fixed_lifecycle(
+    tmp_path: Path,
+) -> None:
+    approval, capability = consumed_approval_and_capability(tmp_path)
+    stream = MockPublicSdkStream(tainted_notification_sequence("safe advisory"))
+    turn = MockPublicAsyncTurn(stream)
+    thread = MockPublicAsyncThread(turn)
+    client = MockPublicAsyncCodex(thread)
+    captured_configs: list[object] = []
+
+    def official_factory(config: object) -> MockPublicAsyncCodex:
+        captured_configs.append(config)
+        return client
+
+    adapter = OfficialCodexAdapter(
+        approval,
+        operation_capability=capability,
+        official_sdk_factory=cast(OfficialSdkFactory, official_factory),
+    )
+
+    events = collect_events(adapter.run_turn(request(), policy(), asyncio.Event()))
+
+    assert [event.event_type for event in events] == [
+        AdapterEventType.THREAD_STARTED,
+        AdapterEventType.TURN_STARTED,
+        AdapterEventType.TURN_COMPLETED,
+    ]
+    assert len(captured_configs) == 1
+    assert getattr(captured_configs[0], "cwd") == "/fixed/workdir"
+    assert thread.input == "safe context"
+    assert adapter.result == AdapterResult(state=WorkflowState.COMPLETED)
+    assert stream.closed
+    assert client.closed
+
+
+def test_official_factory_without_capability_remains_disabled() -> None:
+    client = MockPublicAsyncCodex(
+        MockPublicAsyncThread(MockPublicAsyncTurn(MockPublicSdkStream(())))
+    )
+    factory_calls: list[str] = []
+
+    def official_factory(config: object) -> MockPublicAsyncCodex:
+        del config
+        factory_calls.append("called")
+        return client
+
+    adapter = OfficialCodexAdapter(
+        consumed_approval(),
+        official_sdk_factory=cast(OfficialSdkFactory, official_factory),
+    )
+
+    assert collect_events(adapter.run_turn(request(), policy(), asyncio.Event())) == []
+    assert adapter.result == AdapterResult(
+        state=WorkflowState.VENDOR_BLOCKED,
+        error_category=AdapterErrorCategory.REAL_ADAPTER_DISABLED,
+    )
+    assert factory_calls == []
+    assert not client.closed

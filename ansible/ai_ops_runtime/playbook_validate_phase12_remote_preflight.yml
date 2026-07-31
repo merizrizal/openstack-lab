@@ -1,0 +1,53 @@
+---
+- name: Validate fake-only deployment precondition
+  import_playbook: playbook_validate_phase11_orchestrator_deployment.yml
+
+- name: Validate remote acceptance remains locally disabled
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_runtime/defaults/main.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_egress/defaults/main.yml"
+  vars:
+    ai_ops_remote_approval_path: /run/aiops-orchestrator/remote-approval
+  tasks:
+    - name: Assert remote service and permanent deny contracts
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant01'
+          - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
+          - ai_ops_orchestrator.profile == 'validate-local-fake'
+          - ai_ops_orchestrator_egress.mode == 'disabled'
+        fail_msg: ERR_REMOTE_PREFLIGHT
+      no_log: true
+
+    - name: Inspect remote approval artifact absence
+      ansible.builtin.stat:
+        path: "{{ ai_ops_remote_approval_path }}"
+      register: ai_ops_remote_approval_artifact
+      changed_when: false
+      no_log: true
+
+    - name: Assert remote approval artifact is absent
+      ansible.builtin.assert:
+        that: [not ai_ops_remote_approval_artifact.stat.exists]
+        fail_msg: ERR_REMOTE_APPROVAL_ARTIFACT
+      no_log: true
+
+    - name: Read remote service enablement metadata
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-enabled, "{{ ai_ops_orchestrator.remote_service_name }}"]
+      register: ai_ops_remote_service_enabled
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Assert remote service is installed but not enabled
+      ansible.builtin.assert:
+        that:
+          - ai_ops_remote_service_enabled.rc == 0
+          - ai_ops_remote_service_enabled.stdout | trim == 'static'
+        fail_msg: ERR_REMOTE_SERVICE_ENABLEMENT
+      no_log: true

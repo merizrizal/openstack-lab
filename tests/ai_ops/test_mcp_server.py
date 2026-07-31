@@ -16,6 +16,12 @@ MCP_SERVER_PATH = (
     REPO_ROOT
     / "ansible/ai_ops_runtime/roles/assistant_runtime/files/mcp/aiops_mcp_server.py"
 )
+ASSISTANT_BRIDGE_PATH = MCP_SERVER_PATH.parent / "aiops_assistant_bridge.py"
+ORCHESTRATOR_SOURCE_PATH = (
+    REPO_ROOT / "ansible/ai_ops_runtime/files/orchestrator/src"
+)
+if str(ORCHESTRATOR_SOURCE_PATH) not in sys.path:
+    sys.path.insert(0, str(ORCHESTRATOR_SOURCE_PATH))
 RUNNER_REGISTRY_PATH = (
     REPO_ROOT
     / "ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/tool_registry.json"
@@ -40,10 +46,22 @@ def load_mcp_server_module():
     return module
 
 
+def load_assistant_bridge_module():
+    spec = importlib.util.spec_from_file_location(
+        "aiops_assistant_bridge", ASSISTANT_BRIDGE_PATH
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 class TestMCPServerStub(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.server_module = load_mcp_server_module()
+        cls.bridge_module = load_assistant_bridge_module()
 
     def render_policy_template(
         self,
@@ -1089,6 +1107,136 @@ class TestMCPServerStub(unittest.TestCase):
             "MCP tool arguments must be strings",
         )
         self.assertFalse(paths.audit_path.exists())
+
+    def test_assistant_bridge_injects_existing_runner_before_redaction(self):
+        calls = []
+
+        async def fake_invoke_runner(
+            tool_name, arguments, request_id, paths, timeout_seconds
+        ):
+            calls.append((tool_name, arguments, request_id, paths, timeout_seconds))
+            return {
+                "tool": tool_name,
+                "status": "ok",
+                "arguments": arguments,
+                "exit_code": 0,
+                "stdout": '{"username":"fixture-user","project_count":1}',
+                "stderr": "",
+                "duration_ms": 1,
+                "truncated": False,
+                "timestamp": "2026-01-01T00:00:00Z",
+                "request_id": request_id,
+            }
+
+        async def run():
+            paths = self.make_paths()
+            policy = self.bridge_module.RuntimePolicy(
+                deadline_seconds=30,
+                maximum_event_count=3,
+                maximum_output_bytes=1024,
+                model_alias="remote-acceptance",
+                fixed_working_directory="/fixed",
+            )
+            with mock.patch.object(
+                self.bridge_module,
+                "invoke_runner",
+                new=mock.AsyncMock(side_effect=fake_invoke_runner),
+            ):
+                bridge = self.bridge_module.create_assistant_bridge(
+                    approved_peer_uid=1,
+                    policy=policy,
+                    paths=paths,
+                )
+                response = await bridge._executor(
+                    sys.modules[
+                        "openstack_ai_ops_orchestrator.mcp_bridge"
+                    ].BridgeRequest(
+                        "bridge-correlation-1",
+                        self.bridge_module.ToolCallRequest(
+                            "project_resource_summary", (), 1
+                        ),
+                    )
+                )
+            return response, paths
+
+        response, paths = asyncio.run(run())
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0:2], ("project_resource_summary", {}))
+        self.assertTrue(calls[0][2].startswith("mcp-stdio-"))
+        self.assertIs(calls[0][3], paths)
+        self.assertEqual(calls[0][4], 55)
+        self.assertNotIn("fixture-user", str(response.raw_result))
+        self.assertIn("[REDACTED]", str(response.raw_result))
+
+    def test_assistant_bridge_serves_only_an_injected_activated_listener(self):
+        class FakeBridge:
+            def __init__(self):
+                self.closed = False
+
+            async def serve(self, reader, writer):
+                raise AssertionError("fake server must not accept a connection")
+
+            async def aclose(self):
+                self.closed = True
+
+        class FakeServer:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_value, traceback):
+                return False
+
+            async def serve_forever(self):
+                raise asyncio.CancelledError
+
+        async def run():
+            bridge = FakeBridge()
+            listener = object()
+            with (
+                mock.patch.object(
+                    self.bridge_module,
+                    "create_assistant_bridge",
+                    return_value=bridge,
+                ),
+                mock.patch.object(
+                    self.bridge_module.asyncio,
+                    "start_unix_server",
+                    new=mock.AsyncMock(return_value=FakeServer()),
+                ) as start_server,
+            ):
+                with self.assertRaises(asyncio.CancelledError):
+                    await self.bridge_module.run_activated_bridge(
+                        approved_peer_uid=1,
+                        listener=listener,
+                    )
+            return bridge, listener, start_server
+
+        bridge, listener, start_server = asyncio.run(run())
+        self.assertTrue(bridge.closed)
+        self.assertEqual(start_server.await_count, 1)
+        self.assertIs(start_server.await_args.kwargs["sock"], listener)
+
+    def test_assistant_bridge_rejects_wrong_systemd_listener_count(self):
+        with mock.patch.dict(
+            self.bridge_module.os.environ,
+            {"LISTEN_PID": str(self.bridge_module.os.getpid()), "LISTEN_FDS": "2"},
+            clear=True,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError, "^assistant bridge requires one activated listener$"
+            ):
+                self.bridge_module.activated_unix_listener()
+
+    def test_assistant_bridge_source_has_no_listener_or_second_runner(self):
+        source = ASSISTANT_BRIDGE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn("from aiops_mcp_server import", source)
+        self.assertIn("AssistantRunnerBridgeAdapter", source)
+        self.assertIn("asyncio.start_unix_server", source)
+        self.assertIn("socket.socket(fileno=", source)
+        self.assertNotIn("asyncio.start_server", source)
+        self.assertNotIn("create_subprocess", source)
+        self.assertNotIn("subprocess", source)
 
     def test_source_uses_fixed_subprocess_execution_without_network_transport(self):
         source = MCP_SERVER_PATH.read_text(encoding="utf-8")

@@ -14,16 +14,20 @@
       - ai_ops_orchestrator is mapping
       - >-
         ai_ops_orchestrator.keys() | list | sort ==
-        ['codex_home', 'evidence_root', 'group', 'profile', 'root', 'service_name',
-        'user', 'venv', 'wheelhouse', 'work_root']
+        ['bridge_service_name', 'bridge_socket_name', 'codex_home', 'evidence_root',
+        'group', 'profile', 'remote_service_name', 'root', 'service_name', 'user',
+        'venv', 'wheelhouse', 'work_root']
       - ai_ops_orchestrator.user == 'aiops-orchestrator'
       - ai_ops_orchestrator.group == 'aiops-orchestrator'
       - ai_ops_orchestrator.root == '/opt/openstack-ai-ops/orchestrator'
       - ai_ops_orchestrator.venv == '/opt/openstack-ai-ops/orchestrator/venv'
-      - ai_ops_orchestrator.work_root == '/var/lib/aiops-orchestrator/work'
-      - ai_ops_orchestrator.codex_home == '/var/lib/aiops-orchestrator/codex-home'
-      - ai_ops_orchestrator.evidence_root == '/var/lib/aiops-orchestrator/evidence'
+      - ai_ops_orchestrator.work_root == '/run/openstack-ai-ops/remote-work'
+      - ai_ops_orchestrator.codex_home == '/run/openstack-ai-ops/codex-home'
+      - ai_ops_orchestrator.evidence_root == '/run/openstack-ai-ops/evidence'
       - ai_ops_orchestrator.service_name == 'aiops-orchestrator'
+      - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
+      - ai_ops_orchestrator.bridge_socket_name == 'aiops-assistant-mcp-bridge'
+      - ai_ops_orchestrator.bridge_service_name == 'aiops-assistant-mcp-bridge'
       - ai_ops_orchestrator.profile == 'validate-local-fake'
       - ai_ops_orchestrator.wheelhouse is mapping
       - ai_ops_orchestrator.wheelhouse.keys() | list | sort == ['approval_id', 'publication_root']
@@ -120,9 +124,44 @@
     - contracts.py
     - evidence.py
     - fake_codex_adapter.py
+    - mcp_bridge.py
+    - mcp_client.py
+    - mcp_stdio_proxy.py
+    - official_codex_adapter.py
     - orchestrator.py
     - redaction.py
+    - remote_acceptance.py
     - runtime_entrypoint.py
+
+- name: Resolve orchestrator numeric UID for assistant bridge peer validation
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u, "{{ ai_ops_orchestrator.user }}"]
+  register: ai_ops_orchestrator_bridge_peer_uid
+  changed_when: false
+  no_log: true
+
+- name: Assert orchestrator bridge peer UID is numeric
+  ansible.builtin.assert:
+    that:
+      - ai_ops_orchestrator_bridge_peer_uid.stdout | trim is match('^[0-9]+$')
+    fail_msg: ERR_ORCHESTRATOR_BRIDGE_PEER_UID
+  no_log: true
+
+- name: Create root-owned assistant bridge runtime directory
+  ansible.builtin.file:
+    path: /run/openstack-ai-ops
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create private remote approval parent directory
+  ansible.builtin.file:
+    path: /run/aiops-orchestrator
+    state: directory
+    owner: root
+    group: "{{ ai_ops_orchestrator.group }}"
+    mode: "0730"
 
 - name: Create service-owned orchestrator writable directories
   ansible.builtin.file:
@@ -144,6 +183,84 @@
     group: root
     mode: "0644"
     validate: /usr/bin/systemd-analyze verify %s
+
+- name: Install remote acceptance service unit without enabling it
+  ansible.builtin.template:
+    src: aiops-orchestrator-remote.service.j2
+    dest: "/etc/systemd/system/{{ ai_ops_orchestrator.remote_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+
+- name: Create temporary assistant bridge unit validation directory
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: aiops-assistant-mcp-bridge-
+  register: ai_ops_orchestrator_bridge_unit_stage
+  changed_when: false
+
+- name: Validate and install the paired assistant bridge units
+  block:
+    - name: Render assistant bridge units with canonical names for validation
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+        - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+      changed_when: false
+
+    - name: Validate the paired assistant bridge units
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/systemd-analyze
+          - verify
+          - "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+          - "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/{{ ai_ops_orchestrator.bridge_service_name }}.service"
+      changed_when: false
+
+    - name: Install validated assistant bridge units without enabling them
+      ansible.builtin.copy:
+        src: "{{ ai_ops_orchestrator_bridge_unit_stage.path }}/{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+        - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+  always:
+    - name: Remove temporary assistant bridge unit validation directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_orchestrator_bridge_unit_stage.path }}"
+        state: absent
+      changed_when: false
+
+- name: Keep assistant bridge socket disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+    daemon_reload: true
+    enabled: false
+    state: stopped
+
+- name: Keep assistant bridge service disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+    daemon_reload: true
+    enabled: false
+    state: stopped
+
+- name: Keep remote acceptance service disabled and stopped
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_orchestrator.remote_service_name }}"
+    daemon_reload: true
+    enabled: false
+    state: stopped
 
 - name: Keep orchestrator service disabled and stopped
   ansible.builtin.systemd_service:

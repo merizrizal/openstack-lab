@@ -1,0 +1,12 @@
+[Unit]
+Description=AI-OPS assistant MCP bridge socket
+
+[Socket]
+ListenStream=/run/openstack-ai-ops/assistant-mcp-bridge.sock
+SocketUser=assistant
+SocketGroup={{ ai_ops_orchestrator.group }}
+SocketMode=0660
+DirectoryMode=0755
+Accept=no
+RemoveOnStop=true
+Service={{ ai_ops_orchestrator.bridge_service_name }}.service

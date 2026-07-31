@@ -42,6 +42,14 @@
         group: "{{ ai_ops_runtime_group }}"
         mode: "0755"
 
+    - name: Install AI-OPS assistant bridge entrypoint
+      ansible.builtin.copy:
+        src: mcp/aiops_assistant_bridge.py
+        dest: "{{ ai_ops_runtime_mcp_bridge_path }}"
+        owner: "{{ ai_ops_runtime_user }}"
+        group: "{{ ai_ops_runtime_group }}"
+        mode: "0755"
+
     - name: Render AI-OPS MCP exposure policy
       ansible.builtin.template:
         src: mcp/mcp_policy.json.j2
@@ -76,6 +84,7 @@
       ansible.builtin.set_fact:
         ai_ops_runtime_mcp_expected_entries:
           - "f:{{ ai_ops_runtime_mcp_server_path }}"
+          - "f:{{ ai_ops_runtime_mcp_bridge_path }}"
           - "f:{{ ai_ops_runtime_mcp_policy_path }}"
           - "d:{{ ai_ops_runtime_mcp_resources_path }}"
           - "f:{{ ai_ops_runtime_mcp_resources_path }}/diagnostic-safety.md"
@@ -162,6 +171,7 @@
       loop:
         - "{{ ai_ops_runtime_mcp_policy_path }}"
         - "{{ ai_ops_runtime_mcp_server_path }}"
+        - "{{ ai_ops_runtime_mcp_bridge_path }}"
 
     - name: Inspect MCP resources directory after known-file removal
       ansible.builtin.stat:
