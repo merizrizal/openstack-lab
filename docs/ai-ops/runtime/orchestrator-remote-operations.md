@@ -14,6 +14,14 @@ authorization exists now. A future separately approved operation requires fresh
 approval and local preflight; it must not be improvised by changing inventory values
 or starting the unit manually.
 
+## Gateway retirement boundary
+
+The historical `aiops-provider-gateway` is not a fallback for orchestrator,
+bridge, authentication, remote-operation, or validation failures. Normal
+AI-client setup no longer deploys it. Keep the historical source and evidence
+unwired; never start it, restore its normal deployment include, or use it to
+bypass the disabled remote-operation baseline.
+
 ## No-provider preflight
 
 Before any future approval is requested, run only the reviewed local validator:

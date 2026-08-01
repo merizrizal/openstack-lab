@@ -1,0 +1,109 @@
+---
+- name: Assert approved provider gateway artifact removal scope
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_allow_stop_disable | bool
+      - ai_ops_gateway_retirement_allow_dewire | bool
+      - ai_ops_gateway_retirement_allow_unit_root_removal | bool
+    fail_msg: ERR_GATEWAY_RETIREMENT_REMOVAL_APPROVAL
+  no_log: true
+
+- name: Assert provider gateway remains closed before artifact removal
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_closed_service_states.results[0].stdout | trim != 'active'
+      - ai_ops_gateway_retirement_closed_service_states.results[1].stdout | trim != 'enabled'
+      - ai_ops_gateway_retirement_closed_process.rc != 0
+      - ai_ops_gateway_retirement_closed_listener.rc == 0
+      - ai_ops_gateway_retirement_closed_listener.stdout | trim == ''
+    fail_msg: ERR_GATEWAY_RETIREMENT_DISABLE
+  no_log: true
+
+- name: Remove approved provider gateway active artifacts
+  block:
+    - name: Remove fixed provider gateway unit and active root
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ ai_ops_gateway_retirement_unit_path }}"
+        - "{{ ai_ops_provider_gateway.root }}"
+      no_log: true
+
+    - name: Reload systemd after provider gateway unit removal
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      no_log: true
+  rescue:
+    - name: Read provider gateway activity after artifact removal failure
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-active, "{{ ai_ops_provider_gateway.service_name }}"]
+      register: ai_ops_gateway_retirement_removal_rescue_activity
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Assert provider gateway remains closed after artifact removal failure
+      ansible.builtin.assert:
+        that:
+          - ai_ops_gateway_retirement_removal_rescue_activity.stdout | trim != 'active'
+        fail_msg: ERR_GATEWAY_RETIREMENT_DISABLE
+      no_log: true
+
+    - name: Fail closed after provider gateway artifact removal failure
+      ansible.builtin.fail:
+        msg: ERR_GATEWAY_RETIREMENT_ARTIFACT
+      no_log: true
+
+- name: Reinspect provider gateway active and preservation paths after removal
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ ai_ops_gateway_retirement_unit_path }}"
+    - "{{ ai_ops_provider_gateway.root }}"
+    - "{{ ai_ops_gateway_retirement_ledger_directory }}"
+    - "{{ ai_ops_provider_gateway.evidence_ledger }}"
+  register: ai_ops_gateway_retirement_removed_path_stats
+  changed_when: false
+  no_log: true
+
+- name: Read provider gateway identity metadata after artifact removal
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u, "{{ ai_ops_provider_gateway.user }}"]
+  register: ai_ops_gateway_retirement_removed_identity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert approved absent provider gateway disposition remains unchanged
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_gateway_retirement_removed_path_stats.results[0].stat.exists
+      - not ai_ops_gateway_retirement_removed_path_stats.results[1].stat.exists
+      - not ai_ops_gateway_retirement_removed_path_stats.results[2].stat.exists
+      - not ai_ops_gateway_retirement_removed_path_stats.results[3].stat.exists
+      - ai_ops_gateway_retirement_removed_identity.rc != 0
+    fail_msg: ERR_GATEWAY_EVIDENCE_DRIFT
+  no_log: true
+
+- name: Read provider gateway closure after artifact removal
+  ansible.builtin.command:
+    argv: [/usr/bin/systemctl, "{{ item }}", "{{ ai_ops_provider_gateway.service_name }}"]
+  loop:
+    - is-active
+    - is-enabled
+  register: ai_ops_gateway_retirement_removed_service_states
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert provider gateway unit remains inactive and disabled after removal
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_removed_service_states.results[0].stdout | trim != 'active'
+      - ai_ops_gateway_retirement_removed_service_states.results[1].stdout | trim != 'enabled'
+    fail_msg: ERR_GATEWAY_RETIREMENT_DISABLE
+  no_log: true

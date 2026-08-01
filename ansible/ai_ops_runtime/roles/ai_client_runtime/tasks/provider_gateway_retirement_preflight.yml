@@ -1,0 +1,203 @@
+---
+- name: Assert provider gateway retirement preflight scope
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'assistant01'
+      - "'assistant01' in (groups['assistant'] | default([]))"
+      - "(groups['assistant'] | default([])) | length == 1"
+      - ai_ops_provider_gateway.user == 'aiops-provider'
+      - ai_ops_provider_gateway.group == 'aiops-provider'
+      - ai_ops_provider_gateway.root == '/opt/openstack-ai-ops/provider-gateway'
+      - ai_ops_provider_gateway.service_name == 'aiops-provider-gateway'
+      - ai_ops_provider_gateway.evidence_ledger == '/var/lib/aiops-provider-gateway/gateway-evidence.jsonl'
+      - ai_ops_orchestrator.remote_service_name == 'aiops-orchestrator-remote'
+      - ai_ops_orchestrator.bridge_socket_name == 'aiops-assistant-mcp-bridge'
+      - ai_ops_orchestrator.bridge_service_name == 'aiops-assistant-mcp-bridge'
+      - ai_ops_orchestrator.profile == 'validate-local-fake'
+      - ai_ops_orchestrator_egress.mode == 'disabled'
+      - ai_ops_gateway_retirement_disposition == 'verified_absent_preexisting'
+    fail_msg: ERR_GATEWAY_RETIREMENT_PREFLIGHT_SCOPE
+  no_log: true
+
+- name: Inspect fixed provider gateway and successor paths
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ ai_ops_gateway_retirement_unit_path }}"
+    - "{{ ai_ops_provider_gateway.root }}"
+    - "{{ ai_ops_gateway_retirement_ledger_directory }}"
+    - "{{ ai_ops_provider_gateway.evidence_ledger }}"
+    - "{{ ai_ops_gateway_retirement_remote_approval_path }}"
+    - "{{ ai_ops_gateway_retirement_bridge_socket_path }}"
+  register: ai_ops_gateway_retirement_path_stats
+  changed_when: false
+  no_log: true
+
+- name: Assert approved pre-existing gateway evidence absence
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_gateway_retirement_path_stats.results[0].stat.exists
+      - not ai_ops_gateway_retirement_path_stats.results[1].stat.exists
+      - not ai_ops_gateway_retirement_path_stats.results[2].stat.exists
+      - not ai_ops_gateway_retirement_path_stats.results[3].stat.exists
+    fail_msg: ERR_GATEWAY_EVIDENCE_PRESERVATION
+  no_log: true
+
+- name: Assert Phase 12 ephemeral artifacts are absent
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_gateway_retirement_path_stats.results[4].stat.exists
+      - not ai_ops_gateway_retirement_path_stats.results[5].stat.exists
+    fail_msg: ERR_GATEWAY_RETIREMENT_PHASE12_BASELINE
+  no_log: true
+
+- name: Read provider gateway identity metadata
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u, "{{ ai_ops_provider_gateway.user }}"]
+  register: ai_ops_gateway_retirement_identity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert approved pre-existing gateway identity absence
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_identity.rc != 0
+    fail_msg: ERR_GATEWAY_EVIDENCE_PRESERVATION
+  no_log: true
+
+- name: Read provider gateway service states
+  ansible.builtin.command:
+    argv: [/usr/bin/systemctl, "{{ item }}", "{{ ai_ops_provider_gateway.service_name }}"]
+  loop:
+    - is-active
+    - is-enabled
+  register: ai_ops_gateway_retirement_gateway_service_states
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert provider gateway service is absent and closed
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_gateway_service_states.results[0].rc != 0
+      - ai_ops_gateway_retirement_gateway_service_states.results[0].stdout | trim != 'active'
+      - ai_ops_gateway_retirement_gateway_service_states.results[1].rc != 0
+      - ai_ops_gateway_retirement_gateway_service_states.results[1].stdout | trim != 'enabled'
+    fail_msg: ERR_GATEWAY_RETIREMENT_DISABLE
+  no_log: true
+
+- name: Read provider gateway process metadata
+  ansible.builtin.command:
+    argv: [/usr/bin/pgrep, -x, aiops-provider-gateway]
+  register: ai_ops_gateway_retirement_gateway_process
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read provider gateway listener metadata
+  ansible.builtin.command:
+    argv: [/usr/bin/ss, -H, -ltn, "sport = :8765"]
+  register: ai_ops_gateway_retirement_gateway_listener
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert provider gateway process and listener are absent
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_gateway_process.rc != 0
+      - ai_ops_gateway_retirement_gateway_listener.rc == 0
+      - ai_ops_gateway_retirement_gateway_listener.stdout | trim == ''
+    fail_msg: ERR_GATEWAY_RETIREMENT_LISTENER
+  no_log: true
+
+- name: Read Phase 12 unit activity states
+  ansible.builtin.command:
+    argv: [/usr/bin/systemctl, is-active, "{{ item }}"]
+  loop:
+    - "{{ ai_ops_orchestrator.remote_service_name }}"
+    - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+    - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+  register: ai_ops_gateway_retirement_phase12_activity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read Phase 12 unit enablement states
+  ansible.builtin.command:
+    argv: [/usr/bin/systemctl, is-enabled, "{{ item }}"]
+  loop:
+    - "{{ ai_ops_orchestrator.remote_service_name }}"
+    - "{{ ai_ops_orchestrator.bridge_socket_name }}.socket"
+    - "{{ ai_ops_orchestrator.bridge_service_name }}.service"
+  register: ai_ops_gateway_retirement_phase12_enablement
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert Phase 12 units are static and inactive
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_phase12_activity.results | map(attribute='stdout') | map('trim') | list == ['inactive', 'inactive', 'inactive']
+      - ai_ops_gateway_retirement_phase12_enablement.results | map(attribute='rc') | list == [0, 0, 0]
+      - ai_ops_gateway_retirement_phase12_enablement.results | map(attribute='stdout') | map('trim') | list == ['static', 'static', 'static']
+    fail_msg: ERR_GATEWAY_RETIREMENT_PHASE12_BASELINE
+  no_log: true
+
+- name: Read temporary remote egress marker presence
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -F
+      - "{{ ai_ops_gateway_retirement_remote_egress_marker }}"
+      - "{{ item }}"
+  loop:
+    - "{{ ai_ops_orchestrator_egress.ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_orchestrator_egress.ufw.ipv6_rules_path }}"
+  register: ai_ops_gateway_retirement_remote_egress_markers
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert temporary remote egress markers are absent
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_remote_egress_markers.results | map(attribute='rc') | list == [1, 1]
+    fail_msg: ERR_GATEWAY_RETIREMENT_PHASE12_BASELINE
+  no_log: true
+
+- name: Include read-only assistant egress baseline validation
+  ansible.builtin.include_role:
+    name: assistant_egress_validation
+    tasks_from: preflight.yml
+
+- name: Read persistent assistant egress marker presence
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/grep
+      - -F
+      - "{{ ai_ops_assistant_egress.ufw.marker }}"
+      - "{{ item }}"
+  loop:
+    - "{{ ai_ops_assistant_egress.ufw.ipv4_rules_path }}"
+    - "{{ ai_ops_assistant_egress.ufw.ipv6_rules_path }}"
+  register: ai_ops_gateway_retirement_assistant_egress_markers
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Assert persistent assistant egress markers are present
+  ansible.builtin.assert:
+    that:
+      - ai_ops_gateway_retirement_assistant_egress_markers.results | map(attribute='rc') | list == [0, 0]
+    fail_msg: ERR_GATEWAY_RETIREMENT_SHARED_CONTROL
+  no_log: true

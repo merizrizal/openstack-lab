@@ -1,0 +1,38 @@
+---
+- name: Validate retired provider gateway state and successor boundaries
+  hosts: assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml"
+    - "{{ playbook_dir }}/roles/ai_client_runtime/defaults/main.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_runtime/defaults/main.yml"
+    - "{{ playbook_dir }}/roles/orchestrator_egress/defaults/main.yml"
+  vars:
+    ai_ops_gateway_retirement_disposition: verified_absent_preexisting
+    ai_ops_gateway_retirement_unit_path: /etc/systemd/system/aiops-provider-gateway.service
+    ai_ops_gateway_retirement_ledger_directory: /var/lib/aiops-provider-gateway
+    ai_ops_gateway_retirement_remote_approval_path: /run/aiops-orchestrator/remote-approval
+    ai_ops_gateway_retirement_bridge_socket_path: /run/openstack-ai-ops/assistant-mcp-bridge.sock
+    ai_ops_gateway_retirement_remote_egress_marker: AI-OPS orchestrator remote egress exception
+  tasks:
+    - name: Assert retired provider gateway validation scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant01'
+          - "'assistant01' in (groups['assistant'] | default([]))"
+          - "(groups['assistant'] | default([])) | length == 1"
+          - ai_ops_client_runtime.client == 'codex'
+          - ai_ops_orchestrator.profile == 'validate-local-fake'
+          - ai_ops_orchestrator_egress.mode == 'disabled'
+          - ai_ops_gateway_retirement_disposition == 'verified_absent_preexisting'
+        fail_msg: ERR_GATEWAY_RETIREMENT_VALIDATION_SCOPE
+      no_log: true
+
+    - name: Run read-only retired provider gateway and successor preflight
+      ansible.builtin.include_tasks:
+        file: roles/ai_client_runtime/tasks/provider_gateway_retirement_preflight.yml
+
+    - name: Report validated retired provider gateway state
+      ansible.builtin.debug:
+        msg: provider_gateway_retired_state_validated
