@@ -40,7 +40,7 @@ Excluded:
 
 ## 06.4 Assumptions
 
-- [ ] Revised-copy MVP API diagnostics and the revised runner are accepted before broader visibility is introduced.
+- [ ] Revised MVP API diagnostics and the revised runner are accepted before broader visibility is introduced.
 - [ ] Operator credentials, observer identities, SSH keys, host policies, and audit locations are created fresh for the revised runtime and are not copied from or shared with the prior runtime.
 - [ ] Operator-reader and SSH observer authority can be revoked independently of project-reader.
 - [ ] Node roles and service placement are discoverable from the lab’s maintained inventory and architecture.

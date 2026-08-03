@@ -42,7 +42,7 @@ Excluded:
 ## 08.4 Assumptions
 
 - [ ] Required earlier phases are complete or optional capabilities are explicitly disabled and reported unavailable.
-- [ ] The prior implementation remains the immutable comparison baseline until a separate retirement decision; hardening applies to the isolated revised copy.
+- [ ] The prior implementation remains the immutable comparison baseline until a separate retirement decision; hardening applies only to the selectively built revised implementation.
 - [ ] A deployed OpenStack Lab is available for runtime acceptance checks.
 - [ ] Existing Molecule smoke/e2e workflows remain the primary deployed-system quality seams.
 - [ ] Any safety failure can block rollout and trigger credential or interface revocation.
@@ -84,7 +84,7 @@ Tasks:
 - [ ] Add revised inventory/configuration validation under distinct identifiers without changing the prior AI-OPS validation or replacing existing lab checks.
 - [ ] Add read-only runtime smoke checks at the appropriate existing Molecule seam.
 - [ ] Keep tests requiring a deployed lab optional and explicitly gated, consistent with current smoke/e2e conventions.
-- [ ] Verify existing OpenStack and Ceph validation commands and prior AI-OPS validation entry points still pass unchanged after revised-copy integration.
+- [ ] Verify existing OpenStack and Ceph validation commands and prior AI-OPS validation entrypoints remain unchanged after revised integration.
 - [ ] Add coexistence checks for repository paths, inventory groups/variables, runtime users/paths, service names, profile names, key names, audit locations, ports/listeners, and MCP client registrations.
 - [ ] Document which checks are static, fixture-based, runtime smoke, and deployed-lab end-to-end.
 
@@ -147,7 +147,7 @@ Estimate:
 
 Tasks:
 
-- [ ] Roll out the isolated revised copy in order: runtime, fresh project-reader, copied/manual tools, revised runner, MVP workflows, optional fresh operator/host access, then revised MCP.
+- [ ] Roll out the revised implementation in order: minimal runtime, fresh project-reader, accepted manual tools, revised runner, MVP workflows, optional fresh operator/host access, then local stdio MCP.
 - [ ] Require an acceptance checkpoint before each increase in authority or automation.
 - [ ] Document rollback for each layer: disable MCP, disable runner, remove host observer access, revoke operator-reader, revoke project-reader, and disconnect/destroy runtime.
 - [ ] Verify rollback does not alter OpenStack resources, prior AI-OPS source/runtime state, or leave revised credentials and orphan processes.
@@ -204,7 +204,7 @@ Done when:
 This phase is done when:
 
 - [ ] Static and fixture-based safety checks run through a documented local/CI sequence.
-- [ ] A provenance/copy manifest exists, every revised delta maps to isolation or a revised-PRD gap, and the prior source/runtime remains unchanged.
+- [ ] A source catalog and selective-reuse manifest exist, every reused path maps to a current requirement and validation owner, and the prior source/runtime remains unchanged.
 - [ ] Existing inventory, Molecule, bootstrap, and deployed-lab validation paths remain compatible.
 - [ ] Security and secret reviews pass.
 - [ ] Live API, optional host, metadata, audit, and refusal regressions pass or have explicit blocking issues.
@@ -222,5 +222,5 @@ This phase is done when:
 | OpenStack upgrades change reader policy | Re-run the access matrix and block tools whose authority is no longer proven. |
 | Expansion weakens deny-by-default behavior | Require the full review checklist and manual-before-runner-before-MCP progression. |
 | Prior and revised paths collide or the revised runtime invokes prior state | Validate distinct source, automation, runtime, identity, credential, key, service, audit, listener, and MCP identifiers. |
-| Copy-first creates long-term duplicated maintenance | Keep the copy manifest current, minimize revised deltas, and make any future consolidation or prior-runtime retirement a separate explicit decision. |
+| Selective reuse drifts into undocumented historical dependencies | Keep the reuse manifest current, test dependency boundaries, and require a new approved requirement before expanding selection. |
 | Prior baseline is modified accidentally | Add source-tree and runtime coexistence checks and block rollout on unexpected prior-state changes. |

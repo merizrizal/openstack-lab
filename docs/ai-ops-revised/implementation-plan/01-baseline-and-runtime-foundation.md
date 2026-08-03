@@ -2,12 +2,12 @@
 
 ## 01.1 Goal
 
-Preserve the prior AI-OPS implementation unchanged, create a traceable and isolated revised copy, modify only the copied foundation where the revised PRD requires it, and establish the revised runtime, network path, tooling, and workspace.
+Preserve the prior AI-OPS implementation unchanged, classify it as a source catalog, define a fail-closed selective-reuse boundary, and establish only the minimal isolated runtime foundation required for the revised diagnostic → runner → local MCP product path.
 
 Target outcome:
 
 ```text
-prior baseline inventoried -> isolated revised copy created -> required deltas applied only to copy -> revised runtime and reachability verified
+prior source pinned and cataloged -> required capabilities mapped -> unrelated source excluded -> minimal revised runtime and reachability verified
 ```
 
 ## 01.2 Estimate
@@ -23,39 +23,39 @@ Total estimate:
 
 Included:
 
-* Inventory the prior AI-OPS automation, diagnostics, tests, runbooks, and runtime evidence.
-* Record source provenance and map required differences to the revised PRD.
-* Create a complete source-controlled copy of the prior AI-OPS runtime implementation under a revised namespace before making changes.
-* Assign distinct repository and runtime identifiers so the revised copy cannot collide with the prior implementation.
+* Inventory the prior AI-OPS automation, diagnostics, runner, MCP, tests, runbooks, and runtime evidence by path and capability.
+* Record source provenance and map candidate assets to current revised requirements.
+* Create a selective-reuse manifest whose default decision is exclusion.
+* Explicitly exclude prior provider, orchestrator, egress, device-auth, wheelhouse, remote-operation, and unrelated host-observer paths from the revised foundation.
+* Create minimal namespace-safe inventory, runtime setup, workspace, and tooling automation without copying the prior runtime tree wholesale.
 * Decide or confirm revised assistant-runtime placement outside the control plane.
 * Establish management endpoint reachability and least-network-access expectations.
-* Install or adjust baseline diagnostic tooling only where the revised gap map requires it.
 * Define configuration ownership, evidence capture, and foundation rollback.
 
 Excluded:
 
+* Creating a complete copy or maintaining path parity with `ansible/ai_ops_runtime/`.
+* Copying a whole prior role, playbook family, package, or test suite before its dependency closure and current requirement are reviewed.
 * Creating or installing OpenStack credentials.
-* Copying live credentials, tokens, private keys, raw audit logs, secret-bearing runtime state, or unredacted evidence.
+* Copying live credentials, tokens, private keys, raw audit logs, secret-bearing runtime state, generated artifacts, or unredacted evidence.
+* Implementing or activating diagnostics, the runner, MCP, provider gateways, model orchestration, egress, remote bridges, or restricted host access.
 * Modifying the prior AI-OPS source tree or deployed runtime in place.
-* Accepting copied tools without revised validation.
-* Implementing new diagnostic behavior, the runner, or MCP.
-* Restricted SSH/sudo access to OpenStack nodes.
 * Local LLM deployment.
 
 ## 01.4 Assumptions
 
-- [ ] The prior AI-OPS source and deployed runtime are treated as read-only historical baselines during revised implementation.
-- [ ] The complete source-controlled prior AI-OPS runtime implementation is copied into a distinct revised namespace before any modification.
-- [ ] A copied component remains unchanged when the gap map shows that it already satisfies the revised PRD.
+- [ ] The prior AI-OPS source and deployed runtime are read-only historical baselines during revised implementation.
+- [ ] Git revision and path-level provenance are sufficient to preserve historical traceability; duplicate source-tree parity is not required.
+- [ ] A prior asset enters the revised namespace only when an owning phase maps it to a current requirement, reviews its dependency closure, and defines independent acceptance checks.
+- [ ] Absence from the selective-reuse manifest means excluded.
 - [ ] Runtime secrets and operational state are created fresh rather than copied.
-- [ ] The revised runtime is a separate VM or equivalent observer host, not a controller, compute, storage, Ceph, database, message-bus, observability node, or the prior assistant runtime.
-- [ ] Management-network reachability is sufficient for the initial API diagnostics; tenant-network placement is not required.
-- [ ] The runtime is initially a connector/tool host and need not run an LLM.
-- [ ] Manual provisioning is acceptable only when the resulting state and repeatable follow-up are documented.
+- [ ] The revised runtime is a separate VM or equivalent observer host, not a controller, compute, storage, Ceph, database, message-bus, observability node, or prior assistant runtime.
+- [ ] Management-network reachability is sufficient for initial API diagnostics; tenant-network placement is not required.
+- [ ] The runtime is initially a connector/tool host and does not need an LLM, runner, or MCP process in this phase.
 
 ## 01.5 Ordered Tasks
 
-### Step 1 - Baseline the Prior AI-OPS Assets
+### Step 1 - Pin and Catalog the Prior AI-OPS Source
 
 Estimate:
 
@@ -66,18 +66,17 @@ Estimate:
 
 Tasks:
 
-- [ ] Inventory prior AI-OPS provisioning, scripts, runner, MCP, tests, runbooks, credential guidance, and evidence without reading secret-bearing runtime material.
-- [ ] Record the source revision or commit, copy date, selected source areas, and responsible maintainer.
-- [ ] Map each asset to revised functional, non-functional, testing, and acceptance requirements.
-- [ ] Classify each copied asset as unchanged, modify for a documented gap, keep disabled, or retain for traceability but exclude from revised activation.
-- [ ] Record incompatibilities, especially generic execution paths, model/provider-specific behavior, duplicated safety boundaries, or undocumented credential dependencies.
-- [ ] Define how historical evidence will remain attached to the prior baseline without being treated as current acceptance evidence.
+- [x] Record the accepted prior source revision and prior runtime tree identity. ([catalog](../runtime/source-capability-catalog.md#fixed-provenance))
+- [x] Inventory tracked prior paths by capability without traversing caches or reading protected runtime material. ([catalog](../runtime/source-capability-catalog.md#capability-catalog))
+- [x] Map each candidate asset to a revised PRD requirement, owning phase, direct dependencies, and security boundary. ([catalog](../runtime/source-capability-catalog.md#capability-catalog))
+- [x] Record incompatibilities such as historical host names, runtime paths, credential assumptions, provider integration, duplicated execution boundaries, or remote operation. ([catalog](../runtime/source-capability-catalog.md#capability-catalog))
+- [x] Keep prior tests, runbooks, and evidence attached to the historical baseline; do not treat them as revised acceptance. ([catalog](../runtime/source-capability-catalog.md#fixed-provenance))
 
 Done when:
 
-- [ ] Maintainers have a provenance record and gap matrix that identify what will be copied unchanged, modified only in the revised copy, disabled, or excluded.
+- [x] Maintainers can trace every considered prior asset to a fixed revision and capability without copying it. ([catalog](../runtime/source-capability-catalog.md#coverage-reconciliation))
 
-### Step 2 - Create the Isolated Revised Copy
+### Step 2 - Approve the Selective-Reuse and Exclusion Manifest
 
 Estimate:
 
@@ -88,17 +87,19 @@ Estimate:
 
 Tasks:
 
-- [ ] Copy the complete source-controlled prior AI-OPS runtime implementation into a distinct revised namespace before editing it.
-- [ ] Copy or reconnect its associated source-controlled tests, configuration templates, and documentation so the revised copy has an independently executable validation path.
-- [ ] Preserve history or record source-to-copy traceability so later reviewers can distinguish inherited behavior from revised changes.
-- [ ] Assign distinct repository directories, Ansible role/playbook/inventory identifiers, package/module names, runtime installation paths, service/unit names, runtime users, credential-profile names, SSH key names, audit locations, and MCP client registration names where applicable.
-- [ ] Do not copy live credentials, tokens, private keys, raw logs, raw audit events, runtime caches, generated secret material, or unredacted evidence.
-- [ ] Add a copy manifest that records source provenance and identifies copied components that are unchanged, modified, disabled, or excluded from revised activation.
-- [ ] Verify the copy operation produced no changes inside the prior source tree.
+- [x] Create a manifest with `candidate`, `selected-for-phase`, `reference-only`, and `excluded` dispositions. ([manifest](../runtime/selective-reuse-manifest.md#disposition-vocabulary))
+- [x] Require every `selected-for-phase` entry to name its current requirement, destination concept, dependency closure, required modifications, validation owner, and activation gate. ([manifest](../runtime/selective-reuse-manifest.md#selected-exact-paths))
+- [x] Record the initial Phase 03 candidates as the shared shell helper and the three project-level diagnostic scripts only. ([manifest](../runtime/selective-reuse-manifest.md#selected-exact-paths))
+- [x] Record the Phase 04 runner and registry as review candidates; require a revised minimal registry containing only accepted tools and revised paths. ([manifest](../runtime/selective-reuse-manifest.md#reference-only-paths))
+- [x] Record the Phase 07 local stdio MCP server, curated resources, policy template, and lifecycle behavior as review candidates; explicitly exclude the historical orchestrator-dependent bridge. ([manifest](../runtime/selective-reuse-manifest.md#deferred-candidates))
+- [x] Defer Neutron-agent and restricted-host assets to Phase 06 rather than importing them into the foundation. ([manifest](../runtime/selective-reuse-manifest.md#deferred-candidates))
+- [x] Explicitly exclude AI-client/provider gateway, orchestrator package/runtime, assistant/orchestrator/device-auth egress, wheelhouse build/transfer, remote acceptance, provider retirement, and their dedicated validation playbooks. ([manifest](../runtime/selective-reuse-manifest.md#explicit-exclusions))
+- [x] Exclude protected inventory values, generated state, caches, logs, raw audit data, credentials, and secret-bearing material regardless of source tracking. ([manifest](../runtime/selective-reuse-manifest.md#authority-and-default))
+- [x] Verify no destination source is created during manifest approval. ([manifest](../runtime/selective-reuse-manifest.md#non-activation-record))
 
 Done when:
 
-- [ ] A complete traceable source copy of the prior runtime implementation exists in the revised namespace, has an independent validation path, contains no copied secret-bearing runtime state, and can be changed without modifying or colliding with the prior implementation.
+- [x] The approved manifest is fail-closed, goal-aligned, and contains no whole-tree copy or path-parity requirement. ([manifest](../runtime/selective-reuse-manifest.md#manifest-consistency-requirements))
 
 ### Step 3 - Decide Revised Runtime Placement and Network Contract
 
@@ -111,17 +112,17 @@ Estimate:
 
 Tasks:
 
-- [ ] Record whether the assistant runs on the lab hypervisor, another routed machine, or another isolated placement.
-- [ ] Confirm the chosen host has no OpenStack control-plane role.
-- [ ] Define the initial reachable endpoint set, beginning with Keystone and adding Nova, Neutron, Cinder, Glance, or selected observability endpoints only as required.
-- [ ] Document denied or unnecessary network paths, including tenant-network access and inbound public service exposure.
-- [ ] Record the expected management-network route and endpoint verification method.
+- [x] Record whether the assistant runs on the lab hypervisor, another routed machine, or another isolated placement. ([placement contract](../runtime/runtime-placement-contract.md#placement-contract))
+- [ ] Confirm the chosen host has no OpenStack control-plane role and does not replace the historical assistant runtime. (Deferred to Step 4 inventory and host validation; protected inventory values were not read.)
+- [x] Define the initial reachable endpoint set, beginning with Keystone and adding endpoints only when a later accepted diagnostic requires them. ([placement contract](../runtime/runtime-placement-contract.md#initial-network-boundary))
+- [x] Document denied or unnecessary network paths, including tenant-network access, provider/model egress, and inbound public service exposure. ([placement contract](../runtime/runtime-placement-contract.md#initial-network-boundary))
+- [x] Record the expected management-network route and endpoint verification method. ([placement contract](../runtime/runtime-placement-contract.md#step-4-verification-and-rollback))
 
 Done when:
 
-- [ ] Runtime placement and first-milestone network reachability are explicit and independently reviewable.
+- [x] Runtime placement and first-milestone network reachability are explicit and independently reviewable. ([placement contract](../runtime/runtime-placement-contract.md#step-4-verification-and-rollback))
 
-### Step 4 - Provision the Revised Runtime Baseline
+### Step 4 - Create the Minimal Revised Runtime Foundation
 
 Estimate:
 
@@ -132,18 +133,19 @@ Estimate:
 
 Tasks:
 
-- [ ] Create or designate a revised assistant runtime that is distinct from the prior assistant runtime, using the copied automation as the starting point.
-- [ ] Modify copied provisioning only for documented revised gaps or namespace isolation.
-- [ ] Install or preserve Python, virtual-environment support, OpenStack CLI, OpenStack SDK, SSH client, curl, JSON tools, log-search tools, and Git as required by the revised baseline.
-- [ ] Pin or record versions needed for repeatable diagnostics.
-- [ ] Verify Keystone and selected endpoint TCP/HTTP reachability without installing credentials.
-- [ ] Ensure the runtime does not contain admin OpenStack credentials, root node keys, database credentials, RabbitMQ credentials, or unrestricted service credentials.
+- [ ] Create or designate a revised assistant host with a distinct inventory group, host identity, runtime root, user/group, profile name, audit root, and future MCP registration namespace.
+- [ ] Build minimal revised inventory and runtime setup automation from current requirements; use prior foundation files only as behavioral references, not whole-file copy authority.
+- [ ] Keep diagnostics, credentials, runner, MCP, provider, orchestrator, egress, wheelhouse, and host-observer activation absent from the foundation entrypoint.
+- [ ] Install only baseline packages justified for workspace management and later project-level diagnostics.
+- [ ] Pin or record versions needed for repeatability.
+- [ ] Verify Keystone reachability without installing credentials or starting an MCP listener/process.
+- [ ] Ensure the runtime contains no admin credentials, root node keys, database credentials, RabbitMQ credentials, provider credentials, or unrestricted service credentials.
 
 Done when:
 
-- [ ] The isolated runtime has the required tools and network path but no diagnostic authority yet.
+- [ ] The isolated runtime has a minimal workspace/tooling foundation and management path but no diagnostic authority or protocol automation.
 
-### Step 5 - Establish Revised Workspace, Ownership, and Evidence Conventions
+### Step 5 - Establish Workspace, Ownership, and Evidence Conventions
 
 Estimate:
 
@@ -154,17 +156,17 @@ Estimate:
 
 Tasks:
 
-- [ ] Create revised locations for approved implementations, diagnostic output, runbooks, credential profiles, audit events, tests, and future MCP configuration that cannot overlap the prior runtime’s locations.
-- [ ] Define distinct revised runtime users and minimal read/write permissions for each location.
+- [ ] Create distinct revised locations for future approved scripts, diagnostic output, credential profiles, audit events, tests, and local MCP configuration.
+- [ ] Define minimal read/write permissions for each location.
 - [ ] Keep credential and raw audit locations outside committed source material.
-- [ ] Define a redacted evidence format for endpoint checks, tool versions, permissions, and acceptance results.
-- [ ] Document foundation rollback by disconnecting or destroying the runtime and removing repository-managed state.
+- [ ] Define a redacted evidence format for endpoint checks, tool versions, permissions, reuse decisions, and acceptance results.
+- [ ] Document rollback by disconnecting or destroying the revised runtime and removing only revised repository-managed state.
 
 Done when:
 
 - [ ] A maintainer can identify where each artifact belongs, who may modify it, and what may be committed.
 
-### Step 6 - Verify Isolation and Existing Lab Compatibility
+### Step 6 - Verify Isolation, Exclusions, and Lab Compatibility
 
 Estimate:
 
@@ -175,40 +177,44 @@ Estimate:
 
 Tasks:
 
-- [ ] Compare the revised copy with its recorded source baseline and confirm every difference maps to namespace isolation or a documented revised-PRD gap.
-- [ ] Run the narrow existing inventory/configuration validation relevant to copied provisioning changes.
+- [ ] Verify every revised foundation file maps to a Phase 01 requirement and is not an unexplained prior-tree copy.
+- [ ] Verify excluded prior capability names and dependency imports are absent from the revised runtime foundation.
+- [ ] Run narrow inventory and syntax validation for the minimal revised setup entrypoint.
 - [ ] Confirm the prior AI-OPS source tree and deployed runtime remain unchanged and independently operable.
 - [ ] Confirm controller, compute, storage, Ceph, provider, tenant, and management network roles remain unchanged.
-- [ ] Confirm existing bootstrap, observability, and Molecule entry points are not replaced by the revised AI-OPS copy.
-- [ ] Capture unresolved endpoint, placement, copy, or automation decisions as explicit gates for the next phase.
+- [ ] Confirm existing bootstrap, observability, and Molecule entrypoints are not replaced.
+- [ ] Capture unresolved placement, namespace, endpoint, or package decisions as explicit gates for Phase 02.
 
 Done when:
 
-- [ ] The foundation fits beside the lab architecture without changing existing control-plane or deployment workflows.
+- [ ] The foundation fits beside the lab architecture, contains no excluded capability, and provides no executable diagnostic, runner, or MCP path.
 
 ## 01.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] Prior AI-OPS assets have recorded provenance and a revised-PRD copy/change classification.
-- [ ] A complete traceable source copy of the prior AI-OPS runtime implementation exists and the prior source tree remains unchanged.
-- [ ] Revised repository/runtime identifiers are distinct from the prior implementation.
-- [ ] No live secret, key, raw audit log, or secret-bearing runtime state was copied.
-- [ ] A separate revised assistant runtime exists or is explicitly designated, and it does not replace the prior runtime.
-- [ ] Keystone and selected management endpoint reachability are verified.
-- [ ] Baseline diagnostic tooling and workspace permissions are recorded.
-- [ ] No privileged credential or generic AI-facing execution capability is present.
+- [ ] Prior AI-OPS source has fixed provenance and a requirement-to-capability catalog.
+- [ ] A fail-closed selective-reuse manifest exists; complete-tree copying and path parity are explicitly rejected.
+- [ ] Provider, orchestrator, egress, device-auth, wheelhouse, remote-operation, and unrelated host-observer assets are explicitly excluded from the current product path.
+- [ ] No implementation asset is reused before its owning phase reviews dependencies and defines validation.
+- [ ] Minimal revised repository/runtime identifiers are distinct from the prior implementation.
+- [ ] No live secret, key, raw audit log, generated state, or secret-bearing material was copied.
+- [ ] A separate revised assistant runtime exists or is explicitly designated and does not replace the prior runtime.
+- [ ] Keystone management reachability is verified without diagnostic authority.
+- [ ] Workspace permissions and evidence conventions are recorded.
+- [ ] No diagnostic, generic execution, runner, MCP, provider, orchestrator, egress, or remote-operation capability is active.
 - [ ] Existing OpenStack Lab deployment and validation paths remain intact.
 
 ## 01.7 Risks
 
 | Risk | Mitigation |
 | ---- | ---------- |
-| Historical completion evidence hides revised gaps | Require a provenance and requirement-to-asset matrix, then rerun revised acceptance checks against the copy. |
-| Copy-first creates silent drift between two implementations | Record source provenance, maintain a copy manifest, and require every revised difference to map to isolation or a PRD gap. |
-| Revised paths or services collide with the prior runtime | Use distinct names for repository, automation, runtime, service, user, credential, key, audit, and MCP identifiers; test coexistence. |
-| Secret-bearing runtime state is copied accidentally | Copy source-controlled assets only and explicitly exclude credentials, keys, logs, caches, and unredacted evidence. |
+| Historical code is mistaken for current requirements | Require requirement, phase owner, dependency closure, and validation fields for every selected asset. |
+| Selective reuse omits a necessary helper | Discover dependency closure before selection and add it explicitly rather than widening to a directory copy. |
+| A small selected file imports excluded architecture | Scan imports, paths, service names, and call sites; reject or refactor the candidate within its owning phase. |
+| Revised foundation silently recreates the prior monolith | Require a minimal entrypoint and absence checks for diagnostics, runner, MCP, provider, orchestrator, egress, wheelhouse, and observer activation. |
+| Revised paths or services collide with the prior runtime | Use distinct repository, automation, runtime, user, credential, audit, and MCP identifiers; validate coexistence. |
+| Secret-bearing state is copied accidentally | Use path-level allowlisting and explicitly prohibit protected inventory, credentials, keys, logs, caches, and generated state. |
 | Runtime is placed too close to privileged services | Require explicit node-role and network-path review before credentials are installed. |
-| Manual setup drifts | Record versions and ownership, then add repeatable automation where stable. |
-| Existing AI/provider integration expands scope | Classify model integration separately and keep the revised runtime diagnostic-only. |
-| Endpoint access is broader than required | Start with Keystone and explicitly justify every additional route. |
+| Existing AI/provider integration expands scope | Exclude it from the manifest and require a new approved requirement before reconsideration. |
+| Endpoint access is broader than required | Start with Keystone and justify every later route from an accepted diagnostic. |

@@ -25,7 +25,7 @@ Included:
 
 * Select a supported MCP implementation and local stdio-first transport.
 * Mirror approved registry tools and argument schemas.
-* Start from the copied MCP implementation where it matches the revised contract and modify only documented gaps in the revised copy.
+* Evaluate the prior local stdio MCP server as a path-level reuse candidate; select or reimplement only the parts that match the revised contract and accepted runner.
 * Delegate all execution to the accepted revised runner/shared safety layer.
 * Expose curated read-only runbook, architecture, and safety resources.
 * Add repeatable project, server, metadata, network, and volume diagnostic prompts as appropriate.
@@ -40,10 +40,11 @@ Excluded:
 * Local LLM deployment.
 * Any tool not already trusted through the revised local runner.
 * Modifying or registering the prior MCP server/client configuration in place.
+* Reusing the historical orchestrator-dependent MCP bridge, remote-provider protocol, provider gateway, or egress stack.
 
 ## 07.4 Assumptions
 
-- [ ] The revised runner and desired revised-copy tools have passed local and deployed-lab validation.
+- [ ] The revised runner and desired selectively reused or newly implemented tools have passed local and deployed-lab validation.
 - [ ] Revised MCP package, process, service, client-registration, resource, prompt, log, and audit identifiers are distinct from the prior MCP integration.
 - [ ] The first selected AI client supports a local stdio MCP process or equivalent non-network integration.
 - [ ] MCP is an interface layer; the revised registry, validation, execution limits, credentials, and audit path remain authoritative.
@@ -64,7 +65,7 @@ Tasks:
 
 - [ ] Select a maintained MCP SDK/runtime compatible with the assistant host and repository language/tooling constraints.
 - [ ] Choose local stdio as the initial transport and confirm no TCP listener is required.
-- [ ] Compare the copied MCP implementation with the revised contract and record each required modification before editing.
+- [ ] Compare the prior local stdio MCP server, resources, policy, and lifecycle behavior with the revised contract; record the selected path-level dependency closure and every required modification before reuse.
 - [ ] Decide whether revised MCP invokes the revised runner process or calls a shared revised runner library while preserving one validation/execution implementation.
 - [ ] Define distinct revised process identity, environment, working directory, credential access, startup, shutdown, and crash behavior.
 - [ ] Record the first supported AI client and explicitly defer provider/model-specific expansion.
@@ -222,4 +223,4 @@ This phase is done when:
 | AI client logs sensitive results | Minimize/redact tool data and document client-log handling. |
 | Model integration expands into provider credential handling | Keep provider authentication outside repository diagnostic contracts and separately approved. |
 | Revised MCP collides with or modifies prior MCP registration | Use distinct process/client names and configuration locations; test both configurations independently. |
-| Copied MCP code drifts unnecessarily | Preserve compliant behavior unchanged and require every revised delta to map to isolation or a PRD gap. |
+| Selected MCP code imports historical orchestration or unrelated dependencies | Require a path-level dependency review; reject the orchestrator bridge and validate the stdio adapter directly against the revised runner. |

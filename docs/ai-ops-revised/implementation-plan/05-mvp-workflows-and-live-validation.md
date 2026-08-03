@@ -40,7 +40,7 @@ Excluded:
 
 ## 05.4 Assumptions
 
-- [ ] The three revised-copy MVP tools execute only through the accepted revised runner.
+- [ ] The three accepted revised MVP tools execute only through the accepted revised runner.
 - [ ] The revised runtime, runner, profile, audit location, and workflow identifiers are distinct from the prior AI-OPS runtime.
 - [ ] A deployed lab contains at least one representative project-visible server.
 - [ ] The operator can copy structured results into an approved AI client manually.

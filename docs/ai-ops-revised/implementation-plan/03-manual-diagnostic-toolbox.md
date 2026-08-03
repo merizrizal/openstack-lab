@@ -24,8 +24,8 @@ Total estimate:
 Included:
 
 * Define diagnostic implementation and output conventions.
-* Start from copied project-resource, server-basic, and server-network tools where available, preserving unchanged behavior that already satisfies the revised contract.
-* Modify only the revised copies where the gap map identifies a required contract or isolation change.
+* Evaluate the prior project-resource, server-basic, and server-network scripts as path-level reuse candidates, selecting only implementations and dependencies that satisfy the revised contract.
+* Adapt only selected paths where the phase review identifies a required contract or isolation change.
 * Validate user-supplied identifiers.
 * Prefer JSON OpenStack output and stable sectioned envelopes.
 * Add static forbidden-operation, syntax, parameter, and output-shape tests.
@@ -42,7 +42,7 @@ Excluded:
 ## 03.4 Assumptions
 
 - [ ] The fresh revised project-reader profile and its tested read matrix are available.
-- [ ] Copied diagnostic implementations are located only in the revised namespace; the prior scripts remain unchanged.
+- [ ] Selected or newly implemented diagnostics are located only in the revised namespace; prior scripts remain unchanged.
 - [ ] Shell scripts are acceptable for simple learning-oriented tools when they remain inspectable and testable.
 - [ ] Python/OpenStack SDK may be used where it materially improves structured behavior without enlarging authority.
 - [ ] Server names and IDs can use a deliberately narrow validation pattern.
@@ -60,7 +60,7 @@ Estimate:
 
 Tasks:
 
-- [ ] Compare each copied diagnostic with the revised contract and record whether no code change is needed or which exact gap requires modification.
+- [ ] Compare each prior diagnostic candidate with the revised contract, review its helper dependencies, and record whether to reuse, adapt, or implement it anew.
 - [ ] Define revised diagnostic names, intent, credential profile, parameters, output shape, expected errors, and mutation guarantee without colliding with prior runtime registrations.
 - [ ] Ban create, update, delete, start, stop, restart, install, edit, redirect-write, eval, generic shell, generic SSH, unrestricted sudo, database access, and raw OpenStack passthrough.
 - [ ] Require strict input validation before every external invocation.
@@ -216,6 +216,6 @@ This phase is done when:
 | Simple scripts become unsafe command builders | Centralize strict validation and prohibit pass-through arguments. |
 | CLI JSON varies by OpenStack release | Preserve raw structured fields, test deployed behavior, and use SDK code only where needed. |
 | Output leaks excessive topology or secrets | Scope fields, bound output, redact secret-like values, and retain only reviewed samples. |
-| Copied historical scripts differ from revised contracts | Modify only the revised copies for documented gaps and rerun all revised tests; never patch the prior scripts in place. |
-| Copied tools accidentally call prior runtime paths or profiles | Test revised implementation roots, profile names, and runtime paths explicitly. |
+| Selected historical scripts differ from revised contracts | Adapt only selected paths for documented requirements, rerun revised tests, and never patch prior scripts in place. |
+| Selected tools accidentally call prior runtime paths or profiles | Review dependency closure and test revised implementation roots, profile names, and runtime paths explicitly. |
 | Project policy blocks useful expansion | Report unavailable data and defer broader scope to Phase 06. |

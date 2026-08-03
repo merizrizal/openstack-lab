@@ -39,9 +39,9 @@ Excluded:
 
 ## 04.4 Assumptions
 
-- [ ] Initial revised-copy tools already pass manual safety and behavior validation.
-- [ ] The copied runner and registry live under revised identifiers and cannot load prior runtime paths, profiles, audit locations, or service configuration accidentally.
-- [ ] Prior runner and registry sources remain unchanged; runner changes are applied only to the revised copies for documented gaps.
+- [ ] Initial revised tools already pass manual safety and behavior validation.
+- [ ] Any selected or newly implemented runner and registry use revised identifiers and cannot load prior runtime paths, profiles, audit locations, or service configuration.
+- [ ] Prior runner and registry sources remain unchanged; selected runner behavior is adapted only in the revised implementation for documented requirements.
 - [ ] A local CLI is sufficient for the first automated execution workflow.
 - [ ] The revised registry is the single source of truth for revised public tool capabilities.
 - [ ] The runner can use the project’s existing Python testing and linting conventions where practical.
@@ -59,7 +59,7 @@ Estimate:
 
 Tasks:
 
-- [ ] Compare the copied runner/registry contract with the revised PRD and record each required modification before editing.
+- [ ] Compare the prior runner candidate with the revised PRD, select its required dependency closure, and derive a minimal revised registry containing only accepted tools.
 - [ ] Define required fields for name, description, revised implementation target, revised credential profile, risk class, timeout, output limit, and mutation guarantee.
 - [ ] Define parameter constraints for required/optional values, types, patterns, ranges, bounded time windows, and exact allowlists.
 - [ ] Register only project resource summary, server basic info, and server network info initially.
@@ -105,7 +105,7 @@ Tasks:
 - [ ] Build the child-process argument vector solely from trusted implementation metadata and validated parameter values.
 - [ ] Disable shell-string execution and reject configurations that require it.
 - [ ] Set an explicit minimal environment and selected revised credential profile per tool.
-- [ ] Use a controlled revised working directory and prohibit user-selected, copied-prior-runtime, executable, or file paths.
+- [ ] Use a controlled revised working directory and prohibit user-selected, historical-runtime, executable, or file paths.
 - [ ] Prevent inherited admin credentials or unrelated environment secrets from reaching child processes.
 
 Done when:
@@ -216,7 +216,7 @@ This phase is done when:
 | ---- | ---------- |
 | Registry becomes a disguised command catalog | Restrict schema to reviewed implementations and the trusted revised deployment root. |
 | Revised runner silently executes prior-runtime tools or profiles | Give all roots and profiles distinct identifiers and add negative tests for prior-runtime references. |
-| Copy-first modifications drift without justification | Record each runner/registry delta against the revised PRD and leave compliant copied behavior unchanged. |
+| Selected runner code imports unwanted historical behavior | Review dependency closure, derive a minimal registry, and map every reused behavior to a revised requirement and test. |
 | Validation misses command injection | Combine strict allowlists with shell-free argument-vector execution. |
 | Child processes inherit privileged environment | Build an explicit minimal environment and select one declared credential profile. |
 | Timeout leaves orphan processes | Manage process groups and test cleanup with a controlled slow fixture. |
