@@ -50,24 +50,6 @@ ceph01:
     - size: 300
       name: vdb
 
-assistant01:
-  environment: assistant
-  mgmtnet_ip_address: 192.168.121.20
-  provider_ip_address: 192.168.123.20
-  hostname: assistant01.local
-  memory: 4096
-  cpus: 2
-  disks: 25
-
-builder01:
-  environment: builder
-  mgmtnet_ip_address: 192.168.121.71
-  provider_ip_address: 192.168.123.71
-  hostname: builder01.local
-  memory: 2048
-  cpus: 2
-  disks: 20
-
 # ceph02:
 #   environment: ceph
 #   mgmtnet_ip_address: 192.168.121.10
@@ -92,11 +74,29 @@ builder01:
 #     - size: 200
 #       name: vdb
 
-dummy01:
-  environment: dummy
-  mgmtnet_ip_address: 192.168.121.70
-  provider_ip_address: 192.168.123.70
-  hostname: dummy01.local
-  memory: 2048
+assistant01:
+  environment: assistant
+  mgmtnet_ip_address: 192.168.121.20
+  provider_ip_address: 192.168.123.20
+  hostname: assistant01.local
+  memory: 4096
   cpus: 2
-  disks: 20
+  disks: 25
+
+# builder01:
+#   environment: builder
+#   mgmtnet_ip_address: 192.168.121.71
+#   provider_ip_address: 192.168.123.71
+#   hostname: builder01.local
+#   memory: 2048
+#   cpus: 2
+#   disks: 20
+
+# dummy01:
+#   environment: dummy
+#   mgmtnet_ip_address: 192.168.121.70
+#   provider_ip_address: 192.168.123.70
+#   hostname: dummy01.local
+#   memory: 2048
+#   cpus: 2
+#   disks: 20

@@ -1,0 +1,3 @@
+---
+- name: Pre-setup
+  ansible.builtin.import_playbook: playbook_pre_setup.yml
