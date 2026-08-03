@@ -179,7 +179,7 @@ Tasks:
 
 - [ ] Verify every revised foundation file maps to a Phase 01 requirement and is not an unexplained prior-tree copy.
 - [ ] Verify excluded prior capability names and dependency imports are absent from the revised runtime foundation.
-- [ ] Run narrow inventory and syntax validation for the minimal revised setup entrypoint.
+- [x] Run narrow inventory and syntax validation for the minimal revised setup entrypoint. (Revised inventory graph and isolated Ansible syntax checks passed; no host connection occurred.)
 - [ ] Confirm the prior AI-OPS source tree and deployed runtime remain unchanged and independently operable.
 - [ ] Confirm controller, compute, storage, Ceph, provider, tenant, and management network roles remain unchanged.
 - [ ] Confirm existing bootstrap, observability, and Molecule entrypoints are not replaced.

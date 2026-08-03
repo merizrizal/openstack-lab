@@ -1,0 +1,129 @@
+---
+- name: Validate revised foundation contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_foundation_enabled is boolean
+      - ai_ops_assistant_foundation_validation_mode is boolean
+      - >-
+        ai_ops_assistant_foundation_runtime_root ==
+        '/opt/openstack-ai-ops-assistant'
+      - ai_ops_assistant_foundation_runtime_user == 'aiops_assistant'
+      - ai_ops_assistant_foundation_runtime_group == 'aiops_assistant'
+      - >-
+        ai_ops_assistant_foundation_profile_name ==
+        'aiops-assistant-project-reader'
+      - >-
+        ai_ops_assistant_foundation_audit_root ==
+        ai_ops_assistant_foundation_runtime_root + '/audit'
+      - >-
+        ai_ops_assistant_foundation_workspaces |
+        map(attribute='path') | list == [
+        '/opt/openstack-ai-ops-assistant',
+        '/opt/openstack-ai-ops-assistant/scripts/approved',
+        '/opt/openstack-ai-ops-assistant/output',
+        '/opt/openstack-ai-ops-assistant/credentials',
+        '/opt/openstack-ai-ops-assistant/audit',
+        '/opt/openstack-ai-ops-assistant/tests',
+        '/opt/openstack-ai-ops-assistant/mcp',
+        '/opt/openstack-ai-ops-assistant/evidence/foundation'
+        ]
+      - >-
+        ai_ops_assistant_foundation_workspaces |
+        map(attribute='mode') | list == [
+        '0750', '0750', '0750', '0700', '0700', '0750', '0700', '0750'
+        ]
+      - >-
+        ai_ops_assistant_foundation_workspaces |
+        map(attribute='owner') | list == [
+        'root', 'root', 'aiops_assistant', 'aiops_assistant',
+        'aiops_assistant', 'root', 'aiops_assistant', 'root'
+        ]
+      - >-
+        ai_ops_assistant_foundation_workspaces |
+        map(attribute='group') | list == [
+        'aiops_assistant', 'aiops_assistant', 'aiops_assistant',
+        'aiops_assistant', 'aiops_assistant', 'aiops_assistant',
+        'aiops_assistant', 'aiops_assistant'
+        ]
+      - >-
+        ai_ops_assistant_foundation_packages |
+        map(attribute='name') | list == [
+        'python3', 'python3-venv', 'python3-openstackclient',
+        'python3-openstacksdk', 'openssh-client', 'curl', 'jq', 'ripgrep', 'git'
+        ]
+      - >-
+        ai_ops_assistant_foundation_packages |
+        map(attribute='capability') | list == [
+        'Python', 'Python', 'OpenStack CLI', 'OpenStack SDK', 'SSH client',
+        'HTTP/TCP tooling', 'JSON tooling', 'Log-search tooling',
+        'Version-control tooling'
+        ]
+    quiet: true
+
+- name: Assert workspace paths stay within the revised root
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.path == ai_ops_assistant_foundation_runtime_root or
+        item.path.startswith(ai_ops_assistant_foundation_runtime_root + '/')
+      - "'..' not in item.path.split('/')"
+    quiet: true
+  loop: "{{ ai_ops_assistant_foundation_workspaces }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Ensure foundation system group is present
+  ansible.builtin.group:
+    name: "{{ ai_ops_assistant_foundation_runtime_group }}"
+    state: present
+    system: true
+  when: ai_ops_assistant_foundation_enabled | bool
+
+- name: Ensure foundation system user is present
+  ansible.builtin.user:
+    name: "{{ ai_ops_assistant_foundation_runtime_user }}"
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
+    state: present
+    system: true
+    create_home: false
+    password_lock: true
+    shell: /usr/sbin/nologin
+  when: ai_ops_assistant_foundation_enabled | bool
+
+- name: Ensure approved foundation workspaces are present
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    recurse: false
+  loop: "{{ ai_ops_assistant_foundation_workspaces }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: ai_ops_assistant_foundation_enabled | bool
+
+- name: Ensure approved foundation packages are present
+  ansible.builtin.package:
+    name: "{{ ai_ops_assistant_foundation_packages | map(attribute='name') | list }}"
+    state: present
+  when: ai_ops_assistant_foundation_enabled | bool
+
+- name: Gather approved foundation package facts
+  ansible.builtin.package_facts:
+    manager: auto
+  when: ai_ops_assistant_foundation_enabled | bool
+
+- name: Record redacted approved foundation package versions
+  ansible.builtin.set_fact:
+    ai_ops_assistant_foundation_resolved_package_versions: >-
+      {{ ai_ops_assistant_foundation_resolved_package_versions | default({}) |
+      combine({item.name: ansible_facts.packages[item.name] |
+      map(attribute='version') | list}) }}
+  loop: "{{ ai_ops_assistant_foundation_packages }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+  when:
+    - ai_ops_assistant_foundation_enabled | bool
+    - item.name in ansible_facts.packages

@@ -1,0 +1,151 @@
+---
+- name: Validate AI-OPS foundation
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - roles/ai_ops_assistant_foundation/defaults/main.yml
+  tasks:
+    - name: Assert revised validation target and endpoint scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - >-
+            group_names | intersect([
+            'assistant', 'wheelhouse_builders', 'ai_ops_host_observers',
+            'controller', 'compute', 'storage', 'ceph', 'database',
+            'message_bus', 'observability'
+            ]) | length == 0
+          - >-
+            ai_ops_assistant_keystone_endpoint ==
+            'http://192.168.121.5:5000/v3'
+        quiet: true
+      changed_when: false
+
+    - name: Inspect foundation workspace metadata
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ ai_ops_assistant_foundation_workspaces }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: ai_ops_assistant_foundation_workspace_metadata
+      changed_when: false
+
+    - name: Assert foundation workspace metadata
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isdir
+          - item.stat.pw_name == item.item.owner
+          - item.stat.gr_name == item.item.group
+          - item.stat.mode == item.item.mode
+        quiet: true
+      loop: "{{ ai_ops_assistant_foundation_workspace_metadata.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      changed_when: false
+
+    - name: Gather approved foundation package facts
+      ansible.builtin.package_facts:
+        manager: auto
+      changed_when: false
+
+    - name: Assert approved foundation packages are installed
+      ansible.builtin.assert:
+        that:
+          - item.name in ansible_facts.packages
+          - ansible_facts.packages[item.name] | length > 0
+        quiet: true
+      loop: "{{ ai_ops_assistant_foundation_packages }}"
+      loop_control:
+        label: "{{ item.name }}"
+      changed_when: false
+
+    - name: Record redacted approved foundation package versions
+      ansible.builtin.set_fact:
+        ai_ops_assistant_foundation_resolved_package_versions: >-
+          {{ ai_ops_assistant_foundation_resolved_package_versions | default({}) |
+          combine({item.name: ansible_facts.packages[item.name] |
+          map(attribute='version') | list}) }}
+      loop: "{{ ai_ops_assistant_foundation_packages }}"
+      loop_control:
+        label: "{{ item.name }}"
+      no_log: true
+      changed_when: false
+
+    - name: Gather service facts for excluded capability validation
+      ansible.builtin.service_facts:
+      changed_when: false
+
+    - name: Assert excluded AI-OPS services are absent
+      ansible.builtin.assert:
+        that:
+          - >-
+            ansible_facts.services.keys() | select(
+            'search', 'ai_ops|aiops|mcp|orchestrator|provider|runner'
+            ) | list | length == 0
+        quiet: true
+      changed_when: false
+
+    - name: Inspect excluded AI-OPS processes without logging output
+      ansible.builtin.command:
+        argv:
+          - pgrep
+          - -af
+          - ai_ops|aiops|mcp|orchestrator|provider|runner
+      register: ai_ops_assistant_foundation_excluded_processes
+      failed_when: ai_ops_assistant_foundation_excluded_processes.rc not in [0, 1]
+      changed_when: false
+      no_log: true
+
+    - name: Assert excluded AI-OPS processes are absent
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_foundation_excluded_processes.rc == 1
+        quiet: true
+      changed_when: false
+
+    - name: Inspect listening processes without logging output
+      ansible.builtin.command:
+        argv:
+          - ss
+          - -ltnp
+      register: ai_ops_assistant_foundation_listeners
+      failed_when: ai_ops_assistant_foundation_listeners.rc != 0
+      changed_when: false
+      no_log: true
+
+    - name: Assert excluded AI-OPS listeners are absent
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_assistant_foundation_listeners.stdout is not search(
+            'ai_ops|aiops|mcp|orchestrator|provider|runner'
+            )
+        quiet: true
+      changed_when: false
+
+    - name: Verify Keystone TCP reachability without authentication
+      ansible.builtin.wait_for:
+        host: >-
+          {{ ai_ops_assistant_keystone_endpoint |
+          regex_replace('^https?://([^/:]+):[0-9]+/.*$', '\\1') }}
+        port: >-
+          {{ ai_ops_assistant_keystone_endpoint |
+          regex_replace('^https?://[^/:]+:([0-9]+)/.*$', '\\1') | int }}
+        connect_timeout: 5
+        timeout: 5
+        state: started
+      changed_when: false
+
+    - name: Report redacted foundation validation status
+      ansible.builtin.debug:
+        msg:
+          host_label: assistant02
+          group_label: ai_ops_assistant
+          workspace_metadata_verified: true
+          approved_package_versions_recorded: true
+          excluded_services_and_processes_absent: true
+          keystone_tcp_reachable: true
+      changed_when: false
