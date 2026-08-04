@@ -1,0 +1,175 @@
+---
+- name: Validate AI-OPS project-reader profile
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - >-
+      {{ lookup('ansible.builtin.env', 'ROOT_DIR') |
+      default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_project_reader_runtime_user: aiops_assistant
+    ai_ops_assistant_project_reader_runtime_group: aiops_assistant
+    ai_ops_assistant_project_reader_profile_directory: /opt/openstack-ai-ops-assistant/credentials/profiles
+    ai_ops_assistant_project_reader_profile_name: aiops-assistant-project-reader
+    ai_ops_assistant_project_reader_profile_directory_mode: "0700"
+    ai_ops_assistant_project_reader_profile_file_mode: "0600"
+    ai_ops_assistant_project_reader_profile_filenames:
+      - clouds.yaml
+      - secure.yaml
+    ai_ops_assistant_project_reader_operations:
+      - label: token_issuance_and_project_scope
+        accepts_empty: false
+        argv:
+          - openstack
+          - --os-cloud
+          - aiops-assistant-project-reader
+          - token
+          - issue
+          - -f
+          - value
+          - -c
+          - id
+      - label: server_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, server, list, -f, value]
+      - label: network_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, network, list, -f, value]
+      - label: subnet_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, subnet, list, -f, value]
+      - label: port_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, port, list, -f, value]
+      - label: volume_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, volume, list, -f, value]
+      - label: image_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, image, list, -f, value]
+      - label: security_group_list
+        accepts_empty: true
+        argv: [openstack, --os-cloud, aiops-assistant-project-reader, security, group, list, -f, value]
+  pre_tasks:
+    - name: Assert project-reader validation scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Inspect protected project-reader profile directory metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_project_reader_profile_directory }}"
+        follow: false
+      register: ai_ops_assistant_project_reader_profile_directory_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected project-reader profile directory metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_project_reader_profile_directory_metadata.stat.exists
+          - ai_ops_assistant_project_reader_profile_directory_metadata.stat.isdir
+          - not ai_ops_assistant_project_reader_profile_directory_metadata.stat.islnk
+          - >-
+            ai_ops_assistant_project_reader_profile_directory_metadata.stat.pw_name ==
+            ai_ops_assistant_project_reader_runtime_user
+          - >-
+            ai_ops_assistant_project_reader_profile_directory_metadata.stat.gr_name ==
+            ai_ops_assistant_project_reader_runtime_group
+          - >-
+            ai_ops_assistant_project_reader_profile_directory_metadata.stat.mode ==
+            ai_ops_assistant_project_reader_profile_directory_mode
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Inspect protected project-reader profile metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_project_reader_profile_directory }}/{{ item }}"
+        follow: false
+      loop: "{{ ai_ops_assistant_project_reader_profile_filenames }}"
+      loop_control:
+        label: "{{ item }}"
+      register: ai_ops_assistant_project_reader_profile_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected project-reader profile metadata
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.pw_name == ai_ops_assistant_project_reader_runtime_user
+          - item.stat.gr_name == ai_ops_assistant_project_reader_runtime_group
+          - item.stat.mode == ai_ops_assistant_project_reader_profile_file_mode
+        quiet: true
+      loop: "{{ ai_ops_assistant_project_reader_profile_metadata.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      changed_when: false
+      no_log: true
+
+  tasks:
+    - name: Run fixed project-reader authentication and read operations
+      ansible.builtin.command:
+        argv: "{{ item.argv }}"
+      environment:
+        OS_CLIENT_CONFIG_FILE: "{{ ai_ops_assistant_project_reader_profile_directory }}/clouds.yaml"
+        OS_CLOUD: "{{ ai_ops_assistant_project_reader_profile_name }}"
+      become: true
+      become_user: "{{ ai_ops_assistant_project_reader_runtime_user }}"
+      loop: "{{ ai_ops_assistant_project_reader_operations }}"
+      loop_control:
+        label: "{{ item.label }}"
+      register: ai_ops_assistant_project_reader_raw_results
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Normalize project-reader operation outcomes
+      ansible.builtin.set_fact:
+        ai_ops_assistant_project_reader_outcomes: >-
+          {{ ai_ops_assistant_project_reader_outcomes | default([]) + [{
+            'operation': item.item.label,
+            'result': (
+              'pass' if item.rc == 0 and (not item.item.accepts_empty or
+              item.stdout | trim | length > 0) else
+              'empty' if item.rc == 0 else
+              'policy_denied' if item.stderr | lower is search('forbidden|http.*403') else
+              'service_unavailable' if item.stderr | lower is search('service unavailable|http.*503') else
+              'catalog_missing' if item.stderr | lower is search('service catalog|endpoint not found') else
+              'connectivity_error' if item.stderr | lower is search('connection refused|timed out|could not resolve|name or service not known|unreachable') else
+              'authentication_error' if item.stderr | lower is search('authentication|unauthorized|invalid credential|token') else
+              'configuration_error'
+            )
+          }] }}
+      loop: "{{ ai_ops_assistant_project_reader_raw_results.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+      changed_when: false
+      no_log: true
+
+    - name: Report normalized project-reader outcomes
+      ansible.builtin.debug:
+        msg: "{{ ai_ops_assistant_project_reader_outcomes }}"
+      changed_when: false
+
+    - name: Assert required project-reader operations passed or were approved empty
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_assistant_project_reader_outcomes |
+            map(attribute='result') |
+            difference(['pass', 'empty']) |
+            list | length == 0
+        quiet: true
+      changed_when: false
+      no_log: true

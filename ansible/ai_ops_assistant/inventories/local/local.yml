@@ -1,0 +1,11 @@
+---
+lab:
+  vars:
+    root_dir: >-
+      {{ lookup('ansible.builtin.env', 'ROOT_DIR') | default(playbook_dir | dirname | dirname, true) }}
+    target_env: local
+  children:
+    ai_ops_assistant:
+      hosts:
+        assistant02:
+          ansible_host: "{{ assistant02.mgmtnet_ip_address }}"

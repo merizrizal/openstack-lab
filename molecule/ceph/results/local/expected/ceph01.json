@@ -17,27 +17,18 @@
         "mgmtnet_ip_address": "192.168.121.20",
         "provider_ip_address": "192.168.123.20"
     },
-    "builder01": {
+    "assistant02": {
         "cpus": 2,
-        "disks": 20,
-        "environment": "builder",
-        "hostname": "builder01.local",
-        "memory": 2048,
-        "mgmtnet_ip_address": "192.168.121.71",
-        "provider_ip_address": "192.168.123.71"
+        "disks": 25,
+        "environment": "assistant",
+        "hostname": "assistant02.local",
+        "memory": 4096,
+        "mgmtnet_ip_address": "192.168.121.21",
+        "provider_ip_address": "192.168.123.21"
     },
     "ceph_admin_password": "adminpass",
     "ceph_admin_user": "admin",
     "ceph_common_nodes": [],
-    "dummy01": {
-        "cpus": 2,
-        "disks": 20,
-        "environment": "dummy",
-        "hostname": "dummy01.local",
-        "memory": 2048,
-        "mgmtnet_ip_address": "192.168.121.70",
-        "provider_ip_address": "192.168.123.70"
-    },
     "group_names": [
         "ceph_adm",
         "lab"

@@ -1,0 +1,48 @@
+---
+- name: Deploy protected AI-OPS identity profile
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - >-
+      {{ lookup('ansible.builtin.env', 'ROOT_DIR') |
+      default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml
+  vars:
+    ai_ops_assistant_identity_boundary_forbidden_environment_variables:
+      - OS_AUTH_URL
+      - OS_USERNAME
+      - OS_PASSWORD
+      - OS_PROJECT_ID
+      - OS_PROJECT_NAME
+      - OS_TOKEN
+      - OS_CLOUD
+      - OS_CLIENT_CONFIG_FILE
+      - OS_APPLICATION_CREDENTIAL_ID
+      - OS_APPLICATION_CREDENTIAL_SECRET
+  pre_tasks:
+    - name: Assert revised identity-profile deployment scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Assert controller has no ambient OpenStack credentials
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', item, default='') | length == 0
+        quiet: true
+      loop: "{{ ai_ops_assistant_identity_boundary_forbidden_environment_variables }}"
+      loop_control:
+        label: "{{ item }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+  roles:
+    - role: ai_ops_assistant_identity_boundary
+      vars:
+        ai_ops_assistant_identity_boundary_enabled: true

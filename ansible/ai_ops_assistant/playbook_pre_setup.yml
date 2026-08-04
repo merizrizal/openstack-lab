@@ -1,0 +1,8 @@
+---
+- name: Deploy AI-OPS foundation
+  hosts: ai_ops_assistant
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: ai_ops_assistant_foundation
