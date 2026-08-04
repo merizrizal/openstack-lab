@@ -8,5 +8,4 @@ lab:
     ai_ops_assistant:
       hosts:
         assistant02:
-          ansible_host: >-
-            {{ assistant02.mgmtnet_ip_address }}
+          ansible_host: "{{ assistant02.mgmtnet_ip_address }}"
