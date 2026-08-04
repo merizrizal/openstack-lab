@@ -113,6 +113,21 @@ operator system. It owns postcondition verification, restoration, and cleanup.
 | Update | Disposable security group A description | Conclusive authorization denial; baseline remains unchanged. |
 | Delete | Separate disposable security group B | Conclusive authorization denial; target still exists. |
 
+### Controlled Invocation Inputs
+
+The administrator supplies non-secret runtime values through its approved
+operator procedure; values and identifiers must not be retained in Git, shell
+history, console output, or evidence. For a run ID `<run-id>`, the update target
+must be named `aiops-deny-<run-id>-update`, its externally recorded baseline
+description must be `ai-ops phase02 baseline <run-id>`, and the separate delete
+target must be named `aiops-deny-<run-id>-delete`. The fixed update request sets
+the update target description to `ai-ops phase02 update-denial <run-id>`.
+
+The validation play rejects any other target or baseline input before running a
+CLI command. It reports normalized results only; the administrator records the
+baseline and verifies, out of band, that the update target remains unchanged and
+the delete target still exists.
+
 Run probes in create, update, then delete order. A conclusive denial requires a
 non-zero CLI result plus the installed client's approved explicit HTTP `403` or
 `Forbidden` signature and the administrator-owned postcondition check. A `404`,
@@ -141,6 +156,22 @@ status, and unresolved gates.
 It must not retain credential values or IDs, tokens, passwords, private keys,
 profile content, checksums, command arguments, stdout, stderr, resource payloads,
 resource identifiers, addresses, catalog data, or response bodies.
+
+## Lifecycle Rehearsal Status
+
+The approved lifecycle rehearsal is accepted in outcome-only form. The protected
+replacement profile deployment and its identical rerun completed with no changes;
+the required project-reader authentication and read matrix accepted only `pass`
+or approved `empty` results. The prior approved mutation-denial matrix retained
+only conclusive denial outcomes and administrator-confirmed postconditions.
+
+The OpenStack administrator confirmed that the superseded credential was revoked
+and that a no-log authentication attempt with it failed. No credential value,
+identifier, profile content, command argument, or raw output is retained here.
+Operator-reader remains unavailable. Transient-source removal and any stale
+runtime-local profile removal remain administrator-owned actions and must be
+recorded only in approved external outcome-only evidence before operational
+closure.
 
 ## Historical Reuse and Rollback
 

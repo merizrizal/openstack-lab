@@ -178,12 +178,12 @@ Done when:
 
 This phase is done when:
 
-- [ ] A fresh, distinctly named, protected revised project-reader profile authenticates successfully without using prior runtime credential material.
-- [ ] Required project-resource reads pass or have explicit accepted limitations.
-- [ ] Representative create, update, and delete operations fail authorization checks.
+- [x] A fresh, distinctly named, protected revised project-reader profile authenticates successfully without using prior runtime credential material.
+- [x] Required project-resource reads pass or have explicit accepted limitations.
+- [x] Representative create, update, and delete operations fail authorization checks.
 - [ ] No human admin, root, database, RabbitMQ, or unrestricted service credential is available to AI-OPS.
-- [ ] Credential metadata, policy behavior, rotation, and revocation are documented.
-- [ ] Operator-reader remains separate and unavailable by default.
+- [x] Credential metadata, policy behavior, rotation, and revocation are documented.
+- [x] Operator-reader remains separate and unavailable by default.
 
 ## 02.7 Risks
 

@@ -1,0 +1,267 @@
+---
+- name: Validate AI-OPS mutation denial
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - >-
+      {{ lookup('ansible.builtin.env', 'ROOT_DIR') |
+      default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_mutation_runtime_user: aiops_assistant
+    ai_ops_assistant_mutation_profile_directory: /opt/openstack-ai-ops-assistant/credentials/profiles
+    ai_ops_assistant_mutation_profile_name: aiops-assistant-project-reader
+    ai_ops_assistant_mutation_run_id: ""
+    ai_ops_assistant_mutation_target_prefix: aiops-deny-
+    ai_ops_assistant_mutation_update_target_name: ""
+    ai_ops_assistant_mutation_delete_target_name: ""
+    ai_ops_assistant_mutation_update_baseline_description: ""
+  pre_tasks:
+    - name: Assert mutation-denial validation scope and disposable targets
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+          - ai_ops_assistant_mutation_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_mutation_update_target_name == ai_ops_assistant_mutation_target_prefix ~ ai_ops_assistant_mutation_run_id ~ '-update'
+          - ai_ops_assistant_mutation_delete_target_name == ai_ops_assistant_mutation_target_prefix ~ ai_ops_assistant_mutation_run_id ~ '-delete'
+          - ai_ops_assistant_mutation_update_baseline_description == 'ai-ops phase02 baseline ' ~ ai_ops_assistant_mutation_run_id
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Inspect protected project-reader profile metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mutation_profile_directory }}/{{ item }}"
+        follow: false
+      loop:
+        - clouds.yaml
+        - secure.yaml
+      loop_control:
+        label: "{{ item }}"
+      register: ai_ops_assistant_mutation_profile_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected project-reader profile metadata
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.pw_name == ai_ops_assistant_mutation_runtime_user
+          - item.stat.gr_name == ai_ops_assistant_mutation_runtime_user
+          - item.stat.mode == '0600'
+        quiet: true
+      loop: "{{ ai_ops_assistant_mutation_profile_metadata.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      changed_when: false
+      no_log: true
+
+  tasks:
+    - name: Run fixed project-reader security-group create denial probe
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - --os-cloud
+          - aiops-assistant-project-reader
+          - security
+          - group
+          - create
+          - --description
+          - "ai-ops phase02 create-denial {{ ai_ops_assistant_mutation_run_id }}"
+          - "{{ ai_ops_assistant_mutation_target_prefix }}{{ ai_ops_assistant_mutation_run_id }}"
+      environment:
+        OS_CLIENT_CONFIG_FILE: "{{ ai_ops_assistant_mutation_profile_directory }}/clouds.yaml"
+        OS_CLOUD: "{{ ai_ops_assistant_mutation_profile_name }}"
+      become: true
+      become_user: "{{ ai_ops_assistant_mutation_runtime_user }}"
+      register: ai_ops_assistant_mutation_create_raw_result
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Stop and require administrator revocation if create was allowed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mutation_create_raw_result.rc != 0
+        fail_msg: >-
+          ERR_MUTATION_CREATE_ALLOWED: stop all probes; the OpenStack admin team
+          must revoke the credential immediately and verify/clean up externally.
+        quiet: true
+      changed_when: false
+
+    - name: Normalize create-denial outcome
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mutation_create_outcome:
+          operation: security_group_create
+          result: >-
+            {{
+              'policy_denied' if ai_ops_assistant_mutation_create_raw_result.stderr | lower is search('forbidden|http.*403') else
+              'service_unavailable' if ai_ops_assistant_mutation_create_raw_result.stderr | lower is search('service unavailable|http.*503') else
+              'catalog_missing' if ai_ops_assistant_mutation_create_raw_result.stderr | lower is search('service catalog|endpoint not found') else
+              'connectivity_error' if ai_ops_assistant_mutation_create_raw_result.stderr | lower is search('connection refused|timed out|could not resolve|name or
+            service not known|unreachable') else
+              'authentication_error' if ai_ops_assistant_mutation_create_raw_result.stderr | lower is search('authentication|unauthorized|invalid credential|token')
+            else
+              'configuration_error'
+            }}
+          authorization_denied: >-
+            {{ ai_ops_assistant_mutation_create_raw_result.stderr | lower is search('forbidden|http.*403') }}
+          administrator_postcondition_required: true
+      changed_when: false
+      no_log: true
+
+    - name: Report normalized create-denial outcome
+      ansible.builtin.debug:
+        msg: "{{ ai_ops_assistant_mutation_create_outcome }}"
+      changed_when: false
+
+    - name: Assert create denial was conclusive
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mutation_create_outcome.result == 'policy_denied'
+          - ai_ops_assistant_mutation_create_outcome.authorization_denied | bool
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Run fixed project-reader security-group update denial probe
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - --os-cloud
+          - aiops-assistant-project-reader
+          - security
+          - group
+          - set
+          - --description
+          - "ai-ops phase02 update-denial {{ ai_ops_assistant_mutation_run_id }}"
+          - "{{ ai_ops_assistant_mutation_update_target_name }}"
+      environment:
+        OS_CLIENT_CONFIG_FILE: "{{ ai_ops_assistant_mutation_profile_directory }}/clouds.yaml"
+        OS_CLOUD: "{{ ai_ops_assistant_mutation_profile_name }}"
+      become: true
+      become_user: "{{ ai_ops_assistant_mutation_runtime_user }}"
+      register: ai_ops_assistant_mutation_update_raw_result
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Stop and require administrator revocation if update was allowed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mutation_update_raw_result.rc != 0
+        fail_msg: >-
+          ERR_MUTATION_UPDATE_ALLOWED: stop all probes; the OpenStack admin team
+          must revoke the credential immediately and verify/restore externally.
+        quiet: true
+      changed_when: false
+
+    - name: Normalize update-denial outcome
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mutation_update_outcome:
+          operation: security_group_update
+          result: >-
+            {{
+              'policy_denied' if (ai_ops_assistant_mutation_update_raw_result.stderr | default('') ~ '\n' ~ ai_ops_assistant_mutation_update_raw_result.stdout | default(''))
+            | lower is search('forbidden|http.*403') else
+              'service_unavailable' if (ai_ops_assistant_mutation_update_raw_result.stderr | default('') ~ '\n' ~ ai_ops_assistant_mutation_update_raw_result.stdout
+            | default('')) | lower is search('service unavailable|http.*503') else
+              'catalog_missing' if (ai_ops_assistant_mutation_update_raw_result.stderr | default('') ~ '\n' ~ ai_ops_assistant_mutation_update_raw_result.stdout |
+            default('')) | lower is search('service catalog|endpoint not found') else
+              'connectivity_error' if (ai_ops_assistant_mutation_update_raw_result.stderr | default('') ~ '\n' ~ ai_ops_assistant_mutation_update_raw_result.stdout
+            | default('')) | lower is search('connection refused|timed out|could not resolve|name or service not known|unreachable') else
+              'authentication_error' if (ai_ops_assistant_mutation_update_raw_result.stderr | default('') ~ '\n' ~ ai_ops_assistant_mutation_update_raw_result.stdout
+            | default('')) | lower is search('authentication|unauthorized|invalid credential|token') else
+              'configuration_error'
+            }}
+          authorization_denied: >-
+            {{ (ai_ops_assistant_mutation_update_raw_result.stderr | default('') ~ '\n' ~ ai_ops_assistant_mutation_update_raw_result.stdout | default('')) | lower
+            is search('forbidden|http.*403') }}
+          administrator_postcondition_required: true
+      changed_when: false
+      no_log: true
+
+    - name: Report normalized update-denial outcome
+      ansible.builtin.debug:
+        msg: "{{ ai_ops_assistant_mutation_update_outcome }}"
+      changed_when: false
+
+    - name: Assert update denial was conclusive
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mutation_update_outcome.result == 'policy_denied'
+          - ai_ops_assistant_mutation_update_outcome.authorization_denied | bool
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Run fixed project-reader security-group delete denial probe
+      ansible.builtin.command:
+        argv:
+          - openstack
+          - --os-cloud
+          - aiops-assistant-project-reader
+          - security
+          - group
+          - delete
+          - "{{ ai_ops_assistant_mutation_delete_target_name }}"
+      environment:
+        OS_CLIENT_CONFIG_FILE: "{{ ai_ops_assistant_mutation_profile_directory }}/clouds.yaml"
+        OS_CLOUD: "{{ ai_ops_assistant_mutation_profile_name }}"
+      become: true
+      become_user: "{{ ai_ops_assistant_mutation_runtime_user }}"
+      register: ai_ops_assistant_mutation_delete_raw_result
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Stop and require administrator revocation if delete was allowed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mutation_delete_raw_result.rc != 0
+        fail_msg: >-
+          ERR_MUTATION_DELETE_ALLOWED: stop all probes; the OpenStack admin team
+          must revoke the credential immediately and verify/restore externally.
+        quiet: true
+      changed_when: false
+
+    - name: Normalize delete-denial outcome
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mutation_delete_outcome:
+          operation: security_group_delete
+          result: >-
+            {{
+              'policy_denied' if ai_ops_assistant_mutation_delete_raw_result.stderr | lower is search('forbidden|http.*403') else
+              'service_unavailable' if ai_ops_assistant_mutation_delete_raw_result.stderr | lower is search('service unavailable|http.*503') else
+              'catalog_missing' if ai_ops_assistant_mutation_delete_raw_result.stderr | lower is search('service catalog|endpoint not found') else
+              'connectivity_error' if ai_ops_assistant_mutation_delete_raw_result.stderr | lower is search('connection refused|timed out|could not resolve|name or
+            service not known|unreachable') else
+              'authentication_error' if ai_ops_assistant_mutation_delete_raw_result.stderr | lower is search('authentication|unauthorized|invalid credential|token')
+            else
+              'configuration_error'
+            }}
+          authorization_denied: >-
+            {{ ai_ops_assistant_mutation_delete_raw_result.stderr | lower is search('forbidden|http.*403') }}
+          administrator_postcondition_required: true
+      changed_when: false
+      no_log: true
+
+    - name: Report normalized delete-denial outcome
+      ansible.builtin.debug:
+        msg: "{{ ai_ops_assistant_mutation_delete_outcome }}"
+      changed_when: false
+
+    - name: Assert delete denial was conclusive
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mutation_delete_outcome.result == 'policy_denied'
+          - ai_ops_assistant_mutation_delete_outcome.authorization_denied | bool
+        quiet: true
+      changed_when: false
+      no_log: true
