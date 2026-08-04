@@ -20,13 +20,15 @@ or host-state evidence.
 
 The following gates remain open and block live foundation acceptance:
 
-1. remove the SSH host-verification bypass from the revised transport settings
-   and obtain an operator-approved known-hosts source;
-2. review and resolve the staged root-inventory diff under the protected-input
+1. review and resolve the staged root-inventory diff under the protected-input
    policy before live execution;
-3. obtain explicit approval for limited check mode, then apply, non-mutating
+2. obtain explicit approval for limited check mode, then apply, non-mutating
    validation, and a second idempotency apply, each limited to `assistant02`;
-4. capture the resulting redacted evidence outside committed source.
+3. capture the resulting redacted evidence outside committed source.
+
+The operator has approved the Local-Lab SSH Transport Exception below for
+`assistant02`. It satisfies the transport gate only for this isolated lab host;
+it does not permit host-verification bypasses in other inventories or environments.
 
 ## Approved Placement and Namespace
 
@@ -89,13 +91,17 @@ All Ansible transport authentication is external to committed repository files. 
 - Do not commit passwords, private keys, tokens, sudo passwords, OpenRC files, cloud profiles, or generated cloud configuration.
 - Do not load `common_secret.yml` or any committed credential-shaped vars file from the revised setup entrypoint.
 - Supply the approved operator identity, private-key reference, and any vault/secret mechanism at execution time through an operator-controlled path.
-- Do not disable SSH host identity verification. The approved operator transport must provide an appropriate known-hosts source.
+- Do not disable SSH host identity verification except under the approved Local-Lab SSH Transport Exception below. All other operator transport must provide an appropriate known-hosts source.
 - Do not create an `aiops_assistant` SSH key in this phase.
 - The endpoint input is the scoped non-secret variable `ai_ops_assistant_keystone_endpoint`; it may be used only for the Phase 01 TCP check.
 
 ### Local-Lab Transport Placeholder Exception
 
-The local inventory may retain `ansible/ai_ops_assistant/inventories/local/group_vars/all/common_secret.yml` only for the existing local-lab `ansible_user`, `ansible_password`, and `ansible_sudo_pass` placeholder variables. This exception is limited to the `local` inventory and `assistant02`; it does not authorize generated values, OpenStack/cloud credentials, tokens, private keys, OpenRC files, cloud profiles, non-local inventories, or a `vars_files` reference to the file. The placeholders must not be printed in evidence or command output, and the local transport still requires an operator-approved known-hosts source with SSH host identity verification enabled. Replacing a placeholder with actual credential material requires a further approved contract amendment.
+The local inventory may retain `ansible/ai_ops_assistant/inventories/local/group_vars/all/common_secret.yml` only for the existing local-lab `ansible_user`, `ansible_password`, and `ansible_sudo_pass` placeholder variables. This exception is limited to the `local` inventory and `assistant02`; it does not authorize generated values, OpenStack/cloud credentials, tokens, private keys, OpenRC files, cloud profiles, non-local inventories, or a `vars_files` reference to the file. The placeholders must not be printed in evidence or command output. Replacing a placeholder with actual credential material requires a further approved contract amendment.
+
+### Local-Lab SSH Transport Exception
+
+For the isolated `local` inventory targeting only `assistant02`, the operator approves the existing SSH arguments that set `UserKnownHostsFile=/dev/null` and `StrictHostKeyChecking=no` for Phase 01 foundation acceptance. This waiver is limited to the current local lab, must not be copied to a non-local inventory or production-like environment, and does not permit exposing, committing, or logging connection credentials, protected inventory values, or host details. The operator remains responsible for the lab host's identity and isolation from `assistant01` and all control-plane groups.
 
 ## Activation and Live-Execution Gate
 
@@ -105,7 +111,7 @@ Before any live foundation apply, all conditions must be true:
 2. The entrypoint targets exactly `ai_ops_assistant`; `--limit assistant02` is mandatory for check mode, apply, and validation.
 3. The entrypoint does not target `all`, invoke `common` or any historical role, load committed secret vars other than the Local-Lab Transport Placeholder Exception, or contain diagnostic, credential, runner, MCP, provider, orchestrator, egress, wheelhouse, or observer behavior.
 4. The package allowlist is available from configured Ubuntu repositories without adding a repository or downloading an artifact.
-5. The external transport procedure and known-hosts source are approved by the operator.
+5. The external transport procedure and known-hosts source are approved by the operator, or the Local-Lab SSH Transport Exception applies only to `assistant02`.
 6. The host is verified distinct from `assistant01` and absent from all controller, compute, storage, Ceph, database, message-bus, observability, and other control-plane groups.
 7. Check mode reports only proposed revised account, workspace, and package changes.
 8. A reviewer approves the check-mode diff before the first apply.

@@ -4,6 +4,7 @@
   become: true
   gather_facts: false
   vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
     - roles/ai_ops_assistant_foundation/defaults/main.yml
   tasks:
     - name: Assert revised validation target and endpoint scope

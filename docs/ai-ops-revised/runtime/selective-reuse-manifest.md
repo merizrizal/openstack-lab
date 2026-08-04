@@ -54,12 +54,14 @@ No other path is selected. In particular, the historical `README.md`, registry, 
 | `ansible/ai_ops_runtime/roles/assistant_runtime/files/scripts/tool_runner/tool_registry.json` | Phase 04 | Contains historical runtime paths and Phase 06 tools; a minimal revised registry must be derived. |
 | `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/main.yml` | Phase 01 Step 4 | Unconditionally aggregates scripts, credentials, tooling, and MCP lifecycle. |
 | `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/scripts.yml` | Phase 01 Step 4 | Historical aggregate installation behavior is not a minimal foundation. |
+| `ansible/ai_ops_runtime/roles/assistant_runtime/tasks/credentials.yml` | Phase 02 | May inform fresh profile-materialization controls only; credential values, source paths, variables, and implementation content must not be copied. |
+| `ansible/ai_ops_runtime/playbook_validate_phase02_1_readonly_credential_boundary.yml` | Phase 02 | Raw stdout/stderr evidence and historical targeting violate the revised minimum-disclosure boundary; do not copy implementation content. |
+| `ansible/ai_ops_runtime/playbook_validate_phase02_2_profile_sync_and_mutation_denial.yml` | Phase 02 | Generated-profile dependence, profile-content reads, named targets, and reader-credential cleanup violate the revised contract; do not copy implementation content. |
 
 ## Deferred Candidates
 
 | Capability | Prior source paths | Owner | Required decision before selection |
 | --- | --- | --- | --- |
-| Credential lifecycle | `roles/assistant_runtime/tasks/credentials.yml` | Phase 02 | Create fresh credentials and validate the revised read-only boundary; never copy values. |
 | Neutron-agent and restricted-host diagnostics | `roles/assistant_runtime/files/scripts/approved/neutron_agent_health.sh`; `roles/assistant_runtime/files/scripts/host_diagnostics/aiops_host_diagnostic_connector.py`; `roles/assistant_runtime/templates/host_diagnostics/host_diagnostic_policy.json.j2`; `roles/host_observer/**` | Phase 06 | Approve separate operator-reader, restricted SSH/sudo, host-policy, and redaction controls. |
 | MCP resources, policy, and lifecycle | `roles/assistant_runtime/files/mcp/resources/**`; `roles/assistant_runtime/templates/mcp/mcp_policy.json.j2`; `roles/assistant_runtime/tasks/mcp_lifecycle.yml` | Phase 07 | Review every resource for secrets and define revised local-stdio lifecycle and identity. |
 

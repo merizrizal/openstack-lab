@@ -1,0 +1,17 @@
+---
+ai_ops_assistant_identity_boundary_enabled: false
+
+ai_ops_assistant_identity_boundary_runtime_root: /opt/openstack-ai-ops-assistant
+ai_ops_assistant_identity_boundary_runtime_user: aiops_assistant
+ai_ops_assistant_identity_boundary_runtime_group: aiops_assistant
+ai_ops_assistant_identity_boundary_profile_name: aiops-assistant-project-reader
+ai_ops_assistant_identity_boundary_profile_directory: /opt/openstack-ai-ops-assistant/credentials/profiles
+ai_ops_assistant_identity_boundary_profile_directory_mode: "0700"
+ai_ops_assistant_identity_boundary_profile_file_mode: "0600"
+ai_ops_assistant_identity_boundary_expected_filenames:
+  - clouds.yaml
+  - secure.yaml
+
+ai_ops_assistant_identity_boundary_source_classification: controller-local
+ai_ops_assistant_identity_boundary_source_root: /run/openstack-ai-ops
+ai_ops_assistant_identity_boundary_source_directory: ""
