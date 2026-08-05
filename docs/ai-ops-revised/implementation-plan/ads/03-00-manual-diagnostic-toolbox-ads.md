@@ -79,7 +79,7 @@ The helper validates again inside each diagnostic even though Phase 04 will late
 Inputs:
 
 - fixed tool and section names owned by the script;
-- a fixed OpenStack CLI path under `/opt/openstack-ai-ops-assistant/` confirmed from the installed foundation package behavior;
+- the fixed OpenStack CLI path `/usr/bin/openstack`, provided by the installed `python3-openstackclient` foundation package;
 - a fixed read-only argument vector, with at most one already validated server identifier.
 
 Outputs:
