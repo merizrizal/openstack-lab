@@ -198,6 +198,27 @@ Done when:
 
 - [ ] The three diagnostics are trusted manually before any wrapper or MCP integration.
 
+### Step 8 - Secure Acceptance Automation
+
+Estimate:
+
+```text
+0.5-1 engineer-days
+3-6 focused hours
+```
+
+Tasks:
+
+- [ ] Confirm an approved secure representative-identifier transport that cannot enter Git, inventory, extra-vars, process listings, shell history, callback output, or retained evidence.
+- [ ] Confirm an administrator-owned pre/post cloud-state comparator that returns only non-sensitive boolean attestation facts.
+- [ ] Add a revised-only acceptance playbook that targets only `assistant02`, invokes only the fixed diagnostics as `aiops_assistant`, and fails closed on unavailable secure integrations.
+- [ ] Prove raw results, identifiers, command arguments, profiles, credentials, and cloud payloads remain in `no_log` state and outside outcome-only evidence.
+- [ ] Run the acceptance path only after separate operator approval and retain only the Phase 03 outcome fields permitted by the operations contract.
+
+Done when:
+
+- [ ] Acceptance automation is evidence-backed or explicitly blocked without expanding Phase 03 authority.
+
 ## 03.6 Phase Definition of Done
 
 This phase is done when:

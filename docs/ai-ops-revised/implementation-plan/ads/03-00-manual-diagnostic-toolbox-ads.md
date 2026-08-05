@@ -487,12 +487,12 @@ The implementation must proceed through `chunked-implementation`. Do not impleme
 - **Validation:** inventory graph; ansible-lint and syntax checks; target/argv/no-log/output-flow checks; static gate; full revised diff; historical/protected-path immutability.
 - **Stop condition:** deployment and validation paths are locally accepted and ready for an explicit live gate; no host or OpenStack call has occurred by default.
 
-#### Chunk 9: Approved Manual Lab Acceptance and Reconciliation
+#### Chunk 9: Approved Lab Acceptance and Reconciliation
 
 - **Goal:** Prove deployment idempotency, useful manual output, unchanged cloud state, redacted evidence, and Phase 03 completion; stop before Phase 04.
-- **Files to change:** Phase 03 operations contract and `03-manual-diagnostic-toolbox.md` only after external evidence supports each update.
-- **Symbols to add/change:** no executable symbols; normalized per-tool outcomes, accepted policy/version limitations, shape/bounds/redaction results, idempotency, unchanged-state confirmation, unresolved gates, and evidence-backed checkboxes.
-- **Implementation shape:** after explicit operator approval, limited deployment/validation on `assistant02`; representative identifiers and raw outputs remain external and transient. No runner, registry, MCP, operator-reader, or remediation work.
+- **Files to change:** Phase 03 operations contract and `03-manual-diagnostic-toolbox.md` only after external evidence supports each update. Acceptance automation, if used, is separately governed by `03-01-secure-diagnostic-acceptance-automation-ads.md`.
+- **Symbols to add/change:** no executable symbols in this reconciliation chunk; normalized per-tool outcomes, accepted policy/version limitations, shape/bounds/redaction results, idempotency, unchanged-state confirmation, unresolved gates, and evidence-backed checkboxes.
+- **Implementation shape:** after explicit operator approval, limited deployment/validation on `assistant02`; representative identifiers and raw outputs remain external and transient. The separate acceptance-automation ADS may orchestrate the three existing diagnostics only after its secure-transport and administrator-comparator gates are accepted. No runner, registry, MCP, operator-reader, or remediation work.
 - **Validation:** approved check/apply/idempotent rerun; all three manual diagnostics; pre/post cloud-state confirmation; evidence redaction scan; final local static tests and diff review.
 - **Stop condition:** Phase 03 is evidence-backed complete or explicitly blocked. All broader authority remains unavailable and implementation stops before Phase 04.
 

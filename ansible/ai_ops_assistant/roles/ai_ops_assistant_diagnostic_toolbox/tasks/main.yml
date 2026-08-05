@@ -57,6 +57,16 @@
     recurse: false
   when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
 
+- name: Ensure revised diagnostic helper directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/lib"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
+
 - name: Materialize exact revised diagnostic-toolbox files
   ansible.builtin.copy:
     src: "scripts/approved/{{ item.source }}"

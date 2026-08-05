@@ -5,6 +5,7 @@
 This is the approved Phase 03 Chunk 1 documentation contract. It is subordinate to:
 
 - `docs/ai-ops-revised/implementation-plan/ads/03-00-manual-diagnostic-toolbox-ads.md`
+- `docs/ai-ops-revised/implementation-plan/ads/03-01-secure-diagnostic-acceptance-automation-ads.md` for separately approved acceptance automation
 - `docs/ai-ops-revised/implementation-plan/03-manual-diagnostic-toolbox.md`
 - `docs/ai-ops-revised/runtime/foundation-operations-contract.md`
 - `docs/ai-ops-revised/runtime/identity-policy-operations-contract.md`
@@ -140,6 +141,14 @@ External outcome-only evidence uses:
 The directory is operator-owned with mode `0700`; each record is mode `0600`; it is outside Git and the credential directory. A record may contain only source revision, UTC timestamp, non-secret run identifier, host/group/profile labels, tool name, normalized outcome, JSON-shape/bounds/redaction results, idempotency result, unchanged-cloud-state confirmation, and unresolved gates.
 
 Evidence must not contain credentials, credential IDs, tokens, passwords, private keys, profile content, checksums, command arguments, stdout, stderr, resource identifiers, addresses, resource payloads, catalog data, or response bodies.
+
+## Acceptance-Automation Extension
+
+The separately approved acceptance-automation ADS may orchestrate the three fixed deployed diagnostics only after its Chunk 0 confirms both an operator-controlled identifier transport and an administrator-owned pre/post state comparator. Neither integration is implemented, configured, or authorized by this contract.
+
+The comparator returns only a non-sensitive status and `unchanged` boolean to the acceptance path; it owns all cloud-state collection, resource identifiers, raw comparison data, and incident response. The acceptance path fails closed unless both attestations are present and the post-run `unchanged` value is `true`.
+
+Any identifier-bearing or raw-result-bearing acceptance task is `no_log` and may not use Git, inventory, defaults, extra-vars, process arguments, shell history, callback output, or retained evidence for transport or persistence. Public output is limited to the evidence fields already allowed above.
 
 ## Historical Reuse Decision
 
