@@ -191,4 +191,158 @@ printf '%s' "$invalid_summary_output" | /usr/bin/jq -e \
   '.status == "error" and .error.class == "invalid_input"' \
   >/dev/null || fail "invalid summary envelope is invalid"
 
-printf 'diagnostic toolbox helper and project-summary tests passed\n'
+server_basic="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/server_basic_info.sh"
+[[ -r "$server_basic" ]] || fail "server basic info is missing"
+# shellcheck source=../../roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/server_basic_info.sh
+source "$server_basic"
+
+server_basic_fake_openstack="$fixture_dir/server-basic-openstack"
+server_basic_argv_log="$fixture_dir/server-basic-argv.log"
+cat > "$server_basic_fake_openstack" <<'EOF_FAKE'
+#!/usr/bin/env bash
+set -u
+
+printf '%s\n' "$*" >> "$AIOPS_TEST_ARGV_LOG"
+[[ "${OS_CLIENT_CONFIG_FILE:-}" == "/opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml" ]] || exit 93
+[[ "${OS_CLOUD:-}" == "aiops-assistant-project-reader" ]] || exit 94
+
+case "${AIOPS_TEST_SCENARIO:-success}:$*" in
+  not_found:server\ show\ *\ -f\ json)
+    printf 'No Server found\n' >&2
+    exit 1
+    ;;
+  ambiguous:server\ show\ *\ -f\ json)
+    printf 'Multiple matches found\n' >&2
+    exit 1
+    ;;
+  policy:server\ show\ *\ -f\ json)
+    printf 'Forbidden\n' >&2
+    exit 1
+    ;;
+  auth:server\ show\ *\ -f\ json)
+    printf 'Unauthorized\n' >&2
+    exit 1
+    ;;
+  malformed:server\ show\ *\ -f\ json)
+    printf '{not-json\n'
+    ;;
+  empty:server\ show\ *\ -f\ json)
+    printf '{}\n'
+    ;;
+  redact:server\ show\ *\ -f\ json)
+    printf '{"id":"server-1","name":"server-1","status":"ACTIVE","image":{"token":"fixture-token","name":"image-1"},"flavor":"small","addresses":{"net":["192.0.2.10"]},"availability_zone":"nova","config_drive":false,"created":"2025-01-01T00:00:00Z"}\n'
+    ;;
+  success:server\ show\ *\ -f\ json)
+    printf '{"id":"server-1","name":"server-1","status":"ACTIVE","image":"image-1","flavor":"small","addresses":{"net":["192.0.2.10"]},"availability_zone":"nova","config_drive":false,"created":"2025-01-01T00:00:00Z","ignored":"value"}\n'
+    ;;
+  *)
+    printf 'unexpected argv: %s\n' "$*" >&2
+    exit 95
+    ;;
+esac
+EOF_FAKE
+chmod 0700 "$server_basic_fake_openstack"
+
+run_server_basic() {
+  : > "$server_basic_argv_log"
+  set +e
+  server_basic_output="$(AIOPS_TEST_MODE=fixture AIOPS_TEST_OPENSTACK_BIN="$server_basic_fake_openstack" AIOPS_TEST_JQ_BIN=/usr/bin/jq AIOPS_TEST_ARGV_LOG="$server_basic_argv_log" AIOPS_TEST_SCENARIO="$1" server_basic_info_main "$2")"
+  server_basic_status=$?
+  set -e
+}
+
+run_server_basic success server-1
+[[ "$server_basic_status" -eq 0 ]] || fail "successful server read failed"
+printf '%s' "$server_basic_output" | /usr/bin/jq -e \
+  '.tool == "server_basic_info" and .status == "ok" and .sections[0].name == "server" and .sections[0].status == "ok" and (.sections[0].data | keys == ["addresses", "availability_zone", "config_drive", "created", "flavor", "id", "image", "name", "status"])' \
+  >/dev/null || fail "successful server envelope is invalid"
+grep -qx 'server show server-1 -f json' "$server_basic_argv_log" || fail "server show argv changed"
+
+run_server_basic empty server-1
+[[ "$server_basic_status" -eq 0 ]] || fail "empty server read failed"
+printf '%s' "$server_basic_output" | /usr/bin/jq -e '.status == "ok" and .sections[0].status == "empty"' >/dev/null || fail "empty server result is invalid"
+
+for scenario in not_found ambiguous policy auth malformed; do
+  run_server_basic "$scenario" server-1
+  [[ "$server_basic_status" -eq 4 ]] || fail "server $scenario exit code is incorrect"
+  expected_class="$scenario"
+  [[ "$scenario" == "policy" ]] && expected_class="policy_denied"
+  [[ "$scenario" == "auth" ]] && expected_class="authentication_error"
+  [[ "$scenario" == "malformed" ]] && expected_class="execution_error"
+  printf '%s' "$server_basic_output" | /usr/bin/jq -e --arg expected_class "$expected_class" \
+    '.status == "error" and .error.class == $expected_class and .sections[0].status == "unavailable"' \
+    >/dev/null || fail "server $scenario result is invalid"
+done
+
+run_server_basic redact server-1
+[[ "$server_basic_status" -eq 0 ]] || fail "redacted server read failed"
+printf '%s' "$server_basic_output" | /usr/bin/jq -e \
+  '.sections[0].data.image.token == "***REDACTED***"' \
+  >/dev/null || fail "server secret-like key was not redacted"
+
+for value in '' 'server;id' '../server' 'server/name' "$long_identifier" $'server\n01'; do
+  run_server_basic success "$value"
+  [[ "$server_basic_status" -eq 2 ]] || fail "invalid server identifier was not rejected"
+  [[ ! -s "$server_basic_argv_log" ]] || fail "invalid server identifier reached the fake CLI"
+done
+
+: > "$server_basic_argv_log"
+set +e
+extra_server_output="$(AIOPS_TEST_MODE=fixture AIOPS_TEST_OPENSTACK_BIN="$server_basic_fake_openstack" AIOPS_TEST_JQ_BIN=/usr/bin/jq AIOPS_TEST_ARGV_LOG="$server_basic_argv_log" server_basic_info_main server-1 extra)"
+extra_server_status=$?
+set -e
+[[ "$extra_server_status" -eq 2 ]] || fail "extra server argument was not rejected"
+[[ ! -s "$server_basic_argv_log" ]] || fail "extra server argument reached the fake CLI"
+printf '%s' "$extra_server_output" | /usr/bin/jq -e '.error.class == "invalid_input"' >/dev/null || fail "extra argument envelope is invalid"
+
+network="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/server_network_info.sh"
+[[ -r "$network" ]] || fail "server network info is missing"
+# shellcheck source=../../roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/server_network_info.sh
+source "$network"
+network_fake_openstack="$fixture_dir/server-network-openstack"
+network_argv_log="$fixture_dir/server-network-argv.log"
+cat > "$network_fake_openstack" <<'EOF_FAKE'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$AIOPS_TEST_ARGV_LOG"
+case "${AIOPS_TEST_SCENARIO:-success}:$*" in
+  not_found:server\ show\ *) printf 'No Server found\n' >&2; exit 1 ;;
+  malformed:port\ list\ *) printf '{bad-json\n' ;;
+  unavailable_network:network\ show\ *) printf 'Forbidden\n' >&2; exit 1 ;;
+  unsafe_derived:port\ list\ *) printf '[{"id":"port-1","network_id":"../bad","fixed_ips":[],"mac_address":"00:00:00:00:00:01","status":"ACTIVE"}]\n' ;;
+  no_port:server\ show\ *) printf '{"id":"server-1","name":"server-1","status":"ACTIVE"}\n' ;;
+  no_port:port\ list\ *) printf '[]\n' ;;
+  *:server\ show\ *) printf '{"id":"server-1","name":"server-1","status":"ACTIVE"}\n' ;;
+  *:port\ list\ *) printf '[{"id":"port-1","network_id":"network-1","fixed_ips":[{"subnet_id":"subnet-1","ip_address":"192.0.2.10"}],"mac_address":"00:00:00:00:00:01","status":"ACTIVE"},{"id":"port-2","network_id":"network-2","fixed_ips":[{"subnet_id":"subnet-2","token":"fixture-token"}],"mac_address":"00:00:00:00:00:02","status":"DOWN"}]\n' ;;
+  *:network\ show\ network-1\ *) printf '{"id":"network-1","name":"network-1","status":"ACTIVE"}\n' ;;
+  *:network\ show\ network-2\ *) printf '{"id":"network-2","name":"network-2","status":"ACTIVE"}\n' ;;
+  *:subnet\ show\ subnet-1\ *) printf '{"id":"subnet-1","name":"subnet-1","cidr":"192.0.2.0/24","ip_version":4}\n' ;;
+  *:subnet\ show\ subnet-2\ *) printf '{"id":"subnet-2","name":"subnet-2","cidr":"192.0.3.0/24","ip_version":4}\n' ;;
+  *) printf 'unexpected argv: %s\n' "$*" >&2; exit 95 ;;
+esac
+EOF_FAKE
+chmod 0700 "$network_fake_openstack"
+run_server_network() {
+  : > "$network_argv_log"; set +e
+  network_output="$(AIOPS_TEST_MODE=fixture AIOPS_TEST_OPENSTACK_BIN="$network_fake_openstack" AIOPS_TEST_JQ_BIN=/usr/bin/jq AIOPS_TEST_ARGV_LOG="$network_argv_log" AIOPS_TEST_SCENARIO="$1" server_network_info_main "$2")"
+  network_status=$?; set -e
+}
+run_server_network success server-1
+[[ "$network_status" -eq 0 ]] || fail "successful network read failed"
+printf '%s' "$network_output" | /usr/bin/jq -e '.tool == "server_network_info" and .status == "ok" and (.sections | map(.name) == ["server","ports","networks","subnets"]) and (.sections[] | select(.name == "ports").data | length == 2) and (.sections[] | select(.name == "ports").data[1].fixed_ips[0].token == "***REDACTED***")' >/dev/null || fail "network success or redaction result is invalid"
+grep -qx 'server show server-1 -f json' "$network_argv_log" || fail "network server argv changed"
+grep -qx 'port list --device server-1 -f json' "$network_argv_log" || fail "network port argv changed"
+grep -qx 'network show network-1 -f json' "$network_argv_log" || fail "network relationship argv changed"
+grep -qx 'subnet show subnet-1 -f json' "$network_argv_log" || fail "subnet relationship argv changed"
+for scenario in not_found malformed unsafe_derived unavailable_network; do
+  run_server_network "$scenario" server-1
+  expected=3; [[ "$scenario" == not_found ]] && expected=4
+  [[ "$network_status" -eq "$expected" ]] || fail "network $scenario exit code is incorrect"
+done
+run_server_network no_port server-1
+[[ "$network_status" -eq 0 ]] || fail "no-port network read failed"
+printf '%s' "$network_output" | /usr/bin/jq -e '(.sections[] | select(.name == "ports").status == "empty") and ([.sections[] | select(.name == "networks" or .name == "subnets").status] | all(. == "empty"))' >/dev/null || fail "no-port sections are not empty"
+: > "$network_argv_log"; set +e
+invalid_network_output="$(AIOPS_TEST_MODE=fixture AIOPS_TEST_OPENSTACK_BIN="$network_fake_openstack" AIOPS_TEST_JQ_BIN=/usr/bin/jq AIOPS_TEST_ARGV_LOG="$network_argv_log" server_network_info_main 'server;id')"; invalid_network_status=$?
+set -e
+[[ "$invalid_network_status" -eq 2 && ! -s "$network_argv_log" ]] || fail "invalid network identifier reached fake CLI"
+printf 'diagnostic toolbox helper, project-summary, server-basic, and server-network tests passed\n'

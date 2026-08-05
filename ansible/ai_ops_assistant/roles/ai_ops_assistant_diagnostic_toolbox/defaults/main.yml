@@ -1,0 +1,15 @@
+---
+ai_ops_assistant_diagnostic_toolbox_enabled: false
+ai_ops_assistant_diagnostic_toolbox_runtime_root: /opt/openstack-ai-ops-assistant
+ai_ops_assistant_diagnostic_toolbox_runtime_user: aiops_assistant
+ai_ops_assistant_diagnostic_toolbox_runtime_group: aiops_assistant
+ai_ops_assistant_diagnostic_toolbox_destination: /opt/openstack-ai-ops-assistant/scripts/approved
+ai_ops_assistant_diagnostic_toolbox_files:
+  - source: lib/aiops_common.sh
+    mode: "0640"
+  - source: project_resource_summary.sh
+    mode: "0750"
+  - source: server_basic_info.sh
+    mode: "0750"
+  - source: server_network_info.sh
+    mode: "0750"

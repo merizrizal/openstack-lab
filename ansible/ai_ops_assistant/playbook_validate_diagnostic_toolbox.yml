@@ -1,0 +1,97 @@
+---
+- name: Validate revised AI-OPS diagnostic toolbox without cloud reads
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - roles/ai_ops_assistant_diagnostic_toolbox/defaults/main.yml
+  vars:
+    ai_ops_assistant_diagnostic_toolbox_profile: /opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml
+  tasks:
+    - name: Assert revised diagnostic-toolbox validation scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Inspect deployed diagnostic-toolbox files
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/{{ item.source }}"
+        follow: false
+      loop: "{{ ai_ops_assistant_diagnostic_toolbox_files }}"
+      loop_control:
+        label: "{{ item.source }}"
+      register: ai_ops_assistant_diagnostic_toolbox_metadata
+      changed_when: false
+
+    - name: Assert deployed diagnostic-toolbox file metadata
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.pw_name == 'root'
+          - item.stat.gr_name == ai_ops_assistant_diagnostic_toolbox_runtime_group
+          - item.stat.mode == item.item.mode
+        quiet: true
+      loop: "{{ ai_ops_assistant_diagnostic_toolbox_metadata.results }}"
+      loop_control:
+        label: "{{ item.item.source }}"
+      changed_when: false
+
+    - name: Inspect project-reader profile metadata without reading content
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_diagnostic_toolbox_profile }}"
+        follow: false
+      register: ai_ops_assistant_diagnostic_toolbox_profile_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert project-reader profile is a protected regular file
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_diagnostic_toolbox_profile_metadata.stat.exists
+          - ai_ops_assistant_diagnostic_toolbox_profile_metadata.stat.isreg
+          - not ai_ops_assistant_diagnostic_toolbox_profile_metadata.stat.islnk
+          - ai_ops_assistant_diagnostic_toolbox_profile_metadata.stat.mode == '0600'
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Check deployed diagnostic shell syntax without retaining output
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/bash
+          - -n
+          - "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/{{ item.source }}"
+      loop: "{{ ai_ops_assistant_diagnostic_toolbox_files }}"
+      loop_control:
+        label: "{{ item.source }}"
+      changed_when: false
+      no_log: true
+
+    - name: Run revised diagnostic static contract gate on the controller
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/bash
+          - "{{ playbook_dir }}/../../scripts/check_ai_ops_revised_diagnostic_toolbox_safety.sh"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+
+    - name: Report non-sensitive diagnostic-toolbox validation state
+      ansible.builtin.debug:
+        msg:
+          host_label: assistant02
+          group_label: ai_ops_assistant
+          deployed_file_metadata_verified: true
+          profile_metadata_verified: true
+          shell_syntax_verified: true
+          cloud_diagnostics_not_invoked: true
+      changed_when: false
