@@ -5,14 +5,21 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import re
 import selectors
 import signal
+import stat
 import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime, timezone
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - the supported runtime is Linux
+    fcntl = None
 from pathlib import Path
 from typing import Any
 
@@ -108,6 +115,14 @@ AUDIT_SCHEMA_VERSION = "1.0"
 AUDIT_EVENT_TYPE = "tool_request_completed"
 AUDIT_ACTOR = "local_cli"
 MAX_AUDIT_EVENT_BYTES = 16 * 1024
+AUDIT_ROTATION_BYTES = 1024 * 1024
+AUDIT_DIRECTORY = RUNTIME_ROOT / "audit"
+AUDIT_ACTIVE_FILE = AUDIT_DIRECTORY / "tool-runner.jsonl"
+AUDIT_LOCK_FILE = AUDIT_DIRECTORY / ".tool-runner.lock"
+AUDIT_ARCHIVE_NAMES = tuple(f"tool-runner.jsonl.{index}" for index in range(1, 4))
+AUDIT_DIRECTORY_MODE = 0o700
+AUDIT_FILE_MODE = 0o600
+AUDIT_OWNER_NAME = "aiops_assistant"
 AUDIT_FIELDS = {
     "schema_version",
     "timestamp",
@@ -125,6 +140,8 @@ AUDIT_FIELDS = {
 UNKNOWN_TOOL_LABEL = "unknown"
 _TEST_CLOCK = None
 _TEST_UUID_FACTORY = None
+_TEST_AUDIT_DIRECTORY: Path | None = None
+_TEST_AUDIT_OWNER: tuple[int, int] | None = None
 
 
 class RegistryError(ValueError):
@@ -149,6 +166,14 @@ class TargetIntegrityError(ValueError):
 
 class RedactionError(ValueError):
     """Raised when redaction cannot safely produce a complete sanitized value."""
+
+
+class AuditPersistenceError(OSError):
+    """Raised when the fixed audit sink cannot safely persist an event."""
+
+    def __init__(self, error_class: str) -> None:
+        super().__init__(error_class)
+        self.error_class = error_class
 
 
 class RedactionResult:
@@ -393,6 +418,8 @@ def _error_class(status: str, reason: str | None) -> str:
         return "output_decode_error"
     if reason == "result redaction failed":
         return "redaction_error"
+    if reason == "audit persistence failed":
+        return "audit_write_error"
     if status == "denied":
         return "validation_error"
     if status == "validation_error":
@@ -556,6 +583,171 @@ def serialize_audit_event(event: dict[str, Any]) -> str:
     if len(serialized.encode("utf-8")) + 1 > MAX_AUDIT_EVENT_BYTES:
         raise ValueError("audit event exceeds its size bound")
     return serialized + "\n"
+
+
+def _audit_directory() -> Path:
+    return _TEST_AUDIT_DIRECTORY or AUDIT_DIRECTORY
+
+
+def _audit_owner() -> tuple[int, int]:
+    if _TEST_AUDIT_OWNER is not None:
+        return _TEST_AUDIT_OWNER
+    try:
+        owner = pwd.getpwnam(AUDIT_OWNER_NAME)
+    except KeyError as error:
+        raise AuditPersistenceError("audit_integrity_error") from error
+    return owner.pw_uid, owner.pw_gid
+
+
+def _audit_paths(fixed_path: Path | None = None) -> tuple[Path, Path, list[Path]]:
+    directory = _audit_directory()
+    active = directory / AUDIT_ACTIVE_FILE.name
+    archives = [directory / name for name in AUDIT_ARCHIVE_NAMES]
+    if fixed_path is not None and fixed_path != active:
+        raise AuditPersistenceError("audit_integrity_error")
+    return directory, active, archives
+
+
+def _check_path(path: Path, owner: tuple[int, int], mode: int) -> os.stat_result:
+    try:
+        metadata = os.lstat(path)
+    except OSError as error:
+        raise AuditPersistenceError("audit_integrity_error") from error
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise AuditPersistenceError("audit_integrity_error")
+    if (metadata.st_mode & 0o7777) != mode:
+        raise AuditPersistenceError("audit_integrity_error")
+    if (metadata.st_uid, metadata.st_gid) != owner:
+        raise AuditPersistenceError("audit_integrity_error")
+    return metadata
+
+
+def _check_directory(directory: Path, owner: tuple[int, int]) -> None:
+    try:
+        metadata = os.lstat(directory)
+    except OSError as error:
+        raise AuditPersistenceError("audit_integrity_error") from error
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise AuditPersistenceError("audit_integrity_error")
+    if (metadata.st_mode & 0o7777) != AUDIT_DIRECTORY_MODE or (
+        metadata.st_uid,
+        metadata.st_gid,
+    ) != owner:
+        raise AuditPersistenceError("audit_integrity_error")
+
+
+def _create_audit_file(path: Path, owner: tuple[int, int]) -> None:
+    try:
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            AUDIT_FILE_MODE,
+        )
+    except FileExistsError:
+        _check_path(path, owner, AUDIT_FILE_MODE)
+        return
+    except OSError as error:
+        raise AuditPersistenceError("audit_write_error") from error
+    try:
+        os.fchmod(descriptor, AUDIT_FILE_MODE)
+        os.fchown(descriptor, *owner)
+    except OSError as error:
+        os.close(descriptor)
+        raise AuditPersistenceError("audit_write_error") from error
+    os.close(descriptor)
+    _check_path(path, owner, AUDIT_FILE_MODE)
+
+
+def _validate_archives(archives: list[Path], owner: tuple[int, int]) -> None:
+    for archive in archives:
+        if archive.exists() or archive.is_symlink():
+            _check_path(archive, owner, AUDIT_FILE_MODE)
+
+
+def _rotate_locked(active: Path, archives: list[Path], owner: tuple[int, int]) -> None:
+    try:
+        if not active.exists():
+            return
+        if os.lstat(active).st_size < AUDIT_ROTATION_BYTES:
+            return
+    except OSError as error:
+        raise AuditPersistenceError("audit_rotation_error") from error
+    _validate_archives(archives, owner)
+    try:
+        if archives[2].exists():
+            os.unlink(archives[2])
+        if archives[1].exists():
+            os.rename(archives[1], archives[2])
+        if archives[0].exists():
+            os.rename(archives[0], archives[1])
+        os.rename(active, archives[0])
+        _create_audit_file(active, owner)
+    except AuditPersistenceError:
+        raise
+    except OSError as error:
+        raise AuditPersistenceError("audit_rotation_error") from error
+    _check_path(active, owner, AUDIT_FILE_MODE)
+    _validate_archives(archives, owner)
+
+
+def rotate_audit_if_required(fixed_path: Path | None = None) -> None:
+    """Rotate the fixed active audit file while holding the exclusive lock."""
+
+    append_audit_event({}, fixed_path=fixed_path, rotate_only=True)
+
+
+def append_audit_event(
+    event: dict[str, Any],
+    fixed_path: Path | None = None,
+    rotate_only: bool = False,
+) -> None:
+    """Persist one event to the fixed, locked, durable JSONL audit sink."""
+
+    if fcntl is None:
+        raise AuditPersistenceError("audit_integrity_error")
+    serialized = None if rotate_only else serialize_audit_event(event)
+    directory, active, archives = _audit_paths(fixed_path)
+    owner = _audit_owner()
+    _check_directory(directory, owner)
+    lock = directory / AUDIT_LOCK_FILE.name
+    if not lock.exists():
+        _create_audit_file(lock, owner)
+    _check_path(lock, owner, AUDIT_FILE_MODE)
+    try:
+        descriptor = os.open(lock, os.O_RDONLY | os.O_NOFOLLOW)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        if not active.exists():
+            _create_audit_file(active, owner)
+        _check_path(active, owner, AUDIT_FILE_MODE)
+        _validate_archives(archives, owner)
+        _rotate_locked(active, archives, owner)
+        if serialized is not None:
+            write_descriptor = os.open(
+                active,
+                os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW,
+            )
+            try:
+                with os.fdopen(
+                    write_descriptor, "a", encoding="utf-8", newline=""
+                ) as sink:
+                    write_descriptor = -1
+                    sink.write(serialized)
+                    sink.flush()
+                    os.fsync(sink.fileno())
+            finally:
+                if write_descriptor >= 0:
+                    os.close(write_descriptor)
+            _check_path(active, owner, AUDIT_FILE_MODE)
+    except AuditPersistenceError:
+        raise
+    except (OSError, ValueError) as error:
+        raise AuditPersistenceError("audit_write_error") from error
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            os.close(descriptor)
+        except (UnboundLocalError, OSError):
+            pass
 
 
 class CaptureResult:
@@ -979,6 +1171,7 @@ def execute_fixed_diagnostic(
 ) -> tuple[str, str | None, CaptureResult | None]:
     """Run one fixed diagnostic with bounded capture and process-group cleanup."""
 
+    process: subprocess.Popen[bytes] | None = None
     try:
         process = subprocess.Popen(
             build_command_argv(tool, values),
@@ -999,7 +1192,11 @@ def execute_fixed_diagnostic(
     except TargetIntegrityError:
         return "error", "approved implementation is unsafe", None
     except KeyboardInterrupt:
-        terminate_process_group(process)
+        if process is not None:
+            terminate_process_group(process)
+            for stream in (process.stdout, process.stderr):
+                if stream is not None and not stream.closed:
+                    stream.close()
         return "error", "runner was interrupted", None
     except OSError:
         return "error", "approved implementation could not start", None
@@ -1026,8 +1223,8 @@ def emit_result_outcome(
     capture: CaptureResult | None = None,
     timestamp: str | None = None,
     correlation_id: str | None = None,
-) -> None:
-    """Emit exactly one final result envelope; audit persistence remains deferred."""
+) -> int:
+    """Persist one result audit event, then emit exactly one final envelope."""
 
     try:
         payload = build_result_envelope(
@@ -1049,7 +1246,22 @@ def emit_result_outcome(
             timestamp,
             correlation_id,
         )
+    try:
+        append_audit_event(build_audit_event(payload))
+    except (AuditPersistenceError, OSError, ValueError):
+        payload = build_result_envelope(
+            tool_name,
+            "error",
+            {},
+            "audit persistence failed",
+            None,
+            timestamp,
+            correlation_id,
+        )
+        sys.stdout.write(serialize_result_envelope(payload))
+        return STATUS_EXIT_CODES["error"]
     sys.stdout.write(serialize_result_envelope(payload))
+    return STATUS_EXIT_CODES[status]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1062,7 +1274,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         registry = load_registry()
     except RegistryError:
-        emit_result_outcome(
+        return emit_result_outcome(
             tool_name,
             "error",
             "runner registry is invalid",
@@ -1070,13 +1282,12 @@ def main(argv: list[str] | None = None) -> int:
             timestamp=timestamp,
             correlation_id=correlation_id,
         )
-        return STATUS_EXIT_CODES["error"]
 
     try:
         tool_name, declarations = parse_declared_args(requested)
         tool, values = validate_request(registry, tool_name, declarations)
     except RequestDeniedError:
-        emit_result_outcome(
+        return emit_result_outcome(
             tool_name,
             "denied",
             "requested tool is not approved",
@@ -1084,9 +1295,8 @@ def main(argv: list[str] | None = None) -> int:
             timestamp=timestamp,
             correlation_id=correlation_id,
         )
-        return STATUS_EXIT_CODES["denied"]
     except RequestValidationError:
-        emit_result_outcome(
+        return emit_result_outcome(
             tool_name,
             "validation_error",
             "request parameters are invalid",
@@ -1094,10 +1304,9 @@ def main(argv: list[str] | None = None) -> int:
             timestamp=timestamp,
             correlation_id=correlation_id,
         )
-        return STATUS_EXIT_CODES["validation_error"]
 
     status, reason, capture = execute_fixed_diagnostic(tool, values)
-    emit_result_outcome(
+    return emit_result_outcome(
         tool_name,
         status,
         reason,
@@ -1106,7 +1315,6 @@ def main(argv: list[str] | None = None) -> int:
         timestamp,
         correlation_id,
     )
-    return STATUS_EXIT_CODES[status]
 
 
 if __name__ == "__main__":

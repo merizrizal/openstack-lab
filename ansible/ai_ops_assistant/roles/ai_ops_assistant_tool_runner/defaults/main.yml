@@ -8,6 +8,20 @@ ai_ops_assistant_tool_runner_path: /opt/openstack-ai-ops-assistant/scripts/tool_
 ai_ops_assistant_tool_runner_registry_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/tool_registry.json
 ai_ops_assistant_tool_runner_approved_script_root: /opt/openstack-ai-ops-assistant/scripts/approved
 ai_ops_assistant_tool_runner_credential_profile: aiops-assistant-project-reader
+ai_ops_assistant_tool_runner_audit_directory: /opt/openstack-ai-ops-assistant/audit
+ai_ops_assistant_tool_runner_audit_active_file: /opt/openstack-ai-ops-assistant/audit/tool-runner.jsonl
+ai_ops_assistant_tool_runner_audit_lock_file: /opt/openstack-ai-ops-assistant/audit/.tool-runner.lock
+ai_ops_assistant_tool_runner_audit_archive_files:
+  - /opt/openstack-ai-ops-assistant/audit/tool-runner.jsonl.1
+  - /opt/openstack-ai-ops-assistant/audit/tool-runner.jsonl.2
+  - /opt/openstack-ai-ops-assistant/audit/tool-runner.jsonl.3
+ai_ops_assistant_tool_runner_audit_owner: aiops_assistant
+ai_ops_assistant_tool_runner_audit_group: aiops_assistant
+ai_ops_assistant_tool_runner_audit_directory_mode: "0700"
+ai_ops_assistant_tool_runner_audit_file_mode: "0600"
+ai_ops_assistant_tool_runner_audit_event_max_bytes: 16384
+ai_ops_assistant_tool_runner_audit_rotation_bytes: 1048576
+ai_ops_assistant_tool_runner_audit_archive_count: 3
 ai_ops_assistant_tool_runner_targets:
   - /opt/openstack-ai-ops-assistant/scripts/approved/project_resource_summary.sh
   - /opt/openstack-ai-ops-assistant/scripts/approved/server_basic_info.sh

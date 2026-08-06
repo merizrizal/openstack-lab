@@ -27,6 +27,12 @@ class ExecutionGatewayTest(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.record_path = self.root / "fixture-record.json"
+        self.audit_directory = self.root / "audit"
+        self.audit_directory.mkdir()
+        os.chmod(self.audit_directory, RUNNER.AUDIT_DIRECTORY_MODE)
+        owner = self.audit_directory.stat()
+        RUNNER._TEST_AUDIT_DIRECTORY = self.audit_directory
+        RUNNER._TEST_AUDIT_OWNER = (owner.st_uid, owner.st_gid)
         self.fixture_path = self.root / "approved_fixture.py"
         self.fixture_path.write_text(
             "\n".join(
@@ -53,6 +59,8 @@ class ExecutionGatewayTest(unittest.TestCase):
     def tearDown(self):
         RUNNER._TEST_EXECUTION_TARGET = None
         RUNNER._TEST_WORKING_DIRECTORY = None
+        RUNNER._TEST_AUDIT_DIRECTORY = None
+        RUNNER._TEST_AUDIT_OWNER = None
         if self.original_secret is None:
             os.environ.pop("PARENT_SECRET_CANARY", None)
         else:

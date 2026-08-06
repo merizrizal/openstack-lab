@@ -3,6 +3,7 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
@@ -22,6 +23,20 @@ REGISTRY_PATH = RUNNER_PATH.with_name("tool_registry.json")
 
 
 class StepsOneToFourIntegrationGateTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.audit_directory = Path(self.temporary.name) / "audit"
+        self.audit_directory.mkdir()
+        os.chmod(self.audit_directory, RUNNER.AUDIT_DIRECTORY_MODE)
+        owner = self.audit_directory.stat()
+        RUNNER._TEST_AUDIT_DIRECTORY = self.audit_directory
+        RUNNER._TEST_AUDIT_OWNER = (owner.st_uid, owner.st_gid)
+
+    def tearDown(self):
+        RUNNER._TEST_AUDIT_DIRECTORY = None
+        RUNNER._TEST_AUDIT_OWNER = None
+        self.temporary.cleanup()
+
     def write_registry(self, directory, content):
         path = Path(directory) / "tool_registry.json"
         path.write_text(content, encoding="utf-8")

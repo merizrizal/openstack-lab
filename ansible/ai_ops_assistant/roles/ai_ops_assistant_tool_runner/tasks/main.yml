@@ -3,6 +3,7 @@
   ansible.builtin.assert:
     that:
       - ai_ops_assistant_tool_runner_enabled is boolean
+      - not ai_ops_assistant_tool_runner_enabled
       - ai_ops_assistant_tool_runner_runtime_root == '/opt/openstack-ai-ops-assistant'
       - ai_ops_assistant_tool_runner_runtime_user == 'aiops_assistant'
       - ai_ops_assistant_tool_runner_runtime_group == 'aiops_assistant'
@@ -19,6 +20,28 @@
         ai_ops_assistant_tool_runner_approved_script_root ==
         ai_ops_assistant_tool_runner_runtime_root + '/scripts/approved'
       - ai_ops_assistant_tool_runner_credential_profile == 'aiops-assistant-project-reader'
+      - >-
+        ai_ops_assistant_tool_runner_audit_directory ==
+        ai_ops_assistant_tool_runner_runtime_root + '/audit'
+      - >-
+        ai_ops_assistant_tool_runner_audit_active_file ==
+        ai_ops_assistant_tool_runner_audit_directory + '/tool-runner.jsonl'
+      - >-
+        ai_ops_assistant_tool_runner_audit_lock_file ==
+        ai_ops_assistant_tool_runner_audit_directory + '/.tool-runner.lock'
+      - >-
+        ai_ops_assistant_tool_runner_audit_archive_files == [
+        ai_ops_assistant_tool_runner_audit_directory + '/tool-runner.jsonl.1',
+        ai_ops_assistant_tool_runner_audit_directory + '/tool-runner.jsonl.2',
+        ai_ops_assistant_tool_runner_audit_directory + '/tool-runner.jsonl.3'
+        ]
+      - ai_ops_assistant_tool_runner_audit_owner == 'aiops_assistant'
+      - ai_ops_assistant_tool_runner_audit_group == 'aiops_assistant'
+      - ai_ops_assistant_tool_runner_audit_directory_mode == '0700'
+      - ai_ops_assistant_tool_runner_audit_file_mode == '0600'
+      - ai_ops_assistant_tool_runner_audit_event_max_bytes == 16384
+      - ai_ops_assistant_tool_runner_audit_rotation_bytes == 1048576
+      - ai_ops_assistant_tool_runner_audit_archive_count == 3
       - >-
         ai_ops_assistant_tool_runner_targets == [ ai_ops_assistant_tool_runner_approved_script_root + '/project_resource_summary.sh',
         ai_ops_assistant_tool_runner_approved_script_root + '/server_basic_info.sh', ai_ops_assistant_tool_runner_approved_script_root +

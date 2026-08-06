@@ -2,6 +2,8 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
+import tempfile
 import unittest
 import uuid
 from datetime import datetime, timezone
@@ -22,6 +24,13 @@ SPEC.loader.exec_module(RUNNER)
 
 class ResultEnvelopeTest(unittest.TestCase):
     def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.audit_directory = Path(self.temporary.name) / "audit"
+        self.audit_directory.mkdir()
+        os.chmod(self.audit_directory, RUNNER.AUDIT_DIRECTORY_MODE)
+        owner = self.audit_directory.stat()
+        RUNNER._TEST_AUDIT_DIRECTORY = self.audit_directory
+        RUNNER._TEST_AUDIT_OWNER = (owner.st_uid, owner.st_gid)
         RUNNER._TEST_CLOCK = lambda: datetime(
             2030, 1, 2, 3, 4, 5, 678901, tzinfo=timezone.utc
         )
@@ -32,6 +41,9 @@ class ResultEnvelopeTest(unittest.TestCase):
     def tearDown(self):
         RUNNER._TEST_CLOCK = None
         RUNNER._TEST_UUID_FACTORY = None
+        RUNNER._TEST_AUDIT_DIRECTORY = None
+        RUNNER._TEST_AUDIT_OWNER = None
+        self.temporary.cleanup()
 
     def test_closed_envelope_has_all_fields_and_stable_context(self):
         envelope = RUNNER.build_result_envelope(

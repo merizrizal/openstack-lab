@@ -1,13 +1,13 @@
 import contextlib
 import importlib.util
-from importlib.machinery import SourceFileLoader
 import io
 import json
+import os
 import stat
 import tempfile
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
-
 
 RUNNER_PATH = (
     Path(__file__).parents[2]
@@ -24,6 +24,12 @@ SPEC.loader.exec_module(RUNNER)
 class RequestGatewayTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
+        self.audit_directory = Path(self.temporary.name) / "audit"
+        self.audit_directory.mkdir()
+        os.chmod(self.audit_directory, RUNNER.AUDIT_DIRECTORY_MODE)
+        owner = self.audit_directory.stat()
+        RUNNER._TEST_AUDIT_DIRECTORY = self.audit_directory
+        RUNNER._TEST_AUDIT_OWNER = (owner.st_uid, owner.st_gid)
         self.marker = Path(self.temporary.name) / "child-started"
         self.fixture = Path(self.temporary.name) / "marker_fixture.py"
         self.fixture.write_text(
@@ -33,6 +39,8 @@ class RequestGatewayTest(unittest.TestCase):
         self.fixture.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
     def tearDown(self):
+        RUNNER._TEST_AUDIT_DIRECTORY = None
+        RUNNER._TEST_AUDIT_OWNER = None
         self.temporary.cleanup()
 
     def run_request(self, argv):
@@ -52,19 +60,29 @@ class RequestGatewayTest(unittest.TestCase):
             with self.subTest(tool_name=tool_name):
                 self.assert_no_spawn([tool_name], "denied", 2)
 
-    def test_malformed_and_duplicate_declarations_are_validation_errors_without_spawn(self):
+    def test_malformed_and_duplicate_declarations_are_validation_errors_without_spawn(
+        self,
+    ):
         cases = (
             ["server_basic_info", "--arg"],
             ["server_basic_info", "--arg", "server_identifier"],
             ["server_basic_info", "--arg", "=server-1"],
-            ["server_basic_info", "--arg", "server_identifier=one", "--arg", "server_identifier=two"],
+            [
+                "server_basic_info",
+                "--arg",
+                "server_identifier=one",
+                "--arg",
+                "server_identifier=two",
+            ],
             ["server_basic_info", "--parameter", "server_identifier=server-1"],
         )
         for argv in cases:
             with self.subTest(argv=argv):
                 self.assert_no_spawn(argv, "validation_error", 3)
 
-    def test_missing_undeclared_and_unsafe_parameters_are_validation_errors_without_spawn(self):
+    def test_missing_undeclared_and_unsafe_parameters_are_validation_errors_without_spawn(
+        self,
+    ):
         cases = (
             ["server_basic_info"],
             ["project_resource_summary", "--arg", "server_identifier=server-1"],

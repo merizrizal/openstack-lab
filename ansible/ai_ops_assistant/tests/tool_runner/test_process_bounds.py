@@ -7,6 +7,7 @@ import time
 import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from unittest import mock
 
 RUNNER_PATH = (
     Path(__file__).parents[2]
@@ -60,6 +61,24 @@ class ProcessBoundsTest(unittest.TestCase):
             ):
                 time.sleep(0.05)
             self.assertFalse(Path(f"/proc/{descendant_pid}").exists())
+
+    def test_interruption_before_spawn_is_normalized_without_unbound_process(self):
+        tool = RUNNER.load_registry()["tools"][0]
+        with (
+            mock.patch.object(
+                RUNNER,
+                "build_command_argv",
+                return_value=["fixture"],
+            ),
+            mock.patch.object(
+                RUNNER.subprocess,
+                "Popen",
+                side_effect=KeyboardInterrupt,
+            ),
+        ):
+            outcome = RUNNER.execute_fixed_diagnostic(tool, {})
+
+        self.assertEqual(outcome, ("error", "runner was interrupted", None))
 
     def test_invalid_utf8_and_malformed_json_fail_closed(self):
         tool = RUNNER.load_registry()["tools"][0]
