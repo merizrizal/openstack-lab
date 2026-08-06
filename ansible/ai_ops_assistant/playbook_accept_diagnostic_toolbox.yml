@@ -1,0 +1,31 @@
+---
+- name: Gate revised AI-OPS diagnostic acceptance until secure consumer deployment
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ai_ops_assistant_acceptance_run_id: ""
+    ai_ops_assistant_acceptance_transport: sdk-tty-one-shot
+    ai_ops_assistant_acceptance_comparator: administrator-owned-boolean-only
+  tasks:
+    - name: Assert acceptance stub scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+          - ai_ops_assistant_acceptance_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_acceptance_transport == 'sdk-tty-one-shot'
+          - ai_ops_assistant_acceptance_comparator == 'administrator-owned-boolean-only'
+        quiet: true
+      changed_when: false
+
+    - name: Stop until the secure local consumer is deployed
+      ansible.builtin.assert:
+        that: false
+        fail_msg: Secure local diagnostic consumer deployment is required before acceptance automation.
+        quiet: true
+      changed_when: false

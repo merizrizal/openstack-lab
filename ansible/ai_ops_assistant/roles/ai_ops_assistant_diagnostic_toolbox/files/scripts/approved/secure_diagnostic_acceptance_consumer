@@ -1,0 +1,235 @@
+#!/usr/bin/python3
+import argparse
+import json
+import os
+import re
+import stat
+import sys
+import termios
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Callable, Mapping, Sequence
+
+RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
+IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,255}$")
+SENSITIVE_KEY_PATTERN = re.compile(r"password|secret|token|credential|private[ _-]?key|authorization", re.IGNORECASE)
+RECORD_DIRECTORY = Path("/run/openstack-ai-ops/secure-diagnostic-acceptance")
+PROFILE_NAME = "aiops-assistant-project-reader"
+PROFILE_PATH = "/opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml"
+
+
+class ConsumerError(Exception):
+    pass
+
+
+class OpenStackReader:
+    def __init__(self, connection: Any):
+        self.connection = connection
+
+    def find_server(self, identifier: str) -> Any:
+        return self.connection.compute.find_server(identifier, ignore_missing=False)
+
+    def list_ports(self, server_id: str) -> Sequence[Any]:
+        return list(self.connection.network.ports(device_id=server_id))
+
+    def get_network(self, network_id: str) -> Any:
+        return self.connection.network.get_network(network_id)
+
+    def get_subnet(self, subnet_id: str) -> Any:
+        return self.connection.network.get_subnet(subnet_id)
+
+
+def build_sdk_reader() -> OpenStackReader:
+    import openstack
+
+    connection = openstack.connect(cloud=PROFILE_NAME, config_files=[PROFILE_PATH])
+    return OpenStackReader(connection)
+
+
+def validate_run_id(run_id: str) -> None:
+    if not RUN_ID_PATTERN.fullmatch(run_id):
+        raise ConsumerError("invalid run identifier")
+
+
+def validate_identifier(identifier: str) -> None:
+    if not IDENTIFIER_PATTERN.fullmatch(identifier) or ".." in identifier or "/" in identifier:
+        raise ConsumerError("invalid server identifier")
+
+
+def read_identifier_from_tty() -> str:
+    try:
+        with open("/dev/tty", "r+", encoding="utf-8") as terminal:
+            previous = termios.tcgetattr(terminal.fileno())
+            try:
+                terminal.write("Server identifier: ")
+                terminal.flush()
+                updated = previous[:]
+                updated[3] &= ~termios.ECHO
+                termios.tcsetattr(terminal.fileno(), termios.TCSADRAIN, updated)
+                identifier = terminal.readline(257).rstrip("\r\n")
+                terminal.write("\n")
+                terminal.flush()
+            finally:
+                termios.tcsetattr(terminal.fileno(), termios.TCSADRAIN, previous)
+    except OSError as error:
+        raise ConsumerError("controlling terminal is unavailable") from error
+
+    validate_identifier(identifier)
+    return identifier
+
+
+def object_value(value: Any, field: str) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(field)
+    return getattr(value, field, None)
+
+
+def contains_sensitive_key(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        return any(
+            SENSITIVE_KEY_PATTERN.search(str(key)) or contains_sensitive_key(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return any(contains_sensitive_key(item) for item in value)
+    return False
+
+
+def classify_error(error: Exception) -> str:
+    message = str(error).lower()
+    if "not found" in message or "404" in message:
+        return "not_found"
+    if "forbidden" in message or "403" in message:
+        return "policy_denied"
+    if "authentication" in message or "unauthorized" in message:
+        return "authentication_error"
+    if "timeout" in message or "connect" in message or "resolve" in message:
+        return "connectivity_error"
+    return "execution_error"
+
+
+def successful_outcome(name: str, payload: Any) -> dict[str, Any]:
+    try:
+        payload_size = len(json.dumps(payload, default=str).encode("utf-8"))
+    except (TypeError, ValueError) as error:
+        raise ConsumerError("response cannot be normalized") from error
+    if not isinstance(payload, (Mapping, Sequence)) or contains_sensitive_key(payload) or payload_size > 1048576:
+        raise ConsumerError("response violates the acceptance boundary")
+    return {
+        "name": name,
+        "outcome": "ok",
+        "json_shape_valid": True,
+        "bounds_valid": True,
+        "redaction_valid": True,
+    }
+
+
+def failed_outcome(name: str, error: Exception) -> dict[str, Any]:
+    return {
+        "name": name,
+        "outcome": classify_error(error),
+        "json_shape_valid": False,
+        "bounds_valid": False,
+        "redaction_valid": False,
+    }
+
+
+def collect_outcomes(reader: Any, identifier: str) -> list[dict[str, Any]]:
+    try:
+        server = reader.find_server(identifier)
+        server_id = object_value(server, "id")
+        if not isinstance(server_id, str) or not server_id:
+            raise ConsumerError("server response is missing an identifier")
+        basic = successful_outcome("server_basic_info", server)
+    except ConsumerError:
+        raise
+    except Exception as error:
+        return [failed_outcome("server_basic_info", error), failed_outcome("server_network_info", error)]
+
+    try:
+        ports = reader.list_ports(server_id)
+        network_ids = [object_value(port, "network_id") for port in ports]
+        subnet_ids = [
+            object_value(fixed_ip, "subnet_id")
+            for port in ports
+            for fixed_ip in (object_value(port, "fixed_ips") or [])
+        ]
+        networks = [reader.get_network(network_id) for network_id in network_ids if isinstance(network_id, str)]
+        subnets = [reader.get_subnet(subnet_id) for subnet_id in subnet_ids if isinstance(subnet_id, str)]
+        network = successful_outcome("server_network_info", [server, ports, networks, subnets])
+    except ConsumerError:
+        raise
+    except Exception as error:
+        network = failed_outcome("server_network_info", error)
+
+    return [basic, network]
+
+
+def validate_record_directory(record_directory: Path) -> None:
+    metadata = record_directory.stat()
+    if not stat.S_ISDIR(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o700:
+        raise ConsumerError("record directory is invalid")
+    if metadata.st_uid != os.getuid() or metadata.st_gid != os.getgid():
+        raise ConsumerError("record directory ownership is invalid")
+
+
+def write_record(record_directory: Path, record: Mapping[str, Any]) -> Path:
+    validate_record_directory(record_directory)
+    destination = record_directory / f"{record['run_id']}.json"
+    temporary = record_directory / f".{record['run_id']}.{os.getpid()}.tmp"
+    payload = json.dumps(record, separators=(",", ":"), sort_keys=True).encode("utf-8")
+
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            output.write(payload)
+            output.flush()
+            os.fsync(output.fileno())
+        os.link(temporary, destination)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+    temporary.unlink()
+    return destination
+
+
+def run_acceptance(
+    run_id: str,
+    reader: Any,
+    identifier_reader: Callable[[], str],
+    record_directory: Path,
+) -> Path:
+    validate_run_id(run_id)
+    identifier = identifier_reader()
+    validate_identifier(identifier)
+    outcomes = collect_outcomes(reader, identifier)
+    record = {
+        "schema_version": "1.0",
+        "timestamp_utc": datetime.now(UTC).isoformat(),
+        "run_id": run_id,
+        "host_label": "assistant02",
+        "transport": "sdk-tty-one-shot",
+        "tools": outcomes,
+        "unresolved_gate": "administrator-post-state-attestation",
+    }
+    return write_record(record_directory, record)
+
+
+def parse_arguments(arguments: Sequence[str]) -> str:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("run_id")
+    parsed = parser.parse_args(arguments)
+    validate_run_id(parsed.run_id)
+    return parsed.run_id
+
+
+def main(arguments: Sequence[str]) -> int:
+    try:
+        run_id = parse_arguments(arguments)
+        return 0 if run_acceptance(run_id, build_sdk_reader(), read_identifier_from_tty, RECORD_DIRECTORY) else 1
+    except Exception:
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

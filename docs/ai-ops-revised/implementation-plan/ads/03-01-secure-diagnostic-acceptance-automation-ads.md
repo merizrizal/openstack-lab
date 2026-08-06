@@ -4,6 +4,8 @@
 
 **Goal:** Add a narrowly scoped, operator-approved Ansible acceptance path that runs the three deployed Phase 03 diagnostics as `aiops_assistant`, receives only sanitized outcome facts, and requires an administrator-owned boolean pre/post cloud-state comparison before Phase 03 reconciliation.
 
+**Approved transport amendment:** For identifier-bearing acceptance, `docs/ai-ops-revised/runtime/secure-diagnostic-acceptance-operations-contract.md` is authoritative and supersedes conflicting earlier conceptual language in this ADS. The acceptance playbook never receives a server identifier. An operator launches the fixed SDK-based local consumer through the approved TTY-only `sudo -u aiops_assistant` boundary; the consumer writes only an outcome record.
+
 ---
 
 ### I. Overview and Contract

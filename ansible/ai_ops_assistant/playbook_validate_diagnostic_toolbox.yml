@@ -74,6 +74,17 @@
         label: "{{ item.source }}"
       changed_when: false
       no_log: true
+      when: item.source.endswith('.sh')
+
+    - name: Check secure acceptance consumer Python syntax without retaining output
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -m
+          - py_compile
+          - "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/secure_diagnostic_acceptance_consumer"
+      changed_when: false
+      no_log: true
 
     - name: Run revised diagnostic static contract gate on the controller
       ansible.builtin.command:
@@ -93,5 +104,6 @@
           deployed_file_metadata_verified: true
           profile_metadata_verified: true
           shell_syntax_verified: true
+          secure_acceptance_consumer_syntax_verified: true
           cloud_diagnostics_not_invoked: true
       changed_when: false
