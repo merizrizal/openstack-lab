@@ -52,8 +52,8 @@
   ansible.builtin.file:
     path: /run/openstack-ai-ops/secure-diagnostic-acceptance
     state: directory
-    owner: aiops_assistant
-    group: aiops_assistant
+    owner: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_user }}"
+    group: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_group }}"
     mode: "0700"
     recurse: false
   when: ai_ops_assistant_diagnostic_toolbox_enabled | bool

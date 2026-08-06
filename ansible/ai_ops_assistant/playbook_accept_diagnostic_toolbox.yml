@@ -87,7 +87,9 @@
       ansible.builtin.assert:
         that:
           - ai_ops_assistant_acceptance_record is mapping
-          - ai_ops_assistant_acceptance_record.keys() | list | sort == ['host_label', 'run_id', 'schema_version', 'timestamp_utc', 'tools', 'transport', 'unresolved_gate']
+          - >-
+            ai_ops_assistant_acceptance_record.keys() | list
+            | sort == ['host_label', 'run_id', 'schema_version', 'timestamp_utc', 'tools', 'transport', 'unresolved_gate']
           - ai_ops_assistant_acceptance_record.schema_version == '1.0'
           - ai_ops_assistant_acceptance_record.timestamp_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?\\+00:00$')
           - ai_ops_assistant_acceptance_record.run_id == ai_ops_assistant_acceptance_run_id

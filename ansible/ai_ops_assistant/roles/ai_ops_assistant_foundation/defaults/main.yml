@@ -11,35 +11,35 @@ ai_ops_assistant_foundation_audit_root: /opt/openstack-ai-ops-assistant/audit
 ai_ops_assistant_foundation_workspaces:
   - path: /opt/openstack-ai-ops-assistant
     owner: root
-    group: aiops_assistant
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0750"
   - path: /opt/openstack-ai-ops-assistant/scripts/approved
     owner: root
-    group: aiops_assistant
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0750"
   - path: /opt/openstack-ai-ops-assistant/output
-    owner: aiops_assistant
-    group: aiops_assistant
+    owner: "{{ ai_ops_assistant_foundation_runtime_user }}"
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0750"
   - path: /opt/openstack-ai-ops-assistant/credentials
-    owner: aiops_assistant
-    group: aiops_assistant
+    owner: "{{ ai_ops_assistant_foundation_runtime_user }}"
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0700"
   - path: /opt/openstack-ai-ops-assistant/audit
-    owner: aiops_assistant
-    group: aiops_assistant
+    owner: "{{ ai_ops_assistant_foundation_runtime_user }}"
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0700"
   - path: /opt/openstack-ai-ops-assistant/tests
     owner: root
-    group: aiops_assistant
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0750"
   - path: /opt/openstack-ai-ops-assistant/mcp
-    owner: aiops_assistant
-    group: aiops_assistant
+    owner: "{{ ai_ops_assistant_foundation_runtime_user }}"
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0700"
   - path: /opt/openstack-ai-ops-assistant/evidence/foundation
     owner: root
-    group: aiops_assistant
+    group: "{{ ai_ops_assistant_foundation_runtime_group }}"
     mode: "0750"
 
 ai_ops_assistant_foundation_packages:
