@@ -1,0 +1,19 @@
+---
+ai_ops_assistant_tool_runner_enabled: false
+ai_ops_assistant_tool_runner_runtime_root: /opt/openstack-ai-ops-assistant
+ai_ops_assistant_tool_runner_runtime_user: aiops_assistant
+ai_ops_assistant_tool_runner_runtime_group: aiops_assistant
+ai_ops_assistant_tool_runner_directory: /opt/openstack-ai-ops-assistant/scripts/tool_runner
+ai_ops_assistant_tool_runner_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/aiops_tool_runner.py
+ai_ops_assistant_tool_runner_registry_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/tool_registry.json
+ai_ops_assistant_tool_runner_approved_script_root: /opt/openstack-ai-ops-assistant/scripts/approved
+ai_ops_assistant_tool_runner_credential_profile: aiops-assistant-project-reader
+ai_ops_assistant_tool_runner_targets:
+  - /opt/openstack-ai-ops-assistant/scripts/approved/project_resource_summary.sh
+  - /opt/openstack-ai-ops-assistant/scripts/approved/server_basic_info.sh
+  - /opt/openstack-ai-ops-assistant/scripts/approved/server_network_info.sh
+ai_ops_assistant_tool_runner_files:
+  - source: aiops_tool_runner.py
+    mode: "0750"
+  - source: tool_registry.json
+    mode: "0640"

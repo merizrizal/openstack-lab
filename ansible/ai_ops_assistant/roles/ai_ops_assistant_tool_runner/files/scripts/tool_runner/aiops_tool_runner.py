@@ -11,6 +11,8 @@ import signal
 import subprocess
 import sys
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +88,43 @@ STATUS_EXIT_CODES = {
     "timeout": 4,
     "unavailable": 5,
 }
+RESULT_FIELDS = {
+    "schema_version",
+    "tool",
+    "status",
+    "arguments",
+    "exit_code",
+    "data",
+    "stdout",
+    "stderr",
+    "error",
+    "duration_ms",
+    "truncated",
+    "timestamp",
+    "correlation_id",
+}
+RESULT_SCHEMA_VERSION = "1.0"
+AUDIT_SCHEMA_VERSION = "1.0"
+AUDIT_EVENT_TYPE = "tool_request_completed"
+AUDIT_ACTOR = "local_cli"
+MAX_AUDIT_EVENT_BYTES = 16 * 1024
+AUDIT_FIELDS = {
+    "schema_version",
+    "timestamp",
+    "event_type",
+    "actor",
+    "tool",
+    "arguments",
+    "status",
+    "duration_ms",
+    "correlation_id",
+    "reason",
+    "exit_code",
+    "truncated",
+}
+UNKNOWN_TOOL_LABEL = "unknown"
+_TEST_CLOCK = None
+_TEST_UUID_FACTORY = None
 
 
 class RegistryError(ValueError):
@@ -106,6 +145,417 @@ class TargetUnavailableError(ValueError):
 
 class TargetIntegrityError(ValueError):
     """Raised when an implementation violates the fixed runtime boundary."""
+
+
+class RedactionError(ValueError):
+    """Raised when redaction cannot safely produce a complete sanitized value."""
+
+
+class RedactionResult:
+    """A complete sanitized value and its bounded-work metadata."""
+
+    __slots__ = ("replaced", "truncated", "value")
+
+    def __init__(
+        self, value: Any, replaced: bool = False, truncated: bool = False
+    ) -> None:
+        self.value = value
+        self.replaced = replaced
+        self.truncated = truncated
+
+
+class RedactionPolicy:
+    """Limits and marker used by the standalone redaction boundary."""
+
+    __slots__ = ("marker", "maximum_depth", "maximum_text_bytes", "maximum_values")
+
+    def __init__(
+        self,
+        marker: str = "[REDACTED]",
+        maximum_depth: int = 32,
+        maximum_values: int = 100_000,
+        maximum_text_bytes: int | None = None,
+    ) -> None:
+        self.marker = marker
+        self.maximum_depth = maximum_depth
+        self.maximum_values = maximum_values
+        self.maximum_text_bytes = maximum_text_bytes
+
+
+DEFAULT_REDACTION_POLICY = RedactionPolicy()
+MAX_PUBLIC_MESSAGE_BYTES = 512
+_SECRET_KEY_PARTS = (
+    "password",
+    "passphrase",
+    "secret",
+    "token",
+    "credential",
+    "privatekey",
+    "apikey",
+    "authorization",
+)
+_ASSIGNMENT_SECRET_PATTERN = re.compile(
+    r"(?i)(\b(?:password|passphrase|secret|token|credential|private[ _-]*key|api[ _-]*key|authorization)\b"
+    r"\s*[:=]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;\]}]+)"
+)
+_BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_PRIVATE_KEY_PATTERN = re.compile(
+    r"-----BEGIN [^-\r\n]*PRIVATE KEY-----.*?-----END [^-\r\n]*PRIVATE KEY-----",
+    re.DOTALL,
+)
+
+
+def _normalized_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def _is_secret_key(value: str) -> bool:
+    normalized = _normalized_key(value)
+    return any(part in normalized for part in _SECRET_KEY_PARTS)
+
+
+def _bounded_utf8_text(text: str, maximum_bytes: int) -> tuple[str, bool]:
+    encoded = text.encode("utf-8")
+    if len(encoded) <= maximum_bytes:
+        return text, False
+    retained = encoded[:maximum_bytes]
+    while retained:
+        try:
+            return retained.decode("utf-8"), True
+        except UnicodeDecodeError:
+            retained = retained[:-1]
+    return "", True
+
+
+def sanitize_text(
+    text: str,
+    maximum_bytes: int = MAX_PUBLIC_MESSAGE_BYTES,
+    policy: RedactionPolicy | None = None,
+) -> RedactionResult:
+    """Redact reviewed text forms and enforce a UTF-8 byte bound."""
+
+    if not isinstance(text, str):
+        raise RedactionError("text must be a string")
+    if not isinstance(maximum_bytes, int) or isinstance(maximum_bytes, bool):
+        raise RedactionError("text bound must be an integer")
+    if maximum_bytes < 0:
+        raise RedactionError("text bound must not be negative")
+    active_policy = policy or DEFAULT_REDACTION_POLICY
+    sanitized = _PRIVATE_KEY_PATTERN.sub(active_policy.marker, text)
+    sanitized = _BEARER_PATTERN.sub(f"Bearer {active_policy.marker}", sanitized)
+    sanitized = _ASSIGNMENT_SECRET_PATTERN.sub(
+        rf"\1{re.escape(active_policy.marker)}", sanitized
+    )
+    sanitized, truncated = _bounded_utf8_text(sanitized, maximum_bytes)
+    return RedactionResult(
+        sanitized,
+        replaced=sanitized != text or active_policy.marker in sanitized,
+        truncated=truncated,
+    )
+
+
+def redact_value(
+    value: Any,
+    policy: RedactionPolicy | None = None,
+) -> RedactionResult:
+    """Recursively redact a JSON-like value, failing without partial output."""
+
+    active_policy = policy or DEFAULT_REDACTION_POLICY
+    if not isinstance(active_policy, RedactionPolicy):
+        raise RedactionError("invalid redaction policy")
+    state = {"values": 0}
+
+    def visit(current: Any, depth: int) -> RedactionResult:
+        state["values"] += 1
+        if state["values"] > active_policy.maximum_values:
+            raise RedactionError("redaction work limit exceeded")
+        if depth > active_policy.maximum_depth:
+            raise RedactionError("redaction nesting limit exceeded")
+        if current is None or isinstance(current, (bool, int, float)):
+            return RedactionResult(current)
+        if isinstance(current, str):
+            if active_policy.maximum_text_bytes is None:
+                result = sanitize_text(
+                    current, len(current.encode("utf-8")), active_policy
+                )
+            else:
+                result = sanitize_text(
+                    current, active_policy.maximum_text_bytes, active_policy
+                )
+            return result
+        if isinstance(current, list):
+            items = [visit(item, depth + 1) for item in current]
+            return RedactionResult(
+                [item.value for item in items],
+                replaced=any(item.replaced for item in items),
+                truncated=any(item.truncated for item in items),
+            )
+        if isinstance(current, dict):
+            sanitized: dict[str, Any] = {}
+            replaced = False
+            truncated = False
+            for key, item in current.items():
+                if not isinstance(key, str):
+                    raise RedactionError("object keys must be strings")
+                if _is_secret_key(key):
+                    sanitized[key] = active_policy.marker
+                    replaced = True
+                    state["values"] += 1
+                    if state["values"] > active_policy.maximum_values:
+                        raise RedactionError("redaction work limit exceeded")
+                    continue
+                result = visit(item, depth + 1)
+                sanitized[key] = result.value
+                replaced = replaced or result.replaced
+                truncated = truncated or result.truncated
+            return RedactionResult(sanitized, replaced, truncated)
+        raise RedactionError("unsupported value for redaction")
+
+    return visit(value, 0)
+
+
+def sanitize_arguments(
+    tool: str,
+    validated_arguments: dict[str, Any],
+    audience: str = "result",
+) -> dict[str, Any]:
+    """Return a redacted result argument object or minimal audit summary."""
+
+    if not isinstance(tool, str) or not isinstance(validated_arguments, dict):
+        raise RedactionError("invalid argument container")
+    if audience == "audit":
+        return {"server_identifier_present": "server_identifier" in validated_arguments}
+    if audience != "result":
+        raise RedactionError("invalid redaction audience")
+    result = redact_value(validated_arguments)
+    if not isinstance(result.value, dict):
+        raise RedactionError("sanitized arguments are not an object")
+    return result.value
+
+
+def _request_timestamp() -> str:
+    clock = _TEST_CLOCK or (lambda: datetime.now(timezone.utc))
+    value = clock()
+    if not isinstance(value, datetime):
+        raise TypeError("request clock returned an invalid value")
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return (
+        value.astimezone(timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+
+def _request_correlation_id() -> str:
+    factory = _TEST_UUID_FACTORY or uuid.uuid4
+    value = factory()
+    if not isinstance(value, uuid.UUID) or value.version != 4:
+        raise ValueError("request identifier factory returned an invalid value")
+    return str(value)
+
+
+def _public_tool_label(tool_name: str) -> str:
+    return tool_name if tool_name in TOOL_NAMES else UNKNOWN_TOOL_LABEL
+
+
+_ERROR_MESSAGES = {
+    "registry_error": "Runner registry is invalid.",
+    "validation_error": "Request arguments are invalid.",
+    "target_unavailable": "Approved diagnostic is unavailable.",
+    "target_integrity_error": "Approved diagnostic failed integrity checks.",
+    "execution_error": "Approved diagnostic failed.",
+    "timeout": "Diagnostic exceeded its time limit.",
+    "interrupted": "Diagnostic was interrupted.",
+    "output_decode_error": "Diagnostic output could not be accepted.",
+    "redaction_error": "Diagnostic result could not be safely redacted.",
+    "serialization_error": "Diagnostic result could not be serialized.",
+    "request_context_error": "Request context could not be created.",
+}
+
+
+def _error_class(status: str, reason: str | None) -> str:
+    if reason == "requested tool is not approved":
+        return "validation_error"
+    if reason == "runner registry is invalid":
+        return "registry_error"
+    if reason == "request parameters are invalid":
+        return "validation_error"
+    if reason == "approved implementation is unavailable":
+        return "target_unavailable"
+    if reason == "approved implementation is unsafe":
+        return "target_integrity_error"
+    if reason == "approved implementation timed out":
+        return "timeout"
+    if reason == "runner was interrupted":
+        return "interrupted"
+    if reason == "diagnostic output is invalid":
+        return "output_decode_error"
+    if reason == "result redaction failed":
+        return "redaction_error"
+    if status == "denied":
+        return "validation_error"
+    if status == "validation_error":
+        return "validation_error"
+    if status == "timeout":
+        return "timeout"
+    if status == "unavailable":
+        return "target_unavailable"
+    return "execution_error"
+
+
+def _diagnostic_data(
+    tool: dict[str, Any], capture: CaptureResult | None
+) -> dict[str, Any] | None:
+    if capture is None:
+        return None
+    try:
+        payload = json.loads(capture.stdout.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RedactionError("diagnostic output is invalid") from exc
+    if not isinstance(payload, dict):
+        raise RedactionError("diagnostic output is invalid")
+    if payload.get("schema_version") != "1.0" or payload.get("tool") != tool["name"]:
+        raise RedactionError("diagnostic output is invalid")
+    if payload.get("status") not in {"ok", "partial", "error"}:
+        raise RedactionError("diagnostic output is invalid")
+    redacted = redact_value(payload)
+    if not isinstance(redacted.value, dict):
+        raise RedactionError("diagnostic output is invalid")
+    return redacted.value
+
+
+def build_result_envelope(
+    tool_name: str,
+    status: str,
+    arguments: dict[str, Any] | None = None,
+    reason: str | None = None,
+    capture: CaptureResult | None = None,
+    timestamp: str | None = None,
+    correlation_id: str | None = None,
+) -> dict[str, Any]:
+    """Build one closed, redacted, deterministic result object."""
+
+    if status not in STATUS_EXIT_CODES:
+        raise ValueError("unknown result status")
+    if timestamp is None:
+        timestamp = _request_timestamp()
+    if correlation_id is None:
+        correlation_id = _request_correlation_id()
+    safe_arguments = sanitize_arguments(
+        _public_tool_label(tool_name), arguments or {}, "result"
+    )
+    should_include_data = capture is not None and (
+        status in {"ok", "unavailable"}
+        or reason in {None, "approved implementation failed"}
+    )
+    data = (
+        _diagnostic_data({"name": _public_tool_label(tool_name)}, capture)
+        if should_include_data and _public_tool_label(tool_name) != UNKNOWN_TOOL_LABEL
+        else None
+    )
+    error = None
+    if status != "ok":
+        error_class = _error_class(status, reason)
+        error = {
+            "class": error_class,
+            "message": _ERROR_MESSAGES.get(error_class, "Runner request failed."),
+        }
+        error = {
+            "class": error["class"],
+            "message": sanitize_text(error["message"]).value,
+        }
+    payload = {
+        "schema_version": RESULT_SCHEMA_VERSION,
+        "tool": _public_tool_label(tool_name),
+        "status": status,
+        "arguments": safe_arguments,
+        "exit_code": capture.return_code
+        if capture is not None
+        else STATUS_EXIT_CODES[status],
+        "data": data,
+        "stdout": None,
+        "stderr": None,
+        "error": error,
+        "duration_ms": capture.duration_ms if capture is not None else 0,
+        "truncated": capture.truncated if capture is not None else False,
+        "timestamp": timestamp,
+        "correlation_id": correlation_id,
+    }
+    if set(payload) != RESULT_FIELDS:
+        raise ValueError("result envelope field set is invalid")
+    return payload
+
+
+def serialize_result_envelope(payload: dict[str, Any]) -> str:
+    """Serialize one complete result object as compact deterministic JSON."""
+
+    if not isinstance(payload, dict) or set(payload) != RESULT_FIELDS:
+        raise ValueError("result envelope field set is invalid")
+    return (
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    )
+
+
+def build_audit_event(
+    result: dict[str, Any], actor: str = AUDIT_ACTOR
+) -> dict[str, Any]:
+    """Derive one closed, minimum-disclosure event from a safe result."""
+
+    if not isinstance(result, dict) or set(result) != RESULT_FIELDS:
+        raise ValueError("result envelope field set is invalid")
+    if actor != AUDIT_ACTOR:
+        raise ValueError("actor classification is not approved")
+    arguments = result["arguments"]
+    if not isinstance(arguments, dict):
+        raise TypeError("result arguments are invalid")
+    safe_arguments = sanitize_arguments("audit", arguments, "audit")
+    error = result["error"]
+    if error is not None and (
+        not isinstance(error, dict) or set(error) != {"class", "message"}
+    ):
+        raise ValueError("result error object is invalid")
+    event = {
+        "schema_version": AUDIT_SCHEMA_VERSION,
+        "timestamp": result["timestamp"],
+        "event_type": AUDIT_EVENT_TYPE,
+        "actor": AUDIT_ACTOR,
+        "tool": result["tool"],
+        "arguments": safe_arguments,
+        "status": result["status"],
+        "duration_ms": result["duration_ms"],
+        "correlation_id": result["correlation_id"],
+        "reason": error["class"] if error is not None else None,
+        "exit_code": result["exit_code"],
+        "truncated": result["truncated"],
+    }
+    if set(event) != AUDIT_FIELDS:
+        raise ValueError("audit event field set is invalid")
+    return event
+
+
+def serialize_audit_event(event: dict[str, Any]) -> str:
+    """Serialize one complete audit event without opening an audit sink."""
+
+    if not isinstance(event, dict) or set(event) != AUDIT_FIELDS:
+        raise ValueError("audit event field set is invalid")
+    serialized = json.dumps(
+        event,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    if len(serialized.encode("utf-8")) + 1 > MAX_AUDIT_EVENT_BYTES:
+        raise ValueError("audit event exceeds its size bound")
+    return serialized + "\n"
 
 
 class CaptureResult:
@@ -568,48 +1018,94 @@ def execute_fixed_diagnostic(
     return diagnostic_status, None, capture
 
 
-def emit_stub_outcome(
+def emit_result_outcome(
     tool_name: str,
     status: str,
     reason: str | None,
+    arguments: dict[str, Any] | None,
     capture: CaptureResult | None = None,
+    timestamp: str | None = None,
+    correlation_id: str | None = None,
 ) -> None:
-    """Emit the interim outcome while the final envelope remains deferred."""
+    """Emit exactly one final result envelope; audit persistence remains deferred."""
 
-    payload: dict[str, Any] = {"tool": tool_name, "status": status}
-    if reason is not None:
-        payload["error"] = reason
-    if capture is not None:
-        payload["duration_ms"] = capture.duration_ms
-        payload["truncated"] = capture.truncated
-    sys.stdout.write(json.dumps(payload, sort_keys=True) + "\n")
+    try:
+        payload = build_result_envelope(
+            tool_name,
+            status,
+            arguments,
+            reason,
+            capture,
+            timestamp,
+            correlation_id,
+        )
+    except RedactionError:
+        payload = build_result_envelope(
+            tool_name,
+            "error",
+            {},
+            "result redaction failed",
+            None,
+            timestamp,
+            correlation_id,
+        )
+    sys.stdout.write(serialize_result_envelope(payload))
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Validate startup and request input without executing a diagnostic."""
+    """Validate input, execute the fixed diagnostic, and emit one final envelope."""
 
     requested = list(sys.argv[1:] if argv is None else argv)
     tool_name = requested[0] if requested else "unknown"
+    timestamp = _request_timestamp()
+    correlation_id = _request_correlation_id()
     try:
         registry = load_registry()
     except RegistryError:
-        emit_stub_outcome(tool_name, "error", "runner registry is invalid")
+        emit_result_outcome(
+            tool_name,
+            "error",
+            "runner registry is invalid",
+            {},
+            timestamp=timestamp,
+            correlation_id=correlation_id,
+        )
         return STATUS_EXIT_CODES["error"]
 
     try:
         tool_name, declarations = parse_declared_args(requested)
         tool, values = validate_request(registry, tool_name, declarations)
     except RequestDeniedError:
-        emit_stub_outcome(tool_name, "denied", "requested tool is not approved")
+        emit_result_outcome(
+            tool_name,
+            "denied",
+            "requested tool is not approved",
+            {},
+            timestamp=timestamp,
+            correlation_id=correlation_id,
+        )
         return STATUS_EXIT_CODES["denied"]
     except RequestValidationError:
-        emit_stub_outcome(
-            tool_name, "validation_error", "request parameters are invalid"
+        emit_result_outcome(
+            tool_name,
+            "validation_error",
+            "request parameters are invalid",
+            {},
+            timestamp=timestamp,
+            correlation_id=correlation_id,
         )
         return STATUS_EXIT_CODES["validation_error"]
 
     status, reason, capture = execute_fixed_diagnostic(tool, values)
-    emit_stub_outcome(tool_name, status, reason, capture)
+    emit_result_outcome(
+        tool_name,
+        status,
+        reason,
+        values,
+        capture,
+        timestamp,
+        correlation_id,
+    )
     return STATUS_EXIT_CODES[status]
 
 
