@@ -48,6 +48,16 @@
     label: "{{ item.item.source }}"
   changed_when: false
 
+- name: Ensure secure diagnostic acceptance record directory is present
+  ansible.builtin.file:
+    path: /run/openstack-ai-ops/secure-diagnostic-acceptance
+    state: directory
+    owner: aiops_assistant
+    group: aiops_assistant
+    mode: "0700"
+    recurse: false
+  when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
+
 - name: Ensure revised approved-script directory is present
   ansible.builtin.file:
     path: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}"

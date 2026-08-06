@@ -42,6 +42,8 @@ class OpenStackReader:
 def build_sdk_reader() -> OpenStackReader:
     import openstack
 
+    os.environ["OS_CLIENT_CONFIG_FILE"] = PROFILE_PATH
+    os.environ["OS_CLOUD"] = PROFILE_NAME
     connection = openstack.connect(cloud=PROFILE_NAME, config_files=[PROFILE_PATH])
     return OpenStackReader(connection)
 
@@ -58,20 +60,29 @@ def validate_identifier(identifier: str) -> None:
 
 def read_identifier_from_tty() -> str:
     try:
-        with open("/dev/tty", "r+", encoding="utf-8") as terminal:
-            previous = termios.tcgetattr(terminal.fileno())
+        terminal_fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+        try:
+            previous = termios.tcgetattr(terminal_fd)
             try:
-                terminal.write("Server identifier: ")
-                terminal.flush()
+                os.write(terminal_fd, b"Server identifier: ")
                 updated = previous[:]
                 updated[3] &= ~termios.ECHO
-                termios.tcsetattr(terminal.fileno(), termios.TCSADRAIN, updated)
-                identifier = terminal.readline(257).rstrip("\r\n")
-                terminal.write("\n")
-                terminal.flush()
+                termios.tcsetattr(terminal_fd, termios.TCSADRAIN, updated)
+                chunks: list[bytes] = []
+                while sum(len(chunk) for chunk in chunks) < 257:
+                    chunk = os.read(terminal_fd, 257 - sum(len(part) for part in chunks))
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    if b"\n" in chunk:
+                        break
+                identifier = b"".join(chunks).decode("utf-8").rstrip("\r\n")
+                os.write(terminal_fd, b"\n")
             finally:
-                termios.tcsetattr(terminal.fileno(), termios.TCSADRAIN, previous)
-    except OSError as error:
+                termios.tcsetattr(terminal_fd, termios.TCSADRAIN, previous)
+        finally:
+            os.close(terminal_fd)
+    except (OSError, UnicodeError) as error:
         raise ConsumerError("controlling terminal is unavailable") from error
 
     validate_identifier(identifier)

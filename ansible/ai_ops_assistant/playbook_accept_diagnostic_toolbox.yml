@@ -9,6 +9,8 @@
     ai_ops_assistant_acceptance_run_id: ""
     ai_ops_assistant_acceptance_transport: sdk-tty-one-shot
     ai_ops_assistant_acceptance_comparator: administrator-owned-boolean-only
+    ai_ops_assistant_acceptance_pre_attestation_interface: administrator-owned-boolean-only
+    ai_ops_assistant_acceptance_post_attestation_interface: administrator-owned-boolean-only
   tasks:
     - name: Assert acceptance stub scope
       ansible.builtin.assert:
@@ -23,9 +25,114 @@
         quiet: true
       changed_when: false
 
-    - name: Stop until the secure local consumer is deployed
+    - name: Inspect protected secure-acceptance record directory
+      ansible.builtin.stat:
+        path: /run/openstack-ai-ops/secure-diagnostic-acceptance
+        follow: false
+      register: ai_ops_assistant_acceptance_record_directory_metadata
+      changed_when: false
+
+    - name: Assert protected secure-acceptance record directory metadata
       ansible.builtin.assert:
-        that: false
-        fail_msg: Secure local diagnostic consumer deployment is required before acceptance automation.
+        that:
+          - ai_ops_assistant_acceptance_record_directory_metadata.stat.exists
+          - ai_ops_assistant_acceptance_record_directory_metadata.stat.isdir
+          - not ai_ops_assistant_acceptance_record_directory_metadata.stat.islnk
+          - ai_ops_assistant_acceptance_record_directory_metadata.stat.pw_name == 'aiops_assistant'
+          - ai_ops_assistant_acceptance_record_directory_metadata.stat.gr_name == 'aiops_assistant'
+          - ai_ops_assistant_acceptance_record_directory_metadata.stat.mode == '0700'
         quiet: true
+      changed_when: false
+
+    - name: Inspect outcome-only secure-acceptance record
+      ansible.builtin.stat:
+        path: >-
+          /run/openstack-ai-ops/secure-diagnostic-acceptance/{{ ai_ops_assistant_acceptance_run_id }}.json
+        follow: false
+      register: ai_ops_assistant_acceptance_record_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert outcome-only secure-acceptance record metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_acceptance_record_metadata.stat.exists
+          - ai_ops_assistant_acceptance_record_metadata.stat.isreg
+          - not ai_ops_assistant_acceptance_record_metadata.stat.islnk
+          - ai_ops_assistant_acceptance_record_metadata.stat.pw_name == 'aiops_assistant'
+          - ai_ops_assistant_acceptance_record_metadata.stat.gr_name == 'aiops_assistant'
+          - ai_ops_assistant_acceptance_record_metadata.stat.mode == '0600'
+          - ai_ops_assistant_acceptance_record_metadata.stat.size | int > 0
+          - ai_ops_assistant_acceptance_record_metadata.stat.size | int <= 4096
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Read outcome-only secure-acceptance record
+      ansible.builtin.slurp:
+        src: >-
+          /run/openstack-ai-ops/secure-diagnostic-acceptance/{{ ai_ops_assistant_acceptance_run_id }}.json
+      register: ai_ops_assistant_acceptance_record_raw
+      changed_when: false
+      no_log: true
+
+    - name: Decode outcome-only secure-acceptance record
+      ansible.builtin.set_fact:
+        ai_ops_assistant_acceptance_record: >-
+          {{ ai_ops_assistant_acceptance_record_raw.content | b64decode | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Assert outcome-only secure-acceptance record schema
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_acceptance_record is mapping
+          - ai_ops_assistant_acceptance_record.keys() | list | sort == ['host_label', 'run_id', 'schema_version', 'timestamp_utc', 'tools', 'transport', 'unresolved_gate']
+          - ai_ops_assistant_acceptance_record.schema_version == '1.0'
+          - ai_ops_assistant_acceptance_record.timestamp_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?\\+00:00$')
+          - ai_ops_assistant_acceptance_record.run_id == ai_ops_assistant_acceptance_run_id
+          - ai_ops_assistant_acceptance_record.host_label == 'assistant02'
+          - ai_ops_assistant_acceptance_record.transport == ai_ops_assistant_acceptance_transport
+          - ai_ops_assistant_acceptance_record.unresolved_gate == 'administrator-post-state-attestation'
+          - ai_ops_assistant_acceptance_record.tools is sequence
+          - ai_ops_assistant_acceptance_record.tools | length == 2
+          - ai_ops_assistant_acceptance_record.tools | map(attribute='name') | list | sort == ['server_basic_info', 'server_network_info']
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert normalized outcome-only tool records
+      ansible.builtin.assert:
+        that:
+          - item is mapping
+          - item.keys() | list | sort == ['bounds_valid', 'json_shape_valid', 'name', 'outcome', 'redaction_valid']
+          - item.name in ['server_basic_info', 'server_network_info']
+          - item.outcome in ['ok', 'not_found', 'policy_denied', 'authentication_error', 'connectivity_error', 'execution_error']
+          - item.json_shape_valid is boolean
+          - item.bounds_valid is boolean
+          - item.redaction_valid is boolean
+        quiet: true
+      loop: "{{ ai_ops_assistant_acceptance_record.tools }}"
+      loop_control:
+        label: "{{ item.name | default('invalid') }}"
+      changed_when: false
+      no_log: true
+
+    - name: Assert external administrator comparator interfaces remain non-sensitive stubs
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_acceptance_pre_attestation_interface == 'administrator-owned-boolean-only'
+          - ai_ops_assistant_acceptance_post_attestation_interface == 'administrator-owned-boolean-only'
+        quiet: true
+      changed_when: false
+
+    - name: Report local secure-acceptance record validation state
+      ansible.builtin.debug:
+        msg:
+          host_label: assistant02
+          transport: sdk-tty-one-shot
+          outcome_record_validated: true
+          pre_attestation_interface: administrator-owned-boolean-only
+          post_attestation_interface: administrator-owned-boolean-only
+          administrator_post_state_attestation_required: true
       changed_when: false

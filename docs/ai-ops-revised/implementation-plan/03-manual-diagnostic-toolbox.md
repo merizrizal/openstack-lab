@@ -217,7 +217,9 @@ Tasks:
 
 Done when:
 
-- [ ] Acceptance automation is evidence-backed or explicitly blocked without expanding Phase 03 authority.
+- [x] Acceptance automation is evidence-backed or explicitly blocked without expanding Phase 03 authority.
+
+Evidence-backed status: the revised acceptance playbook validated the protected outcome record and its allowlisted schema after the approved live consumer run. Project-reader validation passed with only approved empty results, and the administrator-owned post-state attestation was recorded externally. No identifier, raw diagnostic output, credential, profile content, or comparator data is retained here.
 
 ## 03.6 Phase Definition of Done
 
