@@ -4,9 +4,7 @@
   become: true
   gather_facts: false
   vars_files:
-    - >-
-      {{ lookup('ansible.builtin.env', 'ROOT_DIR') |
-      default(playbook_dir | dirname | dirname, true) }}/inventories/local/nodes.yml
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   vars:
     ansible_pipelining: true
     ai_ops_assistant_project_reader_runtime_user: aiops_assistant

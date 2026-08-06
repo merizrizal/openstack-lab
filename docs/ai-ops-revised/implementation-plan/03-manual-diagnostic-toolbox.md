@@ -41,11 +41,11 @@ Excluded:
 
 ## 03.4 Assumptions
 
-- [ ] The fresh revised project-reader profile and its tested read matrix are available.
-- [ ] Selected or newly implemented diagnostics are located only in the revised namespace; prior scripts remain unchanged.
-- [ ] Shell scripts are acceptable for simple learning-oriented tools when they remain inspectable and testable.
-- [ ] Python/OpenStack SDK may be used where it materially improves structured behavior without enlarging authority.
-- [ ] Server names and IDs can use a deliberately narrow validation pattern.
+- [x] The fresh revised project-reader profile and its tested read matrix are available.
+- [x] Selected or newly implemented diagnostics are located only in the revised namespace; prior scripts remain unchanged.
+- [x] Shell scripts are acceptable for simple learning-oriented tools when they remain inspectable and testable.
+- [x] Python/OpenStack SDK may be used where it materially improves structured behavior without enlarging authority.
+- [x] Server names and IDs can use a deliberately narrow validation pattern.
 
 ## 03.5 Ordered Tasks
 
@@ -60,16 +60,16 @@ Estimate:
 
 Tasks:
 
-- [ ] Compare each prior diagnostic candidate with the revised contract, review its helper dependencies, and record whether to reuse, adapt, or implement it anew.
-- [ ] Define revised diagnostic names, intent, credential profile, parameters, output shape, expected errors, and mutation guarantee without colliding with prior runtime registrations.
-- [ ] Ban create, update, delete, start, stop, restart, install, edit, redirect-write, eval, generic shell, generic SSH, unrestricted sudo, database access, and raw OpenStack passthrough.
-- [ ] Require strict input validation before every external invocation.
-- [ ] Require bounded output and explicit unavailable behavior for unsupported policy or services.
-- [ ] Define redaction rules for secret-like keys and prohibit full secret-bearing configuration output.
+- [x] Compare each prior diagnostic candidate with the revised contract, review its helper dependencies, and record whether to reuse, adapt, or implement it anew.
+- [x] Define revised diagnostic names, intent, credential profile, parameters, output shape, expected errors, and mutation guarantee without colliding with prior runtime registrations.
+- [x] Ban create, update, delete, start, stop, restart, install, edit, redirect-write, eval, generic shell, generic SSH, unrestricted sudo, database access, and raw OpenStack passthrough.
+- [x] Require strict input validation before every external invocation.
+- [x] Require bounded output and explicit unavailable behavior for unsupported policy or services.
+- [x] Define redaction rules for secret-like keys and prohibit full secret-bearing configuration output.
 
 Done when:
 
-- [ ] Reviewers can assess a diagnostic against one documented safety and output contract.
+- [x] Reviewers can assess a diagnostic against one documented safety and output contract.
 
 ### Step 2 - Add Shared Validation and Output Helpers
 
@@ -82,15 +82,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add reusable validation for server names/IDs and other MVP identifiers.
-- [ ] Reject empty values, shell metacharacters, control characters, path traversal, and overlong input.
-- [ ] Add common project-reader profile selection without exposing secret values.
-- [ ] Add consistent status, error, and exit-code conventions for manual execution.
-- [ ] Add JSON or section helpers that preserve raw service errors without confusing them with successful empty results.
+- [x] Add reusable validation for server names/IDs and other MVP identifiers.
+- [x] Reject empty values, shell metacharacters, control characters, path traversal, and overlong input.
+- [x] Add common project-reader profile selection without exposing secret values.
+- [x] Add consistent status, error, and exit-code conventions for manual execution.
+- [x] Add JSON or section helpers that preserve raw service errors without confusing them with successful empty results.
 
 Done when:
 
-- [ ] New diagnostics share tested validation and output behavior rather than duplicating command construction.
+- [x] New diagnostics share tested validation and output behavior rather than duplicating command construction.
 
 ### Step 3 - Implement Project Resource Summary
 
@@ -103,15 +103,15 @@ Estimate:
 
 Tasks:
 
-- [ ] List project-visible servers, networks, subnets, ports, volumes, images, and security groups using read-only operations.
-- [ ] Emit JSON for each supported resource class or a stable sectioned aggregate.
-- [ ] Report policy-blocked or unavailable sections explicitly without failing open.
-- [ ] Keep output concise through selected fields or documented limits where resource counts are large.
-- [ ] Capture a redacted representative result and verify no credential material is present.
+- [x] List project-visible servers, networks, subnets, ports, volumes, images, and security groups using read-only operations.
+- [x] Emit JSON for each supported resource class or a stable sectioned aggregate.
+- [x] Report policy-blocked or unavailable sections explicitly without failing open.
+- [x] Keep output concise through selected fields or documented limits where resource counts are large.
+- [x] Capture a redacted representative result and verify no credential material is present.
 
 Done when:
 
-- [ ] An operator can answer “what exists in this project?” with one reviewed diagnostic.
+- [x] An operator can answer “what exists in this project?” with one reviewed diagnostic.
 
 ### Step 4 - Implement Server Basic Information
 
@@ -124,11 +124,11 @@ Estimate:
 
 Tasks:
 
-- [ ] Accept exactly one validated server name or ID.
-- [ ] Return status, image, flavor, addresses, availability zone, config-drive state, and other safe boot context available from the API.
-- [ ] Preserve distinct not-found, ambiguous-name, permission-denied, endpoint, and authentication outcomes.
+- [x] Accept exactly one validated server name or ID.
+- [x] Return status, image, flavor, addresses, availability zone, config-drive state, and other safe boot context available from the API.
+- [x] Preserve distinct not-found, ambiguous-name, permission-denied, endpoint, and authentication outcomes.
 - [ ] Verify success for a representative server and rejection for malformed input.
-- [ ] Verify the implementation cannot append arbitrary OpenStack arguments.
+- [x] Verify the implementation cannot append arbitrary OpenStack arguments.
 
 Done when:
 
@@ -145,10 +145,10 @@ Estimate:
 
 Tasks:
 
-- [ ] Accept the same validated server identifier contract.
-- [ ] Return attached ports, fixed IPs, network IDs, subnet context, and relevant port metadata through read-only operations.
-- [ ] Resolve related network/subnet information only where policy permits and report unavailable detail explicitly.
-- [ ] Keep the data useful for metadata-path diagnosis without exposing unrelated project data.
+- [x] Accept the same validated server identifier contract.
+- [x] Return attached ports, fixed IPs, network IDs, subnet context, and relevant port metadata through read-only operations.
+- [x] Resolve related network/subnet information only where policy permits and report unavailable detail explicitly.
+- [x] Keep the data useful for metadata-path diagnosis without exposing unrelated project data.
 - [ ] Verify expected behavior for a server with multiple ports and for not-found input.
 
 Done when:
@@ -166,11 +166,11 @@ Estimate:
 
 Tasks:
 
-- [ ] Scan diagnostic implementations for forbidden mutation and generic-execution patterns.
-- [ ] Run language-appropriate syntax and lint checks.
-- [ ] Test empty, malformed, overlong, metacharacter, and path-like parameters.
-- [ ] Test successful output shape, service error preservation, and unavailable sections with controlled fixtures.
-- [ ] Test that only the project-reader profile is selected for initial tools.
+- [x] Scan diagnostic implementations for forbidden mutation and generic-execution patterns.
+- [x] Run language-appropriate syntax and lint checks.
+- [x] Test empty, malformed, overlong, metacharacter, and path-like parameters.
+- [x] Test successful output shape, service error preservation, and unavailable sections with controlled fixtures.
+- [x] Test that only the project-reader profile is selected for initial tools.
 - [ ] Document any static-check false-positive review process without allowing blanket suppression.
 
 Done when:
@@ -198,15 +198,38 @@ Done when:
 
 - [ ] The three diagnostics are trusted manually before any wrapper or MCP integration.
 
+### Step 8 - Secure Acceptance Automation
+
+Estimate:
+
+```text
+0.5-1 engineer-days
+3-6 focused hours
+```
+
+Tasks:
+
+- [x] Confirm an approved secure representative-identifier transport that cannot enter Git, inventory, extra-vars, process listings, shell history, callback output, or retained evidence.
+- [x] Confirm an administrator-owned pre/post cloud-state comparator that returns only non-sensitive boolean attestation facts.
+- [x] Add a revised-only acceptance playbook that targets only `assistant02`, invokes only the fixed diagnostics as `aiops_assistant`, and fails closed on unavailable secure integrations.
+- [x] Prove raw results, identifiers, command arguments, profiles, credentials, and cloud payloads remain in `no_log` state and outside outcome-only evidence.
+- [x] Run the acceptance path only after separate operator approval and retain only the Phase 03 outcome fields permitted by the operations contract.
+
+Done when:
+
+- [x] Acceptance automation is evidence-backed or explicitly blocked without expanding Phase 03 authority.
+
+Evidence-backed status: the revised acceptance playbook validated the protected outcome record and its allowlisted schema after the approved live consumer run. Project-reader validation passed with only approved empty results, and the administrator-owned post-state attestation was recorded externally. No identifier, raw diagnostic output, credential, profile content, or comparator data is retained here.
+
 ## 03.6 Phase Definition of Done
 
 This phase is done when:
 
 - [ ] Project resource summary, server basic info, and server network info exist and run manually.
-- [ ] Every tool validates inputs and uses project-reader by default.
-- [ ] Outputs are structured, bounded, and distinguish findings from execution failures.
-- [ ] Static checks find no mutation or generic execution capability.
-- [ ] Automated tests cover unsafe inputs and output contracts.
+- [x] Every tool validates inputs and uses project-reader by default.
+- [x] Outputs are structured, bounded, and distinguish findings from execution failures.
+- [x] Static checks find no mutation or generic execution capability.
+- [x] Automated tests cover unsafe inputs and output contracts.
 - [ ] Deployed-lab evidence confirms useful reads and unchanged cloud state.
 
 ## 03.7 Risks

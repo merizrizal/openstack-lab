@@ -1,0 +1,123 @@
+---
+- name: Validate revised diagnostic-toolbox deployment contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_diagnostic_toolbox_enabled is boolean
+      - ai_ops_assistant_diagnostic_toolbox_runtime_root == '/opt/openstack-ai-ops-assistant'
+      - ai_ops_assistant_diagnostic_toolbox_runtime_user == 'aiops_assistant'
+      - ai_ops_assistant_diagnostic_toolbox_runtime_group == 'aiops_assistant'
+      - >-
+        ai_ops_assistant_diagnostic_toolbox_destination ==
+        ai_ops_assistant_diagnostic_toolbox_runtime_root + '/scripts/approved'
+      - >-
+        ai_ops_assistant_diagnostic_toolbox_files | map(attribute='source') | list == [
+        'lib/aiops_common.sh',
+        'project_resource_summary.sh',
+        'server_basic_info.sh',
+        'server_network_info.sh',
+        'secure_diagnostic_acceptance_consumer'
+        ]
+      - >-
+        ai_ops_assistant_diagnostic_toolbox_files | map(attribute='mode') | list == [
+        '0640', '0750', '0750', '0750', '0750'
+        ]
+      - "'..' not in ai_ops_assistant_diagnostic_toolbox_destination.split('/')"
+    quiet: true
+
+- name: Inspect diagnostic-toolbox source files
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/scripts/approved/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_diagnostic_toolbox_files }}"
+  loop_control:
+    label: "{{ item.source }}"
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_diagnostic_toolbox_source_metadata
+  changed_when: false
+
+- name: Assert diagnostic-toolbox source files are regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_diagnostic_toolbox_source_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
+
+- name: Ensure secure diagnostic acceptance record directory is present
+  ansible.builtin.file:
+    path: /run/openstack-ai-ops/secure-diagnostic-acceptance
+    state: directory
+    owner: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_user }}"
+    group: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_group }}"
+    mode: "0700"
+    recurse: false
+  when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
+
+- name: Ensure revised approved-script directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
+
+- name: Ensure revised diagnostic helper directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/lib"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
+
+- name: Materialize exact revised diagnostic-toolbox files
+  ansible.builtin.copy:
+    src: "scripts/approved/{{ item.source }}"
+    dest: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/{{ item.source }}"
+    owner: root
+    group: "{{ ai_ops_assistant_diagnostic_toolbox_runtime_group }}"
+    mode: "{{ item.mode }}"
+    backup: false
+  loop: "{{ ai_ops_assistant_diagnostic_toolbox_files }}"
+  loop_control:
+    label: "{{ item.source }}"
+  when: ai_ops_assistant_diagnostic_toolbox_enabled | bool
+
+- name: Inspect materialized diagnostic-toolbox files
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_diagnostic_toolbox_destination }}/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_diagnostic_toolbox_files }}"
+  loop_control:
+    label: "{{ item.source }}"
+  register: ai_ops_assistant_diagnostic_toolbox_destination_metadata
+  changed_when: false
+  when:
+    - ai_ops_assistant_diagnostic_toolbox_enabled | bool
+    - not ansible_check_mode
+
+- name: Assert materialized diagnostic-toolbox file metadata
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == ai_ops_assistant_diagnostic_toolbox_runtime_group
+      - item.stat.mode == item.item.mode
+    quiet: true
+  loop: "{{ ai_ops_assistant_diagnostic_toolbox_destination_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
+  when:
+    - ai_ops_assistant_diagnostic_toolbox_enabled | bool
+    - not ansible_check_mode
