@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "registry_name": "ai-ops-assistant-tool-runner-steps-01-04",
+  "defaults": {
+    "credential_profile": "aiops-assistant-project-reader",
+    "risk_class": "low_readonly_project_scope",
+    "timeout_seconds": 300,
+    "output_limit_bytes": 1048576,
+    "mutation_guarantee": "read_only_fixed_diagnostic_script"
+  },
+  "tools": [
+    {
+      "name": "project_resource_summary",
+      "description": "List project-visible OpenStack resources using the fixed read-only diagnostic.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/project_resource_summary.sh",
+      "credential_profile": "aiops-assistant-project-reader",
+      "risk_class": "low_readonly_project_scope",
+      "timeout_seconds": 45,
+      "output_limit_bytes": 131072,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": []
+    },
+    {
+      "name": "server_basic_info",
+      "description": "Show basic information for one project-visible server.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/server_basic_info.sh",
+      "credential_profile": "aiops-assistant-project-reader",
+      "risk_class": "low_readonly_project_scope",
+      "timeout_seconds": 30,
+      "output_limit_bytes": 65536,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": [
+        {
+          "name": "server_identifier",
+          "position": 1,
+          "required": true,
+          "type": "string",
+          "validation": "safe_identifier_pattern",
+          "pattern": "^[A-Za-z0-9._:-]+$",
+          "max_length": 255,
+          "description": "Server name or ID using the approved safe identifier character set."
+        }
+      ]
+    },
+    {
+      "name": "server_network_info",
+      "description": "Show server ports and permitted related network information.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/server_network_info.sh",
+      "credential_profile": "aiops-assistant-project-reader",
+      "risk_class": "low_readonly_project_scope",
+      "timeout_seconds": 45,
+      "output_limit_bytes": 131072,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": [
+        {
+          "name": "server_identifier",
+          "position": 1,
+          "required": true,
+          "type": "string",
+          "validation": "safe_identifier_pattern",
+          "pattern": "^[A-Za-z0-9._:-]+$",
+          "max_length": 255,
+          "description": "Server name or ID using the approved safe identifier character set."
+        }
+      ]
+    }
+  ]
+}
