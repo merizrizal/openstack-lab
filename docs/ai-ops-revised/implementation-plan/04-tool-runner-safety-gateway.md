@@ -60,15 +60,15 @@ Estimate:
 Tasks:
 
 - [ ] Compare the prior runner candidate with the revised PRD, select its required dependency closure, and derive a minimal revised registry containing only accepted tools.
-- [ ] Define required fields for name, description, revised implementation target, revised credential profile, risk class, timeout, output limit, and mutation guarantee.
-- [ ] Define parameter constraints for required/optional values, types, patterns, ranges, bounded time windows, and exact allowlists.
-- [ ] Register only project resource summary, server basic info, and server network info initially.
-- [ ] Resolve implementation targets only from the trusted revised deployment root rather than user-controlled or prior-runtime paths.
-- [ ] Reject malformed registries, duplicate names, unknown schema fields, unsafe targets, and missing safety metadata at startup.
+- [x] Define required fields for name, description, revised implementation target, revised credential profile, risk class, timeout, output limit, and mutation guarantee.
+- [x] Define parameter constraints for required/optional values, types, patterns, ranges, bounded time windows, and exact allowlists.
+- [x] Register only project resource summary, server basic info, and server network info initially.
+- [x] Resolve implementation targets only from the trusted revised deployment root rather than user-controlled or prior-runtime paths.
+- [x] Reject malformed registries, duplicate names, unknown schema fields, unsafe targets, and missing safety metadata at startup.
 
 Done when:
 
-- [ ] The registry describes exactly what may execute and fails closed when its configuration is invalid.
+- [x] The registry describes exactly what may execute and fails closed when its configuration is invalid.
 
 ### Step 2 - Implement Request Parsing and Denial Behavior
 
@@ -81,15 +81,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Accept a named tool and declared parameters through a stable local interface.
-- [ ] Reject unknown tools, undeclared parameters, missing required parameters, wrong types, and invalid values before execution.
-- [ ] Use stable result statuses: `ok`, `error`, `denied`, `timeout`, `validation_error`, and `unavailable`.
-- [ ] Ensure denial errors do not reveal internal paths, credentials, or sensitive registry details.
-- [ ] Return non-success process status for denied, invalid, unavailable, timed-out, and failed requests.
+- [x] Accept a named tool and declared parameters through a stable local interface.
+- [x] Reject unknown tools, undeclared parameters, missing required parameters, wrong types, and invalid values before execution.
+- [x] Use stable result statuses: `ok`, `error`, `denied`, `timeout`, `validation_error`, and `unavailable`.
+- [x] Ensure denial errors do not reveal internal paths, credentials, or sensitive registry details.
+- [x] Return non-success process status for denied, invalid, unavailable, timed-out, and failed requests.
 
 Done when:
 
-- [ ] An operator can request a registered diagnostic by name and cannot reach any unregistered behavior.
+- [x] An operator can request a registered diagnostic by name and cannot reach any unregistered behavior.
 
 ### Step 3 - Implement Fixed, Shell-Free Execution
 
@@ -102,15 +102,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Build the child-process argument vector solely from trusted implementation metadata and validated parameter values.
-- [ ] Disable shell-string execution and reject configurations that require it.
-- [ ] Set an explicit minimal environment and selected revised credential profile per tool.
-- [ ] Use a controlled revised working directory and prohibit user-selected, historical-runtime, executable, or file paths.
-- [ ] Prevent inherited admin credentials or unrelated environment secrets from reaching child processes.
+- [x] Build the child-process argument vector solely from trusted implementation metadata and validated parameter values.
+- [x] Disable shell-string execution and reject configurations that require it.
+- [x] Set an explicit minimal environment and selected revised credential profile per tool.
+- [x] Use a controlled revised working directory and prohibit user-selected, historical-runtime, executable, or file paths.
+- [x] Prevent inherited admin credentials or unrelated environment secrets from reaching child processes.
 
 Done when:
 
-- [ ] Tests and code review prove requests cannot become arbitrary shell, OpenStack, SSH, or file commands.
+- [x] Tests and code review prove requests cannot become arbitrary shell, OpenStack, SSH, or file commands.
 
 ### Step 4 - Enforce Time, Process, and Output Bounds
 
@@ -123,15 +123,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Enforce registry-defined per-tool timeouts.
-- [ ] Terminate the complete child process group on timeout and verify no orphan remains.
-- [ ] Enforce separate or combined stdout/stderr byte limits.
-- [ ] Mark truncation explicitly while retaining enough context for diagnosis.
-- [ ] Handle unavailable endpoints, interrupted calls, and decoder errors as structured failures without unsafe fallback.
+- [x] Enforce registry-defined per-tool timeouts.
+- [x] Terminate the complete child process group on timeout and verify no orphan remains.
+- [x] Enforce separate or combined stdout/stderr byte limits.
+- [x] Mark truncation explicitly while retaining enough context for diagnosis.
+- [x] Handle unavailable endpoints, interrupted calls, and decoder errors as structured failures without unsafe fallback.
 
 Done when:
 
-- [ ] Slow or noisy diagnostics end predictably with correct timeout or truncation metadata.
+- [x] Slow or noisy diagnostics end predictably with correct timeout or truncation metadata.
 
 ### Step 5 - Implement the Result Envelope
 
@@ -144,15 +144,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Return tool name, status, sanitized arguments/target, exit code when applicable, stdout or data, stderr or error, duration, truncation flag, timestamp, and correlation ID.
-- [ ] Define deterministic serialization and schema-version behavior.
-- [ ] Distinguish successful empty findings from failed execution.
-- [ ] Redact secret-like values from errors and output before returning the envelope.
-- [ ] Add reviewed examples for every status without real topology secrets or credentials.
+- [x] Return tool name, status, sanitized arguments/target, exit code when applicable, stdout or data, stderr or error, duration, truncation flag, timestamp, and correlation ID.
+- [x] Define deterministic serialization and schema-version behavior.
+- [x] Distinguish successful empty findings from failed execution.
+- [x] Redact secret-like values from errors and output before returning the envelope.
+- [x] Add reviewed examples for every status without real topology secrets or credentials.
 
 Done when:
 
-- [ ] Human and machine consumers can reliably interpret all runner outcomes.
+- [x] Human and machine consumers can reliably interpret all runner outcomes.
 
 ### Step 6 - Implement Complete Audit Events
 
@@ -165,15 +165,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Record timestamp, actor/client identifier when available, event type, requested tool, sanitized arguments, status, duration, correlation ID, and denial/failure reason.
-- [ ] Audit allowed, denied, validation-error, unavailable, failed, timed-out, and truncated calls.
-- [ ] Avoid recording credential contents, tokens, passwords, private keys, raw secret-bearing configs, or unnecessary full tool output.
-- [ ] Use restrictive audit-file ownership and permissions.
-- [ ] Define lab-appropriate rotation, retention, integrity review, and cleanup procedures.
+- [x] Record timestamp, actor/client identifier when available, event type, requested tool, sanitized arguments, status, duration, correlation ID, and denial/failure reason.
+- [x] Audit allowed, denied, validation-error, unavailable, failed, timed-out, and truncated calls.
+- [x] Avoid recording credential contents, tokens, passwords, private keys, raw secret-bearing configs, or unnecessary full tool output.
+- [x] Use restrictive audit-file ownership and permissions.
+- [x] Define lab-appropriate rotation, retention, integrity review, and cleanup procedures.
 
 Done when:
 
-- [ ] A maintainer can reconstruct what was requested and what happened without exposing secrets.
+- [x] A maintainer can reconstruct what was requested and what happened without exposing secrets.
 
 ### Step 7 - Add Safety Regression Tests
 
@@ -186,29 +186,29 @@ Estimate:
 
 Tasks:
 
-- [ ] Test unknown tools and forbidden generic tool names are denied.
-- [ ] Test invalid parameters are denied before implementation execution.
-- [ ] Test argument-vector execution and minimal environment behavior.
-- [ ] Test timeout cleanup and output truncation with controlled fixtures.
-- [ ] Test each result status and audit-event class.
-- [ ] Test registry corruption, unsafe implementation targets, prior-runtime paths/profile names, and unavailable revised credential profiles fail closed.
-- [ ] Test secrets placed in controlled fixture output or arguments are redacted from results and audit events.
+- [x] Test unknown tools and forbidden generic tool names are denied.
+- [x] Test invalid parameters are denied before implementation execution.
+- [x] Test argument-vector execution and minimal environment behavior.
+- [x] Test timeout cleanup and output truncation with controlled fixtures.
+- [x] Test each result status and audit-event class.
+- [x] Test registry corruption, unsafe implementation targets, prior-runtime paths/profile names, and unavailable revised credential profiles fail closed.
+- [x] Test secrets placed in controlled fixture output or arguments are redacted from results and audit events.
 
 Done when:
 
-- [ ] Automated tests cover the complete gateway contract without requiring a live OpenStack deployment.
+- [x] Automated tests cover the complete gateway contract without requiring a live OpenStack deployment.
 
 ## 04.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] Only registry-approved tools can execute.
-- [ ] All parameters are validated before execution.
-- [ ] Child processes use fixed argument vectors, minimal environments, and controlled paths.
-- [ ] Timeouts, process cleanup, and output limits are enforced.
-- [ ] Structured results cover all required statuses.
-- [ ] Every allowed and denied outcome is audited without secrets.
-- [ ] Safety regression tests pass and no generic execution entry exists.
+- [x] Only registry-approved tools can execute.
+- [x] All parameters are validated before execution.
+- [x] Child processes use fixed argument vectors, minimal environments, and controlled paths.
+- [x] Timeouts, process cleanup, and output limits are enforced.
+- [x] Structured results cover all required statuses.
+- [x] Every allowed and denied outcome is audited without secrets.
+- [x] Safety regression tests pass and no generic execution entry exists.
 
 ## 04.7 Risks
 
