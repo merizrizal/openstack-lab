@@ -59,15 +59,15 @@ Estimate:
 
 Tasks:
 
-- [ ] State that the assistant observes, correlates, explains, identifies uncertainty, and recommends manual follow-up only.
-- [ ] Require the assistant to select only documented diagnostic tool names and never invent raw commands for execution by the AI boundary.
-- [ ] Define refusal behavior for requests to create, update, delete, restart, stop, install, edit, or otherwise fix the lab directly.
-- [ ] Require explanations to separate observed evidence, inference, missing evidence, and manual recommendations.
-- [ ] Document that AI text does not override credential, allowlist, or operator approval boundaries.
+- [x] State that the assistant observes, correlates, explains, identifies uncertainty, and recommends manual follow-up only.
+- [x] Require the assistant to select only documented diagnostic tool names and never invent raw commands for execution by the AI boundary.
+- [x] Define refusal behavior for requests to create, update, delete, restart, stop, install, edit, or otherwise fix the lab directly.
+- [x] Require explanations to separate observed evidence, inference, missing evidence, and manual recommendations.
+- [x] Document that AI text does not override credential, allowlist, or operator approval boundaries.
 
 Done when:
 
-- [ ] A reviewer can predict how the assistant responds to both diagnostic and remediation intent.
+- [x] A reviewer can predict how the assistant responds to both diagnostic and remediation intent.
 
 ### Step 2 - Document Project and Server Workflows
 
@@ -80,15 +80,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Document the project summary workflow and interpretation of empty, unavailable, forbidden, and failed sections.
-- [ ] Document the server basic and server network sequence for one name or ID.
-- [ ] Define expected explanation fields: healthy signals, failing signals, likely failure domain, evidence gaps, and manual next steps.
-- [ ] Include sanitized result examples for successful and non-success outcomes.
-- [ ] Direct operators to the runner rather than raw scripts once the runner is accepted.
+- [x] Document the project summary workflow and interpretation of empty, unavailable, forbidden, and failed sections.
+- [x] Document the server basic and server network sequence for one name or ID.
+- [x] Define expected explanation fields: healthy signals, failing signals, likely failure domain, evidence gaps, and manual next steps.
+- [x] Include sanitized result examples for successful and non-success outcomes.
+- [x] Direct operators to the runner rather than raw scripts once the runner is accepted.
 
 Done when:
 
-- [ ] An operator can safely answer what exists and inspect one server without rereading the PRD.
+- [x] An operator can safely answer what exists and inspect one server without rereading the PRD.
 
 ### Step 3 - Build the MVP Metadata Troubleshooting Workflow
 
@@ -101,15 +101,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Start with server status, config-drive context, attached ports, fixed IPs, networks, and subnets.
-- [ ] Map available evidence to the guest-to-Neutron-proxy-to-Nova-metadata path.
-- [ ] Mark Neutron-agent state, recent service logs, Apache listener evidence, and host status as unavailable until Phase 06 controls exist.
-- [ ] Require the AI to distinguish guest-side symptoms, network attachment issues, proxy/service hypotheses, and insufficient evidence.
-- [ ] End with manual operator recommendations, not executable remediation requests.
+- [x] Start with server status, config-drive context, attached ports, fixed IPs, networks, and subnets.
+- [x] Map available evidence to the guest-to-Neutron-proxy-to-Nova-metadata path.
+- [x] Mark Neutron-agent state, recent service logs, Apache listener evidence, and host status as unavailable until Phase 06 controls exist.
+- [x] Require the AI to distinguish guest-side symptoms, network attachment issues, proxy/service hypotheses, and insufficient evidence.
+- [x] End with manual operator recommendations, not executable remediation requests.
 
 Done when:
 
-- [ ] A cloud-init or `169.254.169.254` report produces a safe initial evidence package and a bounded likely-failure analysis.
+- [x] A cloud-init or `169.254.169.254` report produces a safe initial evidence package and a bounded likely-failure analysis.
 
 ### Step 4 - Run Deployed-Lab Integration Validation
 

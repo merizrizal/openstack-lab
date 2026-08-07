@@ -3,7 +3,9 @@
   ansible.builtin.assert:
     that:
       - ai_ops_assistant_tool_runner_enabled is boolean
-      - not ai_ops_assistant_tool_runner_enabled
+      - >-
+        not (ai_ops_assistant_tool_runner_enabled | bool) or
+        (ai_ops_assistant_tool_runner_explicit_deployment | default(false) | bool)
       - ai_ops_assistant_tool_runner_runtime_root == '/opt/openstack-ai-ops-assistant'
       - ai_ops_assistant_tool_runner_runtime_user == 'aiops_assistant'
       - ai_ops_assistant_tool_runner_runtime_group == 'aiops_assistant'
@@ -48,11 +50,11 @@
         '/server_network_info.sh' ]
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='source') | list == [
-        'aiops_tool_runner.py', 'tool_registry.json'
+        'aiops_tool_runner.py', 'audit_inspector.py', 'tool_registry.json'
         ]
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='mode') | list == [
-        '0750', '0640'
+        '0750', '0750', '0640'
         ]
       - "'..' not in ai_ops_assistant_tool_runner_directory.split('/')"
     quiet: true
