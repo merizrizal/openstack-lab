@@ -6,6 +6,7 @@
   vars_files:
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   vars:
+    ansible_pipelining: true
     ai_ops_assistant_mvp_validation_enabled: false
     ai_ops_assistant_mvp_validation_implementation_ready: false
     ai_ops_assistant_mvp_secure_identifier_transport: unconfirmed
@@ -214,7 +215,7 @@
           - >-
             ai_ops_assistant_mvp_project_summary_result.keys() | list | sort ==
             ['arguments', 'correlation_id', 'data', 'duration_ms', 'error', 'exit_code',
-            'schema_version', 'status', 'stderr', 'timestamp', 'tool', 'truncated', 'stdout']
+            'schema_version', 'status', 'stderr', 'stdout', 'timestamp', 'tool', 'truncated']
           - ai_ops_assistant_mvp_project_summary_result.schema_version == '1.0'
           - ai_ops_assistant_mvp_project_summary_result.tool == 'project_resource_summary'
           - ai_ops_assistant_mvp_project_summary_result.status in ai_ops_assistant_mvp_exit_codes
@@ -333,7 +334,7 @@
           - >-
             item.result.keys() | list | sort ==
             ['arguments', 'correlation_id', 'data', 'duration_ms', 'error', 'exit_code',
-            'schema_version', 'status', 'stderr', 'timestamp', 'tool', 'truncated', 'stdout']
+            'schema_version', 'status', 'stderr', 'stdout', 'timestamp', 'tool', 'truncated']
           - item.result.schema_version == '1.0'
           - item.result.tool == item.tool
           - item.result.tool in ['server_basic_info', 'server_network_info']
@@ -376,6 +377,29 @@
       changed_when: false
       failed_when: false
       no_log: true
+
+    - name: Capture normalized bounded audit inspection failure class
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_audit_inspection_failure_class: >-
+          {{ (ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | from_json).error.class |
+          default('audit_inspection_failed', true) }}
+      when:
+        - ai_ops_assistant_mvp_audit_inspection_raw.rc != 0
+        - ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | length > 0
+      changed_when: false
+      no_log: true
+
+    - name: Require bounded audit inspector output before parsing
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_audit_inspection_raw.rc == 0
+          - ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | length > 0
+        fail_msg: >-
+          Bounded audit inspection failed with normalized class
+          {{ ai_ops_assistant_mvp_audit_inspection_failure_class | default('audit_inspection_failed') }};
+          acceptance is blocked.
+        quiet: true
+      changed_when: false
 
     - name: Parse bounded audit inspection in protected task state
       ansible.builtin.set_fact:

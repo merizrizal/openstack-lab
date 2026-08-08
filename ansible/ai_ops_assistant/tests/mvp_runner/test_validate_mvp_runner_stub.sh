@@ -12,6 +12,7 @@ fail() {
 [[ -f "$playbook" && ! -L "$playbook" ]] || fail "validation playbook is missing or symlinked"
 
 rtk grep -Fq 'hosts: ai_ops_assistant' "$playbook"
+rtk grep -Fq '    ansible_pipelining: true' "$playbook"
 rtk grep -Fq "inventory_hostname == 'assistant02'" "$playbook"
 rtk grep -Fq "ansible_limit | default('') == 'assistant02'" "$playbook"
 rtk grep -Fq 'ai_ops_assistant_mvp_validation_enabled: false' "$playbook"
@@ -37,6 +38,10 @@ rtk grep -Fq 'ai_ops_assistant_mvp_outcome_report' "$playbook"
 rtk grep -Fq 'audit_inspector.py' "$playbook"
 rtk grep -Fq 'ai_ops_assistant_mvp_audit_start_offset' "$playbook"
 rtk grep -Fq 'ai_ops_assistant_mvp_audit_inspection_raw' "$playbook"
+rtk grep -Fq 'Capture normalized bounded audit inspection failure class' "$playbook"
+rtk grep -Fq 'Require bounded audit inspector output before parsing' "$playbook"
+rtk grep -Fq 'ai_ops_assistant_mvp_audit_inspection_failure_class' "$playbook"
+rtk grep -Fq 'ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | length > 0' "$playbook"
 rtk grep -Fq 'ansible.builtin.stat:' "$playbook"
 if rtk grep -nE 'ansible\.builtin\.slurp:|ai_ops_assistant_mvp_audit_raw|b64decode|ai_ops_assistant_mvp_audit_events' "$playbook"; then
   fail "unbounded audit-file inspection found"
@@ -70,6 +75,9 @@ rtk grep -Fq "item.raw.rc == ai_ops_assistant_mvp_exit_codes[item.result.status]
 
 if rtk grep -nE 'ansible\.builtin\.(shell|raw)|(^|[[:space:]/])openstack([[:space:]]|$)|vars_prompt|(^|[^[:alnum:]_])audit_path[[:space:]]*:|profile_override' "$playbook"; then
   fail "prohibited execution, identifier transport, or secret-path override found"
+fi
+if rtk grep -nE '^    - name: Debug$|ansible\.builtin\.debug:' "$playbook"; then
+  fail "temporary debug task found in validation playbook"
 fi
 
 printf 'MVP runner validation stub test passed\n'

@@ -101,7 +101,7 @@ case "${AIOPS_TEST_SCENARIO:-success}:$*" in
     exit 0
     ;;
   *:server\ list\ -f\ json)
-    printf '[{"id":"server-1","name":"server-1","status":"ACTIVE"}]\n'
+    printf '[{"ID":"server-1","Name":"server-1","Status":"ACTIVE"}]\n'
     ;;
   *:network\ list\ -f\ json)
     printf '[{"id":"network-1","name":"network-1","status":"ACTIVE"}]\n'
@@ -140,7 +140,7 @@ run_project_summary() {
 run_project_summary success
 [[ "$project_summary_status" -eq 0 ]] || fail "successful project summary failed"
 printf '%s' "$project_summary_output" | /usr/bin/jq -e \
-  '.tool == "project_resource_summary" and .status == "ok" and (.sections | length == 7) and ([.sections[].status] | all(. == "ok"))' \
+  '.tool == "project_resource_summary" and .status == "ok" and (.sections | length == 7) and ([.sections[].status] | all(. == "ok")) and (.sections[] | select(.name == "servers") | .data[0].id == "server-1" and .data[0].name == "server-1" and .data[0].status == "ACTIVE")' \
   >/dev/null || fail "successful summary envelope is invalid"
 [[ "$(wc -l < "$summary_argv_log")" -eq 7 ]] || fail "summary did not issue seven fixed reads"
 grep -qx 'server list -f json' "$summary_argv_log" || fail "server argv changed"

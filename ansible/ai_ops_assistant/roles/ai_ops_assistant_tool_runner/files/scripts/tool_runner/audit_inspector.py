@@ -50,8 +50,69 @@ EXPECTED_STATUSES = {
 }
 
 
+class AuditInspectionError(ValueError):
+    """Raised with a safe, normalized audit-inspection failure class."""
+
+    def __init__(self, error_class: str) -> None:
+        super().__init__(error_class)
+        self.error_class = error_class
+
+
+def failure_class(message: str) -> str:
+    """Map internal validation failures to non-sensitive public classes."""
+
+    if any(
+        marker in message
+        for marker in (
+            "metadata",
+            "path type",
+            "ownership",
+            "mode",
+            "open failed",
+        )
+    ):
+        return "audit_metadata_failed"
+    if "request" in message:
+        return "audit_request_invalid"
+    if "correlation format" in message or "correlation is invalid" in message:
+        return "audit_correlation_invalid"
+    if "duplicate" in message:
+        return "audit_duplicate_correlation"
+    if "incomplete" in message:
+        return "audit_events_incomplete"
+    if "bound" in message:
+        return "audit_bound_exceeded"
+    if "read failed" in message:
+        return "audit_read_failed"
+    if "event fields" in message:
+        return "audit_event_fields_invalid"
+    if "schema" in message:
+        return "audit_schema_invalid"
+    if "identity" in message:
+        return "audit_identity_invalid"
+    if "outcome" in message:
+        return "audit_outcome_invalid"
+    if "timestamp" in message:
+        return "audit_timestamp_invalid"
+    if "duration" in message:
+        return "audit_duration_invalid"
+    if "exit code" in message:
+        return "audit_exit_code_invalid"
+    if "truncation" in message:
+        return "audit_truncation_invalid"
+    if "arguments" in message:
+        return "audit_arguments_invalid"
+    if "reason" in message:
+        return "audit_reason_invalid"
+    if "not valid JSON" in message:
+        return "audit_event_json_invalid"
+    if "not an object" in message:
+        return "audit_event_object_invalid"
+    return "audit_inspection_failed"
+
+
 def fail(message: str) -> "NoReturn":
-    raise ValueError(message)
+    raise AuditInspectionError(failure_class(message))
 
 
 def metadata_identity(owner: str, group: str) -> tuple[int, int]:
@@ -210,7 +271,23 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = inspect(args.offset, args.correlation_ids)
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+    except AuditInspectionError as error:
+        print(
+            json.dumps(
+                {"error": {"class": error.error_class}, "events": []},
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
+        return 1
     except (ValueError, KeyError, TypeError, OSError):
+        print(
+            json.dumps(
+                {"error": {"class": "audit_inspection_failed"}, "events": []},
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
         return 1
     return 0
 

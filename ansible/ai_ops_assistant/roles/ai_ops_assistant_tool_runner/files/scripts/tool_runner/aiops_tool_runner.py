@@ -349,6 +349,8 @@ def sanitize_arguments(
     if not isinstance(tool, str) or not isinstance(validated_arguments, dict):
         raise RedactionError("invalid argument container")
     if audience == "audit":
+        if tool == "project_resource_summary":
+            return {}
         return {"server_identifier_present": "server_identifier" in validated_arguments}
     if audience != "result":
         raise RedactionError("invalid redaction audience")
@@ -543,7 +545,7 @@ def build_audit_event(
     arguments = result["arguments"]
     if not isinstance(arguments, dict):
         raise TypeError("result arguments are invalid")
-    safe_arguments = sanitize_arguments("audit", arguments, "audit")
+    safe_arguments = sanitize_arguments(result["tool"], arguments, "audit")
     error = result["error"]
     if error is not None and (
         not isinstance(error, dict) or set(error) != {"class", "message"}

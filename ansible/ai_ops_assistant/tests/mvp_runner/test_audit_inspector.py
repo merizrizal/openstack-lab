@@ -1,4 +1,6 @@
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import pwd
@@ -89,6 +91,36 @@ class BoundedAuditInspectorTest(unittest.TestCase):
         )
         self.assertNotIn("event_type", result["events"][0])
         self.assertNotIn("actor", result["events"][0])
+
+    def test_main_emits_normalized_failure_without_raw_audit_data(self):
+        output = io.StringIO()
+        correlations = [
+            "00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000002",
+            "00000000-0000-4000-8000-000000000003",
+        ]
+
+        with contextlib.redirect_stdout(output):
+            exit_code = HELPER.main(["--offset", "0", *correlations])
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(payload["error"], {"class": "audit_events_incomplete"})
+        self.assertEqual(payload["events"], [])
+        self.assertNotIn("00000000-0000-4000-8000-000000000001", output.getvalue())
+
+    def test_failure_classes_are_normalized_without_detail(self):
+        cases = {
+            "audit event fields are invalid": "audit_event_fields_invalid",
+            "audit schema is invalid": "audit_schema_invalid",
+            "audit identity is invalid": "audit_identity_invalid",
+            "audit duration is invalid": "audit_duration_invalid",
+            "audit event is not valid JSON": "audit_event_json_invalid",
+        }
+
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(HELPER.failure_class(message), expected)
 
     def test_rejects_unbounded_appended_region(self):
         self.audit_path.write_bytes(b"x" * (HELPER.MAX_SCAN_BYTES + 1))

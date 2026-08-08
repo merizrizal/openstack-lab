@@ -47,6 +47,15 @@ class AuditEventTest(unittest.TestCase):
         self.assertNotIn("password", RUNNER.serialize_audit_event(event))
         self.assertNotIn("fixture-secret", RUNNER.serialize_audit_event(event))
 
+    def test_project_summary_event_omits_arguments(self):
+        result = dict(self.base)
+        result["tool"] = "project_resource_summary"
+        result["arguments"] = {}
+
+        event = RUNNER.build_audit_event(result)
+
+        self.assertEqual(event["arguments"], {})
+
     def test_event_carries_status_context_and_truncation_for_each_status(self):
         for status, exit_code in RUNNER.STATUS_EXIT_CODES.items():
             with self.subTest(status=status):
