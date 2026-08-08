@@ -110,7 +110,7 @@ project_resource_summary_main() {
   local section_name filter status top_error document
   local -a sections
   local -a section_specs=(
-    'servers|map({id, name, status})|server|list'
+    'servers|map({id:(.id // .ID), name:(.name // .Name), status:(.status // .Status)})|server|list'
     'networks|map({id, name, status})|network|list'
     'subnets|map({id, name, network_id, cidr, ip_version})|subnet|list'
     'ports|map({id, device_id, network_id, status})|port|list'

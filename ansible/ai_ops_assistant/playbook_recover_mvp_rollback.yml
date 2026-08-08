@@ -1,0 +1,105 @@
+---
+- name: Recover revised AI-OPS authority after rollback rehearsal
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ai_ops_assistant_mvp_recovery_enabled: false
+    ai_ops_assistant_mvp_recovery_ready: false
+    ai_ops_assistant_mvp_recovery_post_attestation_unchanged: false
+    ai_ops_assistant_mvp_recovery_recorded_revision_confirmed: false
+    ai_ops_assistant_mvp_recovery_external_evidence_location: unconfirmed
+    ai_ops_assistant_mvp_recovery_run_id: ""
+  pre_tasks:
+    - name: Assert revised recovery scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Assert recovery gates before restoring revised authority
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_recovery_enabled | bool
+          - ai_ops_assistant_mvp_recovery_ready | bool
+          - ai_ops_assistant_mvp_recovery_post_attestation_unchanged | bool
+          - ai_ops_assistant_mvp_recovery_recorded_revision_confirmed | bool
+          - >-
+            ai_ops_assistant_mvp_recovery_external_evidence_location ==
+            'administrator-approved-protected-location'
+          - >-
+            ai_ops_assistant_mvp_recovery_run_id is match(
+            '^[a-z0-9][a-z0-9-]{0,47}$'
+            )
+        fail_msg: >-
+          Recovery is fail-closed: explicit authorization, recovery readiness,
+          valid unchanged post-attestation, recorded-revision confirmation, and
+          protected evidence handling are required before restoring authority.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Require external credential restoration
+      ansible.builtin.pause:
+        prompt: >-
+          The identity administrator must restore the approved revised
+          project-reader credential outside Ansible. Enter RESTORED only after
+          completion.
+        echo: false
+      register: ai_ops_assistant_mvp_recovery_credential_confirmation
+      no_log: true
+
+    - name: Assert external credential restoration was confirmed
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_assistant_mvp_recovery_credential_confirmation.user_input ==
+            'RESTORED'
+        fail_msg: >-
+          Credential restoration was not confirmed. Stop without restoring the
+          revised profile or runner. Follow the administrator-owned incident
+          procedure.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+  roles:
+    - role: ai_ops_assistant_identity_boundary
+      vars:
+        ai_ops_assistant_identity_boundary_enabled: true
+
+    - role: ai_ops_assistant_tool_runner
+      vars:
+        ai_ops_assistant_tool_runner_enabled: true
+        ai_ops_assistant_tool_runner_explicit_deployment: true
+
+  tasks:
+    - name: Require protected artifact verification
+      ansible.builtin.pause:
+        prompt: >-
+          Verify through approved protected procedures that only the revised
+          credential-backed profile and dedicated runner artifacts were
+          restored.
+          Do not run diagnostics. Enter VERIFIED only after all checks pass.
+        echo: false
+      register: ai_ops_assistant_mvp_recovery_artifact_confirmation
+      no_log: true
+
+    - name: Assert protected artifact verification was confirmed
+      ansible.builtin.assert:
+        that:
+          - >-
+            ai_ops_assistant_mvp_recovery_artifact_confirmation.user_input ==
+            'VERIFIED'
+        fail_msg: >-
+          Restored-artifact verification was not confirmed. Stop further
+          activity and follow the administrator-owned incident procedure.
+        quiet: true
+      changed_when: false
+      no_log: true

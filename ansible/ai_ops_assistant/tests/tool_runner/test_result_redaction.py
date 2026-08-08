@@ -80,6 +80,10 @@ class ResultRedactionTest(unittest.TestCase):
 
         self.assertEqual(result, arguments)
         self.assertEqual(audit, {"server_identifier_present": True})
+        self.assertEqual(
+            RUNNER.sanitize_arguments("project_resource_summary", {}, "audit"),
+            {},
+        )
 
     def test_invalid_argument_audience_fails_closed(self):
         with self.assertRaises(RUNNER.RedactionError):

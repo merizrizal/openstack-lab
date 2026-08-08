@@ -1,0 +1,553 @@
+---
+- name: Validate revised MVP runner acceptance gates
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_mvp_validation_enabled: false
+    ai_ops_assistant_mvp_validation_implementation_ready: false
+    ai_ops_assistant_mvp_secure_identifier_transport: unconfirmed
+    ai_ops_assistant_mvp_comparator_interface: unconfirmed
+    ai_ops_assistant_mvp_pre_attestation_interface: unconfirmed
+    ai_ops_assistant_mvp_post_attestation_interface: unconfirmed
+    ai_ops_assistant_mvp_external_evidence_location: unconfirmed
+    ai_ops_assistant_mvp_expected_runner_root: /opt/openstack-ai-ops-assistant
+    ai_ops_assistant_mvp_expected_runner_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/aiops_tool_runner.py
+    ai_ops_assistant_mvp_expected_registry_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/tool_registry.json
+    ai_ops_assistant_mvp_expected_audit_inspector_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/audit_inspector.py
+    ai_ops_assistant_mvp_expected_audit_path: /opt/openstack-ai-ops-assistant/audit/tool-runner.jsonl
+    ai_ops_assistant_mvp_expected_audit_directory: /opt/openstack-ai-ops-assistant/audit
+    ai_ops_assistant_mvp_expected_profile_path: /opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml
+    ai_ops_assistant_mvp_expected_tools:
+      - project_resource_summary
+      - server_basic_info
+      - server_network_info
+    ai_ops_assistant_mvp_run_id: ""
+    ai_ops_assistant_mvp_pre_attestation_valid: false
+    ai_ops_assistant_mvp_post_attestation_valid: false
+    ai_ops_assistant_mvp_post_attestation_unchanged: false
+    ai_ops_assistant_mvp_prior_runtime_isolation_confirmed: false
+    ai_ops_assistant_mvp_bounded_audit_inspection_implemented: true
+    ai_ops_assistant_mvp_exit_codes:
+      ok: 0
+      error: 1
+      denied: 2
+      validation_error: 3
+      timeout: 4
+      unavailable: 5
+    ai_ops_assistant_mvp_exit_semantic_fixtures:
+      - name: success
+        status: ok
+        process_rc: 0
+        result_exit_code: 0
+      - name: unavailable
+        status: unavailable
+        process_rc: 5
+        result_exit_code:
+      - name: child_failure
+        status: error
+        process_rc: 1
+        result_exit_code: 17
+      - name: validation_failure
+        status: validation_error
+        process_rc: 3
+        result_exit_code: 3
+      - name: audit_failure
+        status: error
+        process_rc: 1
+        result_exit_code:
+  pre_tasks:
+    - name: Assert revised MVP validation scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Assert MVP validation gates are concrete before activation
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_validation_enabled | bool
+          - ai_ops_assistant_mvp_secure_identifier_transport == 'administrator-owned-protected-memory'
+          - ai_ops_assistant_mvp_comparator_interface == 'administrator-owned-boolean-only'
+          - ai_ops_assistant_mvp_pre_attestation_interface == 'administrator-owned-boolean-only'
+          - ai_ops_assistant_mvp_post_attestation_interface == 'administrator-owned-boolean-only'
+          - ai_ops_assistant_mvp_external_evidence_location == 'administrator-approved-protected-location'
+          - ai_ops_assistant_mvp_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_mvp_pre_attestation_valid | bool
+          - ai_ops_assistant_mvp_prior_runtime_isolation_confirmed | bool
+          - ai_ops_assistant_mvp_bounded_audit_inspection_implemented | bool
+        fail_msg: >-
+          MVP runner validation is fail-closed: authorization, protected identifier
+          transport, pre-attestation, prior-runtime isolation, and bounded audit
+          inspection must be confirmed before any runner call.
+        quiet: true
+      changed_when: false
+
+    - name: Assert MVP validation implementation is enabled before execution
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_validation_implementation_ready | bool
+        fail_msg: >-
+          MVP runner validation implementation is not enabled; no runner call or
+          acceptance report is permitted until the complete local harness is ready.
+        quiet: true
+      changed_when: false
+
+    - name: Inspect fixed runner metadata before any runner call
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+        follow: false
+      loop:
+        - label: runner
+          path: "{{ ai_ops_assistant_mvp_expected_runner_path }}"
+        - label: registry
+          path: "{{ ai_ops_assistant_mvp_expected_registry_path }}"
+        - label: audit_inspector
+          path: "{{ ai_ops_assistant_mvp_expected_audit_inspector_path }}"
+      loop_control:
+        label: "{{ item.label }}"
+      register: ai_ops_assistant_mvp_runner_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert fixed runner metadata before any runner call
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.pw_name == 'root'
+          - item.stat.gr_name == 'aiops_assistant'
+          - >-
+            item.stat.mode == ('0640' if item.item.label == 'registry' else '0750')
+        quiet: true
+      loop: "{{ ai_ops_assistant_mvp_runner_metadata.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+      changed_when: false
+      no_log: true
+
+    - name: Inspect fixed audit directory and profile before any runner call
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+        follow: false
+      loop:
+        - label: audit_directory
+          path: "{{ ai_ops_assistant_mvp_expected_audit_directory }}"
+        - label: audit_active_file
+          path: "{{ ai_ops_assistant_mvp_expected_audit_path }}"
+        - label: profile
+          path: "{{ ai_ops_assistant_mvp_expected_profile_path }}"
+      loop_control:
+        label: "{{ item.label }}"
+      register: ai_ops_assistant_mvp_sensitive_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert fixed audit directory and profile before any runner call
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.item.label == 'audit_directory' and item.stat.exists and item.stat.isdir and
+            not item.stat.islnk and item.stat.pw_name == 'aiops_assistant' and
+            item.stat.gr_name == 'aiops_assistant' and item.stat.mode == '0700') or
+            (item.item.label == 'audit_active_file' and
+            (not item.stat.exists or
+            (item.stat.isreg and not item.stat.islnk and item.stat.pw_name == 'aiops_assistant' and
+            item.stat.gr_name == 'aiops_assistant' and item.stat.mode == '0600'))) or
+            (item.item.label == 'profile' and item.stat.exists and item.stat.isreg and
+            not item.stat.islnk and item.stat.pw_name == 'aiops_assistant' and
+            item.stat.gr_name == 'aiops_assistant' and item.stat.mode == '0600')
+        quiet: true
+      loop: "{{ ai_ops_assistant_mvp_sensitive_metadata.results }}"
+      loop_control:
+        label: "{{ item.item.label }}"
+      changed_when: false
+      no_log: true
+
+    - name: Capture fixed audit start offset before runner calls
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_expected_audit_path }}"
+        follow: false
+      register: ai_ops_assistant_mvp_audit_metadata_before_calls
+      changed_when: false
+      no_log: true
+
+    - name: Set protected bounded audit start offset
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_audit_start_offset: >-
+          {{ ai_ops_assistant_mvp_audit_metadata_before_calls.stat.size | default(0) | int }}
+      changed_when: false
+      no_log: true
+
+  tasks:
+    - name: Run fixed project-summary diagnostic through revised runner
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_assistant_mvp_expected_runner_path }}"
+          - project_resource_summary
+      become: true
+      become_user: aiops_assistant
+      register: ai_ops_assistant_mvp_project_summary_raw
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Parse project-summary result envelope in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_project_summary_result: >-
+          {{ ai_ops_assistant_mvp_project_summary_raw.stdout | trim | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Assert project-summary result and process contracts
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_project_summary_raw.rc is integer
+          - ai_ops_assistant_mvp_project_summary_result is mapping
+          - >-
+            ai_ops_assistant_mvp_project_summary_result.keys() | list | sort ==
+            ['arguments', 'correlation_id', 'data', 'duration_ms', 'error', 'exit_code',
+            'schema_version', 'status', 'stderr', 'stdout', 'timestamp', 'tool', 'truncated']
+          - ai_ops_assistant_mvp_project_summary_result.schema_version == '1.0'
+          - ai_ops_assistant_mvp_project_summary_result.tool == 'project_resource_summary'
+          - ai_ops_assistant_mvp_project_summary_result.status in ai_ops_assistant_mvp_exit_codes
+          - >-
+            ai_ops_assistant_mvp_project_summary_raw.rc ==
+            ai_ops_assistant_mvp_exit_codes[ai_ops_assistant_mvp_project_summary_result.status]
+          - >-
+            (ai_ops_assistant_mvp_project_summary_result.status == 'ok' and
+            ai_ops_assistant_mvp_project_summary_result.exit_code == 0) or
+            (ai_ops_assistant_mvp_project_summary_result.status != 'ok' and
+            (ai_ops_assistant_mvp_project_summary_result.exit_code is none or
+            ai_ops_assistant_mvp_project_summary_result.exit_code is integer))
+          - ai_ops_assistant_mvp_project_summary_result.arguments == {}
+          - ai_ops_assistant_mvp_project_summary_result.correlation_id is match('^[0-9a-f-]{36}$')
+          - ai_ops_assistant_mvp_project_summary_result.duration_ms is integer
+          - ai_ops_assistant_mvp_project_summary_result.duration_ms >= 0
+          - ai_ops_assistant_mvp_project_summary_result.truncated is boolean
+        fail_msg: >-
+          Project-summary runner output did not satisfy the closed result and exit-code contract.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert project-summary contains a representative server
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_project_summary_result.status == 'ok'
+          - ai_ops_assistant_mvp_project_summary_result.data is mapping
+          - ai_ops_assistant_mvp_project_summary_result.data.sections is sequence
+          - >-
+            (ai_ops_assistant_mvp_project_summary_result.data.sections |
+            selectattr('name', 'equalto', 'servers') | list | length) == 1
+          - >-
+            (ai_ops_assistant_mvp_project_summary_result.data.sections |
+            selectattr('name', 'equalto', 'servers') | map(attribute='data') |
+            list | first) is sequence
+          - >-
+            ((ai_ops_assistant_mvp_project_summary_result.data.sections |
+            selectattr('name', 'equalto', 'servers') | map(attribute='data') |
+            list | first) | length) > 0
+        fail_msg: >-
+          No accepted project-visible representative server is available; server validation is blocked.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Select one representative server identifier in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_server_candidates: >-
+          {{ ai_ops_assistant_mvp_project_summary_result.data.sections |
+          selectattr('name', 'equalto', 'servers') | map(attribute='data') |
+          list | first }}
+        ai_ops_assistant_mvp_server_identifier: >-
+          {{ (ai_ops_assistant_mvp_project_summary_result.data.sections |
+          selectattr('name', 'equalto', 'servers') | map(attribute='data') |
+          list | first | first).id |
+          default((ai_ops_assistant_mvp_project_summary_result.data.sections |
+          selectattr('name', 'equalto', 'servers') | map(attribute='data') |
+          list | first | first).name, true) }}
+      changed_when: false
+      no_log: true
+
+    - name: Assert selected server identifier remains protected and valid
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_server_identifier is string
+          - ai_ops_assistant_mvp_server_identifier | length > 0
+          - ai_ops_assistant_mvp_server_identifier | length <= 255
+          - ai_ops_assistant_mvp_server_identifier is match('^[A-Za-z0-9._:-]+$')
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Run fixed server-basic diagnostic with selected identifier
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_assistant_mvp_expected_runner_path }}"
+          - server_basic_info
+          - --arg
+          - "server_identifier={{ ai_ops_assistant_mvp_server_identifier }}"
+      become: true
+      become_user: aiops_assistant
+      register: ai_ops_assistant_mvp_server_basic_raw
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Run fixed server-network diagnostic with the exact same identifier
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_assistant_mvp_expected_runner_path }}"
+          - server_network_info
+          - --arg
+          - "server_identifier={{ ai_ops_assistant_mvp_server_identifier }}"
+      become: true
+      become_user: aiops_assistant
+      register: ai_ops_assistant_mvp_server_network_raw
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Parse server result envelopes in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_server_basic_result: >-
+          {{ ai_ops_assistant_mvp_server_basic_raw.stdout | trim | from_json }}
+        ai_ops_assistant_mvp_server_network_result: >-
+          {{ ai_ops_assistant_mvp_server_network_raw.stdout | trim | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Assert server result and same-identifier contracts
+      ansible.builtin.assert:
+        that:
+          - item.raw.rc is integer
+          - item.result is mapping
+          - >-
+            item.result.keys() | list | sort ==
+            ['arguments', 'correlation_id', 'data', 'duration_ms', 'error', 'exit_code',
+            'schema_version', 'status', 'stderr', 'stdout', 'timestamp', 'tool', 'truncated']
+          - item.result.schema_version == '1.0'
+          - item.result.tool == item.tool
+          - item.result.tool in ['server_basic_info', 'server_network_info']
+          - item.result.status in ai_ops_assistant_mvp_exit_codes
+          - item.raw.rc == ai_ops_assistant_mvp_exit_codes[item.result.status]
+          - >-
+            (item.result.status == 'ok' and item.result.exit_code == 0) or
+            (item.result.status != 'ok' and
+            (item.result.exit_code is none or item.result.exit_code is integer))
+          - item.result.arguments.server_identifier == ai_ops_assistant_mvp_server_identifier
+          - item.result.correlation_id is match('^[0-9a-f-]{36}$')
+          - item.result.duration_ms is integer
+          - item.result.duration_ms >= 0
+          - item.result.truncated is boolean
+        quiet: true
+      loop:
+        - tool: server_basic_info
+          raw: "{{ ai_ops_assistant_mvp_server_basic_raw }}"
+          result: "{{ ai_ops_assistant_mvp_server_basic_result }}"
+        - tool: server_network_info
+          raw: "{{ ai_ops_assistant_mvp_server_network_raw }}"
+          result: "{{ ai_ops_assistant_mvp_server_network_result }}"
+      loop_control:
+        label: "{{ item.tool }}"
+      changed_when: false
+      no_log: true
+
+    - name: Inspect exactly three matching audit events through fixed bounded helper
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_assistant_mvp_expected_audit_inspector_path }}"
+          - --offset
+          - "{{ ai_ops_assistant_mvp_audit_start_offset }}"
+          - "{{ ai_ops_assistant_mvp_project_summary_result.correlation_id }}"
+          - "{{ ai_ops_assistant_mvp_server_basic_result.correlation_id }}"
+          - "{{ ai_ops_assistant_mvp_server_network_result.correlation_id }}"
+      become: true
+      become_user: aiops_assistant
+      register: ai_ops_assistant_mvp_audit_inspection_raw
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Capture normalized bounded audit inspection failure class
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_audit_inspection_failure_class: >-
+          {{ (ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | from_json).error.class |
+          default('audit_inspection_failed', true) }}
+      when:
+        - ai_ops_assistant_mvp_audit_inspection_raw.rc != 0
+        - ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | length > 0
+      changed_when: false
+      no_log: true
+
+    - name: Require bounded audit inspector output before parsing
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_audit_inspection_raw.rc == 0
+          - ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | length > 0
+        fail_msg: >-
+          Bounded audit inspection failed with normalized class
+          {{ ai_ops_assistant_mvp_audit_inspection_failure_class | default('audit_inspection_failed') }};
+          acceptance is blocked.
+        quiet: true
+      changed_when: false
+
+    - name: Parse bounded audit inspection in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_audit_inspection: >-
+          {{ ai_ops_assistant_mvp_audit_inspection_raw.stdout | trim | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Assert bounded audit inspection result
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_audit_inspection_raw.rc == 0
+          - ai_ops_assistant_mvp_audit_inspection is mapping
+          - ai_ops_assistant_mvp_audit_inspection.events is sequence
+          - ai_ops_assistant_mvp_audit_inspection.events | length == 3
+        fail_msg: >-
+          Bounded audit inspection failed; no result/audit acceptance is permitted.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert result and bounded audit fields agree
+      ansible.builtin.assert:
+        that:
+          - item.audit is mapping
+          - item.audit.schema_version == '1.0'
+          - item.audit.tool == item.result.tool
+          - item.audit.status == item.result.status
+          - item.audit.timestamp == item.result.timestamp
+          - item.audit.duration_ms == item.result.duration_ms
+          - item.audit.correlation_id == item.result.correlation_id
+          - item.audit.exit_code == item.result.exit_code
+          - item.audit.truncated == item.result.truncated
+          - >-
+            item.audit.arguments ==
+            ({'server_identifier_present': true} if item.result.tool != 'project_resource_summary' else {})
+        quiet: true
+      loop:
+        - result: "{{ ai_ops_assistant_mvp_project_summary_result }}"
+          audit: >-
+            {{ ai_ops_assistant_mvp_audit_inspection.events |
+            selectattr('correlation_id', 'equalto', ai_ops_assistant_mvp_project_summary_result.correlation_id) |
+            list | first }}
+        - result: "{{ ai_ops_assistant_mvp_server_basic_result }}"
+          audit: >-
+            {{ ai_ops_assistant_mvp_audit_inspection.events |
+            selectattr('correlation_id', 'equalto', ai_ops_assistant_mvp_server_basic_result.correlation_id) |
+            list | first }}
+        - result: "{{ ai_ops_assistant_mvp_server_network_result }}"
+          audit: >-
+            {{ ai_ops_assistant_mvp_audit_inspection.events |
+            selectattr('correlation_id', 'equalto', ai_ops_assistant_mvp_server_network_result.correlation_id) |
+            list | first }}
+      loop_control:
+        label: "{{ item.result.tool }}"
+      changed_when: false
+      no_log: true
+
+    - name: Recheck fixed audit metadata after runner calls
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_expected_audit_path }}"
+        follow: false
+      register: ai_ops_assistant_mvp_audit_metadata_after_calls
+      changed_when: false
+      no_log: true
+
+    - name: Assert active audit file remains safe after runner calls
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_audit_metadata_after_calls.stat.exists
+          - ai_ops_assistant_mvp_audit_metadata_after_calls.stat.isreg
+          - not ai_ops_assistant_mvp_audit_metadata_after_calls.stat.islnk
+          - ai_ops_assistant_mvp_audit_metadata_after_calls.stat.pw_name == 'aiops_assistant'
+          - ai_ops_assistant_mvp_audit_metadata_after_calls.stat.gr_name == 'aiops_assistant'
+          - ai_ops_assistant_mvp_audit_metadata_after_calls.stat.mode == '0600'
+        fail_msg: >-
+          Active audit metadata is unsafe after runner calls; acceptance is blocked.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Require bounded audit inspection gate after runner calls
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_bounded_audit_inspection_implemented | bool
+          - ai_ops_assistant_mvp_audit_inspection_raw.rc == 0
+        fail_msg: >-
+          Acceptance is blocked: fixed bounded audit inspection did not complete
+          successfully for all three matching correlation IDs.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert administrator post-state attestation
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_post_attestation_valid | bool
+          - ai_ops_assistant_mvp_post_attestation_unchanged | bool
+        fail_msg: >-
+          Acceptance is blocked: administrator post-attestation is missing, invalid,
+          or does not report unchanged state.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Build normalized MVP outcome report in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_outcome_report:
+          host_label: assistant02
+          runtime_label: revised
+          run_id: "{{ ai_ops_assistant_mvp_run_id }}"
+          tools:
+            - name: project_resource_summary
+              status: "{{ ai_ops_assistant_mvp_project_summary_result.status }}"
+              correlation_id: "{{ ai_ops_assistant_mvp_project_summary_result.correlation_id }}"
+              duration_ms: "{{ ai_ops_assistant_mvp_project_summary_result.duration_ms }}"
+              truncated: "{{ ai_ops_assistant_mvp_project_summary_result.truncated }}"
+            - name: server_basic_info
+              status: "{{ ai_ops_assistant_mvp_server_basic_result.status }}"
+              correlation_id: "{{ ai_ops_assistant_mvp_server_basic_result.correlation_id }}"
+              duration_ms: "{{ ai_ops_assistant_mvp_server_basic_result.duration_ms }}"
+              truncated: "{{ ai_ops_assistant_mvp_server_basic_result.truncated }}"
+            - name: server_network_info
+              status: "{{ ai_ops_assistant_mvp_server_network_result.status }}"
+              correlation_id: "{{ ai_ops_assistant_mvp_server_network_result.correlation_id }}"
+              duration_ms: "{{ ai_ops_assistant_mvp_server_network_result.duration_ms }}"
+              truncated: "{{ ai_ops_assistant_mvp_server_network_result.truncated }}"
+          result_process_agreement: true
+          audit_pair_validated: "{{ ai_ops_assistant_mvp_audit_inspection_raw.rc == 0 }}"
+          path_isolation_confirmed: "{{ ai_ops_assistant_mvp_prior_runtime_isolation_confirmed | bool }}"
+          unchanged_state_confirmed: "{{ ai_ops_assistant_mvp_post_attestation_unchanged | bool }}"
+          unresolved_limitations: []
+      changed_when: false
+      no_log: true
+
+    - name: Assert normalized MVP outcome report is acceptance-safe
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_outcome_report.host_label == 'assistant02'
+          - ai_ops_assistant_mvp_outcome_report.runtime_label == 'revised'
+          - ai_ops_assistant_mvp_outcome_report.run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_mvp_outcome_report.tools | length == 3
+          - ai_ops_assistant_mvp_outcome_report.result_process_agreement | bool
+          - ai_ops_assistant_mvp_outcome_report.audit_pair_validated | bool
+          - ai_ops_assistant_mvp_outcome_report.path_isolation_confirmed | bool
+          - ai_ops_assistant_mvp_outcome_report.unchanged_state_confirmed | bool
+        fail_msg: >-
+          Normalized MVP outcome report is incomplete; no success report is permitted.
+        quiet: true
+      changed_when: false
+      no_log: true

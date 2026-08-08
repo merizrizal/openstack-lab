@@ -1,0 +1,114 @@
+---
+- name: Rehearse revised AI-OPS authority rollback and recovery gates
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ai_ops_assistant_mvp_rollback_rehearsal_enabled: false
+    ai_ops_assistant_mvp_rollback_recovery_ready: false
+    ai_ops_assistant_mvp_rollback_pre_attestation_valid: false
+    ai_ops_assistant_mvp_rollback_prior_baseline_attestation_interface: unconfirmed
+    ai_ops_assistant_mvp_rollback_external_evidence_location: unconfirmed
+    ai_ops_assistant_mvp_rollback_run_id: ""
+    ai_ops_assistant_mvp_rollback_runner_directory: /opt/openstack-ai-ops-assistant/scripts/tool_runner
+    ai_ops_assistant_mvp_rollback_runner_files:
+      - aiops_tool_runner.py
+      - audit_inspector.py
+      - tool_registry.json
+    ai_ops_assistant_mvp_rollback_profile_directory: /opt/openstack-ai-ops-assistant/credentials/profiles
+    ai_ops_assistant_mvp_rollback_profile_files:
+      - clouds.yaml
+      - secure.yaml
+  pre_tasks:
+    - name: Assert revised rollback rehearsal scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Assert rollback rehearsal gates before authority removal
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_rollback_rehearsal_enabled | bool
+          - ai_ops_assistant_mvp_rollback_recovery_ready | bool
+          - ai_ops_assistant_mvp_rollback_pre_attestation_valid | bool
+          - ai_ops_assistant_mvp_rollback_prior_baseline_attestation_interface == 'administrator-owned-boolean-only'
+          - ai_ops_assistant_mvp_rollback_external_evidence_location == 'administrator-approved-protected-location'
+          - ai_ops_assistant_mvp_rollback_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_mvp_rollback_runner_directory == '/opt/openstack-ai-ops-assistant/scripts/tool_runner'
+          - ai_ops_assistant_mvp_rollback_runner_files == ['aiops_tool_runner.py', 'audit_inspector.py', 'tool_registry.json']
+          - ai_ops_assistant_mvp_rollback_profile_directory == '/opt/openstack-ai-ops-assistant/credentials/profiles'
+          - ai_ops_assistant_mvp_rollback_profile_files == ['clouds.yaml', 'secure.yaml']
+        fail_msg: >-
+          Rollback rehearsal is fail-closed: explicit authorization, recovery readiness,
+          valid pre-attestation, protected evidence handling, and fixed revised paths are
+          required before any local authority removal.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+  tasks:
+    - name: Remove only the revised tool-runner files
+      ansible.builtin.file:
+        path: "{{ ai_ops_assistant_mvp_rollback_runner_directory }}/{{ item }}"
+        state: absent
+      loop: "{{ ai_ops_assistant_mvp_rollback_runner_files }}"
+      loop_control:
+        label: revised-tool-runner-file
+      no_log: true
+
+    - name: Require external identity-administrator credential revocation
+      ansible.builtin.pause:
+        prompt: >-
+          The identity administrator must now revoke the separately approved revised
+          project-reader credential outside Ansible. Enter REVOKED only after completion.
+        echo: false
+      register: ai_ops_assistant_mvp_rollback_credential_revocation_confirmation
+      no_log: true
+
+    - name: Assert external credential revocation was confirmed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_rollback_credential_revocation_confirmation.user_input == 'REVOKED'
+        fail_msg: >-
+          Credential revocation was not confirmed. Stop without removing the revised
+          profile and use the administrator-owned recovery procedure if needed.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Remove only the revised protected profile files
+      ansible.builtin.file:
+        path: "{{ ai_ops_assistant_mvp_rollback_profile_directory }}/{{ item }}"
+        state: absent
+      loop: "{{ ai_ops_assistant_mvp_rollback_profile_files }}"
+      loop_control:
+        label: revised-profile-file
+      no_log: true
+
+    - name: Require protected fail-closed and baseline verification
+      ansible.builtin.pause:
+        prompt: >-
+          Verify through approved protected procedures that revised runner and direct
+          scripts fail closed, no bypass was used, no revised process remains, and the
+          prior baseline is unchanged. Enter VERIFIED only after all checks pass.
+        echo: false
+      register: ai_ops_assistant_mvp_rollback_verification_confirmation
+      no_log: true
+
+    - name: Assert protected rollback verification was confirmed
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_rollback_verification_confirmation.user_input == 'VERIFIED'
+        fail_msg: >-
+          Rollback verification was not confirmed. Do not claim authority removal;
+          follow the administrator-owned recovery and incident procedure.
+        quiet: true
+      changed_when: false
+      no_log: true

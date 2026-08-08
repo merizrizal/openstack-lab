@@ -59,15 +59,15 @@ Estimate:
 
 Tasks:
 
-- [ ] State that the assistant observes, correlates, explains, identifies uncertainty, and recommends manual follow-up only.
-- [ ] Require the assistant to select only documented diagnostic tool names and never invent raw commands for execution by the AI boundary.
-- [ ] Define refusal behavior for requests to create, update, delete, restart, stop, install, edit, or otherwise fix the lab directly.
-- [ ] Require explanations to separate observed evidence, inference, missing evidence, and manual recommendations.
-- [ ] Document that AI text does not override credential, allowlist, or operator approval boundaries.
+- [x] State that the assistant observes, correlates, explains, identifies uncertainty, and recommends manual follow-up only.
+- [x] Require the assistant to select only documented diagnostic tool names and never invent raw commands for execution by the AI boundary.
+- [x] Define refusal behavior for requests to create, update, delete, restart, stop, install, edit, or otherwise fix the lab directly.
+- [x] Require explanations to separate observed evidence, inference, missing evidence, and manual recommendations.
+- [x] Document that AI text does not override credential, allowlist, or operator approval boundaries.
 
 Done when:
 
-- [ ] A reviewer can predict how the assistant responds to both diagnostic and remediation intent.
+- [x] A reviewer can predict how the assistant responds to both diagnostic and remediation intent.
 
 ### Step 2 - Document Project and Server Workflows
 
@@ -80,15 +80,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Document the project summary workflow and interpretation of empty, unavailable, forbidden, and failed sections.
-- [ ] Document the server basic and server network sequence for one name or ID.
-- [ ] Define expected explanation fields: healthy signals, failing signals, likely failure domain, evidence gaps, and manual next steps.
-- [ ] Include sanitized result examples for successful and non-success outcomes.
-- [ ] Direct operators to the runner rather than raw scripts once the runner is accepted.
+- [x] Document the project summary workflow and interpretation of empty, unavailable, forbidden, and failed sections.
+- [x] Document the server basic and server network sequence for one name or ID.
+- [x] Define expected explanation fields: healthy signals, failing signals, likely failure domain, evidence gaps, and manual next steps.
+- [x] Include sanitized result examples for successful and non-success outcomes.
+- [x] Direct operators to the runner rather than raw scripts once the runner is accepted.
 
 Done when:
 
-- [ ] An operator can safely answer what exists and inspect one server without rereading the PRD.
+- [x] An operator can safely answer what exists and inspect one server without rereading the PRD.
 
 ### Step 3 - Build the MVP Metadata Troubleshooting Workflow
 
@@ -101,15 +101,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Start with server status, config-drive context, attached ports, fixed IPs, networks, and subnets.
-- [ ] Map available evidence to the guest-to-Neutron-proxy-to-Nova-metadata path.
-- [ ] Mark Neutron-agent state, recent service logs, Apache listener evidence, and host status as unavailable until Phase 06 controls exist.
-- [ ] Require the AI to distinguish guest-side symptoms, network attachment issues, proxy/service hypotheses, and insufficient evidence.
-- [ ] End with manual operator recommendations, not executable remediation requests.
+- [x] Start with server status, config-drive context, attached ports, fixed IPs, networks, and subnets.
+- [x] Map available evidence to the guest-to-Neutron-proxy-to-Nova-metadata path.
+- [x] Mark Neutron-agent state, recent service logs, Apache listener evidence, and host status as unavailable until Phase 06 controls exist.
+- [x] Require the AI to distinguish guest-side symptoms, network attachment issues, proxy/service hypotheses, and insufficient evidence.
+- [x] End with manual operator recommendations, not executable remediation requests.
 
 Done when:
 
-- [ ] A cloud-init or `169.254.169.254` report produces a safe initial evidence package and a bounded likely-failure analysis.
+- [x] A cloud-init or `169.254.169.254` report produces a safe initial evidence package and a bounded likely-failure analysis.
 
 ### Step 4 - Run Deployed-Lab Integration Validation
 
@@ -122,17 +122,17 @@ Estimate:
 
 Tasks:
 
-- [ ] Run revised project resource summary through the revised runner.
-- [ ] Run revised server basic and server network diagnostics for the same representative server.
-- [ ] Verify result schemas, duration, exit code where applicable, correlation ID, and truncation metadata.
-- [ ] Verify matching sanitized audit events for each request.
-- [ ] Compare relevant project state before and after execution to prove diagnostics caused no mutation.
-- [ ] Verify revised calls write only to revised audit/output locations and start no prior-runtime process or service.
-- [ ] Record policy, endpoint, or service-version limitations as explicit unavailable evidence.
+- [x] Run revised project resource summary through the revised runner.
+- [x] Run revised server basic and server network diagnostics for the same representative server.
+- [x] Verify result schemas, duration, exit code where applicable, correlation ID, and truncation metadata.
+- [x] Verify matching sanitized audit events for each request.
+- [x] Compare relevant project state before and after execution to prove diagnostics caused no mutation.
+- [x] Verify revised calls write only to revised audit/output locations and start no prior-runtime process or service.
+- [x] Record policy, endpoint, or service-version limitations as explicit unavailable evidence.
 
 Done when:
 
-- [ ] The runner produces useful, auditable evidence from live project state without changing it.
+- [x] The runner produces useful, auditable evidence from live project state without changing it.
 
 ### Step 5 - Validate AI Explanation and Refusal Behavior
 
@@ -145,15 +145,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Provide redacted result envelopes to the selected manual AI workflow.
-- [ ] Verify the explanation cites evidence, labels inferences, and identifies missing host-level data.
-- [ ] Submit representative “fix it”, restart, delete, create, and edit-config requests.
-- [ ] Verify the assistant returns diagnostic collection or manual recommendations and does not request an unavailable mutation tool.
-- [ ] Review output for credential, token, topology, or unnecessary log disclosure.
+- [x] Provide redacted result envelopes to the selected manual AI workflow.
+- [x] Verify the explanation cites evidence, labels inferences, and identifies missing host-level data.
+- [x] Submit representative “fix it”, restart, delete, create, and edit-config requests.
+- [x] Verify the assistant returns diagnostic collection or manual recommendations and does not request an unavailable mutation tool.
+- [x] Review output for credential, token, topology, or unnecessary log disclosure.
 
 Done when:
 
-- [ ] The manual AI workflow is useful for diagnosis and consistently remains advisory-only.
+- [x] The manual AI workflow is useful for diagnosis and consistently remains advisory-only.
 
 ### Step 6 - Capture MVP Acceptance and Rollback Evidence
 
@@ -166,27 +166,27 @@ Estimate:
 
 Tasks:
 
-- [ ] Record the runtime, credential profile class, tool versions, request/result IDs, tests, and observed acceptance outcomes without secrets.
-- [ ] Record known gaps deferred to operator/host diagnostics or MCP.
-- [ ] Document immediate rollback: disable the runner, revoke application credentials, and remove protected local profile material.
-- [ ] Confirm manual scripts cannot remain as an undocumented bypass if the revised runner is disabled for a safety issue.
-- [ ] Confirm rollback disables only the revised capability and leaves the preserved prior baseline unchanged unless a separate operator decision retires it.
+- [x] Record the runtime, credential profile class, tool versions, request/result IDs, tests, and observed acceptance outcomes without secrets.
+- [x] Record known gaps deferred to operator/host diagnostics or MCP.
+- [x] Document immediate rollback: disable the runner, revoke application credentials, and remove protected local profile material.
+- [x] Confirm manual scripts cannot remain as an undocumented bypass if the revised runner is disabled for a safety issue.
+- [x] Confirm rollback disables only the revised capability and leaves the preserved prior baseline unchanged unless a separate operator decision retires it.
 
 Done when:
 
-- [ ] Maintainers can independently review MVP evidence and disable all assistant authority if needed.
+- [x] Maintainers can independently review MVP evidence and disable all assistant authority if needed.
 
 ## 05.6 Phase Definition of Done
 
 This phase is done when:
 
-- [ ] Diagnostic-only AI behavior and “fix it” refusal are documented and tested.
-- [ ] Project, server, and metadata-oriented workflows are executable by an operator.
-- [ ] All three tools succeed against representative deployed state or return accepted structured limitations.
-- [ ] Result and audit contracts are visible end to end.
-- [ ] Before/after checks show no lab mutation.
-- [ ] Redacted MVP evidence and rollback instructions exist.
-- [ ] Coexistence checks prove the revised workflow does not modify, invoke, or overwrite prior-runtime source, services, profiles, audit data, or state.
+- [x] Diagnostic-only AI behavior and “fix it” refusal are documented and tested.
+- [x] Project, server, and metadata-oriented workflows are executable by an operator.
+- [x] All three tools succeed against representative deployed state or return accepted structured limitations.
+- [x] Result and audit contracts are visible end to end.
+- [x] Before/after checks show no lab mutation.
+- [x] Redacted MVP evidence and rollback instructions exist.
+- [x] Coexistence checks prove the revised workflow does not modify, invoke, or overwrite prior-runtime source, services, profiles, audit data, or state.
 
 ## 05.7 Risks
 
