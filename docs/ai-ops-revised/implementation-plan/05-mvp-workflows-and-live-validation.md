@@ -169,12 +169,12 @@ Tasks:
 - [x] Record the runtime, credential profile class, tool versions, request/result IDs, tests, and observed acceptance outcomes without secrets.
 - [x] Record known gaps deferred to operator/host diagnostics or MCP.
 - [x] Document immediate rollback: disable the runner, revoke application credentials, and remove protected local profile material.
-- [ ] Confirm manual scripts cannot remain as an undocumented bypass if the revised runner is disabled for a safety issue.
-- [ ] Confirm rollback disables only the revised capability and leaves the preserved prior baseline unchanged unless a separate operator decision retires it.
+- [x] Confirm manual scripts cannot remain as an undocumented bypass if the revised runner is disabled for a safety issue.
+- [x] Confirm rollback disables only the revised capability and leaves the preserved prior baseline unchanged unless a separate operator decision retires it.
 
 Done when:
 
-- [ ] Maintainers can independently review MVP evidence and disable all assistant authority if needed.
+- [x] Maintainers can independently review MVP evidence and disable all assistant authority if needed.
 
 ## 05.6 Phase Definition of Done
 

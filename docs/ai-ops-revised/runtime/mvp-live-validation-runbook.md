@@ -294,6 +294,66 @@ If any runner call, audit check, result contract, identifier transport, path-iso
 
 Manual AI evaluation and rollback rehearsal are separate activities. They require their own authorization, data-handling approval, and evidence review.
 
+## 8. Authorized rollback-and-recovery rehearsal
+
+This procedure is a controlled destructive rehearsal. It is not authorized by this runbook. Start only after the identity administrator explicitly approves the exact revised credential and profile scope, the target is exactly `assistant02`, the recovery owner/procedure is available, and an administrator-owned baseline attestation method is confirmed. Do not include credential secrets, profile content, resource identifiers, addresses, raw output, or audit data in retained evidence.
+
+### 8.1 Prepare and set stop conditions
+
+1. Assign the identity administrator, Ansible operator, recovery owner, evidence owner, and pre/post-attestation owner.
+2. Create a new non-secret rollback run ID and an outcome-only protected evidence record. Confirm the evidence directory is mode `0700`, the record is mode `0600`, and retention, access, and deletion are approved.
+3. Record only the approved non-secret credential label, profile class `aiops-assistant-project-reader`, source revision, target label, and recovery-procedure reference.
+4. Confirm the recovery procedure can restore the credential, profile, and dedicated runner entrypoint from the recorded revision before revocation occurs.
+5. Obtain the normalized pre-attestation `valid` result.
+
+Stop without changing authority if any authorization, recovery procedure, protected evidence handling, or pre-attestation is missing or invalid.
+
+### 8.2 Remove revised authority
+
+1. Stop new revised runner use and disable or remove only its dedicated entrypoint on `assistant02` through the approved deployment/rollback boundary.
+2. Have the identity administrator revoke only the approved revised project-reader credential.
+3. Remove only the protected revised profile material owned by the approved identity procedure.
+4. Do not touch the prior runtime, its profiles, credentials, source, services, audit data, or state.
+
+### 8.3 Verify fail-closed behavior and baseline preservation
+
+Using only approved protected handling, verify and record normalized pass/fail outcomes for:
+
+- revised runner requests fail closed;
+- direct revised diagnostic scripts cannot authenticate after credential/profile removal;
+- no alternate profile, raw CLI, generic shell, or prior runtime was used as a bypass;
+- no revised process or service remains; and
+- the preserved prior baseline remains unchanged.
+
+Obtain the normalized post-attestation `valid, unchanged: true` result. Any failure, ambiguous result, prior-runtime touch, or unavailable attestation ends the rehearsal. Do not retry automatically or claim authority removal.
+
+### 8.4 Restore and close the rehearsal
+
+1. The recovery owner restores the approved project-reader credential using the approved recovery procedure.
+2. Restore the protected `aiops-assistant-project-reader` profile through its owning identity deployment procedure.
+3. Restore the dedicated runner entrypoint from the recorded revision.
+4. Verify only that the intended revised deployment artifacts are restored; do not rerun live diagnostics unless separately authorized.
+5. Record only normalized outcomes: runner disabled, credential revoked, profile removed, runner fail-closed, direct-script bypass blocked, prior baseline unchanged, credential restored, profile restored, and runner restored.
+6. Retain and delete the protected outcome record according to the approved evidence-owner policy.
+
+### 8.4.1 Execute the approved recovery playbook
+
+After the identity administrator has restored the credential and the recovery owner has confirmed the protected source revision, the Ansible operator may run the dedicated recovery playbook. The extra-vars file must be generated outside Git, contain only approved non-secret gates and the run ID, and be protected according to the evidence policy. Never put credential or profile contents in it.
+
+```bash
+rtk ansible-playbook \
+  -i ansible/ai_ops_assistant/inventories/local/local.yml \
+  ansible/ai_ops_assistant/playbook_recover_mvp_rollback.yml \
+  --limit assistant02 \
+  -e root_dir="$ROOT_DIR" \
+  -e target_env=local \
+  -e "@$ROOT_DIR/generated/recover_mvp_rollback.yml"
+```
+
+The playbook is fail-closed and pauses for `RESTORED` and `VERIFIED` confirmations. Review the recap for `assistant02` only. Do not use it to run diagnostics, restore prior-runtime material, or automate external credential administration.
+
+A failed recovery is an incident: stop further changes, preserve only allowed normalized evidence, and have the designated administrator recover the capability. Documentation/tabletop review must never be represented as a completed live rehearsal.
+
 ## Completion checklist
 
 - [ ] Separate review approved the pipelining correction.

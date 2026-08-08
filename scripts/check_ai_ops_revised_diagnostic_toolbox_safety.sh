@@ -19,13 +19,13 @@ readonly -a expected=(
 for expected_file in "${expected[@]}"; do
   [[ ! -L "$approved_dir/$expected_file" ]] || { printf 'revised diagnostic gate: symlinks are not permitted\n' >&2; exit 1; }
 done
-mapfile -t actual < <(rtk find "$approved_dir" -type f -name '*.sh' | rtk sort)
+mapfile -t actual < <(find "$approved_dir" -type f -name '*.sh' -printf '%P\n' | sort)
 [[ "${actual[*]}" == "${expected[*]}" ]] || { printf 'revised diagnostic gate: approved file allowlist mismatch\n' >&2; exit 1; }
-rtk bash "$repo_root/scripts/check_ai_ops_diagnostic_safety.sh" "$approved_dir"
-if rtk grep -RniE '/opt/openstack-ai-ops/|aiops-project-reader|assistant01|neutron_agent|operator.reader|operator_reader' "$approved_dir"; then
+bash "$repo_root/scripts/check_ai_ops_diagnostic_safety.sh" "$approved_dir"
+if grep -RniE '/opt/openstack-ai-ops/|aiops-project-reader|assistant01|neutron_agent|operator.reader|operator_reader' "$approved_dir"; then
   printf 'revised diagnostic gate: historical path/profile identifier found\n' >&2; exit 1
 fi
-if rtk grep -RniE '(cat|grep|sed|awk|sha256sum|md5sum)[^\n]*(clouds\.yaml|credentials/profiles)' "$approved_dir"; then
+if grep -RniE '(cat|grep|sed|awk|sha256sum|md5sum)[^\n]*(clouds\.yaml|credentials/profiles)' "$approved_dir"; then
   printf 'revised diagnostic gate: credential-content read found\n' >&2; exit 1
 fi
 printf 'revised diagnostic contract gate passed\n'
