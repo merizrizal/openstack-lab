@@ -1,0 +1,408 @@
+---
+- name: Produce normalized Phase 06 restricted-diagnostics validation state
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_phase06_validation_enabled: false
+    ai_ops_assistant_phase06_validation_authorization: unconfirmed
+    ai_ops_assistant_phase06_validation_phase05_acceptance_gate: unconfirmed
+    ai_ops_assistant_phase06_validation_evidence_owner: unconfirmed
+    ai_ops_assistant_phase06_validation_run_id: ""
+    ai_ops_assistant_phase06_validation_source_revision: unconfirmed
+    ai_ops_assistant_phase06_validation_scope: project-reader-neutron-read-only
+    ai_ops_assistant_phase06_validation_profile_name: aiops-assistant-project-reader
+    ai_ops_assistant_phase06_validation_public_parameters: []
+    ai_ops_assistant_phase06_validation_schema_version: "1.0"
+    ai_ops_assistant_phase06_validation_operation_label: neutron_agent_list_project_reader
+    ai_ops_assistant_phase06_validation_fixed_read_argv:
+      - /usr/bin/env
+      - -i
+      - HOME=/home/aiops_assistant
+      - LANG=C
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - OS_CLIENT_CONFIG_FILE=/opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml
+      - OS_CLOUD=aiops-assistant-project-reader
+      - openstack
+      - network
+      - agent
+      - list
+      - -f
+      - json
+    ai_ops_assistant_phase06_validation_output_location_approval: unconfirmed
+    ai_ops_assistant_phase06_validation_output_directory: /run/openstack-ai-ops/phase06-validation
+    ai_ops_assistant_phase06_validation_output_directory_owner: aiops_assistant
+    ai_ops_assistant_phase06_validation_output_directory_group: aiops_assistant
+    ai_ops_assistant_phase06_validation_output_directory_mode: "0700"
+    ai_ops_assistant_phase06_validation_output_file_mode: "0600"
+    ai_ops_assistant_phase06_validation_output_path: >-
+      {{ ai_ops_assistant_phase06_validation_output_directory }}/{{
+      ai_ops_assistant_phase06_validation_run_id }}.json
+    ai_ops_assistant_phase06_validation_result:
+      schema_version: "1.0"
+      producer: phase06_restricted_diagnostics_validation
+      operation: neutron_agent_list_project_reader
+      status: blocked
+      limitation_class: authorization_pending
+      rollback_status: not_required
+      unresolved_gates:
+        - validation_producer_not_implemented
+      phase05_acceptance_confirmed: false
+      neutron_read_classified: false
+      operator_reader_reviewed: false
+      observer_policy_reviewed: false
+      negative_test_plan_approved: false
+      output_schema_frozen: false
+      redaction_check_completed: false
+  pre_tasks:
+    - name: Assert Phase 06 validation producer scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+          - ai_ops_assistant_phase06_validation_enabled is boolean
+          - ai_ops_assistant_phase06_validation_scope == 'project-reader-neutron-read-only'
+          - ai_ops_assistant_phase06_validation_profile_name == 'aiops-assistant-project-reader'
+          - ai_ops_assistant_phase06_validation_public_parameters == []
+          - ai_ops_assistant_phase06_validation_schema_version == '1.0'
+          - ai_ops_assistant_phase06_validation_operation_label == 'neutron_agent_list_project_reader'
+          - >-
+            ai_ops_assistant_phase06_validation_fixed_read_argv ==
+            ['/usr/bin/env', '-i', 'HOME=/home/aiops_assistant', 'LANG=C',
+            'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            'OS_CLIENT_CONFIG_FILE=/opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml',
+            'OS_CLOUD=aiops-assistant-project-reader', 'openstack', 'network',
+            'agent', 'list', '-f', 'json']
+          - ai_ops_assistant_phase06_validation_output_directory == '/run/openstack-ai-ops/phase06-validation'
+          - ai_ops_assistant_phase06_validation_output_directory_owner == 'aiops_assistant'
+          - ai_ops_assistant_phase06_validation_output_directory_group == 'aiops_assistant'
+          - ai_ops_assistant_phase06_validation_output_directory_mode == '0700'
+          - ai_ops_assistant_phase06_validation_output_file_mode == '0600'
+          - ai_ops_assistant_phase06_validation_result is mapping
+          - ai_ops_assistant_phase06_validation_result.schema_version == '1.0'
+          - ai_ops_assistant_phase06_validation_result.producer == 'phase06_restricted_diagnostics_validation'
+          - ai_ops_assistant_phase06_validation_result.operation == 'neutron_agent_list_project_reader'
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert explicit Phase 06 validation authorization inputs
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_phase06_validation_authorization == 'administrator-authorized-phase06-validation'
+          - ai_ops_assistant_phase06_validation_phase05_acceptance_gate == 'administrator-confirmed-external-evidence'
+          - ai_ops_assistant_phase06_validation_output_location_approval == 'administrator-approved-protected-validation-location'
+          - ai_ops_assistant_phase06_validation_evidence_owner is match('^[A-Za-z0-9][A-Za-z0-9 ._@-]{0,95}$')
+          - ai_ops_assistant_phase06_validation_evidence_owner != 'unconfirmed'
+          - ai_ops_assistant_phase06_validation_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_phase06_validation_source_revision is match('^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+          - ai_ops_assistant_phase06_validation_source_revision != 'unconfirmed'
+        fail_msg: >-
+          Phase 06 validation is fail-closed: explicit administrator authorization,
+          evidence ownership, run identity, and source revision are required.
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+  tasks:
+    - name: Publish disabled Phase 06 validation result in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_phase06_validation_result: >-
+          {{ ai_ops_assistant_phase06_validation_result | combine({
+            'run_id': (ai_ops_assistant_phase06_validation_run_id if
+            ai_ops_assistant_phase06_validation_run_id | length > 0 else 'unconfirmed'),
+            'source_revision': ai_ops_assistant_phase06_validation_source_revision
+          }) }}
+      changed_when: false
+      no_log: true
+      when: not (ai_ops_assistant_phase06_validation_enabled | bool)
+
+    - name: Inspect fixed project-reader profile directory metadata
+      ansible.builtin.stat:
+        path: /opt/openstack-ai-ops-assistant/credentials/profiles
+        follow: false
+      register: ai_ops_assistant_phase06_profile_directory_metadata
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Inspect fixed project-reader profile file metadata
+      ansible.builtin.stat:
+        path: "/opt/openstack-ai-ops-assistant/credentials/profiles/{{ item }}"
+        follow: false
+      loop:
+        - clouds.yaml
+        - secure.yaml
+      loop_control:
+        label: protected-profile-file
+      register: ai_ops_assistant_phase06_profile_file_metadata
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Assert fixed project-reader profile boundary
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_phase06_profile_directory_metadata.stat.exists
+          - ai_ops_assistant_phase06_profile_directory_metadata.stat.isdir
+          - not ai_ops_assistant_phase06_profile_directory_metadata.stat.islnk
+          - ai_ops_assistant_phase06_profile_directory_metadata.stat.pw_name == 'aiops_assistant'
+          - ai_ops_assistant_phase06_profile_directory_metadata.stat.gr_name == 'aiops_assistant'
+          - ai_ops_assistant_phase06_profile_directory_metadata.stat.mode == '0700'
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.pw_name == 'aiops_assistant'
+          - item.stat.gr_name == 'aiops_assistant'
+          - item.stat.mode == '0600'
+        loop: "{{ ai_ops_assistant_phase06_profile_file_metadata.results }}"
+        loop_control:
+          label: "{{ item.item }}"
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Inspect protected Phase 06 validation output parent
+      ansible.builtin.stat:
+        path: /run/openstack-ai-ops
+        follow: false
+      register: ai_ops_assistant_phase06_validation_output_parent_metadata
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Assert protected Phase 06 validation output parent
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_phase06_validation_output_parent_metadata.stat.exists
+          - ai_ops_assistant_phase06_validation_output_parent_metadata.stat.isdir
+          - not ai_ops_assistant_phase06_validation_output_parent_metadata.stat.islnk
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Inspect configured Phase 06 validation output directory before creation
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_phase06_validation_output_directory }}"
+        follow: false
+      register: ai_ops_assistant_phase06_validation_output_directory_before_metadata
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Assert Phase 06 validation output directory is absent or protected
+      ansible.builtin.assert:
+        that:
+          - >-
+            not ai_ops_assistant_phase06_validation_output_directory_before_metadata.stat.exists or
+            (
+              ai_ops_assistant_phase06_validation_output_directory_before_metadata.stat.isdir and
+              not ai_ops_assistant_phase06_validation_output_directory_before_metadata.stat.islnk and
+              ai_ops_assistant_phase06_validation_output_directory_before_metadata.stat.pw_name ==
+              ai_ops_assistant_phase06_validation_output_directory_owner and
+              ai_ops_assistant_phase06_validation_output_directory_before_metadata.stat.gr_name ==
+              ai_ops_assistant_phase06_validation_output_directory_group and
+              ai_ops_assistant_phase06_validation_output_directory_before_metadata.stat.mode ==
+              ai_ops_assistant_phase06_validation_output_directory_mode
+            )
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Create protected Phase 06 validation output directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_assistant_phase06_validation_output_directory }}"
+        state: directory
+        owner: "{{ ai_ops_assistant_phase06_validation_output_directory_owner }}"
+        group: "{{ ai_ops_assistant_phase06_validation_output_directory_group }}"
+        mode: "{{ ai_ops_assistant_phase06_validation_output_directory_mode }}"
+      register: ai_ops_assistant_phase06_validation_output_directory_result
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Verify protected Phase 06 validation output directory metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_phase06_validation_output_directory }}"
+        follow: false
+      register: ai_ops_assistant_phase06_validation_output_directory_stat
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Assert protected Phase 06 validation output directory metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_phase06_validation_output_directory_stat.stat.isdir
+          - not ai_ops_assistant_phase06_validation_output_directory_stat.stat.islnk
+          - ai_ops_assistant_phase06_validation_output_directory_stat.stat.pw_name == ai_ops_assistant_phase06_validation_output_directory_owner
+          - ai_ops_assistant_phase06_validation_output_directory_stat.stat.gr_name == ai_ops_assistant_phase06_validation_output_directory_group
+          - ai_ops_assistant_phase06_validation_output_directory_stat.stat.mode == ai_ops_assistant_phase06_validation_output_directory_mode
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Inspect unused Phase 06 validation output path
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_phase06_validation_output_path }}"
+        follow: false
+      register: ai_ops_assistant_phase06_validation_output_path_metadata
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Assert Phase 06 validation output path is unused and non-symlinked
+      ansible.builtin.assert:
+        that:
+          - not ai_ops_assistant_phase06_validation_output_path_metadata.stat.exists
+          - not (ai_ops_assistant_phase06_validation_output_path_metadata.stat.islnk | default(false) | bool)
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Run one fixed project-reader Neutron agent read
+      ansible.builtin.command:
+        argv: "{{ ai_ops_assistant_phase06_validation_fixed_read_argv }}"
+      become: true
+      become_user: aiops_assistant
+      register: ai_ops_assistant_phase06_neutron_read_raw
+      changed_when: false
+      failed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Normalize fixed-read non-success outcome
+      ansible.builtin.set_fact:
+        ai_ops_assistant_phase06_neutron_read_result:
+          outcome: >-
+            {{ 'policy_denied' if ai_ops_assistant_phase06_neutron_read_raw.stderr | lower is search('forbidden|http[[:space:]]*403|not authorized|authorization failed')
+            else
+            'catalog_missing' if ai_ops_assistant_phase06_neutron_read_raw.stderr | lower is search('service catalog|endpoint not found|could not find endpoint')
+            else
+            'connectivity_error' if ai_ops_assistant_phase06_neutron_read_raw.stderr | lower is search('connection refused|timed out|timeout|could not resolve|name
+            or service not known|unreachable') else
+            'authentication_error' if ai_ops_assistant_phase06_neutron_read_raw.stderr | lower is search('authentication|unauthorized|invalid credential|token') else
+            'configuration_error' }}
+          json_shape_valid: false
+          read_only_operation: true
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_phase06_validation_enabled | bool
+        - ai_ops_assistant_phase06_neutron_read_raw.rc != 0
+
+    - name: Parse and validate fixed-read JSON outcome
+      when:
+        - ai_ops_assistant_phase06_validation_enabled | bool
+        - ai_ops_assistant_phase06_neutron_read_raw.rc == 0
+
+      block:
+        - name: Parse fixed-read JSON in protected task state
+          ansible.builtin.set_fact:
+            ai_ops_assistant_phase06_neutron_read_payload: >-
+              {{ ai_ops_assistant_phase06_neutron_read_raw.stdout | from_json }}
+          changed_when: false
+          no_log: true
+
+        - name: Assert fixed-read JSON is a list of records
+          ansible.builtin.assert:
+            that:
+              - ai_ops_assistant_phase06_neutron_read_payload | type_debug == 'list'
+              - >-
+                (ai_ops_assistant_phase06_neutron_read_payload |
+                select('mapping') | list | length) ==
+                (ai_ops_assistant_phase06_neutron_read_payload | length)
+            quiet: true
+          changed_when: false
+          no_log: true
+
+        - name: Normalize fixed-read success outcome
+          ansible.builtin.set_fact:
+            ai_ops_assistant_phase06_neutron_read_result:
+              outcome: >-
+                {{ 'empty' if ai_ops_assistant_phase06_neutron_read_payload | length == 0 else 'pass' }}
+              json_shape_valid: true
+              read_only_operation: true
+          changed_when: false
+          no_log: true
+      rescue:
+        - name: Normalize fixed-read malformed-output outcome
+          ansible.builtin.set_fact:
+            ai_ops_assistant_phase06_neutron_read_result:
+              outcome: configuration_error
+              json_shape_valid: false
+              read_only_operation: true
+          changed_when: false
+          no_log: true
+    - name: Build normalized Phase 06 validation result
+      ansible.builtin.set_fact:
+        ai_ops_assistant_phase06_validation_result: >-
+          {{ ai_ops_assistant_phase06_validation_result | combine({
+            'run_id': ai_ops_assistant_phase06_validation_run_id,
+            'source_revision': ai_ops_assistant_phase06_validation_source_revision,
+            'phase05_acceptance_confirmed': true,
+            'neutron_read_outcome': ai_ops_assistant_phase06_neutron_read_result.outcome,
+            'neutron_read_json_shape_valid': ai_ops_assistant_phase06_neutron_read_result.json_shape_valid,
+            'neutron_read_read_only_operation': ai_ops_assistant_phase06_neutron_read_result.read_only_operation,
+            'neutron_read_classified': ai_ops_assistant_phase06_neutron_read_result.outcome in
+            ['pass', 'empty', 'policy_denied'],
+            'status': 'blocked',
+            'limitation_class': (
+              ai_ops_assistant_phase06_neutron_read_result.outcome if
+              ai_ops_assistant_phase06_neutron_read_result.outcome in
+              ['policy_denied', 'catalog_missing', 'connectivity_error', 'authentication_error', 'configuration_error']
+              else 'authorization_pending'
+            ),
+            'unresolved_gates': (
+              ['phase05_acceptance_pending', 'observer_policy_pending',
+              'negative_test_plan_pending', 'output_schema_pending',
+              'redaction_check_pending'] +
+              (['operator_reader_review_pending'] if
+              ai_ops_assistant_phase06_neutron_read_result.outcome == 'policy_denied' else [])
+            )
+          }) }}
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Write normalized Phase 06 validation result
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_assistant_phase06_validation_output_path }}"
+        owner: "{{ ai_ops_assistant_phase06_validation_output_directory_owner }}"
+        group: "{{ ai_ops_assistant_phase06_validation_output_directory_group }}"
+        mode: "{{ ai_ops_assistant_phase06_validation_output_file_mode }}"
+        force: false
+        content: "{{ ai_ops_assistant_phase06_validation_result | to_nice_json }}"
+      register: ai_ops_assistant_phase06_validation_output_result
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Verify normalized Phase 06 validation result metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_phase06_validation_output_path }}"
+        follow: false
+      register: ai_ops_assistant_phase06_validation_output_stat
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
+
+    - name: Assert normalized Phase 06 validation result metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_phase06_validation_output_stat.stat.isreg
+          - not ai_ops_assistant_phase06_validation_output_stat.stat.islnk
+          - ai_ops_assistant_phase06_validation_output_stat.stat.pw_name == ai_ops_assistant_phase06_validation_output_directory_owner
+          - ai_ops_assistant_phase06_validation_output_stat.stat.gr_name == ai_ops_assistant_phase06_validation_output_directory_group
+          - ai_ops_assistant_phase06_validation_output_stat.stat.mode == ai_ops_assistant_phase06_validation_output_file_mode
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_phase06_validation_enabled | bool
