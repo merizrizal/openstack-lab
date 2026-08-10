@@ -5,5 +5,3 @@ ansible_ssh_common_args: -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyCheck
 ai_ops_assistant_keystone_endpoint: "http://192.168.121.5:5000/v3"
 ai_ops_assistant_identity_boundary_enabled: true
 ai_ops_assistant_identity_boundary_source_directory: "{{ ai_ops_assistant_identity_boundary_source_root }}/2026-0001"
-ai_ops_assistant_identity_boundary_source_directory_owner: "meriz"
-ai_ops_assistant_identity_boundary_source_file_owner: "meriz"
