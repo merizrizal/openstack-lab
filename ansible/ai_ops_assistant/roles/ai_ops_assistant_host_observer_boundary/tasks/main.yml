@@ -1,0 +1,100 @@
+---
+- name: Validate disabled-by-default host-observer policy contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_enabled is boolean
+      - ai_ops_assistant_host_observer_boundary_validation_mode is boolean
+      - ai_ops_assistant_host_observer_boundary_account_name != 'aiops_assistant'
+      - ai_ops_assistant_host_observer_boundary_account_group != 'aiops_assistant'
+      - ai_ops_assistant_host_observer_boundary_account_shell == '/usr/sbin/nologin'
+      - ai_ops_assistant_host_observer_boundary_key_label != 'aiops-assistant-project-reader'
+      - ai_ops_assistant_host_observer_boundary_ssh_restrictions == ['no-agent-forwarding', 'no-X11-forwarding', 'no-port-forwarding', 'no-pty']
+      - ai_ops_assistant_host_observer_boundary_collector_path == '/usr/local/libexec/openstack-ai-ops-assistant/host-observer-collector'
+      - ai_ops_assistant_host_observer_boundary_collector_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_collector_mode == '0750'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_path == '/etc/openstack-ai-ops-assistant/host-observer-policy.yml'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_mode == '0600'
+      - ai_ops_assistant_host_observer_boundary_sudoers_path == '/etc/sudoers.d/aiops-host-observer'
+      - ai_ops_assistant_host_observer_boundary_sudoers_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_sudoers_mode == '0440'
+      - ai_ops_assistant_host_observer_boundary_allowed_inventory_roles is sequence
+      - ai_ops_assistant_host_observer_boundary_allowed_host_labels is sequence
+      - ai_ops_assistant_host_observer_boundary_per_host_enablement is mapping
+    quiet: true
+  changed_when: false
+  no_log: true
+
+- name: Reject unsafe or historical host-observer policy paths
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_collector_path is match('^/usr/local/libexec/openstack-ai-ops-assistant/[^/]+$')
+      - ai_ops_assistant_host_observer_boundary_collector_policy_path is match('^/etc/openstack-ai-ops-assistant/[^/]+$')
+      - ai_ops_assistant_host_observer_boundary_sudoers_path is match('^/etc/sudoers.d/aiops-host-observer$')
+      - "'..' not in ai_ops_assistant_host_observer_boundary_collector_path.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_collector_policy_path.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_sudoers_path.split('/')"
+    quiet: true
+  changed_when: false
+  no_log: true
+
+- name: Require approved observer policy before any provisioning task
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_deployment_authorization == 'approved'
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_maintained_inventory_source | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_revision | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_allowed_inventory_roles | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_role | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_role in ai_ops_assistant_host_observer_boundary_allowed_inventory_roles
+      - ai_ops_assistant_host_observer_boundary_allowed_host_labels | length > 0
+      - inventory_hostname in ai_ops_assistant_host_observer_boundary_allowed_host_labels
+      - ai_ops_assistant_host_observer_boundary_per_host_enablement[inventory_hostname] | default(false) | bool
+      - ai_ops_assistant_host_observer_boundary_account_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_account_removal_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_source | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_source_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_rotation_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_revocation_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_ssh_source_restriction | length > 0
+      - ai_ops_assistant_host_observer_boundary_forced_command == ai_ops_assistant_host_observer_boundary_forced_command_path
+      - ai_ops_assistant_host_observer_boundary_approved_source_classes | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_source_allowlist | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_time_bound_class | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_line_bound_class | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_byte_bound_class | length > 0
+      - ai_ops_assistant_host_observer_boundary_redaction_policy_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_collector_metadata_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_metadata_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_sudo_policy_status in ['not_required', 'accepted']
+      - >-
+        not ai_ops_assistant_host_observer_boundary_sudo_required | bool or
+        (ai_ops_assistant_host_observer_boundary_sudo_collector_argv | length > 0 and
+        ai_ops_assistant_host_observer_boundary_sudo_collector_argv[0] ==
+        ai_ops_assistant_host_observer_boundary_collector_path and
+        ai_ops_assistant_host_observer_boundary_sudo_rule_reference | length > 0)
+      - >-
+        ai_ops_assistant_host_observer_boundary_sudo_required | bool or
+        ai_ops_assistant_host_observer_boundary_sudo_collector_argv | length == 0
+      - ai_ops_assistant_host_observer_boundary_rollback_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_source_key_removal_owner | length > 0
+    fail_msg: >-
+      Host-observer provisioning is blocked until the maintained inventory
+      projection, dedicated identity, forced collector, source bounds, redaction,
+      sudo decision, and rollback owners are approved.
+    quiet: true
+  when: ai_ops_assistant_host_observer_boundary_enabled | bool
+  changed_when: false
+  no_log: true
+
+- name: Keep host-observer provisioning unavailable
+  ansible.builtin.fail:
+    msg: >-
+      Host-observer provisioning is intentionally unavailable until the
+      inventory projection, forced-command policy, collector sources, and
+      optional sudo contract are independently approved; no account, key,
+      key policy, collector, or sudo policy may be created.
+  when: ai_ops_assistant_host_observer_boundary_enabled | bool
+  no_log: true

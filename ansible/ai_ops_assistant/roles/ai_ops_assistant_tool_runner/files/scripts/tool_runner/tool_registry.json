@@ -63,6 +63,17 @@
           "description": "Server name or ID using the approved safe identifier character set."
         }
       ]
+    },
+    {
+      "name": "neutron_agent_health",
+      "description": "List Neutron agents using the fixed read-only operator diagnostic.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/neutron_agent_health.py",
+      "credential_profile": "aiops-assistant-operator-reader",
+      "risk_class": "higher_visibility_operator_scope",
+      "timeout_seconds": 15,
+      "output_limit_bytes": 16384,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": []
     }
   ]
 }

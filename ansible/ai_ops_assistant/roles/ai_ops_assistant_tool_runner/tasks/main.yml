@@ -47,7 +47,7 @@
       - >-
         ai_ops_assistant_tool_runner_targets == [ ai_ops_assistant_tool_runner_approved_script_root + '/project_resource_summary.sh',
         ai_ops_assistant_tool_runner_approved_script_root + '/server_basic_info.sh', ai_ops_assistant_tool_runner_approved_script_root +
-        '/server_network_info.sh' ]
+        '/server_network_info.sh', ai_ops_assistant_tool_runner_approved_script_root + '/neutron_agent_health.py' ]
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='source') | list == [
         'aiops_tool_runner.py', 'audit_inspector.py', 'tool_registry.json'

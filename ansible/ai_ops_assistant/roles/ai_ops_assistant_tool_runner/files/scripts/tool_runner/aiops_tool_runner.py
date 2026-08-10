@@ -26,28 +26,86 @@ from typing import Any
 RUNTIME_ROOT = Path("/opt/openstack-ai-ops-assistant")
 APPROVED_SCRIPT_ROOT = RUNTIME_ROOT / "scripts" / "approved"
 PROJECT_READER_PROFILE = "aiops-assistant-project-reader"
+OPERATOR_READER_PROFILE = "aiops-assistant-operator-reader"
+PROJECT_READER_CONFIG = RUNTIME_ROOT / "credentials" / "profiles" / "clouds.yaml"
+OPERATOR_READER_CONFIG = RUNTIME_ROOT / "credentials" / "operator-reader" / "clouds.yaml"
 REGISTRY_NAME = "ai-ops-assistant-tool-runner-steps-01-04"
 REGISTRY_SCHEMA_VERSION = 1
 TOOL_NAMES = {
     "project_resource_summary",
     "server_basic_info",
     "server_network_info",
+    "neutron_agent_health",
 }
 TOOL_TARGETS = {
     "project_resource_summary": APPROVED_SCRIPT_ROOT / "project_resource_summary.sh",
     "server_basic_info": APPROVED_SCRIPT_ROOT / "server_basic_info.sh",
     "server_network_info": APPROVED_SCRIPT_ROOT / "server_network_info.sh",
+    "neutron_agent_health": APPROVED_SCRIPT_ROOT / "neutron_agent_health.py",
 }
-CHILD_ENVIRONMENT = {
-    "PATH": "/usr/bin:/bin",
-    "LANG": "C.UTF-8",
-    "LC_ALL": "C.UTF-8",
-    "HOME": "/nonexistent",
-    "PYTHONNOUSERSITE": "1",
-    "OS_CLIENT_CONFIG_FILE": str(
-        RUNTIME_ROOT / "credentials" / "profiles" / "clouds.yaml"
-    ),
-    "OS_CLOUD": PROJECT_READER_PROFILE,
+TOOL_PROFILES = {
+    "project_resource_summary": PROJECT_READER_PROFILE,
+    "server_basic_info": PROJECT_READER_PROFILE,
+    "server_network_info": PROJECT_READER_PROFILE,
+    "neutron_agent_health": OPERATOR_READER_PROFILE,
+}
+TOOL_RISK_CLASSES = {
+    "project_resource_summary": "low_readonly_project_scope",
+    "server_basic_info": "low_readonly_project_scope",
+    "server_network_info": "low_readonly_project_scope",
+    "neutron_agent_health": "higher_visibility_operator_scope",
+}
+TOOL_TIMEOUTS = {
+    "project_resource_summary": 45,
+    "server_basic_info": 30,
+    "server_network_info": 45,
+    "neutron_agent_health": 15,
+}
+TOOL_OUTPUT_LIMITS = {
+    "project_resource_summary": 131072,
+    "server_basic_info": 65536,
+    "server_network_info": 131072,
+    "neutron_agent_health": 16384,
+}
+TOOL_PARAMETER_NAMES = {
+    "project_resource_summary": set(),
+    "server_basic_info": {"server_identifier"},
+    "server_network_info": {"server_identifier"},
+    "neutron_agent_health": set(),
+}
+PROFILE_ENVIRONMENTS = {
+    PROJECT_READER_PROFILE: {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "HOME": "/nonexistent",
+        "PYTHONNOUSERSITE": "1",
+        "OS_CLIENT_CONFIG_FILE": str(PROJECT_READER_CONFIG),
+        "OS_CLOUD": PROJECT_READER_PROFILE,
+    },
+    OPERATOR_READER_PROFILE: {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "HOME": "/nonexistent",
+        "PYTHONNOUSERSITE": "1",
+        "OS_CLIENT_CONFIG_FILE": str(OPERATOR_READER_CONFIG),
+        "OS_CLOUD": OPERATOR_READER_PROFILE,
+    },
+}
+# Compatibility name for existing project-reader regression fixtures.
+CHILD_ENVIRONMENT = PROFILE_ENVIRONMENTS[PROJECT_READER_PROFILE]
+UNAVAILABLE_DIAGNOSTIC_ERROR_CLASSES = {
+    "profile_missing_or_revoked",
+    "profile_integrity_error",
+    "policy_denied",
+    "service_unavailable",
+    "catalog_missing",
+    "connectivity_error",
+    "authentication_error",
+    "approved_optional_capability_absent",
+    "unsupported_deployment_state",
+    "timeout",
 }
 _TEST_EXECUTION_TARGET: Path | None = None
 _TEST_WORKING_DIRECTORY: Path | None = None
@@ -446,7 +504,7 @@ def _diagnostic_data(
         raise RedactionError("diagnostic output is invalid")
     if payload.get("schema_version") != "1.0" or payload.get("tool") != tool["name"]:
         raise RedactionError("diagnostic output is invalid")
-    if payload.get("status") not in {"ok", "partial", "error"}:
+    if payload.get("status") not in {"ok", "partial", "unavailable", "error"}:
         raise RedactionError("diagnostic output is invalid")
     redacted = redact_value(payload)
     if not isinstance(redacted.value, dict):
@@ -886,20 +944,28 @@ def _validate_tool(tool: Any, defaults: dict[str, Any], seen_names: set[str]) ->
     )
     if Path(target) != TOOL_TARGETS[name]:
         raise RegistryError(f"{name} implementation target is not approved")
+    expected_profile = TOOL_PROFILES.get(name)
+    if expected_profile is None:
+        raise RegistryError(f"{name} has no approved profile mapping")
     _require_string(
-        tool["credential_profile"], f"{name} credential_profile", PROJECT_READER_PROFILE
+        tool["credential_profile"], f"{name} credential_profile", expected_profile
     )
-    _require_string(tool["risk_class"], f"{name} risk_class", defaults["risk_class"])
+    _require_string(
+        tool["risk_class"], f"{name} risk_class", TOOL_RISK_CLASSES[name]
+    )
     timeout = _require_bounded_integer(
         tool["timeout_seconds"], f"{name} timeout_seconds", 1, MAX_TIMEOUT_SECONDS
     )
-    if timeout > defaults["timeout_seconds"]:
-        raise RegistryError(f"{name} timeout exceeds the registry default ceiling")
+    if timeout != TOOL_TIMEOUTS[name] or timeout > defaults["timeout_seconds"]:
+        raise RegistryError(f"{name} timeout is not the approved fixed value")
     output_limit = _require_bounded_integer(
         tool["output_limit_bytes"], f"{name} output_limit_bytes", 1, MAX_OUTPUT_BYTES
     )
-    if output_limit > defaults["output_limit_bytes"]:
-        raise RegistryError(f"{name} output limit exceeds the registry default ceiling")
+    if (
+        output_limit != TOOL_OUTPUT_LIMITS[name]
+        or output_limit > defaults["output_limit_bytes"]
+    ):
+        raise RegistryError(f"{name} output limit is not the approved fixed value")
     _require_string(
         tool["mutation_guarantee"],
         f"{name} mutation_guarantee",
@@ -919,9 +985,7 @@ def _validate_tool(tool: Any, defaults: dict[str, Any], seen_names: set[str]) ->
         seen_parameters.add(parameter_name)
         seen_positions.add(position)
 
-    expected_parameter_names = (
-        {"server_identifier"} if name != "project_resource_summary" else set()
-    )
+    expected_parameter_names = TOOL_PARAMETER_NAMES[name]
     if seen_parameters != expected_parameter_names:
         raise RegistryError(f"{name} has an invalid parameter set")
 
@@ -1023,15 +1087,32 @@ def validate_request(
     return tool, values
 
 
-def build_child_environment() -> dict[str, str]:
-    """Build the complete fixed child environment without inheriting parent state."""
+def resolve_tool_profile(tool: dict[str, Any]) -> str:
+    """Resolve only the profile fixed for this trusted tool descriptor."""
 
-    return dict(CHILD_ENVIRONMENT)
+    name = tool.get("name")
+    declared_profile = tool.get("credential_profile")
+    expected_profile = TOOL_PROFILES.get(name)
+    if (
+        expected_profile is None
+        or declared_profile != expected_profile
+        or expected_profile not in PROFILE_ENVIRONMENTS
+    ):
+        raise TargetIntegrityError("approved profile does not match its tool")
+    return expected_profile
+
+
+def build_child_environment(tool: dict[str, Any]) -> dict[str, str]:
+    """Build a fresh profile-specific environment without inheriting parent state."""
+
+    profile = resolve_tool_profile(tool)
+    return dict(PROFILE_ENVIRONMENTS[profile])
 
 
 def validate_runtime_target(tool: dict[str, Any]) -> Path:
     """Return a regular executable only from the fixed approved target mapping."""
 
+    resolve_tool_profile(tool)
     name = tool["name"]
     expected_target = TOOL_TARGETS.get(name)
     if (
@@ -1157,14 +1238,14 @@ def validate_diagnostic_payload(tool: dict[str, Any], stdout: bytes) -> str:
     if payload.get("schema_version") != "1.0" or payload.get("tool") != tool["name"]:
         raise ValueError("diagnostic output is invalid")
     status = payload.get("status")
-    if status not in {"ok", "partial", "error"}:
+    if status not in {"ok", "partial", "unavailable", "error"}:
         raise ValueError("diagnostic output is invalid")
     error = payload.get("error")
     error_class = error.get("class") if isinstance(error, dict) else None
-    if error_class in {"service_unavailable", "catalog_missing", "connectivity_error"}:
+    if error_class in UNAVAILABLE_DIAGNOSTIC_ERROR_CLASSES:
         return "unavailable"
-    if status == "error":
-        return "error"
+    if status == "unavailable" or status == "error":
+        raise ValueError("diagnostic output is invalid")
     return "ok"
 
 
@@ -1175,11 +1256,12 @@ def execute_fixed_diagnostic(
 
     process: subprocess.Popen[bytes] | None = None
     try:
+        child_environment = build_child_environment(tool)
         process = subprocess.Popen(
             build_command_argv(tool, values),
             close_fds=True,
             cwd=_TEST_WORKING_DIRECTORY or RUNTIME_ROOT,
-            env=build_child_environment(),
+            env=child_environment,
             shell=False,
             start_new_session=True,
             stderr=subprocess.PIPE,

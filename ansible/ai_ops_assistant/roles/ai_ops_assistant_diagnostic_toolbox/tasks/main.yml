@@ -15,11 +15,12 @@
         'project_resource_summary.sh',
         'server_basic_info.sh',
         'server_network_info.sh',
+        'neutron_agent_health.py',
         'secure_diagnostic_acceptance_consumer'
         ]
       - >-
         ai_ops_assistant_diagnostic_toolbox_files | map(attribute='mode') | list == [
-        '0640', '0750', '0750', '0750', '0750'
+        '0640', '0750', '0750', '0750', '0750', '0750'
         ]
       - "'..' not in ai_ops_assistant_diagnostic_toolbox_destination.split('/')"
     quiet: true

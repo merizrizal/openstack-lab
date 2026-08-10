@@ -1,0 +1,133 @@
+---
+- name: Deploy and validate protected AI-OPS operator-reader profile
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ai_ops_assistant_operator_identity_boundary_enabled: false
+    ai_ops_assistant_operator_identity_boundary_deployment_authorization: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_phase05_acceptance_outcome: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_project_reader_need_proof: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_need_proof_operation: neutron_agent_list_project_reader
+    ai_ops_assistant_operator_identity_boundary_profile_name: aiops-assistant-operator-reader
+    ai_ops_assistant_operator_identity_boundary_profile_directory: /opt/openstack-ai-ops-assistant/credentials/operator-reader
+    ai_ops_assistant_operator_identity_boundary_profile_selection: neutron_agent_health
+    ai_ops_assistant_operator_identity_boundary_rotation_validation_outcome: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_revocation_validation_outcome: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_mutation_denial_outcomes:
+      - operation: create
+        result: unconfirmed
+        evidence_reference: ""
+      - operation: update
+        result: unconfirmed
+        evidence_reference: ""
+      - operation: delete
+        result: unconfirmed
+        evidence_reference: ""
+    ai_ops_assistant_operator_identity_boundary_forbidden_environment_variables:
+      - OS_AUTH_URL
+      - OS_USERNAME
+      - OS_PASSWORD
+      - OS_PROJECT_ID
+      - OS_PROJECT_NAME
+      - OS_TOKEN
+      - OS_CLOUD
+      - OS_CLIENT_CONFIG_FILE
+      - OS_APPLICATION_CREDENTIAL_ID
+      - OS_APPLICATION_CREDENTIAL_SECRET
+  pre_tasks:
+    - name: Assert exact operator-profile deployment scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+
+    - name: Assert controller has no ambient OpenStack credentials
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', item, default='') | length == 0
+        quiet: true
+      loop: "{{ ai_ops_assistant_operator_identity_boundary_forbidden_environment_variables }}"
+      loop_control:
+        label: "{{ item }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+
+    - name: Assert fixed operator-profile separation and selection
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_operator_identity_boundary_profile_name == 'aiops-assistant-operator-reader'
+          - ai_ops_assistant_operator_identity_boundary_profile_name != 'aiops-assistant-project-reader'
+          - ai_ops_assistant_operator_identity_boundary_profile_directory == '/opt/openstack-ai-ops-assistant/credentials/operator-reader'
+          - ai_ops_assistant_operator_identity_boundary_profile_directory != '/opt/openstack-ai-ops-assistant/credentials/profiles'
+          - ai_ops_assistant_operator_identity_boundary_profile_selection == 'neutron_agent_health'
+          - ai_ops_assistant_operator_identity_boundary_need_proof_operation == 'neutron_agent_list_project_reader'
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Require operator-owned profile inputs before profile tasks
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_operator_identity_boundary_source_classification == 'controller-local'
+          - ai_ops_assistant_operator_identity_boundary_source_directory | length > 0
+          - ai_ops_assistant_operator_identity_boundary_source_directory_owner | length > 0
+          - ai_ops_assistant_operator_identity_boundary_source_file_owner | length > 0
+          - ai_ops_assistant_operator_identity_boundary_identity_owner | length > 0
+          - ai_ops_assistant_operator_identity_boundary_approved_role_scope | length > 0
+          - ai_ops_assistant_operator_identity_boundary_expiry_policy | length > 0
+          - ai_ops_assistant_operator_identity_boundary_rotation_owner | length > 0
+          - ai_ops_assistant_operator_identity_boundary_revocation_owner | length > 0
+          - ai_ops_assistant_operator_identity_boundary_mutation_denial_reference | length > 0
+        fail_msg: >-
+          Operator-reader deployment is blocked until protected source metadata,
+          identity ownership, approved scope, lifecycle ownership, and the
+          outcome-only mutation-denial reference are supplied.
+        quiet: true
+      when: ai_ops_assistant_operator_identity_boundary_enabled | bool
+      changed_when: false
+      no_log: true
+
+    - name: Normalize operator-profile validation outcomes without claiming acceptance
+      ansible.builtin.set_fact:
+        ai_ops_assistant_operator_identity_boundary_validation_outcome:
+          schema_version: "1.0"
+          status: blocked
+          limitation_class: authorization_pending
+          need_proof:
+            operation: "{{ ai_ops_assistant_operator_identity_boundary_need_proof_operation }}"
+            result: "{{ ai_ops_assistant_operator_identity_boundary_project_reader_need_proof }}"
+          mutation_denial: "{{ ai_ops_assistant_operator_identity_boundary_mutation_denial_outcomes }}"
+          rotation: "{{ ai_ops_assistant_operator_identity_boundary_rotation_validation_outcome }}"
+          revocation: "{{ ai_ops_assistant_operator_identity_boundary_revocation_validation_outcome }}"
+      changed_when: false
+      no_log: true
+
+    - name: Require all operator-owned gates before profile tasks
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_operator_identity_boundary_deployment_authorization == 'approved'
+          - ai_ops_assistant_operator_identity_boundary_phase05_acceptance_outcome == 'accepted'
+          - ai_ops_assistant_operator_identity_boundary_project_reader_need_proof == 'policy_denied'
+          - ai_ops_assistant_operator_identity_boundary_profile_name != 'aiops-assistant-project-reader'
+          - ai_ops_assistant_operator_identity_boundary_profile_directory != '/opt/openstack-ai-ops-assistant/credentials/profiles'
+          - ai_ops_assistant_operator_identity_boundary_mutation_denial_outcomes | map(attribute='result') | list | difference(['policy_denied']) | length == 0
+        fail_msg: >-
+          Operator-reader deployment is blocked until deployment authorization,
+          Phase 05 acceptance, project-reader need proof, and independent
+          mutation-denial outcomes are owner-approved.
+        quiet: true
+      when: ai_ops_assistant_operator_identity_boundary_enabled | bool
+      changed_when: false
+      no_log: true
+  roles:
+    - role: ai_ops_assistant_operator_identity_boundary
+      when: ai_ops_assistant_operator_identity_boundary_enabled | bool
