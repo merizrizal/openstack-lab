@@ -3,6 +3,8 @@
   hosts: ai_ops_assistant
   become: true
   gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   vars:
     ansible_pipelining: true
     ai_ops_assistant_phase06_validation_enabled: false
@@ -159,10 +161,7 @@
           - item.stat.pw_name == 'aiops_assistant'
           - item.stat.gr_name == 'aiops_assistant'
           - item.stat.mode == '0600'
-        loop: "{{ ai_ops_assistant_phase06_profile_file_metadata.results }}"
-        loop_control:
-          label: "{{ item.item }}"
-        quiet: true
+      loop: "{{ ai_ops_assistant_phase06_profile_file_metadata.results }}"
       changed_when: false
       no_log: true
       when: ai_ops_assistant_phase06_validation_enabled | bool

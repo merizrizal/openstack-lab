@@ -9,7 +9,7 @@ registry="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_tool_runner
 diagnostic_defaults="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_diagnostic_toolbox/defaults/main.yml"
 diagnostic_tasks="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_diagnostic_toolbox/tasks/main.yml"
 diagnostic_source="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/neutron_agent_health.py"
-validation_playbook="$repo_root/ansible/ai_ops_assistant/playbook_produce_phase06_restricted_diagnostics_validation.yml"
+validation_playbook="$repo_root/ansible/ai_ops_assistant/playbook_produce_restricted_diagnostics_validation.yml"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2

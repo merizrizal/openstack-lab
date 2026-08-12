@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-playbook="$repo_root/ansible/ai_ops_assistant/playbook_produce_phase06_restricted_diagnostics_validation.yml"
+playbook="$repo_root/ansible/ai_ops_assistant/playbook_produce_restricted_diagnostics_validation.yml"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2

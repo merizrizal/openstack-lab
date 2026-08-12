@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-producer="$repo_root/ansible/ai_ops_assistant/playbook_produce_phase06_restricted_diagnostics_validation.yml"
+producer="$repo_root/ansible/ai_ops_assistant/playbook_produce_restricted_diagnostics_validation.yml"
 recorder="$repo_root/ansible/ai_ops_assistant/playbook_record_restricted_diagnostics_evidence.yml"
 static_producer_test="$repo_root/ansible/ai_ops_assistant/tests/phase06/test_validation_producer_stub.sh"
 static_recorder_test="$repo_root/ansible/ai_ops_assistant/tests/evidence/test_record_restricted_evidence_stub.sh"

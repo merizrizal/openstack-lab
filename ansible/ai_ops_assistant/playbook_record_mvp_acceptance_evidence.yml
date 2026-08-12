@@ -1,0 +1,468 @@
+---
+- name: Record revised MVP outcome-only acceptance evidence
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_mvp_evidence_recording_enabled: false
+    ai_ops_assistant_mvp_evidence_authorization: unconfirmed
+    ai_ops_assistant_mvp_evidence_location_approval: unconfirmed
+    ai_ops_assistant_mvp_evidence_owner_name: unconfirmed
+    ai_ops_assistant_mvp_evidence_file_owner: unconfirmed
+    ai_ops_assistant_mvp_evidence_file_group: unconfirmed
+    ai_ops_assistant_mvp_evidence_authorization_reference: unconfirmed
+    ai_ops_assistant_mvp_evidence_authorization_class: mvp-acceptance-evidence-recording
+    ai_ops_assistant_mvp_evidence_retention_label: unconfirmed
+    ai_ops_assistant_mvp_evidence_access_role_label: unconfirmed
+    ai_ops_assistant_mvp_evidence_parent_directory: /opt/openstack-ai-ops-assistant/evidence
+    ai_ops_assistant_mvp_evidence_directory: /opt/openstack-ai-ops-assistant/evidence/phase05
+    ai_ops_assistant_mvp_evidence_run_id: ""
+    ai_ops_assistant_mvp_evidence_source_revision: unconfirmed
+    ai_ops_assistant_mvp_evidence_timestamp_utc: unconfirmed
+    ai_ops_assistant_mvp_evidence_environment_label: local
+    ai_ops_assistant_mvp_evidence_host_group_label: ai_ops_assistant
+    ai_ops_assistant_mvp_evidence_runtime_label: revised
+    ai_ops_assistant_mvp_evidence_validation_result_directory: /run/openstack-ai-ops/phase05-validation
+    ai_ops_assistant_mvp_evidence_validation_result_path: >-
+      {{ ai_ops_assistant_mvp_evidence_validation_result_directory }}/{{ ai_ops_assistant_mvp_evidence_run_id }}.json
+    ai_ops_assistant_mvp_evidence_allowed_producers:
+      - mvp_acceptance_validation
+    ai_ops_assistant_mvp_evidence_allowed_operations:
+      - mvp_three_tool_acceptance
+    ai_ops_assistant_mvp_evidence_manual_validation_fields:
+      - ai_ops_assistant_mvp_evidence_validation_result
+      - ai_ops_assistant_mvp_evidence_validation_result_raw
+      - ai_ops_assistant_mvp_evidence_status
+      - ai_ops_assistant_mvp_evidence_limitation_class
+      - ai_ops_assistant_mvp_evidence_rollback_status
+      - ai_ops_assistant_mvp_evidence_unresolved_gates
+      - ai_ops_assistant_mvp_evidence_owner_reviewed
+      - ai_ops_assistant_mvp_evidence_pre_attestation_valid
+      - ai_ops_assistant_mvp_evidence_post_attestation_valid
+      - ai_ops_assistant_mvp_evidence_post_attestation_unchanged
+      - ai_ops_assistant_mvp_evidence_result_process_agreement
+      - ai_ops_assistant_mvp_evidence_audit_pair_validated
+      - ai_ops_assistant_mvp_evidence_path_isolation_confirmed
+      - ai_ops_assistant_mvp_evidence_redaction_check_completed
+      - ai_ops_assistant_mvp_evidence_ai_explanation_reviewed
+      - ai_ops_assistant_mvp_evidence_ai_refusal_reviewed
+      - ai_ops_assistant_mvp_evidence_ai_disclosure_reviewed
+      - ai_ops_assistant_mvp_evidence_rollback_reviewed
+    ai_ops_assistant_mvp_evidence_path: >-
+      {{ ai_ops_assistant_mvp_evidence_directory }}/{{ ai_ops_assistant_mvp_evidence_run_id }}.md
+    ai_ops_assistant_mvp_evidence_allowed_statuses:
+      - accepted
+      - unavailable
+      - blocked
+      - failed
+    ai_ops_assistant_mvp_evidence_allowed_limitation_classes:
+      - none
+      - authorization_pending
+      - prerequisite_pending
+      - attestation_pending
+      - evidence_pending
+      - ai_review_pending
+      - rollback_pending
+      - connectivity_error
+      - authentication_error
+      - configuration_error
+      - unavailable
+      - contradictory_evidence
+      - rollback_required
+    ai_ops_assistant_mvp_evidence_allowed_rollback_statuses:
+      - not_required
+      - pending
+      - complete
+      - failed
+    ai_ops_assistant_mvp_evidence_result:
+      schema_version: "1.0"
+      producer: mvp_acceptance_validation
+      operation: mvp_three_tool_acceptance
+      status: blocked
+      limitation_class: evidence_pending
+      rollback_status: pending
+      unresolved_gates:
+        - acceptance_result_pending
+      owner_reviewed: false
+      pre_attestation_valid: false
+      post_attestation_valid: false
+      post_attestation_unchanged: false
+      result_process_agreement: false
+      audit_pair_validated: false
+      path_isolation_confirmed: false
+      redaction_check_completed: false
+      ai_explanation_reviewed: false
+      ai_refusal_reviewed: false
+      ai_disclosure_reviewed: false
+      rollback_reviewed: false
+      tools: []
+  pre_tasks:
+    - name: Assert MVP evidence recording scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected MVP evidence authorization and safe record inputs
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_evidence_recording_enabled | bool
+          - ai_ops_assistant_mvp_evidence_authorization == 'administrator-authorized-outcome-only-recording'
+          - ai_ops_assistant_mvp_evidence_location_approval == 'administrator-approved-protected-location'
+          - ai_ops_assistant_mvp_evidence_owner_name is match('^[A-Za-z0-9][A-Za-z0-9 ._@-]{0,95}$')
+          - ai_ops_assistant_mvp_evidence_owner_name != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_file_owner is match('^[a-z_][a-z0-9_-]{0,31}$')
+          - ai_ops_assistant_mvp_evidence_file_owner != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_file_group is match('^[a-z_][a-z0-9_-]{0,31}$')
+          - ai_ops_assistant_mvp_evidence_file_group != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_authorization_reference is match('^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,95}$')
+          - ai_ops_assistant_mvp_evidence_authorization_reference != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_authorization_class == 'mvp-acceptance-evidence-recording'
+          - ai_ops_assistant_mvp_evidence_retention_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
+          - ai_ops_assistant_mvp_evidence_retention_label != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_access_role_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
+          - ai_ops_assistant_mvp_evidence_access_role_label != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_parent_directory == '/opt/openstack-ai-ops-assistant/evidence'
+          - ai_ops_assistant_mvp_evidence_directory == '/opt/openstack-ai-ops-assistant/evidence/phase05'
+          - ai_ops_assistant_mvp_evidence_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_mvp_evidence_source_revision is match('^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+          - ai_ops_assistant_mvp_evidence_source_revision != 'unconfirmed'
+          - ai_ops_assistant_mvp_evidence_timestamp_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+          - ai_ops_assistant_mvp_evidence_environment_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
+          - ai_ops_assistant_mvp_evidence_host_group_label == 'ai_ops_assistant'
+          - ai_ops_assistant_mvp_evidence_runtime_label == 'revised'
+          - ai_ops_assistant_mvp_evidence_validation_result_directory == '/run/openstack-ai-ops/phase05-validation'
+          - ai_ops_assistant_mvp_evidence_validation_result_path is match('^/run/openstack-ai-ops/phase05-validation/[a-z0-9][a-z0-9-]{0,47}\.json$')
+          - ai_ops_assistant_mvp_evidence_path is match('^/opt/openstack-ai-ops-assistant/evidence/phase05/[a-z0-9][a-z0-9-]{0,47}\.md$')
+        fail_msg: >-
+          MVP evidence recording is fail-closed: named ownership, explicit
+          authorization, approved location, safe normalized fields, and a safe
+          run identifier are required before the record can be written.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Reject manual producer-derived validation fields
+      ansible.builtin.assert:
+        that:
+          - item not in vars
+        quiet: true
+      loop: "{{ ai_ops_assistant_mvp_evidence_manual_validation_fields }}"
+      loop_control:
+        label: producer-derived-field
+      changed_when: false
+      no_log: true
+
+    - name: Inspect normalized MVP producer result without following symlinks
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_evidence_validation_result_path }}"
+        follow: false
+      register: ai_ops_assistant_mvp_evidence_validation_result_stat
+      changed_when: false
+      no_log: true
+
+    - name: Assert normalized MVP producer result metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.exists
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.isreg
+          - not ai_ops_assistant_mvp_evidence_validation_result_stat.stat.islnk
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.pw_name == ai_ops_assistant_mvp_evidence_file_owner
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.gr_name == ai_ops_assistant_mvp_evidence_file_group
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.mode == '0600'
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.size | int > 0
+          - ai_ops_assistant_mvp_evidence_validation_result_stat.stat.size | int <= 32768
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Read normalized MVP producer result into protected task state
+      ansible.builtin.slurp:
+        src: "{{ ai_ops_assistant_mvp_evidence_validation_result_path }}"
+      register: ai_ops_assistant_mvp_evidence_validation_result_raw
+      changed_when: false
+      no_log: true
+
+    - name: Decode normalized MVP producer result in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_evidence_validation_result: >-
+          {{ ai_ops_assistant_mvp_evidence_validation_result_raw.content | b64decode | from_json }}
+      changed_when: false
+      no_log: true
+
+    - name: Validate normalized MVP producer result schema and provenance
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_evidence_validation_result is mapping
+          - >-
+            ai_ops_assistant_mvp_evidence_validation_result.keys() | list | sort ==
+            ['ai_disclosure_reviewed', 'ai_explanation_reviewed', 'ai_refusal_reviewed',
+            'audit_pair_validated', 'known_gap_labels', 'limitation_class',
+            'operation', 'owner_reviewed', 'path_isolation_confirmed',
+            'post_attestation_unchanged', 'post_attestation_valid',
+            'pre_attestation_valid', 'producer', 'redaction_check_completed',
+            'result_process_agreement', 'result_schema_validated', 'rollback_reviewed',
+            'rollback_status', 'run_id', 'schema_version', 'source_revision', 'status',
+            'tools', 'unresolved_gates'] | sort
+          - ai_ops_assistant_mvp_evidence_validation_result.schema_version == '1.0'
+          - ai_ops_assistant_mvp_evidence_validation_result.producer in ai_ops_assistant_mvp_evidence_allowed_producers
+          - ai_ops_assistant_mvp_evidence_validation_result.operation in ai_ops_assistant_mvp_evidence_allowed_operations
+          - ai_ops_assistant_mvp_evidence_validation_result.run_id == ai_ops_assistant_mvp_evidence_run_id
+          - ai_ops_assistant_mvp_evidence_validation_result.source_revision == ai_ops_assistant_mvp_evidence_source_revision
+          - ai_ops_assistant_mvp_evidence_validation_result.status in ai_ops_assistant_mvp_evidence_allowed_statuses
+          - ai_ops_assistant_mvp_evidence_validation_result.limitation_class in ai_ops_assistant_mvp_evidence_allowed_limitation_classes
+          - ai_ops_assistant_mvp_evidence_validation_result.rollback_status in ai_ops_assistant_mvp_evidence_allowed_rollback_statuses
+          - ai_ops_assistant_mvp_evidence_validation_result.owner_reviewed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.pre_attestation_valid is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.post_attestation_valid is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.post_attestation_unchanged is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.result_process_agreement is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.audit_pair_validated is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.path_isolation_confirmed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.redaction_check_completed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.ai_explanation_reviewed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.ai_refusal_reviewed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.ai_disclosure_reviewed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.rollback_reviewed is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.result_schema_validated is boolean
+          - ai_ops_assistant_mvp_evidence_validation_result.known_gap_labels | type_debug == 'list'
+          - ai_ops_assistant_mvp_evidence_validation_result.unresolved_gates | type_debug == 'list'
+          - >-
+            (ai_ops_assistant_mvp_evidence_validation_result.known_gap_labels |
+            select('match', '^[a-z0-9][a-z0-9._-]{0,63}$') | list | length) ==
+            (ai_ops_assistant_mvp_evidence_validation_result.known_gap_labels | length)
+          - >-
+            (ai_ops_assistant_mvp_evidence_validation_result.unresolved_gates |
+            select('match', '^[a-z0-9][a-z0-9._-]{0,63}$') | list | length) ==
+            (ai_ops_assistant_mvp_evidence_validation_result.unresolved_gates | length)
+          - ai_ops_assistant_mvp_evidence_validation_result.tools | type_debug == 'list'
+          - ai_ops_assistant_mvp_evidence_validation_result.tools | length == 3
+          - >-
+            ai_ops_assistant_mvp_evidence_validation_result.tools | map(attribute='name') | list ==
+            ['project_resource_summary', 'server_basic_info', 'server_network_info']
+          - >-
+            ai_ops_assistant_mvp_evidence_validation_result.status != 'accepted' or
+            (
+              ai_ops_assistant_mvp_evidence_validation_result.unresolved_gates | length == 0 and
+              ai_ops_assistant_mvp_evidence_validation_result.known_gap_labels | length == 0 and
+              ai_ops_assistant_mvp_evidence_validation_result.limitation_class == 'none' and
+              ai_ops_assistant_mvp_evidence_validation_result.rollback_status in ['not_required', 'complete'] and
+              ai_ops_assistant_mvp_evidence_validation_result.owner_reviewed and
+              ai_ops_assistant_mvp_evidence_validation_result.pre_attestation_valid and
+              ai_ops_assistant_mvp_evidence_validation_result.post_attestation_valid and
+              ai_ops_assistant_mvp_evidence_validation_result.post_attestation_unchanged and
+              ai_ops_assistant_mvp_evidence_validation_result.result_process_agreement and
+              ai_ops_assistant_mvp_evidence_validation_result.audit_pair_validated and
+              ai_ops_assistant_mvp_evidence_validation_result.path_isolation_confirmed and
+              ai_ops_assistant_mvp_evidence_validation_result.redaction_check_completed and
+              ai_ops_assistant_mvp_evidence_validation_result.ai_explanation_reviewed and
+              ai_ops_assistant_mvp_evidence_validation_result.ai_refusal_reviewed and
+              ai_ops_assistant_mvp_evidence_validation_result.ai_disclosure_reviewed and
+              ai_ops_assistant_mvp_evidence_validation_result.result_schema_validated and
+              ai_ops_assistant_mvp_evidence_validation_result.rollback_reviewed
+            )
+        fail_msg: >-
+          MVP acceptance recording requires exact producer provenance, bounded
+          tool outcomes, owner review, valid pre/post attestations, audit and
+          redaction checks, advisory AI review, and rollback review. Manual
+          acceptance fields are not accepted.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Validate each normalized MVP tool outcome
+      ansible.builtin.assert:
+        that:
+          - item.keys() | list | sort == ['correlation_id', 'duration_ms', 'exit_code_agreement', 'name', 'status', 'truncated']
+          - item.status in ['ok', 'error', 'denied', 'validation_error', 'timeout', 'unavailable']
+          - item.correlation_id is match('^[A-Za-z0-9._:-]{1,128}$')
+          - item.duration_ms is number
+          - item.duration_ms | int >= 0
+          - item.truncated is boolean
+          - item.exit_code_agreement is boolean
+        quiet: true
+      loop: "{{ ai_ops_assistant_mvp_evidence_validation_result.tools }}"
+      loop_control:
+        label: normalized-tool
+      changed_when: false
+      no_log: true
+
+    - name: Map normalized MVP producer result to recorder fields
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_evidence_status: "{{ ai_ops_assistant_mvp_evidence_validation_result.status }}"
+        ai_ops_assistant_mvp_evidence_limitation_class: "{{ ai_ops_assistant_mvp_evidence_validation_result.limitation_class }}"
+        ai_ops_assistant_mvp_evidence_rollback_status: "{{ ai_ops_assistant_mvp_evidence_validation_result.rollback_status }}"
+        ai_ops_assistant_mvp_evidence_unresolved_gates: "{{ ai_ops_assistant_mvp_evidence_validation_result.unresolved_gates }}"
+        ai_ops_assistant_mvp_evidence_owner_reviewed: "{{ ai_ops_assistant_mvp_evidence_validation_result.owner_reviewed | bool }}"
+        ai_ops_assistant_mvp_evidence_pre_attestation_valid: "{{ ai_ops_assistant_mvp_evidence_validation_result.pre_attestation_valid | bool }}"
+        ai_ops_assistant_mvp_evidence_post_attestation_valid: "{{ ai_ops_assistant_mvp_evidence_validation_result.post_attestation_valid | bool }}"
+        ai_ops_assistant_mvp_evidence_post_attestation_unchanged: "{{ ai_ops_assistant_mvp_evidence_validation_result.post_attestation_unchanged | bool }}"
+        ai_ops_assistant_mvp_evidence_result_process_agreement: "{{ ai_ops_assistant_mvp_evidence_validation_result.result_process_agreement | bool }}"
+        ai_ops_assistant_mvp_evidence_audit_pair_validated: "{{ ai_ops_assistant_mvp_evidence_validation_result.audit_pair_validated | bool }}"
+        ai_ops_assistant_mvp_evidence_path_isolation_confirmed: "{{ ai_ops_assistant_mvp_evidence_validation_result.path_isolation_confirmed | bool }}"
+        ai_ops_assistant_mvp_evidence_redaction_check_completed: "{{ ai_ops_assistant_mvp_evidence_validation_result.redaction_check_completed | bool }}"
+        ai_ops_assistant_mvp_evidence_ai_explanation_reviewed: "{{ ai_ops_assistant_mvp_evidence_validation_result.ai_explanation_reviewed | bool }}"
+        ai_ops_assistant_mvp_evidence_ai_refusal_reviewed: "{{ ai_ops_assistant_mvp_evidence_validation_result.ai_refusal_reviewed | bool }}"
+        ai_ops_assistant_mvp_evidence_ai_disclosure_reviewed: "{{ ai_ops_assistant_mvp_evidence_validation_result.ai_disclosure_reviewed | bool }}"
+        ai_ops_assistant_mvp_evidence_rollback_reviewed: "{{ ai_ops_assistant_mvp_evidence_validation_result.rollback_reviewed | bool }}"
+      changed_when: false
+      no_log: true
+
+    - name: Inspect approved MVP evidence parent without following symlinks
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_evidence_parent_directory }}"
+        follow: false
+      register: ai_ops_assistant_mvp_evidence_parent_stat
+      changed_when: false
+      no_log: true
+
+    - name: Inspect MVP evidence directory and record without following symlinks
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - "{{ ai_ops_assistant_mvp_evidence_directory }}"
+        - "{{ ai_ops_assistant_mvp_evidence_path }}"
+      loop_control:
+        label: protected-evidence-path
+      register: ai_ops_assistant_mvp_evidence_path_stats
+      changed_when: false
+      no_log: true
+
+    - name: Assert approved MVP evidence parent and unused record path
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_evidence_parent_stat.stat.exists | bool
+          - ai_ops_assistant_mvp_evidence_parent_stat.stat.isdir | bool
+          - not (ai_ops_assistant_mvp_evidence_parent_stat.stat.islnk | default(false) | bool)
+          - not (ai_ops_assistant_mvp_evidence_path_stats.results[0].stat.islnk | default(false) | bool)
+          - not (ai_ops_assistant_mvp_evidence_path_stats.results[1].stat.exists | default(false) | bool)
+        fail_msg: >-
+          Protected MVP evidence parent must already be an approved real directory
+          and the requested run ID must not overwrite an existing record.
+        quiet: true
+      changed_when: false
+      no_log: true
+  tasks:
+    - name: Create protected MVP evidence directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_assistant_mvp_evidence_directory }}"
+        state: directory
+        owner: "{{ ai_ops_assistant_mvp_evidence_file_owner }}"
+        group: "{{ ai_ops_assistant_mvp_evidence_file_group }}"
+        mode: "0700"
+      register: ai_ops_assistant_mvp_evidence_directory_result
+      no_log: true
+
+    - name: Verify protected MVP evidence directory metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_evidence_directory }}"
+        follow: false
+      register: ai_ops_assistant_mvp_evidence_directory_stat
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected MVP evidence directory metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_evidence_directory_stat.stat.isdir | bool
+          - not (ai_ops_assistant_mvp_evidence_directory_stat.stat.islnk | default(false) | bool)
+          - ai_ops_assistant_mvp_evidence_directory_stat.stat.pw_name == ai_ops_assistant_mvp_evidence_file_owner
+          - ai_ops_assistant_mvp_evidence_directory_stat.stat.gr_name == ai_ops_assistant_mvp_evidence_file_group
+          - ai_ops_assistant_mvp_evidence_directory_stat.stat.mode == '0700'
+        fail_msg: >-
+          Protected MVP evidence directory metadata is not owner-, group-, or
+          mode-safe.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Write normalized MVP outcome-only acceptance record
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_assistant_mvp_evidence_path }}"
+        owner: "{{ ai_ops_assistant_mvp_evidence_file_owner }}"
+        group: "{{ ai_ops_assistant_mvp_evidence_file_group }}"
+        mode: "0600"
+        force: false
+        content: |
+          # Revised MVP Outcome-Only Acceptance Evidence
+
+          ## Metadata
+
+          - Source revision: {{ ai_ops_assistant_mvp_evidence_source_revision }}
+          - UTC timestamp: {{ ai_ops_assistant_mvp_evidence_timestamp_utc }}
+          - Non-secret run ID: {{ ai_ops_assistant_mvp_evidence_run_id }}
+          - Environment label: {{ ai_ops_assistant_mvp_evidence_environment_label }}
+          - Host-group label: {{ ai_ops_assistant_mvp_evidence_host_group_label }}
+          - Runtime label: {{ ai_ops_assistant_mvp_evidence_runtime_label }}
+          - Evidence owner: {{ ai_ops_assistant_mvp_evidence_owner_name }}
+          - Authorization class: {{ ai_ops_assistant_mvp_evidence_authorization_class }}
+          - Authorization reference: {{ ai_ops_assistant_mvp_evidence_authorization_reference }}
+          - Retention policy label: {{ ai_ops_assistant_mvp_evidence_retention_label }}
+          - Access-role label: {{ ai_ops_assistant_mvp_evidence_access_role_label }}
+
+          ## Normalized outcome
+
+          - Overall status: {{ ai_ops_assistant_mvp_evidence_status }}
+          - Limitation class: {{ ai_ops_assistant_mvp_evidence_limitation_class }}
+          - Rollback status: {{ ai_ops_assistant_mvp_evidence_rollback_status }}
+          - Unresolved gate labels: {{ (ai_ops_assistant_mvp_evidence_unresolved_gates | join(', ')) if (ai_ops_assistant_mvp_evidence_unresolved_gates | length > 0) else 'none' }}
+          - Known gap labels: {{ (ai_ops_assistant_mvp_evidence_validation_result.known_gap_labels | join(', ')) if (ai_ops_assistant_mvp_evidence_validation_result.known_gap_labels | length > 0) else 'none' }}
+          - Owner review completed: {{ ai_ops_assistant_mvp_evidence_owner_reviewed | bool }}
+
+          ## Runner and attestation outcomes
+
+          - Pre-attestation valid: {{ ai_ops_assistant_mvp_evidence_pre_attestation_valid | bool }}
+          - Post-attestation valid: {{ ai_ops_assistant_mvp_evidence_post_attestation_valid | bool }}
+          - Post-attestation unchanged: {{ ai_ops_assistant_mvp_evidence_post_attestation_unchanged | bool }}
+          - Result/process agreement: {{ ai_ops_assistant_mvp_evidence_result_process_agreement | bool }}
+          - Audit-pair validated: {{ ai_ops_assistant_mvp_evidence_audit_pair_validated | bool }}
+          - Path isolation confirmed: {{ ai_ops_assistant_mvp_evidence_path_isolation_confirmed | bool }}
+          - Result schema validated: {{ ai_ops_assistant_mvp_evidence_validation_result.result_schema_validated | bool }}
+          - Redaction check completed: {{ ai_ops_assistant_mvp_evidence_redaction_check_completed | bool }}
+
+          ## Normalized tool outcomes
+
+          {% for tool in ai_ops_assistant_mvp_evidence_validation_result.tools %}
+          - {{ tool.name }}: status={{ tool.status }}, correlation_id={{ tool.correlation_id }}, duration_ms={{ tool.duration_ms }}, truncated={{ tool.truncated | bool }}, exit_code_agreement={{ tool.exit_code_agreement | bool }}
+          {% endfor %}
+
+          ## Advisory AI and rollback review
+
+          - Explanation review completed: {{ ai_ops_assistant_mvp_evidence_ai_explanation_reviewed | bool }}
+          - Mutation/refusal review completed: {{ ai_ops_assistant_mvp_evidence_ai_refusal_reviewed | bool }}
+          - Disclosure review completed: {{ ai_ops_assistant_mvp_evidence_ai_disclosure_reviewed | bool }}
+          - Rollback review completed: {{ ai_ops_assistant_mvp_evidence_rollback_reviewed | bool }}
+      register: ai_ops_assistant_mvp_evidence_write_result
+      no_log: true
+
+    - name: Verify protected MVP outcome-only acceptance record metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_evidence_path }}"
+        follow: false
+      register: ai_ops_assistant_mvp_evidence_record_stat
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected MVP outcome-only acceptance record metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_evidence_record_stat.stat.isreg | bool
+          - not (ai_ops_assistant_mvp_evidence_record_stat.stat.islnk | default(false) | bool)
+          - ai_ops_assistant_mvp_evidence_record_stat.stat.pw_name == ai_ops_assistant_mvp_evidence_file_owner
+          - ai_ops_assistant_mvp_evidence_record_stat.stat.gr_name == ai_ops_assistant_mvp_evidence_file_group
+          - ai_ops_assistant_mvp_evidence_record_stat.stat.mode == '0600'
+        fail_msg: >-
+          Protected MVP outcome-only acceptance record metadata is not owner-,
+          group-, or mode-safe.
+        quiet: true
+      changed_when: false
+      no_log: true
