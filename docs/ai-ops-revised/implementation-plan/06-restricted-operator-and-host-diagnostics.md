@@ -38,6 +38,26 @@ Excluded:
 * Full OpenSearch, Prometheus, or Grafana integration.
 * MCP exposure until local higher-risk tools pass all tests.
 
+### Current checklist reconciliation
+
+**Checkpoint status: `blocked` — Phase 06 acceptance is not claimed.** The existing
+checkboxes below remain the acceptance checklist; a completed playbook run or a
+static test does not satisfy a live-authority gate.
+
+| Area | Current status | Evidence-based interpretation |
+| --- | --- | --- |
+| Steps 1–4 contract and static boundary | Prepared/static evidence present | The Steps 1–4 ADS and non-activation operations contract exist; focused static validation covers the producer, runner/profile isolation, operator boundary, observer entrypoint, and recorder paths. |
+| Phase 05 prerequisite | Planning prerequisite present with an inconsistency retained | The normalized Phase 06 outcome records `phase05_acceptance_confirmed: true` while also retaining a pending Phase 05 gate label. Resolve the contradiction before any acceptance claim. |
+| Operator-reader profile | **Blocked** | `generated/deploy_operator_identity_profile.yml` remains disabled. The administrator-owned source, identity, role scope, expiry, rotation, revocation, and mutation-denial evidence are not complete. |
+| Host observer policy | **Blocked** | No approved maintained observer inventory projection or live authorization is available; the observer template remains disabled and the local inventory has no approved `ai_ops_host_observers` projection. |
+| Phase 06 normalized evidence | **Blocked** | Run `2026-0002` is retained as blocked evidence. It must not be reused after authorization, source-revision, or gate changes. |
+| Steps 5–7 | **Not started** | Recent Nova/Neutron/metadata diagnostics, higher-risk registration/testing, and complete metadata-path validation remain unavailable until a dedicated Steps 5–7 ADS is reviewed. |
+
+**Checklist action:** keep operator-reader, observer, mutation-denial, live
+validation, and Phase 06 definition-of-done boxes unchecked. The next planning
+artifact is a dedicated ADS for Steps 5–7; no Phase 07 MCP exposure is authorized
+by this reconciliation.
+
 ## 06.4 Assumptions
 
 - [ ] Revised MVP API diagnostics and the revised runner are accepted before broader visibility is introduced.
@@ -59,11 +79,11 @@ Estimate:
 
 Tasks:
 
-- [ ] Map Neutron-agent, service-health, hypervisor, metadata, Nova, and Neutron evidence to the least authority that can read it.
-- [ ] Separate API operator-reader needs from host SSH/log needs.
-- [ ] Classify each proposed tool by credential profile, host role, sensitivity, timeout, output limit, and expected redaction.
+- [x] Map Neutron-agent, service-health, hypervisor, metadata, Nova, and Neutron evidence to the least authority that can read it.
+- [x] Separate API operator-reader needs from host SSH/log needs.
+- [x] Classify each proposed tool by credential profile, host role, sensitivity, timeout, output limit, and expected redaction.
 - [ ] Define exact allowed hosts from maintained inventory rather than arbitrary addresses or names.
-- [ ] Reject any diagnostic whose least-privilege command cannot be made narrow and inspectable.
+- [x] Reject any diagnostic whose least-privilege command cannot be made narrow and inspectable.
 
 Done when:
 
@@ -84,7 +104,7 @@ Tasks:
 - [ ] Protect and rotate it independently from the project-reader profile.
 - [ ] Verify only the intended read operations succeed.
 - [ ] Repeat representative mutation-denial tests at the broader scope.
-- [ ] Prevent runner fallback from project-reader to operator-reader unless a registered tool explicitly declares it.
+- [x] Prevent runner fallback from project-reader to operator-reader unless a registered tool explicitly declares it.
 
 Done when:
 
@@ -123,11 +143,11 @@ Estimate:
 
 Tasks:
 
-- [ ] Add a named tool that lists Neutron agents through the validated operator-reader profile.
-- [ ] Return agent type, host, alive/admin-state indicators, and timestamps needed for diagnosis while minimizing extra topology detail.
-- [ ] Use no service enable/disable, agent update/delete, or raw OpenStack passthrough operation.
-- [ ] Return `unavailable` when the profile or policy capability is absent.
-- [ ] Test profile selection, structured output, and denied unsafe parameters.
+- [x] Add a named tool that lists Neutron agents through the validated operator-reader profile.
+- [x] Return agent type, host, alive/admin-state indicators, and timestamps needed for diagnosis while minimizing extra topology detail.
+- [x] Use no service enable/disable, agent update/delete, or raw OpenStack passthrough operation.
+- [x] Return `unavailable` when the profile or policy capability is absent.
+- [x] Test profile selection, structured output, and denied unsafe parameters.
 
 Done when:
 
