@@ -71,14 +71,30 @@ class ProfileIsolationTest(unittest.TestCase):
             exit_code = RUNNER.main(argv)
         return exit_code, json.loads(output.getvalue())
 
-    def test_registry_has_exact_four_tools_and_closed_profile_mapping(self):
+    def test_registry_has_exact_seven_tools_and_closed_authority_mapping(self):
         registry = RUNNER.load_registry()
+        self.assertEqual(len(registry["tools"]), 7)
         self.assertEqual(
             {tool["name"] for tool in registry["tools"]}, RUNNER.TOOL_NAMES
         )
         self.assertEqual(
-            {tool["name"]: tool["credential_profile"] for tool in registry["tools"]},
+            {
+                tool["name"]: tool["credential_profile"]
+                for tool in registry["tools"]
+                if tool["name"] not in RUNNER.HOST_TOOL_NAMES
+            },
             RUNNER.TOOL_PROFILES,
+        )
+        self.assertEqual(
+            {tool["name"]: tool["authority_class"] for tool in registry["tools"]},
+            RUNNER.TOOL_AUTHORITY_CLASSES,
+        )
+        self.assertTrue(
+            all(
+                tool["credential_profile"] is None
+                for tool in registry["tools"]
+                if tool["name"] in RUNNER.HOST_TOOL_NAMES
+            )
         )
         neutron = next(
             tool for tool in registry["tools"] if tool["name"] == "neutron_agent_health"
@@ -93,7 +109,9 @@ class ProfileIsolationTest(unittest.TestCase):
     def test_profiles_have_distinct_fixed_environments_without_fallback(self):
         registry = RUNNER.load_registry()
         project = next(
-            tool for tool in registry["tools"] if tool["name"] == "project_resource_summary"
+            tool
+            for tool in registry["tools"]
+            if tool["name"] == "project_resource_summary"
         )
         neutron = next(
             tool for tool in registry["tools"] if tool["name"] == "neutron_agent_health"
@@ -102,7 +120,9 @@ class ProfileIsolationTest(unittest.TestCase):
         operator_environment = RUNNER.build_child_environment(neutron)
 
         self.assertEqual(project_environment["OS_CLOUD"], RUNNER.PROJECT_READER_PROFILE)
-        self.assertEqual(operator_environment["OS_CLOUD"], RUNNER.OPERATOR_READER_PROFILE)
+        self.assertEqual(
+            operator_environment["OS_CLOUD"], RUNNER.OPERATOR_READER_PROFILE
+        )
         self.assertNotEqual(
             project_environment["OS_CLIENT_CONFIG_FILE"],
             operator_environment["OS_CLIENT_CONFIG_FILE"],
@@ -122,9 +142,11 @@ class ProfileIsolationTest(unittest.TestCase):
     def test_operator_tool_maps_unavailable_profile_to_result_and_audit(self):
         exit_code, outcome = self.run_request(["neutron_agent_health"])
         environment = json.loads(self.environment_log.read_text(encoding="utf-8"))
-        audit_lines = self.audit_directory.joinpath("tool-runner.jsonl").read_text(
-            encoding="utf-8"
-        ).splitlines()
+        audit_lines = (
+            self.audit_directory.joinpath("tool-runner.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
 
         self.assertEqual(exit_code, RUNNER.STATUS_EXIT_CODES["unavailable"])
         self.assertEqual(outcome["tool"], "neutron_agent_health")

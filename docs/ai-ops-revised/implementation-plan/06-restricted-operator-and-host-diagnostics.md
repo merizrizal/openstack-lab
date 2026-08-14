@@ -51,7 +51,7 @@ static test does not satisfy a live-authority gate.
 | Operator-reader profile | **Blocked** | `generated/deploy_operator_identity_profile.yml` remains disabled. The administrator-owned source, identity, role scope, expiry, rotation, revocation, and mutation-denial evidence are not complete. |
 | Host observer policy | **Blocked** | No approved maintained observer inventory projection or live authorization is available; the observer template remains disabled and the local inventory has no approved `ai_ops_host_observers` projection. |
 | Phase 06 normalized evidence | **Blocked** | Run `2026-0002` is retained as blocked evidence. It must not be reused after authorization, source-revision, or gate changes. |
-| Steps 5–7 | **Not started** | Recent Nova/Neutron/metadata diagnostics, higher-risk registration/testing, and complete metadata-path validation remain unavailable until a dedicated Steps 5–7 ADS is reviewed. |
+| Steps 5–7 | **Static/synthetic implementation present; live acceptance blocked** | The seven-tool registry, closed connector, synthetic bounded collector slices, projection contracts, and focused tests are present. Protected runtime inputs, live source adapters, deployment, and acceptance evidence remain unavailable. |
 
 **Checklist action:** keep operator-reader, observer, mutation-denial, live
 validation, and Phase 06 definition-of-done boxes unchecked. The next planning

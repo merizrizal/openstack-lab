@@ -69,9 +69,18 @@ ambiguous, role-incompatible, disabled, or ownerless entries stop before SSH.
 
 The projection must be generated or reviewed from the maintained inventory. It
 must not be committed with protected addresses or connection variables. Its
-repository schema/fixture may use synthetic labels only. The exact runtime path,
-owner, group, mode, freshness field, and deployment mechanism are **proposed**
-and must be confirmed in Chunk 0.
+repository fixtures use synthetic labels only. The protected destination
+projection is an owner-issued JSON document at
+`/opt/openstack-ai-ops-assistant/credentials/host-observer/destination-projection.json`,
+with an `aiops_assistant:aiops_assistant` `0700` parent directory and `0600`
+regular file. Its schema is distinct from collector metadata: the destination
+projection contains `projection_type: host_observer_destination`, protected
+`revision`, `generated_at`, `expires_at`, and transport-bearing entries; the
+collector metadata projection contains only `projection_type:
+host_observer_metadata`, revision/freshness metadata, and non-transport entries.
+The runtime projection is validated fail-closed for freshness, ownership, modes,
+regular-file status, and non-symlink status; its protected values remain outside
+Git and are never emitted to callers.
 
 #### Public diagnostic contract
 

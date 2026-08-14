@@ -15,6 +15,16 @@
       - ai_ops_assistant_host_observer_boundary_collector_policy_path == '/etc/openstack-ai-ops-assistant/host-observer-policy.yml'
       - ai_ops_assistant_host_observer_boundary_collector_policy_owner == 'root'
       - ai_ops_assistant_host_observer_boundary_collector_policy_mode == '0600'
+      - >-
+        ai_ops_assistant_host_observer_boundary_collector_files | map(attribute='source') | list == [
+        'host_observer/host_observer_collector.py'
+        ]
+      - >-
+        ai_ops_assistant_host_observer_boundary_collector_files | map(attribute='destination') | list == [
+        'host-observer-collector'
+        ]
+      - >-
+        ai_ops_assistant_host_observer_boundary_collector_files | map(attribute='mode') | list == ['0750']
       - ai_ops_assistant_host_observer_boundary_sudoers_path == '/etc/sudoers.d/aiops-host-observer'
       - ai_ops_assistant_host_observer_boundary_sudoers_owner == 'root'
       - ai_ops_assistant_host_observer_boundary_sudoers_mode == '0440'
@@ -37,6 +47,30 @@
     quiet: true
   changed_when: false
   no_log: true
+
+- name: Inspect host-observer collector source
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/scripts/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_host_observer_boundary_collector_files }}"
+  loop_control:
+    label: "{{ item.source }}"
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_host_observer_boundary_collector_source_metadata
+  changed_when: false
+
+- name: Assert host-observer collector source is regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_collector_source_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
 
 - name: Require approved observer policy before any provisioning task
   ansible.builtin.assert:
@@ -89,12 +123,61 @@
   changed_when: false
   no_log: true
 
-- name: Keep host-observer provisioning unavailable
-  ansible.builtin.fail:
-    msg: >-
-      Host-observer provisioning is intentionally unavailable until the
-      inventory projection, forced-command policy, collector sources, and
-      optional sudo contract are independently approved; no account, key,
-      key policy, collector, or sudo policy may be created.
+- name: Ensure fixed host-observer collector directory is present
+  ansible.builtin.file:
+    path: /usr/local/libexec/openstack-ai-ops-assistant
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_host_observer_boundary_collector_group }}"
+    mode: "0750"
+    recurse: false
   when: ai_ops_assistant_host_observer_boundary_enabled | bool
-  no_log: true
+
+- name: Materialize exact host-observer collector
+  ansible.builtin.copy:
+    src: "scripts/{{ item.source }}"
+    dest: "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    owner: "{{ ai_ops_assistant_host_observer_boundary_collector_owner }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_collector_group }}"
+    mode: "{{ item.mode }}"
+    backup: false
+  loop: "{{ ai_ops_assistant_host_observer_boundary_collector_files }}"
+  loop_control:
+    label: "{{ item.destination }}"
+  when: ai_ops_assistant_host_observer_boundary_enabled | bool
+
+- name: Inspect materialized host-observer collector
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    follow: false
+  register: ai_ops_assistant_host_observer_boundary_collector_destination_metadata
+  changed_when: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - not ansible_check_mode
+
+- name: Assert materialized host-observer collector metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.exists
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.isreg
+      - not ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.islnk
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.pw_name == ai_ops_assistant_host_observer_boundary_collector_owner
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.gr_name == ai_ops_assistant_host_observer_boundary_collector_group
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.mode == '0750'
+    quiet: true
+  changed_when: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - not ansible_check_mode
+
+- name: Keep host-observer provisioning unavailable by default
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_assistant_host_observer_boundary_enabled | bool or ai_ops_assistant_host_observer_boundary_deployment_authorization == 'approved'
+    fail_msg: >-
+      Host-observer provisioning remains unavailable until the maintained
+      projection, forced-command policy, collector sources, optional sudo
+      contract, and rollback owners are independently approved.
+    quiet: true
+  changed_when: false

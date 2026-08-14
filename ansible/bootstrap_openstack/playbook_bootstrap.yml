@@ -32,6 +32,33 @@
         project: "{{ ai_ops_project_reader_project_name }}"
         role: "{{ ai_ops_project_reader_role_name }}"
 
+    - name: Check AI-OPS operator-reader target project exists
+      openstack.cloud.project_info:
+        name: "{{ ai_ops_operator_reader_project_name }}"
+      register: ai_ops_operator_reader_project
+      when: ai_ops_operator_reader_manage | bool
+
+    - name: Create AI-OPS operator-reader role
+      openstack.cloud.identity_role:
+        name: "{{ ai_ops_operator_reader_role_name }}"
+      register: ai_ops_operator_reader_role
+      when: ai_ops_operator_reader_manage | bool
+
+    - name: Create AI-OPS operator-reader user when missing
+      openstack.cloud.identity_user:
+        name: "{{ ai_ops_operator_reader_user_name }}"
+        password: "{{ ai_ops_operator_reader_password }}"
+        domain: "{{ ai_ops_operator_reader_domain_name }}"
+        description: AI-OPS project reader
+        state: present
+      no_log: true
+
+    - name: Assign AI-OPS operator-reader role on target project
+      openstack.cloud.role_assignment:
+        user: "{{ ai_ops_operator_reader_user_name }}"
+        project: "{{ ai_ops_operator_reader_project_name }}"
+        role: "{{ ai_ops_operator_reader_role_name }}"
+
     - name: Create AI-OPS project-reader self service network
       openstack.cloud.network:
         name: "aiops-delete-probe-{{ self_service_network_name }}"

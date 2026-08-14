@@ -4,14 +4,14 @@
 
 This is the **non-activation** operations contract for Phase 06 Steps 5–7. It records the repository-fixed safety boundary and the owner decisions that must be accepted before any recent-evidence diagnostic is implemented, registered, deployed, contacted, or executed.
 
-This contract remains non-activating. D05–D07 are frozen at source revision `rev-2026-08-0002`; maintained host projection, observer identity and transport policy, deployment, evidence ownership, and live authorizations remain separately gated. Those unresolved gates are blockers, not defaults. Until every relevant activation blocker is accepted, all host diagnostics remain `unavailable` and absent from the runner registry.
+This contract remains non-activating. D05–D07 are frozen at source revision `rev-2026-08-0002`; maintained host projection, observer identity and transport policy, deployment, evidence ownership, and live authorizations remain separately gated. Those unresolved gates are blockers, not defaults. Until every relevant activation blocker is accepted, all host diagnostics remain `unavailable`; static registry entries and connector code do not constitute live authorization.
 
 This contract does **not** authorize:
 
 - account, credential, key, profile, policy, sudo, or role creation or modification;
 - inspection of protected inventory, addresses, connection metadata, credentials, keys, raw output, logs, audits, or evidence;
 - SSH, host contact, OpenStack authentication, API calls, source reads, negative tests, or workflow execution;
-- connector, runner, registry, deployment, host contact, live validation, or any implementation beyond the separately recorded metadata synthetic slice; or
+- live connector invocation, runner activation, deployment, host contact, live validation, or any protected-input operation; static contract reconciliation and synthetic tests remain non-activating; or
 - Phase 06 live acceptance or Phase 07 exposure.
 
 This contract is subordinate to:
@@ -42,7 +42,7 @@ The following are observed repository constraints, not deployment authorization:
 | Boundary | Contract |
 | --- | --- |
 | Public capability | No generic SSH, sudo, journal, file, service, command, path, unit, or OpenStack passthrough capability may be exposed. |
-| Diagnostic intents | `recent_metadata_errors`, `recent_neutron_errors`, and `recent_nova_errors` are the accepted D05 public identifiers and descriptions at `rev-2026-08-0002`; they remain absent from the runner registry until separate registration authorization. |
+| Diagnostic intents | `recent_metadata_errors`, `recent_neutron_errors`, and `recent_nova_errors` are the accepted D05 public identifiers and descriptions at `rev-2026-08-0002`; static registry entries exist, but remain unavailable until protected runtime gates and live authorization are satisfied. |
 | Public selectors | A future request may contain only an approved non-secret `host_label`, `window_class`, and `line_limit_class`. It may never contain a destination, address, path, unit, command, source selector, account, key, port, SSH option, sudo option, timeout, or byte cap. |
 | Observer files | The fixed candidate collector path is `/usr/local/libexec/openstack-ai-ops-assistant/host-observer-collector`; the fixed candidate policy path is `/etc/openstack-ai-ops-assistant/host-observer-policy.yml`. Their existence, owner, mode, regular-file status, and deployment are unapproved. |
 | Authority isolation | Project-reader, operator-reader, and host-observer authority must remain independently revocable. Host diagnostics must receive no `OS_*` environment; API diagnostics must receive no observer state. |
@@ -57,19 +57,151 @@ All entries below require outcome-only, administrator-owned evidence outside Git
 | --- | --- | --- | --- |
 | D01 | Steps 1–4 prerequisite acceptance and the Phase 05 gate-label contradiction | Confirm the exact prerequisite disposition and evidence owner | No implementation beyond this contract; Phase 06 remains blocked. |
 | D02 | Maintained inventory projection | Confirm source owner, revision/freshness, approved safe labels, role mappings, enablement/disablement, protected runtime location, and drift procedure | No host label is valid and no destination may be resolved. |
-| D03 | Host-observer authority model | Review the proposed closed `authority_class` descriptor without overloading `credential_profile`; confirm isolation, lifecycle, and no `OS_*` environment | No host authority descriptor, connector, or registry mapping may exist. |
+| D03 | Host-observer authority model | Review the proposed closed `authority_class` descriptor without overloading `credential_profile`; confirm isolation, lifecycle, and no `OS_*` environment | No live host authority use, connector invocation, or registry activation. |
 | D04 | Observer account, key, forced transport, and sudo | Confirm account/key owners, source restriction, rotation/revocation, forced-stdin compatibility, no-forwarding restrictions, collector integrity, and whether sudo is required | No observer provisioning, SSH, collector invocation, or sudo policy. |
-| D05 | Three public tool names and role/source matrix | Accepted at `rev-2026-08-0002`: exact names/descriptions, controller role, source classes, service classes, logical selectors, prohibited sources, and source outcomes | No tool registration or live source read. |
+| D05 | Three public tool names and role/source matrix | Accepted at `rev-2026-08-0002`: exact names/descriptions, controller/compute role matrix, source classes, service classes, logical selectors, prohibited sources, and source outcomes | No live source read or activation. |
 | D06 | Inputs and bounds | Accepted at `rev-2026-08-0002`: exact public inputs, defaults, allowlists, request/line/record/message/byte caps, timeouts, empty behavior, and truncation order | No caller-controlled source, path, unit, timeout, or output limit. |
 | D07 | Output, unavailable, ordering, truncation, and redaction | Accepted at `rev-2026-08-0002`: exact schema, statuses, error classes/messages, enums, timestamps, ordering, redaction, canaries, serialization, and stubs | No source-derived success until the metadata implementation scope is separately validated. |
 | D08 | Evidence, audit, rollback, and negative tests | Confirm evidence location/retention/audit access, unchanged-state comparator, rollback owner/order, and bounded positive/negative test plan | No live validation, audit inspection, revocation rehearsal, or acceptance claim. |
 | D09 | Step 7 representative metadata case | Confirm safe pre/post state procedure, case owner, and advisory-only interpretation boundary | No workflow execution or diagnosis claim. |
 
+## Confirmed decisions
+
+The following decisions are recorded without authorizing deployment, credential use,
+host contact, source reads, negative testing, or live acceptance:
+
+- The canonical observer runtime username is `aiops-host-observer`. Connector,
+  collector, policy, inventory, deployment, and test references must use this
+  username consistently; `aiops-observer` is not an accepted alternate.
+- Destination projection and collector metadata are separate schemas. The
+  connector-only destination projection may contain the protected transport
+  descriptor (`address`, `port`, and canonical observer `user`). Collector
+  metadata may contain only non-secret host labels, inventory roles, source
+  classes, enablement, and approved policy/bound metadata; it must never contain
+  or emit a destination, address, connection metadata, key path, or transport
+  credential.
+- The connector resolves the private destination projection and sends only the
+  closed diagnostic request to the forced collector. The collector does not
+  resolve destinations and must not validate or receive connector transport
+  fields.
+- The protected destination projection is located at
+  `/opt/openstack-ai-ops-assistant/credentials/host-observer/destination-projection.json`.
+  Its parent directory is `aiops_assistant:aiops_assistant` with mode `0700`; the
+  projection file is `aiops_assistant:aiops_assistant` with mode `0600`. The file
+  is owner-generated or owner-installed, remains outside Git, and is never printed,
+  audited, or exposed to callers.
+- The destination projection carries an immutable owner-issued `revision`,
+  `generated_at`, and `expires_at`, all validated as protected metadata. The
+  projection is accepted only when `generated_at` is not future-dated,
+  `expires_at` is later than `generated_at`, and the current time is no later than
+  `expires_at`. Missing, malformed, future-dated, or expired metadata returns
+  `unavailable/stale_projection`; callers cannot provide or override these fields.
+  The maximum projection lifetime is 24 hours.
+- The maintained OpenStack service-placement inventory is the source of truth.
+  `OpenStack platform operations / lab administrator` owns both the source and
+  the generated projection unless an explicit delegation is recorded. The
+  generator must derive only approved host labels and destinations, reject
+  missing, duplicate, ambiguous, disabled, or role-incompatible entries, and
+  keep all addresses and connection metadata outside Git.
+- The initial per-tool host mapping is:
+  `recent_metadata_errors` -> `controller01` only;
+  `recent_nova_errors` -> `controller01` only; and
+  `recent_neutron_errors` -> `controller01`, `compute01`, and `compute02`.
+  The corresponding permitted inventory roles are `controller` for metadata and
+  Nova, and `controller` or `compute` for Neutron. No other host labels are
+  accepted without a new reviewed mapping.
+- The `controller01` destination is derived from the maintained inventory’s
+  `controller01.mgmtnet_ip_address`, materialized only as a canonical protected
+  IP in the destination projection, and contacted on TCP port 22 as
+  `aiops-host-observer`. DNS names, alternate interfaces, caller overrides, and
+  literal addresses in Git or normal output are prohibited.
+- The observer key is a fresh, dedicated Ed25519 key generated or imported under
+  `OpenStack platform operations / lab administrator` control, never copied from
+  another runtime. Its private key is installed on `assistant02` at
+  `/opt/openstack-ai-ops-assistant/credentials/host-observer/id_ed25519` with
+  ownership `aiops_assistant:aiops_assistant` and mode `0600`. Only the public key
+  is installed on approved observer hosts. Its authorized-key entry forces the
+  collector and disables agent forwarding, X11 forwarding, TCP forwarding, PTY,
+  and interactive shells.
+- The observer authorized-key entry is restricted to the exact protected `/32`
+  source address of `assistant02`’s management/observer interface. Broad subnets,
+  hostnames, wildcards, and unrestricted sources are prohibited. If multiple
+  stable egress addresses are unavoidable, each must be an explicitly approved
+  `/32`; any source-address change requires key-policy and projection review plus
+  a fresh acceptance run.
+- The key rotation owner is `OpenStack platform operations / lab administrator`.
+  The revocation owner is `OpenStack security or senior lab administrator`.
+  Rotation must create and validate a replacement before retiring the old key;
+  revocation must independently disable the observer key, account, and policy
+  without affecting project-reader or operator-reader authority. Emergency
+  revocation invalidates the current projection and requires fresh acceptance.
+- The initial live scope requires no sudo: `sudo_required: false`. The collector
+  runs as `aiops-host-observer`; unreadable approved sources return a bounded
+  `denied` or `unavailable` result. No fallback sudo, ad hoc arguments, or broad
+  privilege grant is permitted. Any later fixed collector-only sudo proposal
+  requires a separate decision and fresh negative testing.
+- `recent_metadata_errors` is approved only for `controller01` with the
+  `controller` role and the fixed `metadata_service_errors` selector. Its
+  reviewed sources are Neutron metadata-agent service evidence and
+  `/var/log/apache2/nova_metadata_error.log`. No other journal, log path,
+  configuration source, or caller-selected selector is permitted.
+- `recent_neutron_errors` is approved with the fixed `neutron_service_errors`
+  selector. On `controller01` it may read only `neutron-server` and
+  `neutron-openvswitch-agent` error evidence. On `compute01` and `compute02` it
+  may read only `neutron-openvswitch-agent` error evidence. Missing or unreadable
+  units produce bounded unavailable/denied evidence, with no sudo fallback.
+- `recent_nova_errors` is approved only for `controller01` with the `controller`
+  role and the fixed `nova_service_errors` selector. Its reviewed sources are
+  `nova-api`, `nova-conductor`, `nova-scheduler`, and
+  `/var/log/apache2/nova_metadata_error.log`. No Nova source is approved on
+  compute hosts in the initial scope; configuration, database, arbitrary Apache
+  logs, caller-selected units, and caller-selected paths remain prohibited.
+- The operator-reader profile source is a transient external-secret materialized
+  directory at `/run/openstack-ai-ops/<run-id>/operator-reader/`. The source
+  directory is operator-owned with mode `0700`; only `clouds.yaml` and
+  `secure.yaml` are accepted, each with mode `0600`. The target profile remains
+  `/opt/openstack-ai-ops-assistant/credentials/operator-reader`, owned by
+  `aiops_assistant:aiops_assistant` with directory mode `0700` and file mode
+  `0600`. The transient source is deleted after successful materialization and
+  metadata verification; its contents never enter Git, logs, audits, or output.
+- The operator-reader identity/scope and rotation owner is `OpenStack platform
+  operations / lab administrator`. The revocation owner is `OpenStack security
+  or senior lab administrator`. Operator-reader credentials have a maximum
+  lifetime of 24 hours. Rotation creates and validates a replacement before
+  retirement; revocation independently removes the operator profile/credential.
+  Expiry or revocation invalidates associated acceptance evidence, and
+  mutation-denial evidence must be refreshed after every credential revision.
+- The approved live run uses authorization reference
+  `phase06-live-acceptance-2026-0003` and non-secret run ID `2026-0003`, with
+  authorization class `phase06-restricted-diagnostics-live-acceptance`. This
+  reference covers only the explicitly approved Phase 06 scopes; it does not
+  authorize Phase 07, unrelated hosts, broader credentials, or remediation.
+- Outcome-only evidence is owned by `OpenStack platform operations / lab
+  administrator` and stored under
+  `/opt/openstack-ai-ops-assistant/evidence/phase06/`, with the normalized
+  producer result at `/run/openstack-ai-ops/phase06-validation/2026-0003.json`.
+  The evidence directory is `aiops_assistant:aiops_assistant`, mode `0700`; each
+  record is mode `0600`; the access role is `phase06-evidence-reviewer`; and the
+  retention label is `restricted-phase06-acceptance-90d`. Only normalized
+  outcome fields may be retained. Raw logs, addresses, commands, credentials,
+  audit lines, source payloads, and comparator data are excluded.
+- The representative live metadata case is approved to select one server at
+  runtime from accepted `project_resource_summary` evidence, then run
+  `server_basic_info`, `server_network_info`, `neutron_agent_health`, and all
+  three host diagnostics on `controller01`. One additional
+  `recent_neutron_errors` call on `compute01` exercises the compute-role mapping;
+  `compute02` is validated separately as its own host/source scope. The case is
+  read-only, retains only normalized outcome evidence, requires unchanged-state
+  confirmation, and produces advisory-only interpretation.
+
+These decisions narrow D02/D04 but do not resolve their remaining lifecycle,
+source-policy, or live-authorization gates.
+
 ## Diagnostic and projection contract
 
 The three accepted diagnostic identifiers each select exactly one source class. A caller must never select a source, role, destination, path, unit, command, transport option, or authority. The accepted tool name, source class, source-to-role matrix, and deployment state must be evaluated before any transport construction.
 
-A future projection resolver has this closed behavior:
+A projection resolver has this closed behavior:
 
 ```text
 approved tool name + approved host label + owner-approved projection
@@ -79,7 +211,15 @@ approved tool name + approved host label + owner-approved projection
 
 The descriptor is private implementation state. It must not be emitted in a result, audit record, argument list, environment, repository document, fixture, or normal command output. Missing, stale, duplicate, disabled, ownerless, ambiguous, or role-incompatible projection data stops before child-process creation or network contact.
 
-The projection schema, protected location, owner, group, mode, revision, freshness field, and deployment process remain D02 decisions. Synthetic labels may be used only by a later authorized fixture/test chunk.
+The separation between the connector-only destination projection and collector
+metadata is confirmed. The destination projection is an owner-issued JSON
+projection at `/opt/openstack-ai-ops-assistant/credentials/host-observer/destination-projection.json`
+with an `aiops_assistant:aiops_assistant` `0700` parent directory and `0600`
+regular file. It contains `projection_type: host_observer_destination`, immutable
+`revision`, `generated_at`, `expires_at`, and protected transport entries. The
+collector metadata schema contains `projection_type: host_observer_metadata` and
+non-transport entries only. Synthetic labels may be used only in fixtures/tests;
+protected values remain outside Git and are never emitted.
 
 ## Authority and transport contract
 
@@ -98,7 +238,7 @@ D05–D07 are accepted at source revision `rev-2026-08-0002`. The contract freez
 | Public diagnostic | Source class | Permitted role | Service class | Fixed logical selector |
 | --- | --- | --- | --- | --- |
 | `recent_metadata_errors` | `metadata_error_events` | `controller` | `metadata` | `metadata_service_errors` |
-| `recent_neutron_errors` | `neutron_error_events` | `controller` | `neutron` | `neutron_service_errors` |
+| `recent_neutron_errors` | `neutron_error_events` | `controller`, `compute` | `neutron` | `neutron_service_errors` |
 | `recent_nova_errors` | `nova_error_events` | `controller` | `nova` | `nova_service_errors` |
 
 The public descriptions are bounded, redacted recent metadata-service, Neutron, and Nova error evidence for an approved host label. The selector is fixed by the tool mapping; callers never provide a source class, path, unit, command, pattern, or destination. Actual protected path/unit mappings remain outside Git.
@@ -168,4 +308,4 @@ Authorization for one scope does not authorize another scope.
 
 ## Completion criteria and next action
 
-This contract remains reviewable but **non-activating** while D01–D04 and D08–D09 or any deployment/live gate remain unresolved. D05–D07 are complete at source revision `rev-2026-08-0002`; the next separately authorized implementation is the metadata synthetic slice only. Neutron and Nova remain unavailable and absent from the runner registry. No generated input, protected data, host contact, or live action may be used to manufacture activation completeness.
+This contract remains reviewable but **non-activating** while D01–D04 and D08–D09 or any deployment/live gate remain unresolved. D05–D07 are complete at source revision `rev-2026-08-0002`; static registry entries, connector validation, and synthetic bounded slices are present for all three diagnostic intents. Live source adapters, protected inputs, deployment, host contact, and acceptance evidence remain unavailable. No generated input, protected data, host contact, or live action may be used to manufacture activation completeness.

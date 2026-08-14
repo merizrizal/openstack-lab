@@ -8,6 +8,12 @@ ai_ops_project_reader_project_name: admin
 ai_ops_project_reader_domain_name: default
 ai_ops_project_reader_role_name: reader
 
+ai_ops_operator_reader_manage: true
+ai_ops_operator_reader_user_name: aiops-assistant-operator-reader
+ai_ops_operator_reader_project_name: admin
+ai_ops_operator_reader_domain_name: default
+ai_ops_operator_reader_role_name: reader
+
 image_name: vm_image01
 provider_network_name: provider
 self_service_network_name: private

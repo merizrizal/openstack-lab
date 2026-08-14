@@ -36,6 +36,10 @@ ai_ops_assistant_host_observer_boundary_collector_path: /usr/local/libexec/opens
 ai_ops_assistant_host_observer_boundary_collector_owner: root
 ai_ops_assistant_host_observer_boundary_collector_group: aiops-host-observer
 ai_ops_assistant_host_observer_boundary_collector_mode: "0750"
+ai_ops_assistant_host_observer_boundary_collector_files:
+  - source: host_observer/host_observer_collector.py
+    destination: host-observer-collector
+    mode: "0750"
 ai_ops_assistant_host_observer_boundary_collector_policy_path: /etc/openstack-ai-ops-assistant/host-observer-policy.yml
 ai_ops_assistant_host_observer_boundary_collector_policy_owner: root
 ai_ops_assistant_host_observer_boundary_collector_policy_group: root

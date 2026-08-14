@@ -28,20 +28,31 @@ APPROVED_SCRIPT_ROOT = RUNTIME_ROOT / "scripts" / "approved"
 PROJECT_READER_PROFILE = "aiops-assistant-project-reader"
 OPERATOR_READER_PROFILE = "aiops-assistant-operator-reader"
 PROJECT_READER_CONFIG = RUNTIME_ROOT / "credentials" / "profiles" / "clouds.yaml"
-OPERATOR_READER_CONFIG = RUNTIME_ROOT / "credentials" / "operator-reader" / "clouds.yaml"
-REGISTRY_NAME = "ai-ops-assistant-tool-runner-steps-01-04"
+OPERATOR_READER_CONFIG = (
+    RUNTIME_ROOT / "credentials" / "operator-reader" / "clouds.yaml"
+)
+REGISTRY_NAME = "ai-ops-assistant-tool-runner-steps-01-07"
 REGISTRY_SCHEMA_VERSION = 1
+HOST_OBSERVER_AUTHORITY = "aiops-assistant-host-observer"
+HOST_OBSERVER_TARGET = (
+    RUNTIME_ROOT / "scripts" / "tool_runner" / "host_observer_connector.py"
+)
+HOST_TOOL_NAMES = frozenset(
+    {"recent_metadata_errors", "recent_neutron_errors", "recent_nova_errors"}
+)
 TOOL_NAMES = {
     "project_resource_summary",
     "server_basic_info",
     "server_network_info",
     "neutron_agent_health",
+    *HOST_TOOL_NAMES,
 }
 TOOL_TARGETS = {
     "project_resource_summary": APPROVED_SCRIPT_ROOT / "project_resource_summary.sh",
     "server_basic_info": APPROVED_SCRIPT_ROOT / "server_basic_info.sh",
     "server_network_info": APPROVED_SCRIPT_ROOT / "server_network_info.sh",
     "neutron_agent_health": APPROVED_SCRIPT_ROOT / "neutron_agent_health.py",
+    **{tool_name: HOST_OBSERVER_TARGET for tool_name in HOST_TOOL_NAMES},
 }
 TOOL_PROFILES = {
     "project_resource_summary": PROJECT_READER_PROFILE,
@@ -49,29 +60,51 @@ TOOL_PROFILES = {
     "server_network_info": PROJECT_READER_PROFILE,
     "neutron_agent_health": OPERATOR_READER_PROFILE,
 }
+TOOL_AUTHORITY_CLASSES = {
+    "project_resource_summary": "openstack-project-reader",
+    "server_basic_info": "openstack-project-reader",
+    "server_network_info": "openstack-project-reader",
+    "neutron_agent_health": "openstack-operator-reader",
+    **{tool_name: HOST_OBSERVER_AUTHORITY for tool_name in HOST_TOOL_NAMES},
+}
+TOOL_SOURCE_CLASSES = {
+    "recent_metadata_errors": "metadata_error_events",
+    "recent_neutron_errors": "neutron_error_events",
+    "recent_nova_errors": "nova_error_events",
+}
 TOOL_RISK_CLASSES = {
     "project_resource_summary": "low_readonly_project_scope",
     "server_basic_info": "low_readonly_project_scope",
     "server_network_info": "low_readonly_project_scope",
     "neutron_agent_health": "higher_visibility_operator_scope",
+    **{
+        tool_name: "high_readonly_restricted_host_scope"
+        for tool_name in HOST_TOOL_NAMES
+    },
 }
 TOOL_TIMEOUTS = {
     "project_resource_summary": 45,
     "server_basic_info": 30,
     "server_network_info": 45,
     "neutron_agent_health": 15,
+    **{tool_name: 15 for tool_name in HOST_TOOL_NAMES},
 }
 TOOL_OUTPUT_LIMITS = {
     "project_resource_summary": 131072,
     "server_basic_info": 65536,
     "server_network_info": 131072,
     "neutron_agent_health": 16384,
+    **{tool_name: 16384 for tool_name in HOST_TOOL_NAMES},
 }
 TOOL_PARAMETER_NAMES = {
     "project_resource_summary": set(),
     "server_basic_info": {"server_identifier"},
     "server_network_info": {"server_identifier"},
     "neutron_agent_health": set(),
+    **{
+        tool_name: {"host_label", "window_class", "line_limit_class"}
+        for tool_name in HOST_TOOL_NAMES
+    },
 }
 PROFILE_ENVIRONMENTS = {
     PROJECT_READER_PROFILE: {
@@ -93,6 +126,13 @@ PROFILE_ENVIRONMENTS = {
         "OS_CLOUD": OPERATOR_READER_PROFILE,
     },
 }
+HOST_OBSERVER_ENVIRONMENT = {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "HOME": "/nonexistent",
+    "PYTHONNOUSERSITE": "1",
+}
 # Compatibility name for existing project-reader regression fixtures.
 CHILD_ENVIRONMENT = PROFILE_ENVIRONMENTS[PROJECT_READER_PROFILE]
 UNAVAILABLE_DIAGNOSTIC_ERROR_CLASSES = {
@@ -105,6 +145,11 @@ UNAVAILABLE_DIAGNOSTIC_ERROR_CLASSES = {
     "authentication_error",
     "approved_optional_capability_absent",
     "unsupported_deployment_state",
+    "source_missing",
+    "source_stale",
+    "source_role_mismatch",
+    "host_unavailable",
+    "host_disabled",
     "timeout",
 }
 _TEST_EXECUTION_TARGET: Path | None = None
@@ -119,6 +164,7 @@ DEFAULT_FIELDS = {
 }
 TOOL_FIELDS = {
     "name",
+    "authority_class",
     "description",
     "implementation_target",
     "credential_profile",
@@ -140,10 +186,17 @@ PARAMETER_FIELDS = {
     "default",
     "description",
 }
-SUPPORTED_VALIDATIONS = {"safe_identifier_pattern"}
+SUPPORTED_VALIDATIONS = {
+    "safe_identifier_pattern",
+    "safe_host_label_pattern",
+    "closed_value",
+}
 MAX_TIMEOUT_SECONDS = 300
 MAX_OUTPUT_BYTES = 1024 * 1024
 SAFE_IDENTIFIER_PATTERN = r"^[A-Za-z0-9._:-]+$"
+SAFE_HOST_LABEL_PATTERN = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
+HOST_WINDOW_CLASSES = ("15m", "30m", "1h")
+HOST_LINE_LIMIT_CLASSES = ("small", "medium", "large")
 
 STATUS_EXIT_CODES = {
     "ok": 0,
@@ -409,6 +462,8 @@ def sanitize_arguments(
     if audience == "audit":
         if tool == "project_resource_summary":
             return {}
+        if tool in HOST_TOOL_NAMES:
+            return {"host_label_present": "host_label" in validated_arguments}
         return {"server_identifier_present": "server_identifier" in validated_arguments}
     if audience != "result":
         raise RedactionError("invalid redaction audience")
@@ -504,7 +559,14 @@ def _diagnostic_data(
         raise RedactionError("diagnostic output is invalid")
     if payload.get("schema_version") != "1.0" or payload.get("tool") != tool["name"]:
         raise RedactionError("diagnostic output is invalid")
-    if payload.get("status") not in {"ok", "partial", "unavailable", "error"}:
+    if payload.get("status") not in {
+        "ok",
+        "partial",
+        "unavailable",
+        "denied",
+        "timeout",
+        "error",
+    }:
         raise RedactionError("diagnostic output is invalid")
     redacted = redact_value(payload)
     if not isinstance(redacted.value, dict):
@@ -557,9 +619,9 @@ def build_result_envelope(
         "tool": _public_tool_label(tool_name),
         "status": status,
         "arguments": safe_arguments,
-        "exit_code": capture.return_code
-        if capture is not None
-        else STATUS_EXIT_CODES[status],
+        "exit_code": (
+            capture.return_code if capture is not None else STATUS_EXIT_CODES[status]
+        ),
         "data": data,
         "stdout": None,
         "stderr": None,
@@ -910,7 +972,7 @@ def _validate_parameter(parameter: Any, tool_name: str) -> None:
         or not actual_fields <= required_fields | optional_fields
     ):
         raise RegistryError(f"{label} has an invalid field set")
-    _require_string(parameter["name"], f"{label} name")
+    name = _require_string(parameter["name"], f"{label} name")
     _require_bounded_integer(parameter["position"], f"{label} position", 1, 32)
     if not isinstance(parameter["required"], bool):
         raise RegistryError(f"{label} required must be boolean")
@@ -918,14 +980,52 @@ def _validate_parameter(parameter: Any, tool_name: str) -> None:
     validation = _require_string(parameter["validation"], f"{label} validation")
     if validation not in SUPPORTED_VALIDATIONS:
         raise RegistryError(f"{label} uses an unsupported validator")
-    _require_string(
-        parameter.get("pattern"), f"{label} pattern", SAFE_IDENTIFIER_PATTERN
-    )
-    _require_bounded_integer(parameter.get("max_length"), f"{label} max_length", 1, 255)
-    if parameter["name"] != "server_identifier" or not parameter["required"]:
-        raise RegistryError(f"{label} is not an approved initial parameter")
-    if "allowed_values" in parameter or "default" in parameter:
-        raise RegistryError(f"{label} has unsupported optional constraints")
+
+    if validation == "safe_identifier_pattern":
+        if name != "server_identifier" or not parameter["required"]:
+            raise RegistryError(f"{label} is not an approved identifier parameter")
+        _require_string(
+            parameter.get("pattern"), f"{label} pattern", SAFE_IDENTIFIER_PATTERN
+        )
+        _require_bounded_integer(
+            parameter.get("max_length"), f"{label} max_length", 1, 255
+        )
+        if "allowed_values" in parameter or "default" in parameter:
+            raise RegistryError(f"{label} has unsupported optional constraints")
+    elif validation == "safe_host_label_pattern":
+        if (
+            tool_name not in HOST_TOOL_NAMES
+            or name != "host_label"
+            or not parameter["required"]
+        ):
+            raise RegistryError(f"{label} is not an approved host-label parameter")
+        _require_string(
+            parameter.get("pattern"), f"{label} pattern", SAFE_HOST_LABEL_PATTERN
+        )
+        _require_bounded_integer(
+            parameter.get("max_length"), f"{label} max_length", 1, 64
+        )
+        if "allowed_values" in parameter or "default" in parameter:
+            raise RegistryError(f"{label} has unsupported optional constraints")
+    else:
+        expected_values = {
+            "window_class": HOST_WINDOW_CLASSES,
+            "line_limit_class": HOST_LINE_LIMIT_CLASSES,
+        }.get(name)
+        if (
+            validation != "closed_value"
+            or tool_name not in HOST_TOOL_NAMES
+            or expected_values is None
+            or parameter["required"]
+            or "pattern" in parameter
+            or parameter.get("allowed_values") != list(expected_values)
+            or parameter.get("default") not in expected_values
+        ):
+            raise RegistryError(f"{label} is not an approved closed host parameter")
+        _require_bounded_integer(
+            parameter.get("max_length"), f"{label} max_length", 1, 8
+        )
+
     _require_string(parameter["description"], f"{label} description")
 
 
@@ -938,6 +1038,9 @@ def _validate_tool(tool: Any, defaults: dict[str, Any], seen_names: set[str]) ->
         raise RegistryError("registry tool name is not unique and approved")
     seen_names.add(name)
 
+    _require_string(
+        tool["authority_class"], f"{name} authority_class", TOOL_AUTHORITY_CLASSES[name]
+    )
     _require_string(tool["description"], f"{name} description")
     target = _require_string(
         tool["implementation_target"], f"{name} implementation_target"
@@ -945,14 +1048,16 @@ def _validate_tool(tool: Any, defaults: dict[str, Any], seen_names: set[str]) ->
     if Path(target) != TOOL_TARGETS[name]:
         raise RegistryError(f"{name} implementation target is not approved")
     expected_profile = TOOL_PROFILES.get(name)
-    if expected_profile is None:
+    if name in HOST_TOOL_NAMES:
+        if tool["credential_profile"] is not None:
+            raise RegistryError(f"{name} must not declare an OpenStack profile")
+    elif expected_profile is None:
         raise RegistryError(f"{name} has no approved profile mapping")
-    _require_string(
-        tool["credential_profile"], f"{name} credential_profile", expected_profile
-    )
-    _require_string(
-        tool["risk_class"], f"{name} risk_class", TOOL_RISK_CLASSES[name]
-    )
+    else:
+        _require_string(
+            tool["credential_profile"], f"{name} credential_profile", expected_profile
+        )
+    _require_string(tool["risk_class"], f"{name} risk_class", TOOL_RISK_CLASSES[name])
     timeout = _require_bounded_integer(
         tool["timeout_seconds"], f"{name} timeout_seconds", 1, MAX_TIMEOUT_SECONDS
     )
@@ -1054,6 +1159,10 @@ def validate_parameter_value(parameter: dict[str, Any], value: Any) -> str:
         raise RequestValidationError("parameter has an invalid value") from exc
     if value_length > parameter["max_length"]:
         raise RequestValidationError("parameter exceeds its maximum length")
+    if parameter["validation"] == "closed_value":
+        if value not in parameter["allowed_values"]:
+            raise RequestValidationError("parameter has an unsupported value")
+        return value
     if (
         "/" in value
         or ".." in value
@@ -1087,24 +1196,43 @@ def validate_request(
     return tool, values
 
 
-def resolve_tool_profile(tool: dict[str, Any]) -> str:
-    """Resolve only the profile fixed for this trusted tool descriptor."""
+def resolve_tool_authority(tool: dict[str, Any]) -> str:
+    """Resolve the closed authority fixed for this trusted tool descriptor."""
 
     name = tool.get("name")
-    declared_profile = tool.get("credential_profile")
+    expected_authority = TOOL_AUTHORITY_CLASSES.get(name)
+    if expected_authority is None or tool.get("authority_class") != expected_authority:
+        raise TargetIntegrityError("approved authority does not match its tool")
+    if expected_authority == HOST_OBSERVER_AUTHORITY:
+        if tool.get("credential_profile") is not None:
+            raise TargetIntegrityError(
+                "host observer must not use an OpenStack profile"
+            )
+        return expected_authority
     expected_profile = TOOL_PROFILES.get(name)
     if (
         expected_profile is None
-        or declared_profile != expected_profile
+        or tool.get("credential_profile") != expected_profile
         or expected_profile not in PROFILE_ENVIRONMENTS
     ):
         raise TargetIntegrityError("approved profile does not match its tool")
-    return expected_profile
+    return expected_authority
+
+
+def resolve_tool_profile(tool: dict[str, Any]) -> str:
+    """Resolve only the OpenStack profile fixed for this trusted tool descriptor."""
+
+    authority = resolve_tool_authority(tool)
+    if authority == HOST_OBSERVER_AUTHORITY:
+        raise TargetIntegrityError("host observer has no OpenStack profile")
+    return TOOL_PROFILES[tool["name"]]
 
 
 def build_child_environment(tool: dict[str, Any]) -> dict[str, str]:
-    """Build a fresh profile-specific environment without inheriting parent state."""
+    """Build a fresh authority-specific environment without parent state."""
 
+    if resolve_tool_authority(tool) == HOST_OBSERVER_AUTHORITY:
+        return dict(HOST_OBSERVER_ENVIRONMENT)
     profile = resolve_tool_profile(tool)
     return dict(PROFILE_ENVIRONMENTS[profile])
 
@@ -1112,7 +1240,7 @@ def build_child_environment(tool: dict[str, Any]) -> dict[str, str]:
 def validate_runtime_target(tool: dict[str, Any]) -> Path:
     """Return a regular executable only from the fixed approved target mapping."""
 
-    resolve_tool_profile(tool)
+    resolve_tool_authority(tool)
     name = tool["name"]
     expected_target = TOOL_TARGETS.get(name)
     if (
@@ -1132,8 +1260,38 @@ def validate_runtime_target(tool: dict[str, Any]) -> Path:
     return target
 
 
+def build_host_observer_request(tool: dict[str, Any], values: dict[str, str]) -> bytes:
+    """Build the fixed bounded stdin request for a host-observer connector."""
+
+    if resolve_tool_authority(tool) != HOST_OBSERVER_AUTHORITY:
+        raise TargetIntegrityError("tool is not a host-observer diagnostic")
+    expected_names = {"host_label", "window_class", "line_limit_class"}
+    if set(values) != expected_names:
+        raise TargetIntegrityError("host-observer parameters do not match the tool")
+    if (
+        re.fullmatch(SAFE_HOST_LABEL_PATTERN, values["host_label"]) is None
+        or values["window_class"] not in HOST_WINDOW_CLASSES
+        or values["line_limit_class"] not in HOST_LINE_LIMIT_CLASSES
+    ):
+        raise TargetIntegrityError("host-observer parameters are unsafe")
+    request = {
+        "schema_version": "1.0",
+        "host_label": values["host_label"],
+        "source_class": TOOL_SOURCE_CLASSES[tool["name"]],
+        "window_class": values["window_class"],
+        "line_limit_class": values["line_limit_class"],
+    }
+    payload = (
+        json.dumps(request, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        + "\n"
+    ).encode("utf-8")
+    if len(payload) > 8192:
+        raise TargetIntegrityError("host-observer request is oversized")
+    return payload
+
+
 def build_command_argv(tool: dict[str, Any], values: dict[str, str]) -> list[str]:
-    """Build fixed argv from the trusted target and ordered validated values only."""
+    """Build fixed argv; host observers receive validated data only on stdin."""
 
     ordered_parameters = sorted(
         tool["parameters"], key=lambda parameter: parameter["position"]
@@ -1143,9 +1301,10 @@ def build_command_argv(tool: dict[str, Any], values: dict[str, str]) -> list[str
         raise TargetIntegrityError(
             "validated parameters do not match the approved tool"
         )
-    return [str(validate_runtime_target(tool))] + [
-        values[parameter["name"]] for parameter in ordered_parameters
-    ]
+    target = str(validate_runtime_target(tool))
+    if tool["name"] in HOST_TOOL_NAMES:
+        return [target]
+    return [target] + [values[parameter["name"]] for parameter in ordered_parameters]
 
 
 def terminate_process_group(process: subprocess.Popen[bytes]) -> None:
@@ -1238,10 +1397,12 @@ def validate_diagnostic_payload(tool: dict[str, Any], stdout: bytes) -> str:
     if payload.get("schema_version") != "1.0" or payload.get("tool") != tool["name"]:
         raise ValueError("diagnostic output is invalid")
     status = payload.get("status")
-    if status not in {"ok", "partial", "unavailable", "error"}:
+    if status not in {"ok", "partial", "unavailable", "denied", "timeout", "error"}:
         raise ValueError("diagnostic output is invalid")
     error = payload.get("error")
     error_class = error.get("class") if isinstance(error, dict) else None
+    if status in {"denied", "timeout"}:
+        return status
     if error_class in UNAVAILABLE_DIAGNOSTIC_ERROR_CLASSES:
         return "unavailable"
     if status == "unavailable" or status == "error":
@@ -1257,6 +1418,7 @@ def execute_fixed_diagnostic(
     process: subprocess.Popen[bytes] | None = None
     try:
         child_environment = build_child_environment(tool)
+        host_observer = tool["name"] in HOST_TOOL_NAMES
         process = subprocess.Popen(
             build_command_argv(tool, values),
             close_fds=True,
@@ -1265,9 +1427,14 @@ def execute_fixed_diagnostic(
             shell=False,
             start_new_session=True,
             stderr=subprocess.PIPE,
-            stdin=subprocess.DEVNULL,
+            stdin=subprocess.PIPE if host_observer else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
         )
+        if host_observer:
+            request_payload = build_host_observer_request(tool, values)
+            assert process.stdin is not None
+            process.stdin.write(request_payload)
+            process.stdin.close()
         capture = capture_bounded(
             process, tool["timeout_seconds"], tool["output_limit_bytes"]
         )
@@ -1292,10 +1459,16 @@ def execute_fixed_diagnostic(
         diagnostic_status = validate_diagnostic_payload(tool, capture.stdout)
     except ValueError:
         return "error", "diagnostic output is invalid", capture
-    if capture.return_code != 0 and diagnostic_status != "unavailable":
+    if capture.return_code != 0 and diagnostic_status not in {
+        "unavailable",
+        "denied",
+        "timeout",
+    }:
         return "error", "approved implementation failed", capture
     if diagnostic_status == "unavailable":
         return "unavailable", "approved service is unavailable", capture
+    if diagnostic_status in {"denied", "timeout"}:
+        return diagnostic_status, None, capture
     return diagnostic_status, None, capture
 
 
