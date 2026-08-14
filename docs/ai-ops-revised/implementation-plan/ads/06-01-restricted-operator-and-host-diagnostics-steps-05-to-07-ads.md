@@ -27,25 +27,30 @@ named recent-evidence request
 ```
 
 The public surface contains three diagnostic intents, not one generic host tool.
-Exact names must be frozen in Chunk 1; the following names are **proposed**:
+The following public names and descriptions are accepted under D05 at source revision `rev-2026-08-0002`:
 
 - `recent_metadata_errors`;
 - `recent_neutron_errors`; and
 - `recent_nova_errors`.
 
+These names and their descriptions are accepted under D05 at source revision
+`rev-2026-08-0002`; they are not runner-registered until separately authorized.
 No public tool may accept a hostname, address, path, unit, service name, journal
 expression, search term, command, executable, key path, user, port, SSH option,
-sudo option, output destination, profile, timeout, or byte cap. The only proposed
-public inputs are:
+sudo option, output destination, profile, timeout, or byte cap. The public inputs
+are:
 
 - `host_label`: a non-secret label that must resolve through the owner-approved
   maintained inventory projection before any child process or network contact;
 - `window_class`: an optional closed, non-sensitive recent-time class; and
 - `line_limit_class`: an optional closed, non-sensitive line-bound class.
 
-Exact allowed classes and defaults are **conceptual** until Chunk 1 freezes them.
-The total byte cap and runner timeout are trusted per-tool configuration and are
-never caller-overridable.
+D06 freezes `window_class` as `[15m, 30m, 1h]` with default `30m` and
+`line_limit_class` as `[small, medium, large]` with default `medium`. The class
+mappings are 900/1,800/3,600 seconds and 50/100/200 source lines. The collector
+uses a 20-record cap, 4,096-byte raw summary cap, 512-byte normalized summary cap,
+16,384-byte serialized output cap, 5-second collector timeout, and 15-second
+runner timeout. None is caller-overridable.
 
 #### Approved-host projection contract
 
@@ -70,48 +75,57 @@ and must be confirmed in Chunk 0.
 
 #### Public diagnostic contract
 
-**Function Signature Contract (Conceptual):**
+**Function Signature Contract (Accepted D05–D07, source revision `rev-2026-08-0002`):**
 
 ```text
-recent_<source>_errors(host_label, window_class=DEFAULT, line_limit_class=DEFAULT)
-  -> Phase 03-compatible structured diagnostic JSON
+recent_<source>_errors(
+  host_label,
+  window_class="30m",
+  line_limit_class="medium"
+) -> bounded redacted diagnostic JSON
 ```
 
-Each public name maps to one fixed source class and permitted inventory-role set.
-The tool name fixes metadata, Neutron, or Nova selection; callers cannot change
-that selector. A compile-safe pre-activation stub must emit a valid normalized
-`unavailable` document, not success, while projection or observer authority is
-absent.
+The accepted public names and fixed mappings are:
 
-The exact output schema must be frozen before collector implementation. The
-shared proposed minimum is:
+| Public name | Source class | Role | Service class | Fixed logical selector |
+| --- | --- | --- | --- | --- |
+| `recent_metadata_errors` | `metadata_error_events` | `controller` | `metadata` | `metadata_service_errors` |
+| `recent_neutron_errors` | `neutron_error_events` | `controller` | `neutron` | `neutron_service_errors` |
+| `recent_nova_errors` | `nova_error_events` | `controller` | `nova` | `nova_service_errors` |
 
-```text
-schema_version
-tool
-status
-sections[]
-  name
-  status
-  data[]
-    host_label
-    inventory_role
-    source_class
-    service_class
-    observed_at
-    severity
-    event_class
-    redacted_summary
-  error
-  truncated
-error
-```
+The public descriptions are bounded, redacted recent metadata-service, Neutron,
+and Nova error evidence for an approved host label. Callers cannot select the
+source, role, service, selector, path, unit, command, destination, timeout, or
+output limit. Neutron and Nova are explicit
+`unavailable/approved_optional_capability_absent` stubs until their source slices
+are separately approved.
 
-Every field is subject to minimum disclosure. `redacted_summary` is bounded,
-normalized text after host-side secret and identifier redaction; it is not a raw
-log line. Exact field names, types, timestamp handling, ordering, message length,
-record cap, truncation rule, and permitted source-specific additions are
-**conceptual** until the Steps 5–7 operations contract is accepted.
+Public request validation is exact: required lowercase ASCII `host_label` with a
+maximum of 64 characters and no leading/trailing hyphen; optional
+`window_class` in `[15m, 30m, 1h]` with default `30m`; and optional
+`line_limit_class` in `[small, medium, large]` with default `medium`. The request
+is capped at 8,192 UTF-8 bytes. Unknown/duplicate/missing fields, invalid UTF-8,
+invalid types, or invalid classes produce `error/validation_error`. The internal
+collector request may carry the fixed source class; the public request may not.
+
+The exact collector document has typed fields only: `schema_version` string fixed
+to `1.0`; `tool` string; top-level status enum; `sections` array; and nullable
+`error` object `{class: string, message: string}`. Each section has string `name`,
+section-status enum `status`, `data` array, nullable fixed error object, and
+boolean `truncated`. Each event has string `host_label`, `inventory_role`,
+`source_class`, `service_class`, required non-null canonical `observed_at`,
+`severity`, `event_class`, and `redacted_summary`. No source-specific additions
+are accepted.
+Top-level statuses are `ok`, `error`, `denied`, `timeout`, and `unavailable`;
+section statuses additionally include `empty`. Error classes, severity/event
+class enums, canonical timestamps, deterministic ordering, redaction, canaries,
+and serialization are frozen by the Steps 5–7 operations contract.
+
+A successful or empty source result contains one fixed section. A missing, stale,
+denied, malformed, timed-out, or otherwise unavailable source returns no sections
+and a fixed top-level error. Correlation IDs, exit codes, durations, and audit
+fields remain in the outer runner envelope. `redacted_summary` is normalized,
+bounded, and redacted text; it is never a raw log line.
 
 #### Restricted transport and collector contract
 
@@ -142,12 +156,14 @@ unknown source/window/line classes, and source-to-role mismatches. This design
 avoids exposing a generic remote command channel while allowing one reviewed
 collector to serve three fixed diagnostic intents.
 
-The host policy maps exact source classes to exact inventory roles and exact
-read-only source selectors. It may permit reviewed journal units, fixed log
-sources, listener/status evidence, and metadata-path event classes. It must not
-permit arbitrary paths, recursive scans, configuration dumps, user-supplied
-patterns, service control, package operations, editors, shell evaluation, output
-redirection, or caller-selected `journalctl`/file arguments.
+The accepted host policy maps `metadata_error_events`, `neutron_error_events`,
+and `nova_error_events` to the `controller` role, service classes `metadata`,
+`neutron`, and `nova`, and fixed logical selectors
+`metadata_service_errors`, `neutron_service_errors`, and `nova_service_errors`.
+The actual protected path/unit mapping remains outside Git. The policy must not
+permit configuration dumps, arbitrary logs or journals, recursive scans,
+caller-selected paths/units/commands/patterns, unrelated services, raw audits,
+credential/key stores, network inventory, or connection metadata.
 
 Sudo remains optional. If unprivileged reads are insufficient, the already
 specified sudo boundary may authorize only the root-owned collector with its
@@ -221,29 +237,27 @@ guest, broaden credentials, or request raw logs.
 
 #### Assumptions
 
-- **Assumed:** the three proposed public names will be accepted or replaced with equally diagnostic-only names in Chunk 1.
+- **Resolved:** D05 accepts the three public names, descriptions, source classes, controller role, service classes, fixed logical selectors, and prohibited sources at `rev-2026-08-0002`.
 - **Assumed:** one newly derived assistant-side connector can share validation/redaction helpers among three fixed public wrappers without becoming a generic SSH interface.
 - **Assumed:** the forced collector can receive a bounded closed request through standard input while rejecting remote-command text. Chunk 0 must confirm compatibility with the approved SSH/authorized-key mechanism.
-- **Assumed:** non-secret host labels and role classes may be visible in public arguments/results after inventory-owner review; addresses and connection metadata remain protected.
-- **Assumed:** source reads can be represented by fixed source classes and normalized events instead of raw log lines. Source owners must confirm the minimum evidence needed to distinguish metadata failure domains.
+- **Resolved:** the approved non-secret `host_label` is retained only in its structured event field; addresses, connection metadata, and host-label-like values inside summaries remain redacted.
+- **Resolved:** D05–D07 require fixed source classes and normalized events instead of raw log lines. The shared event fields, source outcomes, bounds, ordering, truncation, redaction, and canaries are frozen at `rev-2026-08-0002`.
 - **Assumed:** a host-observer authority descriptor can fit the current registry model without reusing the `credential_profile` semantics unsafely. Chunk 0 must decide whether to extend that field or introduce a closed `authority_class` field.
 - **Assumed:** the existing Python standard library, fixed OpenSSH client, and existing Ansible modules are sufficient. No generic SSH Python library or new package is approved by this ADS.
 - **Assumed:** synthetic tests can model host roles, transport, redaction, listener states, and source records without reading protected inventory or contacting a live host.
 
-#### Open confirmations for Chunk 0
+#### Remaining open confirmations for Chunk 0
 
 1. Whether all Steps 1–4 prerequisites required by Step 5 have owner-accepted evidence, including the Phase 05 inconsistency resolution.
 2. Maintained inventory source, owner, revision/freshness model, approved role labels, safe host labels, service placement, and protected projection mechanism.
 3. Observer account/key/source restriction/rotation/revocation owners, exact SSH invocation, forced-command stdin behavior, and whether sudo is required.
-4. Exact metadata, Neutron, and Nova source classes per role, including permitted units/log sources/listener checks and explicit prohibited sources.
-5. Exact public tool names, descriptions, host-role mappings, input schemas, defaults, range/allowlist rules, timeout, record, line, message, and byte caps.
-6. Exact shared and source-specific output fields, deterministic ordering, unavailable/error classes, truncation semantics, and redaction canaries.
-7. Whether host labels may be retained in results/audits or must be minimized further.
-8. Assistant-side connector source path, runtime projection path, fixed key/config path, file ownership/modes, and deployment owner.
-9. Runner schema decision: extend `credential_profile` with a host-observer descriptor or add a closed authority-class contract without weakening current profile isolation.
-10. Selective-reuse decision. Unless exact historical paths are amended to `selected-for-phase`, implementation must be newly derived and historical content must not be copied.
-11. Protected evidence location, retention, audit-inspection authorization, unchanged-state comparator, rollback owner, and separate authorization for deployment, host contact, negative testing, and workflow execution.
-12. Representative metadata case and safe pre/post state procedure for Step 7 without committing identifiers, addresses, raw logs, or raw audit lines.
+4. Assistant-side connector source path, runtime projection path, fixed key/config path, file ownership/modes, and deployment owner.
+5. Runner schema decision: extend `credential_profile` with a host-observer descriptor or add a closed authority-class contract without weakening current profile isolation.
+6. Selective-reuse decision. Unless exact historical paths are amended to `selected-for-phase`, implementation must be newly derived and historical content must not be copied.
+7. Protected evidence location, retention, audit-inspection authorization, unchanged-state comparator, rollback owner, and separate authorization for deployment, host contact, negative testing, and workflow execution.
+8. Representative metadata case and safe pre/post state procedure for Step 7 without committing identifiers, addresses, raw logs, or raw audit lines.
+
+D05–D07 source, bounds, output, ordering, truncation, redaction, and canary decisions are resolved at source revision `rev-2026-08-0002` and are no longer Chunk 0 blockers.
 
 ### III. Required Technical Dependencies and Imports
 
@@ -374,12 +388,27 @@ implement the full feature in one pass.
 
 #### Chunk 3: Metadata Evidence Thin Slice
 
-- **Goal:** Implement one fixed metadata source path through the collector with role enforcement, bounds, minimization, and host-side redaction.
-- **Files to change:** collector source; focused collector test file from Chunk 2.
-- **Symbols to add/change:** metadata selector handler, exact approved source adapters, event normalizer, timestamp/order logic, record/line/message/byte truncation, redaction canaries, metadata unavailable mappings.
-- **Implementation shape:** one source class only. Use synthetic source fixtures. Unknown role/source/path/unit/pattern is rejected; missing approved source is unavailable; no transport or runner registration yet.
-- **Validation:** syntax/compile, metadata success/empty/unavailable/error fixtures, canary redaction, deterministic truncation, forbidden source/mutation scan, focused diff.
-- **Stop condition:** the metadata collector slice is locally contract-valid and read-only; Neutron/Nova selectors remain explicit unavailable stubs.
+- **Goal:** Implement only `recent_metadata_errors` through the local collector with the accepted D05–D07 contract.
+- **Files to change:** collector source; focused collector test file from Chunk 2; no runner registry, connector, transport, deployment, or host files.
+- **Fixed adapter seam:**
+  ```python
+  collect_metadata_slice(
+      source_records,
+      source_truncated,
+      freshness_class,
+      host_label,
+      inventory_role,
+      window_class,
+      line_limit_class,
+      collection_started_at,
+  ) -> diagnostic_document
+  ```
+- **Fixed metadata policy:** source class `metadata_error_events`, service class `metadata`, logical selector `metadata_service_errors`, permitted role `controller`. The public request cannot provide any of these values.
+- **Synthetic fixture fields:** exact `source_sequence`, `observed_at`, `severity`, `event_class`, and `summary`; strict field/type validation; maximum raw summary 4,096 UTF-8 bytes; malformed records fail atomically.
+- **Processing:** source freshness and role checks first; bounded source read; timestamp window; deterministic ordering; 20-record cap; NFC/whitespace/control normalization; `[REDACTED]` canary-safe redaction; 512-byte message cap; 16,384-byte deterministic serialization cap.
+- **Failure behavior:** missing, stale, denied, malformed, timeout, role mismatch, and redaction failures use the accepted normalized mappings. Empty approved evidence returns `ok` with one `metadata_errors` section whose status is `empty`. Neutron and Nova remain explicit `unavailable/approved_optional_capability_absent` stubs.
+- **Validation:** syntax/compile, success/empty/source-truncated/unavailable/denied/malformed/timeout fixtures, timestamp and ordering tests, duplicate preservation, UTF-8/message/byte truncation, all redaction canaries, atomic redaction failure, forbidden source/mutation scan, and focused diff.
+- **Stop condition:** the metadata collector slice is locally contract-valid and read-only. Do not continue to Neutron/Nova, runner registration, connector/SSH, deployment, host contact, or live validation.
 
 #### Chunk 4: Neutron Evidence Thin Slice
 
@@ -464,10 +493,11 @@ forced collector enforce transport and host policy; host-side and runner-side
 redaction minimize output; and the existing runner remains the only public
 validation, execution, result, and audit gateway.
 
-The immediate next action is Chunk 0 discovery and decision confirmation. No
-Step 5 implementation or activation should start while the maintained inventory
-projection, observer policy, negative-test plan, source/output/redaction
-contracts, evidence owners, or Steps 1–4 acceptance gates remain blocked. After
-Chunk 0, create the non-activation Steps 5–7 operations contract in Chunk 1.
-Phase 07 MCP exposure remains out of scope until the resulting Phase 06 tools and
-workflow have owner-accepted local and live evidence.
+D05–D07 are now frozen at source revision `rev-2026-08-0002`. The next
+separately authorized action is Chunk 3: the local synthetic metadata slice only.
+Maintained projection, observer policy, transport, deployment, negative-test,
+evidence, and Steps 1–4 activation gates remain separate blockers; no host
+contact, runner registration, or live validation is authorized. Neutron and Nova
+remain explicit unavailable stubs. Phase 07 MCP exposure remains out of scope
+until the resulting Phase 06 tools and workflow have owner-accepted local and
+live evidence.
