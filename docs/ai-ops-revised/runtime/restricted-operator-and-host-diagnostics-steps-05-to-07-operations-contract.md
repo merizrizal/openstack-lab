@@ -172,14 +172,14 @@ host contact, source reads, negative testing, or live acceptance:
   Expiry or revocation invalidates associated acceptance evidence, and
   mutation-denial evidence must be refreshed after every credential revision.
 - The approved live run uses authorization reference
-  `phase06-live-acceptance-2026-0003` and non-secret run ID `2026-0003`, with
+  `phase06-live-acceptance-2026-0004` and non-secret run ID `2026-0004`, with
   authorization class `phase06-restricted-diagnostics-live-acceptance`. This
   reference covers only the explicitly approved Phase 06 scopes; it does not
   authorize Phase 07, unrelated hosts, broader credentials, or remediation.
 - Outcome-only evidence is owned by `OpenStack platform operations / lab
   administrator` and stored under
   `/opt/openstack-ai-ops-assistant/evidence/phase06/`, with the normalized
-  producer result at `/run/openstack-ai-ops/phase06-validation/2026-0003.json`.
+  producer result at `/run/openstack-ai-ops/phase06-validation/2026-0004.json`.
   The evidence directory is `aiops_assistant:aiops_assistant`, mode `0700`; each
   record is mode `0600`; the access role is `phase06-evidence-reviewer`; and the
   retention label is `restricted-phase06-acceptance-90d`. Only normalized
@@ -306,6 +306,29 @@ The following scopes require separate owner authorization and a fresh non-secret
 
 Authorization for one scope does not authorize another scope.
 
+## Live-acceptance readiness prerequisite
+
+`docs/ai-ops-revised/runtime/phase06-live-acceptance-readiness-requirement.md`
+is the non-activating prerequisite for the exact acceptance run. Before any
+separately authorized scope, a dedicated local gate must validate its external,
+non-secret readiness manifest and retain only normalized outcomes. The manifest
+must not materialize or expose protected values, and gate validation does not
+authorize deployment, credential use, host contact, source reads, audit
+inspection, rollback, or workflow execution.
+
+The approved requirement fixes the manifest top-level fields, exact
+`scope_approvals` entries and scope/status enums, plus closed
+`protected_input_references` and `integrity_checks` schemas. A validator must
+reject unknown, duplicate, missing, or protected-value fields and fail closed
+rather than infer a value or broaden a scope.
+
 ## Completion criteria and next action
 
-This contract remains reviewable but **non-activating** while D01–D04 and D08–D09 or any deployment/live gate remain unresolved. D05–D07 are complete at source revision `rev-2026-08-0002`; static registry entries, connector validation, and synthetic bounded slices are present for all three diagnostic intents. Live source adapters, protected inputs, deployment, host contact, and acceptance evidence remain unavailable. No generated input, protected data, host contact, or live action may be used to manufacture activation completeness.
+This contract remains reviewable but **non-activating** while the readiness
+prerequisite, D01–D04, D08–D09, or any deployment/live gate remains unresolved.
+D05–D07 are complete at source revision `rev-2026-08-0002`; static registry
+entries, connector validation, and synthetic bounded slices are present for all
+three diagnostic intents. Live source adapters, protected inputs, deployment,
+host contact, and acceptance evidence remain unavailable. No generated input,
+protected data, host contact, or live action may be used to manufacture
+activation completeness.

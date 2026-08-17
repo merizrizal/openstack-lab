@@ -502,11 +502,15 @@ forced collector enforce transport and host policy; host-side and runner-side
 redaction minimize output; and the existing runner remains the only public
 validation, execution, result, and audit gateway.
 
-D05–D07 are now frozen at source revision `rev-2026-08-0002`. The next
-separately authorized action is Chunk 3: the local synthetic metadata slice only.
-Maintained projection, observer policy, transport, deployment, negative-test,
-evidence, and Steps 1–4 activation gates remain separate blockers; no host
-contact, runner registration, or live validation is authorized. Neutron and Nova
-remain explicit unavailable stubs. Phase 07 MCP exposure remains out of scope
-until the resulting Phase 06 tools and workflow have owner-accepted local and
-live evidence.
+D05–D07 are frozen at source revision `rev-2026-08-0002`, and the static
+collector, connector, registry, deployment wiring, and synthetic workflow
+slices are complete. The next non-live action is to reconcile the live-acceptance
+readiness requirement with this ADS and the operations contract, then obtain an
+owner-approved closed schema for its `protected_input_references` and
+`integrity_checks` fields. Only then may one compile-safe readiness-manifest
+validator slice be implemented; it must remain disabled by default and return
+only normalized blocked or unavailable outcomes. Maintained projection, observer
+policy, transport, deployment, negative-test, evidence, and all live scopes
+remain separate blockers. Phase 07 MCP exposure remains out of scope until the
+resulting Phase 06 tools and workflow have owner-accepted local and live
+evidence.

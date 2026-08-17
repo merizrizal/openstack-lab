@@ -11,6 +11,7 @@ diagnostic_tasks="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_dia
 diagnostic_source="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/neutron_agent_health.py"
 validation_playbook="$repo_root/ansible/ai_ops_assistant/playbook_produce_restricted_diagnostics_validation.yml"
 connector_source="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_tool_runner/files/scripts/tool_runner/host_observer_connector.py"
+readiness_manifest="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_tool_runner/files/scripts/tool_runner/readiness_manifest.py"
 observer_defaults="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_host_observer_boundary/defaults/main.yml"
 observer_tasks="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_host_observer_boundary/tasks/main.yml"
 observer_collector="$repo_root/ansible/ai_ops_assistant/roles/ai_ops_assistant_host_observer_boundary/files/scripts/host_observer/host_observer_collector.py"
@@ -31,6 +32,7 @@ for path in \
   "$diagnostic_source" \
   "$validation_playbook" \
   "$connector_source" \
+  "$readiness_manifest" \
   "$observer_defaults" \
   "$observer_tasks" \
   "$observer_collector" \
@@ -43,7 +45,10 @@ grep -Fq 'ai_ops_assistant_tool_runner_explicit_deployment' "$runner_tasks"
 grep -Fq '/opt/openstack-ai-ops-assistant/scripts/approved/neutron_agent_health.py' "$runner_defaults"
 grep -Fq "'/neutron_agent_health.py'" "$runner_tasks"
 grep -Fq "'aiops_tool_runner.py', 'audit_inspector.py', 'host_observer_connector.py'" "$runner_tasks"
+grep -Fq "'readiness_manifest.py', 'tool_registry.json'" "$runner_tasks"
+grep -Fq "'0750', '0750', '0750', '0640', '0640'" "$runner_tasks"
 grep -Fq 'host_observer_connector.py' "$runner_defaults"
+grep -Fq 'readiness_manifest.py' "$runner_defaults"
 grep -Fq "item.stat.pw_name == 'root'" "$runner_tasks"
 grep -Fq 'item.stat.mode == item.item.mode' "$runner_tasks"
 grep -Fq 'follow: false' "$runner_tasks"

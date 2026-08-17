@@ -51,12 +51,13 @@ static test does not satisfy a live-authority gate.
 | Operator-reader profile | **Blocked** | `generated/deploy_operator_identity_profile.yml` remains disabled. The administrator-owned source, identity, role scope, expiry, rotation, revocation, and mutation-denial evidence are not complete. |
 | Host observer policy | **Blocked** | No approved maintained observer inventory projection or live authorization is available; the observer template remains disabled and the local inventory has no approved `ai_ops_host_observers` projection. |
 | Phase 06 normalized evidence | **Blocked** | Run `2026-0002` is retained as blocked evidence. It must not be reused after authorization, source-revision, or gate changes. |
-| Steps 5–7 | **Static/synthetic implementation present; live acceptance blocked** | The seven-tool registry, closed connector, synthetic bounded collector slices, projection contracts, and focused tests are present. Protected runtime inputs, live source adapters, deployment, and acceptance evidence remain unavailable. |
+| Steps 5–7 | **Static/synthetic implementation present; live acceptance blocked** | The seven-tool registry, closed connector, synthetic bounded collector slices, projection contracts, and focused tests are present. The non-activating live-acceptance readiness requirement is staged; its nested protected-reference and integrity-check schemas still require owner approval before a validator can be wired. Protected runtime inputs, live source adapters, deployment, and acceptance evidence remain unavailable. |
 
 **Checklist action:** keep operator-reader, observer, mutation-denial, live
-validation, and Phase 06 definition-of-done boxes unchecked. The next planning
-artifact is a dedicated ADS for Steps 5–7; no Phase 07 MCP exposure is authorized
-by this reconciliation.
+validation, and Phase 06 definition-of-done boxes unchecked. Reconcile the
+readiness requirement into the authoritative contract and ADS, obtain the closed
+nested-manifest schema, and then implement one disabled-by-default readiness
+validator slice. No Phase 07 MCP exposure is authorized by this reconciliation.
 
 ## 06.4 Assumptions
 

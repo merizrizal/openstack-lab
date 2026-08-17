@@ -67,7 +67,7 @@ deploy_openstack() {
 
 deploy_aiops_assistant() {
     local playbook=$1
-    local extra_params=$2
+    local extra_params=${@:2}
 	local params=""
 
     if [[ ! -z $playbook ]]; then
@@ -75,9 +75,8 @@ deploy_aiops_assistant() {
 			params="-e @$ROOT_DIR/generated/identity_profile.yml"
 		fi
 
-        params="$params $extra_params"
-
-        ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_$playbook.yml $params
+        echo "$extra_params"
+        ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_$playbook.yml $params $(echo "$extra_params")
     else
         ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_deploy.yml
     fi

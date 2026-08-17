@@ -61,11 +61,11 @@
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='source') | list == [
         'aiops_tool_runner.py', 'audit_inspector.py', 'host_observer_connector.py',
-        'tool_registry.json'
+        'readiness_manifest.py', 'tool_registry.json'
         ]
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='mode') | list == [
-        '0750', '0750', '0750', '0640'
+        '0750', '0750', '0750', '0640', '0640'
         ]
       - "'..' not in ai_ops_assistant_tool_runner_directory.split('/')"
     quiet: true
