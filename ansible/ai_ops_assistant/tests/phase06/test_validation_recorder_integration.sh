@@ -45,7 +45,9 @@ cat >"$fixture" <<'EOF_FIXTURE'
     "redaction_check_pending",
     "operator_reader_review_pending"
   ],
-  "phase05_acceptance_confirmed": true,
+  "phase05_acceptance_confirmed": false,
+  "phase05_acceptance_outcome": "blocked",
+  "phase05_acceptance_evidence_reference": "2026-0001-phase05-blocked",
   "neutron_read_classified": true,
   "operator_reader_reviewed": false,
   "observer_policy_reviewed": false,
@@ -123,7 +125,8 @@ cat >"$wrapper" <<EOF_WRAPPER
             'neutron_read_outcome', 'neutron_read_read_only_operation',
             'negative_test_plan_approved', 'observer_policy_reviewed',
             'operator_reader_reviewed', 'output_schema_frozen',
-            'phase05_acceptance_confirmed', 'producer', 'redaction_check_completed',
+            'phase05_acceptance_confirmed', 'phase05_acceptance_evidence_reference',
+            'phase05_acceptance_outcome', 'producer', 'redaction_check_completed',
             'rollback_status', 'run_id', 'schema_version', 'source_revision',
             'status', 'limitation_class', 'unresolved_gates', 'operation'] | sort
           - result.schema_version == '1.0'
@@ -138,8 +141,11 @@ cat >"$wrapper" <<EOF_WRAPPER
           - result.neutron_read_classified == true
           - result.neutron_read_json_shape_valid is boolean
           - result.neutron_read_read_only_operation == true
-          - result.phase05_acceptance_confirmed == true
+          - result.phase05_acceptance_confirmed == false
+          - result.phase05_acceptance_outcome == 'blocked'
+          - result.phase05_acceptance_evidence_reference == '2026-0001-phase05-blocked'
           - result.unresolved_gates | type_debug == 'list'
+          - "'phase05_acceptance_pending' in result.unresolved_gates"
         quiet: true
       changed_when: false
       no_log: true

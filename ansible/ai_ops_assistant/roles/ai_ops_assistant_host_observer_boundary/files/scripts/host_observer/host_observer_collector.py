@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
 """Fail-closed host-observer collector boundary.
 
-This boundary validates only closed request and synthetic policy/projection
-metadata. It does not read host sources, policy files, projection files, or
-invoke a transport. Valid requests intentionally return ``unavailable`` until
-later chunks provide reviewed source adapters and an authorized connector.
+This boundary validates a closed request and one root-owned, host-specific
+policy. It reads only policy-approved fixed sources through adapter-specific
+argv and returns bounded, normalized, redacted evidence. It never accepts a
+caller-selected command, path, unit, source, timeout, or output cap.
 """
 
 from __future__ import annotations
 
+import grp
+import hashlib
 import json
 import os
 import re
+import selectors
+import signal
+import stat
+import subprocess
 import sys
+import time
 import unicodedata
 from datetime import datetime, timedelta, timezone
-from typing import Any, Mapping, Sequence
+from pathlib import Path
+from typing import Any, Callable, Mapping, Sequence
 
 SCHEMA_VERSION = "1.0"
 TOOL_NAME = "host_observer_collector"
@@ -29,9 +37,6 @@ MAX_NORMALIZED_SUMMARY_BYTES = 512
 
 SOURCE_CLASSES = frozenset(
     {
-        "metadata",
-        "neutron",
-        "nova",
         "metadata_error_events",
         "neutron_error_events",
         "nova_error_events",
@@ -63,6 +68,117 @@ NOVA_SOURCE_CLASS = "nova_error_events"
 NOVA_SERVICE_CLASS = "nova"
 NOVA_LOGICAL_SELECTOR = "nova_service_errors"
 NOVA_ROLE = "controller"
+
+POLICY_PATH = Path("/etc/openstack-ai-ops-assistant/host-observer-policy.yml")
+POLICY_MAX_BYTES = 65_536
+POLICY_FILE_MODE = 0o640
+POLICY_GROUP_NAME = "aiops-host-observer"
+COLLECTOR_TIMEOUT_SECONDS = 5.0
+SOURCE_OUTPUT_MAX_BYTES = 1_048_576
+MINIMAL_SOURCE_ENVIRONMENT = {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "SYSTEMD_PAGER": "cat",
+    "SYSTEMD_COLORS": "0",
+}
+
+ADAPTER_DEFINITIONS = {
+    "metadata_agent_errors": {
+        "kind": "journal",
+        "argv": [
+            "/usr/bin/journalctl",
+            "--no-pager",
+            "--quiet",
+            "--utc",
+            "--output=json",
+            "--priority=err..emerg",
+            "--unit",
+            "neutron-metadata-agent",
+        ],
+    },
+    "metadata_apache_errors": {
+        "kind": "apache_error_log",
+        "argv": [
+            "/usr/bin/tail",
+            "--",
+            "/var/log/apache2/nova_metadata_error.log",
+        ],
+    },
+    "neutron_server_errors": {
+        "kind": "journal",
+        "argv": [
+            "/usr/bin/journalctl",
+            "--no-pager",
+            "--quiet",
+            "--utc",
+            "--output=json",
+            "--priority=err..emerg",
+            "--unit",
+            "neutron-server",
+        ],
+    },
+    "neutron_ovs_agent_errors": {
+        "kind": "journal",
+        "argv": [
+            "/usr/bin/journalctl",
+            "--no-pager",
+            "--quiet",
+            "--utc",
+            "--output=json",
+            "--priority=err..emerg",
+            "--unit",
+            "neutron-openvswitch-agent",
+        ],
+    },
+    "nova_api_errors": {
+        "kind": "journal",
+        "argv": [
+            "/usr/bin/journalctl",
+            "--no-pager",
+            "--quiet",
+            "--utc",
+            "--output=json",
+            "--priority=err..emerg",
+            "--unit",
+            "nova-api",
+        ],
+    },
+    "nova_conductor_errors": {
+        "kind": "journal",
+        "argv": [
+            "/usr/bin/journalctl",
+            "--no-pager",
+            "--quiet",
+            "--utc",
+            "--output=json",
+            "--priority=err..emerg",
+            "--unit",
+            "nova-conductor",
+        ],
+    },
+    "nova_scheduler_errors": {
+        "kind": "journal",
+        "argv": [
+            "/usr/bin/journalctl",
+            "--no-pager",
+            "--quiet",
+            "--utc",
+            "--output=json",
+            "--priority=err..emerg",
+            "--unit",
+            "nova-scheduler",
+        ],
+    },
+    "nova_apache_errors": {
+        "kind": "apache_error_log",
+        "argv": [
+            "/usr/bin/tail",
+            "--",
+            "/var/log/apache2/nova_metadata_error.log",
+        ],
+    },
+}
 SOURCE_RECORD_FIELDS = {
     "source_sequence",
     "observed_at",
@@ -98,11 +214,65 @@ COLLECTOR_METADATA_PROJECTION_ENTRY_FIELDS = {
 }
 POLICY_FIELDS = {
     "schema_version",
+    "policy_type",
+    "revision",
+    "generated_at",
+    "expires_at",
+    "freshness_class",
+    "metadata_status",
+    "redaction_policy_status",
     "source_classes",
     "window_classes",
     "line_limit_classes",
-    "metadata_status",
-    "redaction_policy_status",
+    "local_host_label",
+    "hosts",
+    "entries",
+}
+POLICY_HOST_FIELDS = {
+    "host_label",
+    "inventory_role",
+    "source_classes",
+    "enabled",
+}
+POLICY_ENTRY_FIELDS = {
+    "source_class",
+    "logical_selector",
+    "inventory_role",
+    "readers",
+}
+POLICY_READER_FIELDS = {"adapter_id", "argv"}
+POLICY_SOURCE_CLASSES = [
+    METADATA_SOURCE_CLASS,
+    NEUTRON_SOURCE_CLASS,
+    NOVA_SOURCE_CLASS,
+]
+POLICY_WINDOW_CLASSES = ["15m", "30m", "1h"]
+POLICY_LINE_LIMIT_CLASSES = ["small", "medium", "large"]
+POLICY_SELECTOR_BY_SOURCE = {
+    METADATA_SOURCE_CLASS: METADATA_LOGICAL_SELECTOR,
+    NEUTRON_SOURCE_CLASS: NEUTRON_LOGICAL_SELECTOR,
+    NOVA_SOURCE_CLASS: NOVA_LOGICAL_SELECTOR,
+}
+POLICY_ROLE_SOURCE_CLASSES = {
+    "controller": frozenset(POLICY_SOURCE_CLASSES),
+    "compute": frozenset({NEUTRON_SOURCE_CLASS}),
+}
+EXPECTED_POLICY_READERS = {
+    (METADATA_SOURCE_CLASS, "controller"): (
+        "metadata_agent_errors",
+        "metadata_apache_errors",
+    ),
+    (NEUTRON_SOURCE_CLASS, "controller"): (
+        "neutron_server_errors",
+        "neutron_ovs_agent_errors",
+    ),
+    (NEUTRON_SOURCE_CLASS, "compute"): ("neutron_ovs_agent_errors",),
+    (NOVA_SOURCE_CLASS, "controller"): (
+        "nova_api_errors",
+        "nova_conductor_errors",
+        "nova_scheduler_errors",
+        "nova_apache_errors",
+    ),
 }
 
 ERROR_MESSAGES = {
@@ -135,6 +305,32 @@ class CollectorValidationError(ValueError):
 
 class CollectorUnavailableError(CollectorValidationError):
     """A validated but unavailable projection or policy state."""
+
+
+class PolicySnapshot:
+    def __init__(
+        self,
+        policy: Mapping[str, Any],
+        digest: str,
+        signature: tuple[int, int, int, int, int],
+        path: Path,
+    ):
+        self.policy = policy
+        self.digest = digest
+        self.signature = signature
+        self.path = path
+
+
+class SourceReadResult:
+    def __init__(
+        self, records: list[Mapping[str, Any]], source_truncated: bool = False
+    ):
+        self.records = records
+        self.source_truncated = source_truncated
+
+
+class SourceReaderError(CollectorValidationError):
+    """A fixed source reader failed without exposing source details."""
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -176,6 +372,79 @@ def _validate_host_label(value: Any) -> str:
     ):
         raise CollectorValidationError("unsafe_host_label")
     return label
+
+
+def _policy_signature(metadata: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+
+
+def _read_policy_bytes(path: Path) -> tuple[bytes, tuple[int, int, int, int, int]]:
+    try:
+        expected_gid = grp.getgrnam(POLICY_GROUP_NAME).gr_gid
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, "rb") as stream:
+            metadata = os.fstat(stream.fileno())
+            if not stat.S_ISREG(metadata.st_mode):
+                raise CollectorUnavailableError("observer_integrity_error")
+            if metadata.st_uid != 0 or metadata.st_gid != expected_gid:
+                raise CollectorUnavailableError("observer_integrity_error")
+            if stat.S_IMODE(metadata.st_mode) != POLICY_FILE_MODE:
+                raise CollectorUnavailableError("observer_integrity_error")
+            payload = stream.read(POLICY_MAX_BYTES + 1)
+    except CollectorUnavailableError:
+        raise
+    except (KeyError, OSError):
+        raise CollectorUnavailableError("observer_integrity_error") from None
+    if len(payload) > POLICY_MAX_BYTES:
+        raise CollectorUnavailableError("observer_integrity_error")
+    return payload, _policy_signature(metadata)
+
+
+def load_policy(
+    path: Path = POLICY_PATH,
+    *,
+    now: datetime | None = None,
+) -> PolicySnapshot:
+    """Load one validated root-owned policy snapshot."""
+
+    if Path(path) != POLICY_PATH:
+        raise CollectorUnavailableError("observer_integrity_error")
+    payload, signature = _read_policy_bytes(POLICY_PATH)
+    try:
+        policy = json.loads(
+            payload.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys
+        )
+        policy = validate_policy_metadata(policy, now=now)
+    except CollectorValidationError as error:
+        if error.error_class in {"source_stale", "unsupported_deployment_state"}:
+            raise
+        raise CollectorUnavailableError("observer_integrity_error") from None
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+        raise CollectorUnavailableError("observer_integrity_error") from None
+    return PolicySnapshot(
+        policy=policy,
+        digest=hashlib.sha256(payload).hexdigest(),
+        signature=signature,
+        path=path,
+    )
+
+
+def verify_policy_snapshot(snapshot: PolicySnapshot) -> None:
+    """Reject a policy replaced or modified during one collection."""
+
+    payload, signature = _read_policy_bytes(snapshot.path)
+    if (
+        signature != snapshot.signature
+        or hashlib.sha256(payload).hexdigest() != snapshot.digest
+    ):
+        raise CollectorUnavailableError("observer_integrity_error")
 
 
 def parse_request(raw: bytes | str) -> dict[str, Any]:
@@ -261,24 +530,96 @@ def validate_projection_metadata(projection: Mapping[str, Any]) -> Mapping[str, 
     return projection
 
 
-def validate_policy_metadata(policy: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Validate synthetic policy metadata without reading a policy file."""
+def validate_policy_metadata(
+    policy: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> Mapping[str, Any]:
+    """Validate one complete non-transport host-observer policy."""
 
     policy = _require_mapping(policy, "observer_integrity_error")
     if set(policy) != POLICY_FIELDS or policy["schema_version"] != SCHEMA_VERSION:
         raise CollectorValidationError("observer_integrity_error")
-    for field, allowed in (
-        ("source_classes", SOURCE_CLASSES),
-        ("window_classes", WINDOW_CLASSES),
-        ("line_limit_classes", LINE_LIMIT_CLASSES),
+    if policy["policy_type"] != "host_observer_policy":
+        raise CollectorValidationError("observer_integrity_error")
+    _require_string(policy["revision"], "observer_integrity_error")
+    generated_at = _parse_utc_timestamp(policy["generated_at"])
+    expires_at = _parse_utc_timestamp(policy["expires_at"])
+    current_time = datetime.now(timezone.utc) if now is None else now
+    if (
+        generated_at > current_time
+        or expires_at <= generated_at
+        or expires_at < current_time
+        or expires_at - generated_at > timedelta(hours=24)
     ):
-        values = policy[field]
-        if not isinstance(values, list) or not values or not set(values) <= allowed:
-            raise CollectorValidationError("observer_integrity_error")
+        raise CollectorUnavailableError("source_stale")
+    if policy["freshness_class"] != "current":
+        raise CollectorUnavailableError("source_stale")
     if policy["metadata_status"] != "accepted":
         raise CollectorUnavailableError("unsupported_deployment_state")
     if policy["redaction_policy_status"] != "accepted":
         raise CollectorUnavailableError("unsupported_deployment_state")
+    if policy["source_classes"] != POLICY_SOURCE_CLASSES:
+        raise CollectorValidationError("observer_integrity_error")
+    if policy["window_classes"] != POLICY_WINDOW_CLASSES:
+        raise CollectorValidationError("observer_integrity_error")
+    if policy["line_limit_classes"] != POLICY_LINE_LIMIT_CLASSES:
+        raise CollectorValidationError("observer_integrity_error")
+
+    local_host_label = _validate_host_label(policy["local_host_label"])
+    hosts = policy["hosts"]
+    if not isinstance(hosts, list) or len(hosts) != 1:
+        raise CollectorValidationError("observer_integrity_error")
+    host = _require_mapping(hosts[0], "observer_integrity_error")
+    if set(host) != POLICY_HOST_FIELDS:
+        raise CollectorValidationError("observer_integrity_error")
+    if _validate_host_label(host["host_label"]) != local_host_label:
+        raise CollectorValidationError("observer_integrity_error")
+    role = host["inventory_role"]
+    if not isinstance(role, str) or role not in POLICY_ROLE_SOURCE_CLASSES:
+        raise CollectorValidationError("observer_integrity_error")
+    if host["source_classes"] != sorted(POLICY_ROLE_SOURCE_CLASSES[role]):
+        raise CollectorValidationError("observer_integrity_error")
+    if not isinstance(host["enabled"], bool):
+        raise CollectorValidationError("observer_integrity_error")
+
+    entries = policy["entries"]
+    if not isinstance(entries, list) or len(entries) != len(EXPECTED_POLICY_READERS):
+        raise CollectorValidationError("observer_integrity_error")
+    seen: set[tuple[str, str]] = set()
+    for entry_value in entries:
+        entry = _require_mapping(entry_value, "observer_integrity_error")
+        if set(entry) != POLICY_ENTRY_FIELDS:
+            raise CollectorValidationError("observer_integrity_error")
+        source_class = _require_closed_string(entry["source_class"], SOURCE_CLASSES)
+        inventory_role = entry["inventory_role"]
+        if (
+            not isinstance(inventory_role, str)
+            or inventory_role not in POLICY_ROLE_SOURCE_CLASSES
+        ):
+            raise CollectorValidationError("observer_integrity_error")
+        selector = entry["logical_selector"]
+        if selector != POLICY_SELECTOR_BY_SOURCE[source_class]:
+            raise CollectorValidationError("observer_integrity_error")
+        key = (source_class, inventory_role)
+        if key in seen or key not in EXPECTED_POLICY_READERS:
+            raise CollectorValidationError("observer_integrity_error")
+        seen.add(key)
+        readers = entry["readers"]
+        expected_adapters = EXPECTED_POLICY_READERS[key]
+        if not isinstance(readers, list) or len(readers) != len(expected_adapters):
+            raise CollectorValidationError("observer_integrity_error")
+        for reader_value, expected_adapter_id in zip(readers, expected_adapters):
+            reader = _require_mapping(reader_value, "observer_integrity_error")
+            if set(reader) != POLICY_READER_FIELDS:
+                raise CollectorValidationError("observer_integrity_error")
+            if reader["adapter_id"] != expected_adapter_id:
+                raise CollectorValidationError("observer_integrity_error")
+            definition = ADAPTER_DEFINITIONS[expected_adapter_id]
+            if reader["argv"] != definition["argv"]:
+                raise CollectorValidationError("observer_integrity_error")
+    if seen != set(EXPECTED_POLICY_READERS):
+        raise CollectorValidationError("observer_integrity_error")
     return policy
 
 
@@ -397,6 +738,287 @@ def _parse_utc_timestamp(value: Any) -> datetime:
 
 def _canonical_timestamp(value: datetime) -> str:
     return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _line_limit_from_bounds(bounds: Mapping[str, Any]) -> int:
+    line_limit_class = bounds.get("line_limit_class")
+    if line_limit_class not in LINE_LIMITS:
+        raise SourceReaderError("observer_integrity_error")
+    return LINE_LIMITS[line_limit_class]
+
+
+def _build_reader_argv(
+    reader: Mapping[str, Any],
+    bounds: Mapping[str, Any],
+    collection_started_at: datetime,
+) -> tuple[str, list[str]]:
+    if set(reader) != POLICY_READER_FIELDS:
+        raise SourceReaderError("observer_integrity_error")
+    adapter_id = reader.get("adapter_id")
+    definition = ADAPTER_DEFINITIONS.get(adapter_id)
+    if definition is None or reader.get("argv") != definition["argv"]:
+        raise SourceReaderError("observer_integrity_error")
+    line_limit = _line_limit_from_bounds(bounds) + 1
+    argv = list(definition["argv"])
+    if definition["kind"] == "journal":
+        window_class = bounds.get("window_class")
+        if window_class not in WINDOW_DURATIONS:
+            raise SourceReaderError("observer_integrity_error")
+        earliest = collection_started_at - timedelta(
+            seconds=WINDOW_DURATIONS[window_class]
+        )
+        return adapter_id, argv + [
+            "--since",
+            earliest.strftime("%Y-%m-%d %H:%M:%S.%f UTC"),
+            "--until",
+            collection_started_at.strftime("%Y-%m-%d %H:%M:%S.%f UTC"),
+            "--lines",
+            str(line_limit),
+        ]
+    if definition["kind"] == "apache_error_log":
+        return adapter_id, [argv[0], "--lines", str(line_limit), *argv[1:]]
+    raise SourceReaderError("observer_integrity_error")
+
+
+def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
+    try:
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=0.2)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=1.0)
+    except (ProcessLookupError, OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def execute_fixed_argv(
+    argv: Sequence[str],
+    timeout_seconds: float,
+    *,
+    output_limit: int = SOURCE_OUTPUT_MAX_BYTES,
+) -> tuple[subprocess.CompletedProcess[bytes], bool]:
+    """Execute one approved argv with bounded binary output and no shell."""
+
+    try:
+        process = subprocess.Popen(
+            list(argv),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            cwd="/",
+            env=dict(MINIMAL_SOURCE_ENVIRONMENT),
+            start_new_session=True,
+        )
+    except FileNotFoundError:
+        raise SourceReaderError("source_missing") from None
+    except PermissionError:
+        raise SourceReaderError("source_denied") from None
+    except OSError:
+        raise SourceReaderError("source_denied") from None
+
+    assert process.stdout is not None
+    assert process.stderr is not None
+    selector = selectors.DefaultSelector()
+    selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+    selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+    stdout = bytearray()
+    source_truncated = False
+    started = time.monotonic()
+    try:
+        while selector.get_map():
+            remaining = timeout_seconds - (time.monotonic() - started)
+            if remaining <= 0:
+                _terminate_process_group(process)
+                raise SourceReaderError("timeout")
+            events = selector.select(remaining)
+            if not events:
+                _terminate_process_group(process)
+                raise SourceReaderError("timeout")
+            for key, _ in events:
+                chunk = os.read(key.fileobj.fileno(), 65_536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    key.fileobj.close()
+                    continue
+                if key.data != "stdout":
+                    continue
+                available = output_limit - len(stdout)
+                if len(chunk) > available:
+                    stdout.extend(chunk[:available])
+                    source_truncated = True
+                    _terminate_process_group(process)
+                    selector.close()
+                    process.wait(timeout=1.0)
+                    return (
+                        subprocess.CompletedProcess(
+                            list(argv), process.returncode, bytes(stdout), b""
+                        ),
+                        True,
+                    )
+                stdout.extend(chunk)
+    finally:
+        selector.close()
+        if process.poll() is None:
+            _terminate_process_group(process)
+    if process.returncode is None:
+        try:
+            process.wait(timeout=0.2)
+        except subprocess.TimeoutExpired:
+            _terminate_process_group(process)
+    return (
+        subprocess.CompletedProcess(list(argv), process.returncode, bytes(stdout), b""),
+        source_truncated,
+    )
+
+
+def _parse_decimal_integer(value: Any) -> int:
+    if isinstance(value, bool):
+        raise SourceReaderError("malformed_source")
+    if isinstance(value, int):
+        result = value
+    elif isinstance(value, str) and value.isdecimal():
+        result = int(value)
+    else:
+        raise SourceReaderError("malformed_source")
+    if result < 0:
+        raise SourceReaderError("malformed_source")
+    return result
+
+
+def _journal_severity(value: Any) -> str:
+    priority = _parse_decimal_integer(value)
+    if priority <= 2:
+        return "critical"
+    if priority == 3:
+        return "error"
+    if priority == 4:
+        return "warning"
+    if priority in {5, 6}:
+        return "info"
+    if priority == 7:
+        return "unknown"
+    raise SourceReaderError("malformed_source")
+
+
+def _journal_timestamp(value: Any) -> str:
+    micros = _parse_decimal_integer(value)
+    try:
+        parsed = datetime.fromtimestamp(micros / 1_000_000, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        raise SourceReaderError("malformed_source") from None
+    return _canonical_timestamp(parsed)
+
+
+def _parse_journal_output(
+    payload: bytes,
+    adapter_id: str,
+    source_truncated: bool,
+) -> SourceReadResult:
+    if payload and not payload.endswith(b"\n") and not source_truncated:
+        raise SourceReaderError("malformed_source")
+    lines = payload.splitlines()
+    if source_truncated and lines and not payload.endswith(b"\n"):
+        lines.pop()
+    expected_unit = ADAPTER_DEFINITIONS[adapter_id]["argv"][-1]
+    records: list[Mapping[str, Any]] = []
+    for line in lines:
+        try:
+            record = json.loads(
+                line.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, CollectorValidationError):
+            raise SourceReaderError("malformed_source") from None
+        if not isinstance(record, Mapping):
+            raise SourceReaderError("malformed_source")
+        if record.get("_SYSTEMD_UNIT") != expected_unit:
+            raise SourceReaderError("malformed_source")
+        message = record.get("MESSAGE")
+        if not isinstance(message, str):
+            raise SourceReaderError("malformed_source")
+        records.append(
+            {
+                "source_sequence": _parse_decimal_integer(record.get("_SEQNUM")),
+                "observed_at": _journal_timestamp(record.get("__REALTIME_TIMESTAMP")),
+                "severity": _journal_severity(record.get("PRIORITY")),
+                "event_class": "unknown",
+                "summary": message,
+            }
+        )
+    return SourceReadResult(records, source_truncated)
+
+
+_APACHE_ERROR_LINE = re.compile(
+    r"^\[(?P<timestamp>[A-Za-z]{3} [A-Za-z]{3} \d{1,2} "
+    r"\d{2}:\d{2}:\d{2}\.\d{1,6} \d{4})\]"
+    r"(?: \[[^\]]+\])+ (?P<message>.+)$"
+)
+
+
+def _parse_apache_output(payload: bytes, source_truncated: bool) -> SourceReadResult:
+    if payload and not payload.endswith(b"\n") and not source_truncated:
+        raise SourceReaderError("malformed_source")
+    lines = payload.splitlines()
+    if source_truncated and lines and not payload.endswith(b"\n"):
+        lines.pop()
+    records: list[Mapping[str, Any]] = []
+    for sequence, line in enumerate(lines):
+        try:
+            text = line.decode("utf-8")
+        except UnicodeDecodeError:
+            raise SourceReaderError("malformed_source") from None
+        match = _APACHE_ERROR_LINE.fullmatch(text)
+        if match is None:
+            raise SourceReaderError("malformed_source")
+        try:
+            parsed = datetime.strptime(
+                match.group("timestamp"), "%a %b %d %H:%M:%S.%f %Y"
+            ).replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise SourceReaderError("malformed_source") from None
+        records.append(
+            {
+                "source_sequence": sequence,
+                "observed_at": _canonical_timestamp(parsed),
+                "severity": "error",
+                "event_class": "unknown",
+                "summary": match.group("message"),
+            }
+        )
+    return SourceReadResult(records, source_truncated)
+
+
+def read_approved_source(
+    policy_reader: Mapping[str, Any],
+    bounds: Mapping[str, Any],
+    collection_started_at: datetime,
+    *,
+    execute: Callable[
+        ..., tuple[subprocess.CompletedProcess[bytes], bool]
+    ] = execute_fixed_argv,
+    deadline: float | None = None,
+) -> SourceReadResult:
+    """Read one policy-approved source through its fixed adapter."""
+
+    adapter_id, argv = _build_reader_argv(policy_reader, bounds, collection_started_at)
+    if deadline is None:
+        deadline = time.monotonic() + COLLECTOR_TIMEOUT_SECONDS
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise SourceReaderError("timeout")
+    completed, source_truncated = execute(argv, remaining)
+    if completed.returncode != 0 and not source_truncated:
+        raise SourceReaderError("source_denied")
+    kind = ADAPTER_DEFINITIONS[adapter_id]["kind"]
+    if kind == "journal":
+        return _parse_journal_output(
+            completed.stdout or b"", adapter_id, source_truncated
+        )
+    if kind == "apache_error_log":
+        return _parse_apache_output(completed.stdout or b"", source_truncated)
+    raise SourceReaderError("observer_integrity_error")
 
 
 def _normalize_summary(value: Any) -> str:
@@ -740,8 +1362,132 @@ def collect_nova_slice(
     )
 
 
+def _diagnostic_tool_for_source(source_class: str | None) -> str:
+    return {
+        METADATA_SOURCE_CLASS: METADATA_TOOL_NAME,
+        NEUTRON_SOURCE_CLASS: NEUTRON_TOOL_NAME,
+        NOVA_SOURCE_CLASS: NOVA_TOOL_NAME,
+    }.get(source_class, TOOL_NAME)
+
+
+def _diagnostic_error_document(tool_name: str, error_class: str) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "tool": tool_name,
+        "status": _metadata_error_status(error_class),
+        "sections": [],
+        "error": {
+            "class": error_class,
+            "message": ERROR_MESSAGES.get(
+                error_class, "Approved host-observer capability is unavailable."
+            ),
+        },
+    }
+
+
+def _document_exit_code(document: Mapping[str, Any]) -> int:
+    return {
+        "ok": 0,
+        "error": 1,
+        "denied": 2,
+        "timeout": 4,
+        "unavailable": 5,
+    }.get(document.get("status"), 1)
+
+
+def _resolve_runtime_host(
+    request: Mapping[str, Any], policy: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    if request["host_label"] != policy["local_host_label"]:
+        raise CollectorUnavailableError("host_unavailable")
+    host = policy["hosts"][0]
+    if not host["enabled"]:
+        raise CollectorUnavailableError("host_disabled")
+    if request["source_class"] not in host["source_classes"]:
+        raise CollectorUnavailableError("source_role_mismatch")
+    return host
+
+
+def _resolve_runtime_entry(
+    request: Mapping[str, Any], host: Mapping[str, Any], policy: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    expected_selector = POLICY_SELECTOR_BY_SOURCE[request["source_class"]]
+    matches = [
+        entry
+        for entry in policy["entries"]
+        if entry["source_class"] == request["source_class"]
+        and entry["logical_selector"] == expected_selector
+        and entry["inventory_role"] == host["inventory_role"]
+    ]
+    if len(matches) != 1:
+        raise CollectorUnavailableError("observer_integrity_error")
+    return matches[0]
+
+
+def _collect_runtime_document(
+    request: Mapping[str, Any],
+    host: Mapping[str, Any],
+    source_records: Sequence[Mapping[str, Any]],
+    source_truncated: bool,
+    collection_started_at: datetime,
+) -> dict[str, Any]:
+    arguments = (
+        source_records,
+        source_truncated,
+        "current",
+        request["host_label"],
+        host["inventory_role"],
+        request["window_class"],
+        request["line_limit_class"],
+        collection_started_at,
+    )
+    if request["source_class"] == METADATA_SOURCE_CLASS:
+        return collect_metadata_slice(*arguments)
+    if request["source_class"] == NEUTRON_SOURCE_CLASS:
+        return collect_neutron_slice(*arguments)
+    if request["source_class"] == NOVA_SOURCE_CLASS:
+        return collect_nova_slice(*arguments)
+    raise CollectorUnavailableError("source_role_mismatch")
+
+
+def _run_runtime_request(
+    request: Mapping[str, Any],
+    snapshot: PolicySnapshot,
+) -> tuple[int, dict[str, Any]]:
+    policy = snapshot.policy
+    host = _resolve_runtime_host(request, policy)
+    entry = _resolve_runtime_entry(request, host, policy)
+    collection_started_at = datetime.now(timezone.utc)
+    deadline = time.monotonic() + COLLECTOR_TIMEOUT_SECONDS
+    bounds = {
+        "window_class": request["window_class"],
+        "line_limit_class": request["line_limit_class"],
+    }
+    source_records: list[Mapping[str, Any]] = []
+    source_truncated = False
+    for reader in entry["readers"]:
+        result = read_approved_source(
+            reader,
+            bounds,
+            collection_started_at,
+            execute=execute_fixed_argv,
+            deadline=deadline,
+        )
+        source_records.extend(result.records)
+        source_truncated = source_truncated or result.source_truncated
+    document = _collect_runtime_document(
+        request,
+        host,
+        source_records,
+        source_truncated,
+        collection_started_at,
+    )
+    verify_policy_snapshot(snapshot)
+    return _document_exit_code(document), document
+
+
 def unavailable_document(error_class: str = "collector_stub") -> dict[str, Any]:
-    """Return the deterministic non-success document for the compile-safe stub."""
+    """Return a deterministic non-success document without source data."""
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -769,16 +1515,25 @@ def run(
     environment: Mapping[str, str] | None = None,
     raw_request: bytes = b"",
 ) -> tuple[int, dict[str, Any]]:
-    """Run the boundary without opening files, sockets, or child processes."""
+    """Run one fixed policy-gated diagnostic request."""
 
     environment = {} if environment is None else environment
     if argv or environment.get("SSH_ORIGINAL_COMMAND", ""):
         return 2, error_document("invocation_denied")
     try:
-        parse_request(raw_request)
-    except CollectorValidationError as error:
+        request = parse_request(raw_request)
+        if request["source_class"] is None:
+            raise CollectorValidationError("validation_error")
+    except CollectorValidationError:
         return 2, error_document("validation_error")
-    return 5, unavailable_document("authorization_pending")
+
+    tool_name = _diagnostic_tool_for_source(request["source_class"])
+    try:
+        snapshot = load_policy()
+        return _run_runtime_request(request, snapshot)
+    except CollectorValidationError as error:
+        document = _diagnostic_error_document(tool_name, error.error_class)
+        return _document_exit_code(document), document
 
 
 def main() -> int:

@@ -309,26 +309,32 @@ Authorization for one scope does not authorize another scope.
 ## Live-acceptance readiness prerequisite
 
 `docs/ai-ops-revised/runtime/phase06-live-acceptance-readiness-requirement.md`
-is the non-activating prerequisite for the exact acceptance run. Before any
-separately authorized scope, a dedicated local gate must validate its external,
-non-secret readiness manifest and retain only normalized outcomes. The manifest
-must not materialize or expose protected values, and gate validation does not
-authorize deployment, credential use, host contact, source reads, audit
-inspection, rollback, or workflow execution.
+is the non-activating prerequisite for the exact acceptance run. It defines two
+ordered local gates that retain only normalized outcomes:
 
-The approved requirement fixes the manifest top-level fields, exact
-`scope_approvals` entries and scope/status enums, plus closed
-`protected_input_references` and `integrity_checks` schemas. A validator must
-reject unknown, duplicate, missing, or protected-value fields and fail closed
-rather than infer a value or broaden a scope.
+1. A campaign authorization gate validates the Phase 05 prerequisite, owner
+   approvals, current references/timestamps, deployment-source integrity
+   references, and rollback ownership before operator-reader or observer
+   deployment. It does not create a readiness manifest or authorize host contact.
+2. A runtime readiness gate runs after both authorities are deployed and checks
+   all 8 deployed-state integrity outcomes. Only a successful runtime gate may
+   materialize or consume the closed `status: ready` manifest before host/source
+   contact.
+
+The manifest must not expose protected values, and either gate fails closed
+rather than authorizing an adjacent scope. The approved requirement fixes the
+manifest top-level fields, exact `scope_approvals` entries and scope/status
+enums, plus closed `protected_input_references` and `integrity_checks` schemas.
+A validator must reject unknown, duplicate, missing, or protected-value fields
+and fail closed rather than infer a value or broaden a scope.
 
 ## Completion criteria and next action
 
-This contract remains reviewable but **non-activating** while the readiness
-prerequisite, D01–D04, D08–D09, or any deployment/live gate remains unresolved.
-D05–D07 are complete at source revision `rev-2026-08-0002`; static registry
-entries, connector validation, and synthetic bounded slices are present for all
-three diagnostic intents. Live source adapters, protected inputs, deployment,
-host contact, and acceptance evidence remain unavailable. No generated input,
-protected data, host contact, or live action may be used to manufacture
-activation completeness.
+This contract remains reviewable but **non-activating** while the campaign or
+runtime readiness gate, D01–D04, D08–D09, or any deployment/live gate remains
+unresolved. D05–D07 are complete at source revision `rev-2026-08-0002`;
+static registry entries, connector validation, and synthetic bounded slices are
+present for all three diagnostic intents. Live source adapters, protected
+inputs, deployment, host contact, and acceptance evidence remain unavailable.
+No generated input, protected data, host contact, or live action may be used to
+manufacture activation completeness.

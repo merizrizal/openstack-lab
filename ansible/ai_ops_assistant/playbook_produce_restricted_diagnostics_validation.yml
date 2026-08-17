@@ -10,6 +10,8 @@
     ai_ops_assistant_phase06_validation_enabled: false
     ai_ops_assistant_phase06_validation_authorization: unconfirmed
     ai_ops_assistant_phase06_validation_phase05_acceptance_gate: unconfirmed
+    ai_ops_assistant_phase06_validation_phase05_acceptance_outcome: unconfirmed
+    ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference: unconfirmed
     ai_ops_assistant_phase06_validation_evidence_owner: unconfirmed
     ai_ops_assistant_phase06_validation_run_id: ""
     ai_ops_assistant_phase06_validation_source_revision: unconfirmed
@@ -51,6 +53,8 @@
       unresolved_gates:
         - validation_producer_not_implemented
       phase05_acceptance_confirmed: false
+      phase05_acceptance_outcome: unconfirmed
+      phase05_acceptance_evidence_reference: unconfirmed
       neutron_read_classified: false
       operator_reader_reviewed: false
       observer_policy_reviewed: false
@@ -96,6 +100,10 @@
         that:
           - ai_ops_assistant_phase06_validation_authorization == 'administrator-authorized-phase06-validation'
           - ai_ops_assistant_phase06_validation_phase05_acceptance_gate == 'administrator-confirmed-external-evidence'
+          - ai_ops_assistant_phase06_validation_phase05_acceptance_outcome in ['accepted', 'blocked', 'failed']
+          - ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference is match('^[a-z0-9][a-z0-9._-]{0,127}$')
+          - ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference is match('^' ~ ai_ops_assistant_phase06_validation_run_id ~ '-')
+          - ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference != 'unconfirmed'
           - ai_ops_assistant_phase06_validation_output_location_approval == 'administrator-approved-protected-validation-location'
           - ai_ops_assistant_phase06_validation_evidence_owner is match('^[A-Za-z0-9][A-Za-z0-9 ._@-]{0,95}$')
           - ai_ops_assistant_phase06_validation_evidence_owner != 'unconfirmed'
@@ -347,7 +355,9 @@
           {{ ai_ops_assistant_phase06_validation_result | combine({
             'run_id': ai_ops_assistant_phase06_validation_run_id,
             'source_revision': ai_ops_assistant_phase06_validation_source_revision,
-            'phase05_acceptance_confirmed': true,
+            'phase05_acceptance_confirmed': ai_ops_assistant_phase06_validation_phase05_acceptance_outcome == 'accepted',
+            'phase05_acceptance_outcome': ai_ops_assistant_phase06_validation_phase05_acceptance_outcome,
+            'phase05_acceptance_evidence_reference': ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference,
             'neutron_read_outcome': ai_ops_assistant_phase06_neutron_read_result.outcome,
             'neutron_read_json_shape_valid': ai_ops_assistant_phase06_neutron_read_result.json_shape_valid,
             'neutron_read_read_only_operation': ai_ops_assistant_phase06_neutron_read_result.read_only_operation,
@@ -361,9 +371,10 @@
               else 'authorization_pending'
             ),
             'unresolved_gates': (
-              ['phase05_acceptance_pending', 'observer_policy_pending',
-              'negative_test_plan_pending', 'output_schema_pending',
-              'redaction_check_pending'] +
+              ([] if ai_ops_assistant_phase06_validation_phase05_acceptance_outcome == 'accepted' else
+              ['phase05_acceptance_pending']) +
+              ['observer_policy_pending', 'negative_test_plan_pending',
+              'output_schema_pending', 'redaction_check_pending'] +
               (['operator_reader_review_pending'] if
               ai_ops_assistant_phase06_neutron_read_result.outcome == 'policy_denied' else [])
             )

@@ -16,6 +16,8 @@ grep -Fq "inventory_hostname == 'assistant02'" "$playbook"
 grep -Fq "ansible_limit | default('') == 'assistant02'" "$playbook"
 grep -Fq 'ai_ops_assistant_phase06_validation_enabled: false' "$playbook"
 grep -Fq 'ai_ops_assistant_phase06_validation_phase05_acceptance_gate: unconfirmed' "$playbook"
+grep -Fq 'ai_ops_assistant_phase06_validation_phase05_acceptance_outcome: unconfirmed' "$playbook"
+grep -Fq 'ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference: unconfirmed' "$playbook"
 grep -Fq "ai_ops_assistant_phase06_validation_scope: project-reader-neutron-read-only" "$playbook"
 grep -Fq "ai_ops_assistant_phase06_validation_profile_name: aiops-assistant-project-reader" "$playbook"
 grep -Fq 'ai_ops_assistant_phase06_validation_public_parameters: []' "$playbook"
@@ -45,6 +47,9 @@ grep -Fq "'authentication_error'" "$playbook"
 grep -Fq "'configuration_error'" "$playbook"
 grep -Fq "administrator-authorized-phase06-validation" "$playbook"
 grep -Fq "administrator-confirmed-external-evidence" "$playbook"
+grep -Fq "phase05_acceptance_outcome in ['accepted', 'blocked', 'failed']" "$playbook"
+grep -Fq "phase05_acceptance_evidence_reference != 'unconfirmed'" "$playbook"
+grep -Fq "phase05_acceptance_evidence_reference is match('^' ~ ai_ops_assistant_phase06_validation_run_id ~ '-')" "$playbook"
 grep -Fq "administrator-approved-protected-validation-location" "$playbook"
 grep -Fq "ai_ops_assistant_phase06_validation_source_revision != 'unconfirmed'" "$playbook"
 
@@ -52,7 +57,7 @@ if grep -nE 'ansible\.builtin\.(shell|raw|debug)|playbook_validate_phase06_restr
   fail "shell execution, historical reuse, raw output persistence, or sensitive handling found"
 fi
 
-if grep -nE 'phase05_acceptance_confirmed: true|neutron_read_classified: true|operator_reader_reviewed: true|observer_policy_reviewed: true|negative_test_plan_approved: true|output_schema_frozen: true|redaction_check_completed: true' "$playbook"; then
+if grep -nE "phase05_acceptance_confirmed: true|'phase05_acceptance_confirmed': true|neutron_read_classified: true|operator_reader_reviewed: true|observer_policy_reviewed: true|negative_test_plan_approved: true|output_schema_frozen: true|redaction_check_completed: true" "$playbook"; then
   fail "validation producer contains success-shaped gate defaults"
 fi
 

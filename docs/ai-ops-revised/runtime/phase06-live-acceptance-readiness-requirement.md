@@ -18,17 +18,26 @@ The administrator-owned authorization package is:
 
 The package must contain separate approvals for deployment, one host/source contact, positive validation, negative boundary validation, outcome-only evidence recording, protected audit inspection, unchanged-state comparison, revocation/rollback, and the representative workflow. One broad approval must not substitute for these scope approvals.
 
+## Two-stage readiness gate
+
+Readiness is evaluated in two non-interchangeable stages using the same owner package and run ID:
+
+1. **Campaign authorization:** before deployment, validate the Phase 05 prerequisite outcome, all 11 scope approvals, current run/reference metadata, timestamps, protected revision references, deployment-source integrity references, and rollback ownership. This stage authorizes only operator-reader and observer deployment. It does not write the readiness manifest and does not authorize host contact.
+2. **Runtime readiness:** after both authorities are deployed and their metadata is inspected, validate all 8 integrity checks. Only this stage may materialize the closed `status: ready` manifest and permit host/source contact.
+
+A failed or changed campaign gate prevents deployment. A failed runtime gate prevents host contact. The existing readiness-manifest schema remains unchanged; campaign authorization is an execution boundary, not a new manifest status.
+
 ## External materialization boundary
 
 Protected inputs must be materialized by the approved external inventory, secret, and operator procedures. The agent must receive only non-secret paths, labels, run identifiers, approval references, and normalized gate results.
 
-The external procedure must provide the non-secret readiness manifest at:
+After deployment, the runtime procedure must provide or materialize the non-secret readiness manifest at:
 
 ```text
 /run/openstack-ai-ops/2026-0004/phase06-readiness.json
 ```
 
-The parent directory must be operator-controlled with mode `0700`; the manifest must be a regular, non-symlink file with mode `0600`, and its serialized size must not exceed `16384` bytes. It is read-only input to gate validation and must be deleted after the run. The manifest must not contain addresses, credentials, private keys, profiles, raw logs, commands, audit lines, source payloads, or comparator data.
+Before deployment, the campaign procedure validates the same owner package without creating this file. The parent directory must be operator-controlled with mode `0700`; the manifest must be a regular, non-symlink file with mode `0600`, and its serialized size must not exceed `16384` bytes. It is read-only input to runtime gate validation and must be deleted after the run. The manifest must not contain addresses, credentials, private keys, profiles, raw logs, commands, audit lines, source payloads, or comparator data.
 
 The external procedure separately materializes and protects:
 
@@ -143,17 +152,20 @@ Protected task state may hold validation details only under `no_log`; exported e
 
 Scopes execute one at a time, with a fresh normalized outcome for each:
 
-1. Reconcile prerequisites and validate the readiness manifest.
+1. Validate campaign authorization and the Phase 05 prerequisite.
 2. Deploy the operator-reader authority.
 3. Deploy the observer account, key policy, collector, and host policy.
-4. Contact one approved host and one approved source class.
-5. Run positive collector validation.
-6. Run all approved negative SSH, forwarding, sudo, and source-boundary controls.
-7. Record normalized outcome-only evidence.
-8. Inspect protected audit results under separate authorization.
-9. Compare owner-controlled unchanged-state attestations.
-10. Rehearse revocation and rollback.
-11. Run the representative advisory-only workflow.
+4. Validate runtime readiness and materialize the closed ready manifest.
+5. Contact one approved host and one approved source class.
+6. Run positive collector validation.
+7. Run all approved negative SSH, forwarding, sudo, and source-boundary controls.
+8. Record normalized outcome-only evidence.
+9. Inspect protected audit results under separate authorization.
+10. Compare owner-controlled unchanged-state attestations.
+11. Rehearse revocation and rollback.
+12. Run the representative advisory-only workflow.
+
+The two readiness stages use the single `prerequisite_readiness` approval; deployment and later live scopes retain their own approvals.
 
 Stop immediately on missing, stale, contradictory, malformed, unauthorized, or unsafe evidence. Do not retry with broader permissions, alternate hosts, alternate addresses, fallback credentials, caller-selected sources, or ad hoc sudo.
 

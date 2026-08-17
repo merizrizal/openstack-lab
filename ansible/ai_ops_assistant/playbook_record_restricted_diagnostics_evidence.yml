@@ -180,7 +180,8 @@
             'neutron_read_outcome', 'neutron_read_read_only_operation',
             'negative_test_plan_approved', 'observer_policy_reviewed',
             'operator_reader_reviewed', 'output_schema_frozen',
-            'phase05_acceptance_confirmed', 'producer', 'redaction_check_completed',
+            'phase05_acceptance_confirmed', 'phase05_acceptance_evidence_reference',
+            'phase05_acceptance_outcome', 'producer', 'redaction_check_completed',
             'rollback_status', 'run_id', 'schema_version', 'source_revision',
             'status', 'limitation_class', 'unresolved_gates',
             'operation'] | sort
@@ -202,6 +203,20 @@
             (ai_ops_assistant_restricted_evidence_validation_result.neutron_read_outcome in
             ['pass', 'empty', 'policy_denied'])
           - ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome in ['accepted', 'blocked', 'failed']
+          - >-
+            ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_evidence_reference is match(
+            '^' ~ ai_ops_assistant_restricted_evidence_run_id ~ '-[A-Za-z0-9._-]{1,127}$')
+          - >-
+            ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed ==
+            (ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome == 'accepted')
+          - >-
+            (ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed and
+            'phase05_acceptance_pending' not in
+            ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates) or
+            (not ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed and
+            'phase05_acceptance_pending' in
+            ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates)
           - ai_ops_assistant_restricted_evidence_validation_result.operator_reader_reviewed is boolean
           - ai_ops_assistant_restricted_evidence_validation_result.observer_policy_reviewed is boolean
           - ai_ops_assistant_restricted_evidence_validation_result.negative_test_plan_approved is boolean
@@ -244,6 +259,9 @@
         ai_ops_assistant_restricted_evidence_unresolved_gates: "{{ ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates }}"
         ai_ops_assistant_restricted_evidence_phase05_acceptance_confirmed: "{{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed
           | bool }}"
+        ai_ops_assistant_restricted_evidence_phase05_acceptance_outcome: "{{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome }}"
+        ai_ops_assistant_restricted_evidence_phase05_acceptance_evidence_reference: "{{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_evidence_reference
+          }}"
         ai_ops_assistant_restricted_evidence_neutron_read_classified: "{{ ai_ops_assistant_restricted_evidence_validation_result.neutron_read_classified | bool }}"
         ai_ops_assistant_restricted_evidence_operator_reader_reviewed: "{{ ai_ops_assistant_restricted_evidence_validation_result.operator_reader_reviewed | bool
           }}"
@@ -360,6 +378,8 @@
           ## Bounded validation booleans
 
           - Phase 05 acceptance confirmed: {{ ai_ops_assistant_restricted_evidence_phase05_acceptance_confirmed | bool }}
+          - Phase 05 acceptance outcome: {{ ai_ops_assistant_restricted_evidence_phase05_acceptance_outcome }}
+          - Phase 05 acceptance evidence reference: {{ ai_ops_assistant_restricted_evidence_phase05_acceptance_evidence_reference }}
           - Neutron read classified: {{ ai_ops_assistant_restricted_evidence_neutron_read_classified | bool }}
           - Operator-reader reviewed: {{ ai_ops_assistant_restricted_evidence_operator_reader_reviewed | bool }}
           - Observer policy reviewed: {{ ai_ops_assistant_restricted_evidence_observer_policy_reviewed | bool }}

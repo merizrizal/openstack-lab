@@ -1,10 +1,12 @@
 import importlib.util
 import io
 import json
+import subprocess
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT_PATH = (
     Path(__file__).parents[2]
@@ -22,7 +24,7 @@ SPEC.loader.exec_module(COLLECTOR)
 VALID_REQUEST = {
     "schema_version": "1.0",
     "host_label": "controller-a",
-    "source_class": "metadata",
+    "source_class": "metadata_error_events",
     "window_class": "30m",
     "line_limit_class": "medium",
 }
@@ -35,18 +37,93 @@ VALID_PROJECTION = {
         {
             "host_label": "controller-a",
             "inventory_role": "controller",
-            "source_classes": ["metadata", "neutron", "nova"],
+            "source_classes": [
+                "metadata_error_events",
+                "neutron_error_events",
+                "nova_error_events",
+            ],
             "enabled": True,
         }
     ],
 }
+
+
+def policy_reader(adapter_id):
+    return {
+        "adapter_id": adapter_id,
+        "argv": list(COLLECTOR.ADAPTER_DEFINITIONS[adapter_id]["argv"]),
+    }
+
+
+POLICY_GENERATED_AT = datetime.now(timezone.utc) - timedelta(hours=1)
+POLICY_EXPIRES_AT = POLICY_GENERATED_AT + timedelta(hours=2)
+
 VALID_POLICY = {
     "schema_version": "1.0",
-    "source_classes": ["metadata", "neutron", "nova"],
-    "window_classes": ["30m"],
-    "line_limit_classes": ["medium"],
+    "policy_type": "host_observer_policy",
+    "revision": "fixture-revision",
+    "generated_at": POLICY_GENERATED_AT.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+    "expires_at": POLICY_EXPIRES_AT.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+    "freshness_class": "current",
     "metadata_status": "accepted",
     "redaction_policy_status": "accepted",
+    "source_classes": [
+        "metadata_error_events",
+        "neutron_error_events",
+        "nova_error_events",
+    ],
+    "window_classes": ["15m", "30m", "1h"],
+    "line_limit_classes": ["small", "medium", "large"],
+    "local_host_label": "controller-a",
+    "hosts": [
+        {
+            "host_label": "controller-a",
+            "inventory_role": "controller",
+            "source_classes": [
+                "metadata_error_events",
+                "neutron_error_events",
+                "nova_error_events",
+            ],
+            "enabled": True,
+        }
+    ],
+    "entries": [
+        {
+            "source_class": "metadata_error_events",
+            "logical_selector": "metadata_service_errors",
+            "inventory_role": "controller",
+            "readers": [
+                policy_reader("metadata_agent_errors"),
+                policy_reader("metadata_apache_errors"),
+            ],
+        },
+        {
+            "source_class": "neutron_error_events",
+            "logical_selector": "neutron_service_errors",
+            "inventory_role": "controller",
+            "readers": [
+                policy_reader("neutron_server_errors"),
+                policy_reader("neutron_ovs_agent_errors"),
+            ],
+        },
+        {
+            "source_class": "neutron_error_events",
+            "logical_selector": "neutron_service_errors",
+            "inventory_role": "compute",
+            "readers": [policy_reader("neutron_ovs_agent_errors")],
+        },
+        {
+            "source_class": "nova_error_events",
+            "logical_selector": "nova_service_errors",
+            "inventory_role": "controller",
+            "readers": [
+                policy_reader("nova_api_errors"),
+                policy_reader("nova_conductor_errors"),
+                policy_reader("nova_scheduler_errors"),
+                policy_reader("nova_apache_errors"),
+            ],
+        },
+    ],
 }
 
 
@@ -71,14 +148,101 @@ def metadata_record(
 
 
 class HostObserverCollectorTest(unittest.TestCase):
-    def test_valid_request_is_explicitly_unavailable_without_source_access(self):
-        exit_code, document = COLLECTOR.run(
-            raw_request=json.dumps(VALID_REQUEST).encode()
+    def test_valid_request_dispatches_all_fixed_metadata_readers(self):
+        now = datetime.now(timezone.utc).replace(microsecond=123456)
+
+        def fake_execute(argv, _timeout):
+            if "--unit" in argv:
+                unit = argv[argv.index("--unit") + 1]
+                payload = {
+                    "_SYSTEMD_UNIT": unit,
+                    "_SEQNUM": "1",
+                    "__REALTIME_TIMESTAMP": str(int(now.timestamp() * 1_000_000)),
+                    "PRIORITY": "3",
+                    "MESSAGE": "metadata service failure",
+                }
+                return (
+                    subprocess.CompletedProcess(
+                        argv, 0, json.dumps(payload).encode() + b"\n", b""
+                    ),
+                    False,
+                )
+            apache_line = (
+                now.strftime("[%a %b %d %H:%M:%S.%f %Y]")
+                + " [proxy:error] metadata apache failure\n"
+            )
+            return (
+                subprocess.CompletedProcess(argv, 0, apache_line.encode(), b""),
+                False,
+            )
+
+        snapshot = COLLECTOR.PolicySnapshot(
+            VALID_POLICY, "fixture-digest", (1, 2, 3, 4, 5), COLLECTOR.POLICY_PATH
         )
-        self.assertEqual(exit_code, 5)
-        self.assertEqual(document["status"], "unavailable")
-        self.assertEqual(document["error"]["class"], "authorization_pending")
-        self.assertEqual(document["sections"], [])
+        with patch.object(
+            COLLECTOR, "load_policy", return_value=snapshot
+        ), patch.object(COLLECTOR, "verify_policy_snapshot"), patch.object(
+            COLLECTOR, "execute_fixed_argv", side_effect=fake_execute
+        ):
+            exit_code, document = COLLECTOR.run(
+                raw_request=json.dumps(VALID_REQUEST).encode()
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(document["tool"], "recent_metadata_errors")
+        self.assertEqual(document["status"], "ok")
+        self.assertEqual(len(document["sections"][0]["data"]), 2)
+
+    def test_valid_request_dispatches_neutron_and_nova_tools(self):
+        now = datetime.now(timezone.utc).replace(microsecond=123456)
+
+        def fake_execute(argv, _timeout):
+            if "--unit" in argv:
+                unit = argv[argv.index("--unit") + 1]
+                payload = {
+                    "_SYSTEMD_UNIT": unit,
+                    "_SEQNUM": "1",
+                    "__REALTIME_TIMESTAMP": str(int(now.timestamp() * 1_000_000)),
+                    "PRIORITY": "3",
+                    "MESSAGE": "fixed service failure",
+                }
+                return (
+                    subprocess.CompletedProcess(
+                        argv, 0, json.dumps(payload).encode() + b"\n", b""
+                    ),
+                    False,
+                )
+            line = (
+                now.strftime("[%a %b %d %H:%M:%S.%f %Y]")
+                + " [proxy:error] fixed apache failure\n"
+            )
+            return (
+                subprocess.CompletedProcess(argv, 0, line.encode(), b""),
+                False,
+            )
+
+        for source_class, tool_name in (
+            ("neutron_error_events", "recent_neutron_errors"),
+            ("nova_error_events", "recent_nova_errors"),
+        ):
+            request = {**VALID_REQUEST, "source_class": source_class}
+            snapshot = COLLECTOR.PolicySnapshot(
+                VALID_POLICY,
+                "fixture-digest",
+                (1, 2, 3, 4, 5),
+                COLLECTOR.POLICY_PATH,
+            )
+            with self.subTest(source_class=source_class), patch.object(
+                COLLECTOR, "load_policy", return_value=snapshot
+            ), patch.object(COLLECTOR, "verify_policy_snapshot"), patch.object(
+                COLLECTOR, "execute_fixed_argv", side_effect=fake_execute
+            ):
+                exit_code, document = COLLECTOR.run(
+                    raw_request=json.dumps(request).encode()
+                )
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(document["tool"], tool_name)
+            self.assertEqual(document["status"], "ok")
 
     def test_invocation_arguments_and_original_command_are_rejected(self):
         for argv, environment in (
@@ -92,7 +256,7 @@ class HostObserverCollectorTest(unittest.TestCase):
 
     def test_request_rejects_duplicate_unknown_oversized_and_unsafe_values(self):
         cases = (
-            b'{"schema_version":"1.0","schema_version":"1.0","host_label":"controller-a","source_class":"metadata","window_class":"default","line_limit_class":"default"}',
+            b'{"schema_version":"1.0","schema_version":"1.0","host_label":"controller-a","source_class":"metadata_error_events","window_class":"default","line_limit_class":"default"}',
             json.dumps({**VALID_REQUEST, "extra": "no"}).encode(),
             b"{" + b"x" * (COLLECTOR.REQUEST_MAX_BYTES + 1) + b"}",
             json.dumps({**VALID_REQUEST, "host_label": "controller.a"}).encode(),
@@ -639,6 +803,136 @@ class HostObserverCollectorTest(unittest.TestCase):
         self.assertIn("[REDACTED]", serialized)
         self.assertNotIn("secret", serialized)
         self.assertNotIn("192.0.2.44", serialized)
+
+    def test_policy_schema_rejects_unknown_and_tampered_reader_fields(self):
+        unknown = json.loads(json.dumps(VALID_POLICY))
+        unknown["unexpected"] = True
+        with self.assertRaises(COLLECTOR.CollectorValidationError):
+            COLLECTOR.validate_policy_metadata(unknown)
+
+        tampered = json.loads(json.dumps(VALID_POLICY))
+        tampered["entries"][0]["readers"][0]["argv"][0] = "/bin/sh"
+        with self.assertRaises(COLLECTOR.CollectorValidationError):
+            COLLECTOR.validate_policy_metadata(tampered)
+
+        stale = json.loads(json.dumps(VALID_POLICY))
+        stale["generated_at"] = "2000-01-01T00:00:00.000000Z"
+        stale["expires_at"] = "2000-01-01T01:00:00.000000Z"
+        with self.assertRaises(COLLECTOR.CollectorUnavailableError):
+            COLLECTOR.validate_policy_metadata(stale)
+
+    def test_fixed_reader_argv_adds_only_code_owned_bounds(self):
+        reader = VALID_POLICY["entries"][0]["readers"][0]
+        adapter_id, argv = COLLECTOR._build_reader_argv(
+            reader,
+            {"window_class": "30m", "line_limit_class": "medium"},
+            COLLECTION_START,
+        )
+        self.assertEqual(adapter_id, "metadata_agent_errors")
+        self.assertIn("--unit", argv)
+        self.assertEqual(argv[argv.index("--lines") + 1], "101")
+        self.assertNotIn("|", argv)
+        self.assertNotIn(";", argv)
+
+    def test_injected_journal_reader_normalizes_fixed_fields(self):
+        reader = VALID_POLICY["entries"][0]["readers"][0]
+        payload = {
+            "_SYSTEMD_UNIT": "neutron-metadata-agent",
+            "_SEQNUM": "4",
+            "__REALTIME_TIMESTAMP": str(int(COLLECTION_START.timestamp() * 1_000_000)),
+            "PRIORITY": "3",
+            "MESSAGE": "metadata failure",
+        }
+
+        def fake_execute(argv, _timeout):
+            return (
+                subprocess.CompletedProcess(
+                    argv, 0, json.dumps(payload).encode() + b"\n", b""
+                ),
+                False,
+            )
+
+        result = COLLECTOR.read_approved_source(
+            reader,
+            {"window_class": "30m", "line_limit_class": "medium"},
+            COLLECTION_START,
+            execute=fake_execute,
+        )
+        self.assertEqual(result.records[0]["source_sequence"], 4)
+        self.assertEqual(result.records[0]["event_class"], "unknown")
+
+    def test_injected_reader_failure_is_bounded_and_has_no_partial_document(self):
+        snapshot = COLLECTOR.PolicySnapshot(
+            VALID_POLICY, "fixture-digest", (1, 2, 3, 4, 5), COLLECTOR.POLICY_PATH
+        )
+        calls = 0
+
+        def fake_execute(argv, _timeout):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                unit = argv[argv.index("--unit") + 1]
+                payload = {
+                    "_SYSTEMD_UNIT": unit,
+                    "_SEQNUM": "1",
+                    "__REALTIME_TIMESTAMP": str(
+                        int(datetime.now(timezone.utc).timestamp() * 1_000_000)
+                    ),
+                    "PRIORITY": "3",
+                    "MESSAGE": "first reader",
+                }
+                return (
+                    subprocess.CompletedProcess(
+                        argv, 0, json.dumps(payload).encode() + b"\n", b""
+                    ),
+                    False,
+                )
+            return subprocess.CompletedProcess(argv, 1, b"", b"denied"), False
+
+        with patch.object(
+            COLLECTOR, "load_policy", return_value=snapshot
+        ), patch.object(COLLECTOR, "verify_policy_snapshot"), patch.object(
+            COLLECTOR, "execute_fixed_argv", side_effect=fake_execute
+        ):
+            exit_code, document = COLLECTOR.run(
+                raw_request=json.dumps(VALID_REQUEST).encode()
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(document["status"], "denied")
+        self.assertEqual(document["error"]["class"], "source_denied")
+        self.assertEqual(document["sections"], [])
+
+    def test_injected_timeout_does_not_fallback_to_another_reader(self):
+        reader = VALID_POLICY["entries"][0]["readers"][0]
+
+        def timeout(_argv, _timeout):
+            raise COLLECTOR.SourceReaderError("timeout")
+
+        with self.assertRaises(COLLECTOR.SourceReaderError) as context:
+            COLLECTOR.read_approved_source(
+                reader,
+                {"window_class": "30m", "line_limit_class": "medium"},
+                COLLECTION_START,
+                execute=timeout,
+            )
+        self.assertEqual(context.exception.error_class, "timeout")
+
+    def test_policy_loader_and_snapshot_verification_use_injected_bytes_only(self):
+        payload = json.dumps(VALID_POLICY, separators=(",", ":")).encode()
+        changed = json.dumps(
+            {**VALID_POLICY, "revision": "changed"}, separators=(",", ":")
+        ).encode()
+        with patch.object(
+            COLLECTOR,
+            "_read_policy_bytes",
+            side_effect=[(payload, (1, 2, 3, 4, 5)), (changed, (1, 2, 3, 4, 6))],
+        ):
+            snapshot = COLLECTOR.load_policy()
+            self.assertEqual(snapshot.policy["revision"], "fixture-revision")
+            with self.assertRaises(COLLECTOR.CollectorUnavailableError) as context:
+                COLLECTOR.verify_policy_snapshot(snapshot)
+        self.assertEqual(context.exception.error_class, "observer_integrity_error")
 
 
 if __name__ == "__main__":
