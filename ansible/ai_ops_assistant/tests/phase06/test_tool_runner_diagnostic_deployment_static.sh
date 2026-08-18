@@ -152,10 +152,12 @@ grep -Fq 'ai_ops_assistant_phase06_validation_enabled: false' "$validation_playb
 grep -Fq 'status: blocked' "$validation_playbook"
 grep -Fq 'limitation_class: authorization_pending' "$validation_playbook"
 grep -Fq 'phase05_acceptance_confirmed: false' "$validation_playbook"
-grep -Fq 'neutron_read_classified: false' "$validation_playbook"
-grep -Fq 'operator_reader_reviewed: false' "$validation_playbook"
-grep -Fq 'observer_policy_reviewed: false' "$validation_playbook"
-grep -Fq 'output_schema_frozen: false' "$validation_playbook"
-grep -Fq 'redaction_check_completed: false' "$validation_playbook"
+grep -Fq 'ai_ops_assistant_phase06_validation_tool_outcomes: []' "$validation_playbook"
+grep -Fq 'ai_ops_assistant_phase06_validation_negative_controls: []' "$validation_playbook"
+grep -Fq 'ai_ops_assistant_phase06_validation_scope_outcomes: []' "$validation_playbook"
+grep -Fq 'ai_ops_assistant_phase06_validation_audit_pairs: []' "$validation_playbook"
+grep -Fq 'final_acceptance: false' "$validation_playbook"
+
+grep -Fq 'seven_tool_acceptance_orchestration' "$validation_playbook"
 
 printf 'Tool-runner/diagnostic deployment static acceptance test passed\n'

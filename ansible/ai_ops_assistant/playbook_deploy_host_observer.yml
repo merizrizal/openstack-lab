@@ -1,0 +1,48 @@
+---
+- name: Deploy or revoke the scoped AI-OPS host observer
+  hosts: ai_ops_host_observers
+  become: true
+  gather_facts: false
+  serial: 1
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ai_ops_assistant_host_observer_boundary_enabled: false
+    ai_ops_assistant_host_observer_boundary_lifecycle_action: present
+    ai_ops_assistant_host_observer_boundary_deployment_authorization: unconfirmed
+    ai_ops_assistant_host_observer_boundary_disablement_authorization: unconfirmed
+    ai_ops_assistant_host_observer_boundary_removal_authorization: unconfirmed
+    ai_ops_assistant_host_observer_boundary_inventory_projection_status: unresolved
+    ai_ops_assistant_host_observer_boundary_inventory_projection_source: ""
+    ai_ops_assistant_host_observer_boundary_collector_policy_source: ""
+    ai_ops_assistant_host_observer_boundary_key_source: ""
+    ai_ops_assistant_host_observer_boundary_ssh_source_restriction: ""
+    ai_ops_assistant_host_observer_boundary_per_host_enablement: {}
+    ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes: {}
+    ai_ops_assistant_host_observer_boundary_host_destination_override: ""
+  pre_tasks:
+    - name: Assert exact host-observer deployment scope
+      ansible.builtin.assert:
+        that:
+          - "'ai_ops_host_observers' in group_names"
+          - ansible_play_hosts_all | difference(groups['ai_ops_host_observers']) | length == 0
+          - ansible_limit | default('') == 'ai_ops_host_observers'
+          - ansible_play_batch | length == 1
+        quiet: true
+      changed_when: false
+
+    - name: Keep host-observer deployment disabled until owner approval
+      ansible.builtin.assert:
+        that:
+          - not ai_ops_assistant_host_observer_boundary_enabled | bool or ai_ops_assistant_host_observer_boundary_deployment_authorization == 'approved'
+          - ai_ops_assistant_host_observer_boundary_lifecycle_action in ['present', 'disable', 'remove']
+        fail_msg: >-
+          Host-observer deployment remains unavailable until the separately
+          authorized account, key, policy, and host lifecycle inputs are supplied.
+        quiet: true
+      changed_when: false
+      no_log: true
+  roles:
+    - role: ai_ops_assistant_host_observer_boundary
+      when:
+        - ai_ops_assistant_host_observer_boundary_enabled | bool or ai_ops_assistant_host_observer_boundary_lifecycle_action != 'present'

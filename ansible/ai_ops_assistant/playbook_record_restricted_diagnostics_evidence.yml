@@ -1,5 +1,5 @@
 ---
-- name: Record restricted diagnostics outcome-only evidence
+- name: Record restricted-diagnostics outcome-only evidence
   hosts: ai_ops_assistant
   become: true
   gather_facts: false
@@ -29,26 +29,9 @@
     ai_ops_assistant_restricted_evidence_validation_result_path: >-
       {{ ai_ops_assistant_restricted_evidence_validation_result_directory }}/{{
       ai_ops_assistant_restricted_evidence_run_id }}.json
-    ai_ops_assistant_restricted_evidence_validation_result_allowed_producers:
-      - phase06_restricted_diagnostics_validation
-    ai_ops_assistant_restricted_evidence_validation_result_allowed_operations:
-      - neutron_agent_list_project_reader
-    ai_ops_assistant_restricted_evidence_manual_validation_fields:
-      - ai_ops_assistant_restricted_evidence_validation_result
-      - ai_ops_assistant_restricted_evidence_validation_result_raw
-      - ai_ops_assistant_restricted_evidence_status
-      - ai_ops_assistant_restricted_evidence_limitation_class
-      - ai_ops_assistant_restricted_evidence_rollback_status
-      - ai_ops_assistant_restricted_evidence_unresolved_gates
-      - ai_ops_assistant_restricted_evidence_phase05_acceptance_confirmed
-      - ai_ops_assistant_restricted_evidence_neutron_read_classified
-      - ai_ops_assistant_restricted_evidence_operator_reader_reviewed
-      - ai_ops_assistant_restricted_evidence_observer_policy_reviewed
-      - ai_ops_assistant_restricted_evidence_negative_test_plan_approved
-      - ai_ops_assistant_restricted_evidence_output_schema_frozen
-      - ai_ops_assistant_restricted_evidence_redaction_check_completed
     ai_ops_assistant_restricted_evidence_path: >-
-      {{ ai_ops_assistant_restricted_evidence_directory }}/{{ ai_ops_assistant_restricted_evidence_run_id }}.md
+      {{ ai_ops_assistant_restricted_evidence_directory }}/{{
+      ai_ops_assistant_restricted_evidence_run_id }}.md
     ai_ops_assistant_restricted_evidence_allowed_statuses:
       - accepted
       - unavailable
@@ -57,19 +40,20 @@
     ai_ops_assistant_restricted_evidence_allowed_limitation_classes:
       - none
       - authorization_pending
-      - policy_denied
-      - catalog_missing
-      - connectivity_error
-      - authentication_error
-      - configuration_error
+      - acceptance_pending
+      - validation_failure
       - unavailable
       - contradictory_evidence
       - rollback_required
-    ai_ops_assistant_restricted_evidence_allowed_rollback_statuses:
-      - not_required
-      - pending
-      - complete
-      - failed
+    ai_ops_assistant_restricted_evidence_manual_validation_fields:
+      - ai_ops_assistant_restricted_evidence_validation_result
+      - ai_ops_assistant_restricted_evidence_validation_result_raw
+      - ai_ops_assistant_restricted_evidence_status
+      - ai_ops_assistant_restricted_evidence_tools
+      - ai_ops_assistant_restricted_evidence_negative_controls
+      - ai_ops_assistant_restricted_evidence_scope_outcomes
+      - ai_ops_assistant_restricted_evidence_audit_pairs
+      - ai_ops_assistant_restricted_evidence_final_acceptance
   pre_tasks:
     - name: Assert restricted evidence recording scope
       ansible.builtin.assert:
@@ -97,6 +81,10 @@
           - ai_ops_assistant_restricted_evidence_authorization_reference is match('^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,95}$')
           - ai_ops_assistant_restricted_evidence_authorization_reference != 'unconfirmed'
           - ai_ops_assistant_restricted_evidence_authorization_class == 'restricted-diagnostics-evidence-recording'
+          - ai_ops_assistant_restricted_evidence_environment_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
+          - ai_ops_assistant_restricted_evidence_host_group_label == 'ai_ops_assistant'
+          - ai_ops_assistant_restricted_evidence_runtime_label == 'revised'
+          - ai_ops_assistant_restricted_evidence_validation_result_directory == '/run/openstack-ai-ops/phase06-validation'
           - ai_ops_assistant_restricted_evidence_retention_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
           - ai_ops_assistant_restricted_evidence_retention_label != 'unconfirmed'
           - ai_ops_assistant_restricted_evidence_access_role_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
@@ -107,32 +95,27 @@
           - ai_ops_assistant_restricted_evidence_source_revision is match('^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
           - ai_ops_assistant_restricted_evidence_source_revision != 'unconfirmed'
           - ai_ops_assistant_restricted_evidence_timestamp_utc is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
-          - ai_ops_assistant_restricted_evidence_environment_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
-          - ai_ops_assistant_restricted_evidence_host_group_label == 'ai_ops_assistant'
-          - ai_ops_assistant_restricted_evidence_runtime_label == 'revised'
-          - ai_ops_assistant_restricted_evidence_validation_result_directory == '/run/openstack-ai-ops/phase06-validation'
           - ai_ops_assistant_restricted_evidence_validation_result_path is match('^/run/openstack-ai-ops/phase06-validation/[a-z0-9][a-z0-9-]{0,47}\.json$')
           - ai_ops_assistant_restricted_evidence_path is match('^/opt/openstack-ai-ops-assistant/evidence/phase06/[a-z0-9][a-z0-9-]{0,47}\.md$')
         fail_msg: >-
-          Restricted evidence recording is fail-closed: named ownership, explicit
-          authorization, approved location, safe normalized fields, and a safe run
-          identifier are required before the record can be written.
+          Outcome-only evidence recording is fail-closed: named ownership,
+          authorization, safe paths, and run metadata are required.
         quiet: true
       changed_when: false
       no_log: true
 
-    - name: Reject manual producer-derived validation fields
+    - name: Reject manual producer-derived fields
       ansible.builtin.assert:
         that:
           - item not in vars
         quiet: true
+      changed_when: false
+      no_log: true
       loop: "{{ ai_ops_assistant_restricted_evidence_manual_validation_fields }}"
       loop_control:
         label: producer-derived-field
-      changed_when: false
-      no_log: true
 
-    - name: Inspect normalized producer result without following symlinks
+    - name: Inspect normalized producer result
       ansible.builtin.stat:
         path: "{{ ai_ops_assistant_restricted_evidence_validation_result_path }}"
         follow: false
@@ -155,158 +138,161 @@
       changed_when: false
       no_log: true
 
-    - name: Read normalized producer result into protected task state
+    - name: Read producer result into protected task state
       ansible.builtin.slurp:
         src: "{{ ai_ops_assistant_restricted_evidence_validation_result_path }}"
       register: ai_ops_assistant_restricted_evidence_validation_result_raw
       changed_when: false
       no_log: true
 
-    - name: Decode normalized producer result in protected task state
+    - name: Decode producer result in protected task state
       ansible.builtin.set_fact:
         ai_ops_assistant_restricted_evidence_validation_result: >-
-          {{ ai_ops_assistant_restricted_evidence_validation_result_raw.content |
-          b64decode | from_json }}
+          {{ ai_ops_assistant_restricted_evidence_validation_result_raw.content | b64decode | from_json }}
       changed_when: false
       no_log: true
 
-    - name: Validate normalized producer result schema and provenance
+    - name: Validate closed producer result and derive acceptance invariant
       ansible.builtin.assert:
         that:
-          - ai_ops_assistant_restricted_evidence_validation_result is mapping
-          - >-
-            ai_ops_assistant_restricted_evidence_validation_result.keys() | list | sort ==
-            ['neutron_read_classified', 'neutron_read_json_shape_valid',
-            'neutron_read_outcome', 'neutron_read_read_only_operation',
-            'negative_test_plan_approved', 'observer_policy_reviewed',
-            'operator_reader_reviewed', 'output_schema_frozen',
-            'phase05_acceptance_confirmed', 'phase05_acceptance_evidence_reference',
-            'phase05_acceptance_outcome', 'producer', 'redaction_check_completed',
-            'rollback_status', 'run_id', 'schema_version', 'source_revision',
-            'status', 'limitation_class', 'unresolved_gates',
-            'operation'] | sort
+          - ai_ops_assistant_restricted_evidence_validation_result.keys() | list | sort == ['audit_pairs', 'final_acceptance', 'limitation_class',
+            'negative_controls', 'operation', 'phase05_acceptance_confirmed', 'phase05_acceptance_evidence_reference', 'phase05_acceptance_outcome',
+            'post_attestation', 'pre_attestation', 'producer', 'representative_workflow', 'revocation_rollback', 'rollback_status', 'run_id', 'schema_version',
+            'scope_outcomes', 'source_revision', 'status', 'tools', 'unchanged_state_comparison', 'unresolved_gates']
           - ai_ops_assistant_restricted_evidence_validation_result.schema_version == '1.0'
-          - ai_ops_assistant_restricted_evidence_validation_result.producer in ai_ops_assistant_restricted_evidence_validation_result_allowed_producers
-          - ai_ops_assistant_restricted_evidence_validation_result.operation in ai_ops_assistant_restricted_evidence_validation_result_allowed_operations
+          - ai_ops_assistant_restricted_evidence_validation_result.producer == 'phase06_restricted_diagnostics_validation'
+          - ai_ops_assistant_restricted_evidence_validation_result.operation == 'seven_tool_acceptance_orchestration'
           - ai_ops_assistant_restricted_evidence_validation_result.run_id == ai_ops_assistant_restricted_evidence_run_id
           - ai_ops_assistant_restricted_evidence_validation_result.source_revision == ai_ops_assistant_restricted_evidence_source_revision
           - ai_ops_assistant_restricted_evidence_validation_result.status in ai_ops_assistant_restricted_evidence_allowed_statuses
           - ai_ops_assistant_restricted_evidence_validation_result.limitation_class in ai_ops_assistant_restricted_evidence_allowed_limitation_classes
-          - ai_ops_assistant_restricted_evidence_validation_result.rollback_status in ai_ops_assistant_restricted_evidence_allowed_rollback_statuses
-          - ai_ops_assistant_restricted_evidence_validation_result.neutron_read_outcome in ['pass', 'empty', 'policy_denied', 'catalog_missing',
-            'connectivity_error', 'authentication_error', 'configuration_error']
-          - ai_ops_assistant_restricted_evidence_validation_result.neutron_read_json_shape_valid is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.neutron_read_read_only_operation is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.neutron_read_classified is boolean
-          - >-
-            ai_ops_assistant_restricted_evidence_validation_result.neutron_read_classified ==
-            (ai_ops_assistant_restricted_evidence_validation_result.neutron_read_outcome in
-            ['pass', 'empty', 'policy_denied'])
+          - ai_ops_assistant_restricted_evidence_validation_result.rollback_status in ['not_required', 'pending', 'complete', 'failed']
           - ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed is boolean
           - ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome in ['accepted', 'blocked', 'failed']
-          - >-
-            ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_evidence_reference is match(
-            '^' ~ ai_ops_assistant_restricted_evidence_run_id ~ '-[A-Za-z0-9._-]{1,127}$')
-          - >-
-            ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed ==
+          - ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed ==
             (ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome == 'accepted')
-          - >-
-            (ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed and
-            'phase05_acceptance_pending' not in
-            ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates) or
-            (not ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed and
-            'phase05_acceptance_pending' in
-            ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates)
-          - ai_ops_assistant_restricted_evidence_validation_result.operator_reader_reviewed is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.observer_policy_reviewed is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.negative_test_plan_approved is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.output_schema_frozen is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.redaction_check_completed is boolean
-          - ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates | type_debug == 'list'
-          - >-
-            (ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates |
-            select('match', '^[a-z0-9][a-z0-9._-]{0,63}$') | list | length) ==
-            (ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates | length)
-          - >-
-            ai_ops_assistant_restricted_evidence_validation_result.status != 'accepted' or
-            (
-              ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates | length == 0 and
-              ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed and
-              ai_ops_assistant_restricted_evidence_validation_result.neutron_read_classified and
-              ai_ops_assistant_restricted_evidence_validation_result.neutron_read_json_shape_valid and
-              ai_ops_assistant_restricted_evidence_validation_result.neutron_read_read_only_operation and
-              ai_ops_assistant_restricted_evidence_validation_result.limitation_class == 'none' and
-              ai_ops_assistant_restricted_evidence_validation_result.rollback_status == 'not_required' and
-              ai_ops_assistant_restricted_evidence_validation_result.operator_reader_reviewed and
-              ai_ops_assistant_restricted_evidence_validation_result.observer_policy_reviewed and
-              ai_ops_assistant_restricted_evidence_validation_result.negative_test_plan_approved and
-              ai_ops_assistant_restricted_evidence_validation_result.output_schema_frozen and
-              ai_ops_assistant_restricted_evidence_validation_result.redaction_check_completed
-            )
+          - ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_evidence_reference is match('^' ~
+            ai_ops_assistant_restricted_evidence_run_id ~ '-[A-Za-z0-9._-]{1,127}$')
+          - ai_ops_assistant_restricted_evidence_validation_result.tools | length == 7
+          - ai_ops_assistant_restricted_evidence_validation_result.tools | map(attribute='name') | list | sort == ['neutron_agent_health',
+            'project_resource_summary', 'recent_metadata_errors', 'recent_neutron_errors', 'recent_nova_errors', 'server_basic_info', 'server_network_info']
+          - ai_ops_assistant_restricted_evidence_validation_result.negative_controls | length == 18
+          - ai_ops_assistant_restricted_evidence_validation_result.negative_controls | map(attribute='case') | list | sort == ['agent_forwarding',
+            'alternate_sudo_arguments', 'arbitrary_command', 'collector_output_redirection', 'destination_bypass', 'editor_execution', 'environment_injection',
+            'extra_arguments', 'interactive_shell', 'local_forwarding', 'out_of_policy_file_read', 'package_manager_execution', 'pty_allocation',
+            'remote_forwarding', 'service_control', 'tunnel_request', 'unrestricted_sudo', 'x11_forwarding']
+          - ai_ops_assistant_restricted_evidence_validation_result.scope_outcomes | length == 11
+          - ai_ops_assistant_restricted_evidence_validation_result.scope_outcomes | map(attribute='scope') | list == ['prerequisite_readiness',
+            'operator_reader_deployment', 'observer_deployment', 'host_source_contact', 'positive_validation', 'negative_boundary_validation',
+            'outcome_evidence_recording', 'protected_audit_inspection', 'unchanged_state_comparison', 'revocation_rollback', 'representative_workflow']
+          - ai_ops_assistant_restricted_evidence_validation_result.audit_pairs | length == 7
+          - ai_ops_assistant_restricted_evidence_validation_result.pre_attestation.valid is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.post_attestation.valid is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.post_attestation.unchanged is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.unchanged_state_comparison is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.revocation_rollback.status in ['not_required', 'pending', 'complete', 'failed']
+          - ai_ops_assistant_restricted_evidence_validation_result.representative_workflow.status in ['accepted', 'blocked', 'failed', 'unavailable']
+          - ai_ops_assistant_restricted_evidence_validation_result.representative_workflow.advisory_only is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.representative_workflow.remediation_executed is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.final_acceptance is boolean
+          - ai_ops_assistant_restricted_evidence_validation_result.status != 'accepted' or
+            ai_ops_assistant_restricted_evidence_validation_result.final_acceptance
         fail_msg: >-
-          Evidence recording requires a protected producer result with exact schema,
-          run/source provenance, and normalized gate values; manual validation fields
-          are not accepted.
+          Evidence recording requires the exact seven-tool, scope, negative,
+          audit, attestation, rollback, and workflow result contract.
         quiet: true
       changed_when: false
       no_log: true
 
-    - name: Map normalized producer result to recorder fields
-      ansible.builtin.set_fact:
-        ai_ops_assistant_restricted_evidence_status: "{{ ai_ops_assistant_restricted_evidence_validation_result.status }}"
-        ai_ops_assistant_restricted_evidence_limitation_class: "{{ ai_ops_assistant_restricted_evidence_validation_result.limitation_class }}"
-        ai_ops_assistant_restricted_evidence_rollback_status: "{{ ai_ops_assistant_restricted_evidence_validation_result.rollback_status }}"
-        ai_ops_assistant_restricted_evidence_unresolved_gates: "{{ ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates }}"
-        ai_ops_assistant_restricted_evidence_phase05_acceptance_confirmed: "{{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed
-          | bool }}"
-        ai_ops_assistant_restricted_evidence_phase05_acceptance_outcome: "{{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome }}"
-        ai_ops_assistant_restricted_evidence_phase05_acceptance_evidence_reference: "{{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_evidence_reference
-          }}"
-        ai_ops_assistant_restricted_evidence_neutron_read_classified: "{{ ai_ops_assistant_restricted_evidence_validation_result.neutron_read_classified | bool }}"
-        ai_ops_assistant_restricted_evidence_operator_reader_reviewed: "{{ ai_ops_assistant_restricted_evidence_validation_result.operator_reader_reviewed | bool
-          }}"
-        ai_ops_assistant_restricted_evidence_observer_policy_reviewed: "{{ ai_ops_assistant_restricted_evidence_validation_result.observer_policy_reviewed | bool
-          }}"
-        ai_ops_assistant_restricted_evidence_negative_test_plan_approved: "{{ ai_ops_assistant_restricted_evidence_validation_result.negative_test_plan_approved |
-          bool }}"
-        ai_ops_assistant_restricted_evidence_output_schema_frozen: "{{ ai_ops_assistant_restricted_evidence_validation_result.output_schema_frozen | bool }}"
-        ai_ops_assistant_restricted_evidence_redaction_check_completed: "{{ ai_ops_assistant_restricted_evidence_validation_result.redaction_check_completed | bool
-          }}"
+    - name: Validate normalized tool, negative, scope, and audit records
+      ansible.builtin.assert:
+        that:
+          - item.keys() | list | sort == ['audit_pair_valid', 'bounds_valid', 'exit_code_agreement', 'json_shape_valid', 'name', 'outcome', 'redaction_valid',
+            'truncated']
+          - item.outcome in ['ok', 'empty', 'unavailable', 'denied', 'failed', 'timeout', 'error']
+          - item.audit_pair_valid is boolean
+          - item.bounds_valid is boolean
+          - item.exit_code_agreement is boolean
+          - item.json_shape_valid is boolean
+          - item.redaction_valid is boolean
+          - item.truncated is boolean
+        quiet: true
       changed_when: false
       no_log: true
+      loop: "{{ ai_ops_assistant_restricted_evidence_validation_result.tools }}"
+      loop_control:
+        label: normalized-tool
 
-    - name: Inspect approved evidence parent without following symlinks
-      ansible.builtin.stat:
-        path: "{{ ai_ops_assistant_restricted_evidence_parent_directory }}"
-        follow: false
-      register: ai_ops_assistant_restricted_evidence_parent_stat
+    - name: Validate normalized negative-control records
+      ansible.builtin.assert:
+        that:
+          - item.keys() | list | sort == ['case', 'outcome']
+          - item.outcome in ['denied', 'unexpected_success', 'unavailable', 'failed']
+        quiet: true
       changed_when: false
       no_log: true
+      loop: "{{ ai_ops_assistant_restricted_evidence_validation_result.negative_controls }}"
+      loop_control:
+        label: normalized-negative-control
 
-    - name: Inspect evidence directory and record without following symlinks
+    - name: Validate normalized scope records
+      ansible.builtin.assert:
+        that:
+          - item.keys() | list | sort == ['evidence_reference', 'scope', 'status']
+          - item.status in ['accepted', 'blocked', 'failed', 'unavailable']
+          - item.evidence_reference is match('^' ~ ai_ops_assistant_restricted_evidence_run_id ~ '-[A-Za-z0-9._-]{1,127}$')
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_restricted_evidence_validation_result.scope_outcomes }}"
+      loop_control:
+        label: normalized-scope
+
+    - name: Validate normalized audit-pair records
+      ansible.builtin.assert:
+        that:
+          - item.keys() | list | sort == ['audit_present', 'correlation_valid', 'result_present', 'sanitized', 'tool']
+          - item.audit_present is boolean
+          - item.correlation_valid is boolean
+          - item.result_present is boolean
+          - item.sanitized is boolean
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_restricted_evidence_validation_result.audit_pairs }}"
+      loop_control:
+        label: normalized-audit-pair
+
+    - name: Inspect protected evidence parent and record path
       ansible.builtin.stat:
         path: "{{ item }}"
         follow: false
+      register: ai_ops_assistant_restricted_evidence_path_stats
+      changed_when: false
+      no_log: true
       loop:
+        - "{{ ai_ops_assistant_restricted_evidence_parent_directory }}"
         - "{{ ai_ops_assistant_restricted_evidence_directory }}"
         - "{{ ai_ops_assistant_restricted_evidence_path }}"
       loop_control:
         label: protected-evidence-path
-      register: ai_ops_assistant_restricted_evidence_path_stats
-      changed_when: false
-      no_log: true
 
-    - name: Assert approved evidence parent and unused record path
+    - name: Assert protected evidence paths
       ansible.builtin.assert:
         that:
-          - ai_ops_assistant_restricted_evidence_parent_stat.stat.exists | bool
-          - ai_ops_assistant_restricted_evidence_parent_stat.stat.isdir | bool
-          - not (ai_ops_assistant_restricted_evidence_parent_stat.stat.islnk | default(false) | bool)
+          - ai_ops_assistant_restricted_evidence_path_stats.results[0].stat.exists
+          - ai_ops_assistant_restricted_evidence_path_stats.results[0].stat.isdir
           - not (ai_ops_assistant_restricted_evidence_path_stats.results[0].stat.islnk | default(false) | bool)
-          - not (ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.exists | default(false) | bool)
-        fail_msg: >-
-          Protected evidence parent must already be an approved real directory and
-          the requested run ID must not overwrite an existing record.
+          - >-
+            not (ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.exists | default(false) | bool) or
+            (
+              ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.isdir and
+              not ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.islnk and
+              ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.pw_name == ai_ops_assistant_restricted_evidence_file_owner and
+              ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.gr_name == ai_ops_assistant_restricted_evidence_file_group and
+              ai_ops_assistant_restricted_evidence_path_stats.results[1].stat.mode == '0700'
+            )
+          - not (ai_ops_assistant_restricted_evidence_path_stats.results[2].stat.exists | default(false) | bool)
         quiet: true
       changed_when: false
       no_log: true
@@ -319,7 +305,6 @@
         owner: "{{ ai_ops_assistant_restricted_evidence_file_owner }}"
         group: "{{ ai_ops_assistant_restricted_evidence_file_group }}"
         mode: "0700"
-      register: ai_ops_assistant_restricted_evidence_directory_result
       no_log: true
 
     - name: Verify protected evidence directory metadata
@@ -333,13 +318,11 @@
     - name: Assert protected evidence directory metadata
       ansible.builtin.assert:
         that:
-          - ai_ops_assistant_restricted_evidence_directory_stat.stat.isdir | bool
-          - not (ai_ops_assistant_restricted_evidence_directory_stat.stat.islnk | default(false) | bool)
+          - ai_ops_assistant_restricted_evidence_directory_stat.stat.isdir
+          - not ai_ops_assistant_restricted_evidence_directory_stat.stat.islnk
           - ai_ops_assistant_restricted_evidence_directory_stat.stat.pw_name == ai_ops_assistant_restricted_evidence_file_owner
           - ai_ops_assistant_restricted_evidence_directory_stat.stat.gr_name == ai_ops_assistant_restricted_evidence_file_group
           - ai_ops_assistant_restricted_evidence_directory_stat.stat.mode == '0700'
-        fail_msg: >-
-          Protected evidence directory metadata is not owner-, group-, or mode-safe.
         quiet: true
       changed_when: false
       no_log: true
@@ -370,26 +353,33 @@
 
           ## Normalized outcome
 
-          - Overall status: {{ ai_ops_assistant_restricted_evidence_status }}
-          - Limitation class: {{ ai_ops_assistant_restricted_evidence_limitation_class }}
-          - Rollback status: {{ ai_ops_assistant_restricted_evidence_rollback_status }}
-          - Unresolved gate labels: {{ (ai_ops_assistant_restricted_evidence_unresolved_gates | join(', ')) if (ai_ops_assistant_restricted_evidence_unresolved_gates | length > 0) else 'none' }}
+          - Overall status: {{ ai_ops_assistant_restricted_evidence_validation_result.status }}
+          - Limitation class: {{ ai_ops_assistant_restricted_evidence_validation_result.limitation_class }}
+          - Rollback status: {{ ai_ops_assistant_restricted_evidence_validation_result.rollback_status }}
+          - Final acceptance: {{ ai_ops_assistant_restricted_evidence_validation_result.final_acceptance | bool }}
+          - Unresolved gate labels: {{ (ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates | join(', ')) if (ai_ops_assistant_restricted_evidence_validation_result.unresolved_gates | length > 0) else 'none' }}
 
-          ## Bounded validation booleans
+          ## Tool and scope outcomes
 
-          - Phase 05 acceptance confirmed: {{ ai_ops_assistant_restricted_evidence_phase05_acceptance_confirmed | bool }}
-          - Phase 05 acceptance outcome: {{ ai_ops_assistant_restricted_evidence_phase05_acceptance_outcome }}
-          - Phase 05 acceptance evidence reference: {{ ai_ops_assistant_restricted_evidence_phase05_acceptance_evidence_reference }}
-          - Neutron read classified: {{ ai_ops_assistant_restricted_evidence_neutron_read_classified | bool }}
-          - Operator-reader reviewed: {{ ai_ops_assistant_restricted_evidence_operator_reader_reviewed | bool }}
-          - Observer policy reviewed: {{ ai_ops_assistant_restricted_evidence_observer_policy_reviewed | bool }}
-          - Negative test plan approved: {{ ai_ops_assistant_restricted_evidence_negative_test_plan_approved | bool }}
-          - Output schema frozen: {{ ai_ops_assistant_restricted_evidence_output_schema_frozen | bool }}
-          - Redaction check completed: {{ ai_ops_assistant_restricted_evidence_redaction_check_completed | bool }}
-      register: ai_ops_assistant_restricted_evidence_write_result
+          - Tools: {{ ai_ops_assistant_restricted_evidence_validation_result.tools | to_json }}
+          - Negative controls: {{ ai_ops_assistant_restricted_evidence_validation_result.negative_controls | to_json }}
+          - Scopes: {{ ai_ops_assistant_restricted_evidence_validation_result.scope_outcomes | to_json }}
+          - Audit pairs: {{ ai_ops_assistant_restricted_evidence_validation_result.audit_pairs | to_json }}
+          - Representative workflow: {{ ai_ops_assistant_restricted_evidence_validation_result.representative_workflow | to_json }}
+
+          ## State and prerequisite outcomes
+
+          - Phase 05 acceptance confirmed: {{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_confirmed | bool }}
+          - Phase 05 acceptance outcome: {{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_outcome }}
+          - Phase 05 acceptance evidence reference: {{ ai_ops_assistant_restricted_evidence_validation_result.phase05_acceptance_evidence_reference }}
+          - Pre-attestation valid: {{ ai_ops_assistant_restricted_evidence_validation_result.pre_attestation.valid | bool }}
+          - Post-attestation valid: {{ ai_ops_assistant_restricted_evidence_validation_result.post_attestation.valid | bool }}
+          - Post-attestation unchanged: {{ ai_ops_assistant_restricted_evidence_validation_result.post_attestation.unchanged | bool }}
+          - Unchanged-state comparison: {{ ai_ops_assistant_restricted_evidence_validation_result.unchanged_state_comparison | bool }}
+          - Revocation/rollback: {{ ai_ops_assistant_restricted_evidence_validation_result.revocation_rollback | to_json }}
       no_log: true
 
-    - name: Verify protected outcome-only evidence record metadata
+    - name: Verify protected evidence record metadata
       ansible.builtin.stat:
         path: "{{ ai_ops_assistant_restricted_evidence_path }}"
         follow: false
@@ -397,16 +387,14 @@
       changed_when: false
       no_log: true
 
-    - name: Assert protected outcome-only evidence record metadata
+    - name: Assert protected evidence record metadata
       ansible.builtin.assert:
         that:
-          - ai_ops_assistant_restricted_evidence_record_stat.stat.isreg | bool
-          - not (ai_ops_assistant_restricted_evidence_record_stat.stat.islnk | default(false) | bool)
+          - ai_ops_assistant_restricted_evidence_record_stat.stat.isreg
+          - not ai_ops_assistant_restricted_evidence_record_stat.stat.islnk
           - ai_ops_assistant_restricted_evidence_record_stat.stat.pw_name == ai_ops_assistant_restricted_evidence_file_owner
           - ai_ops_assistant_restricted_evidence_record_stat.stat.gr_name == ai_ops_assistant_restricted_evidence_file_group
           - ai_ops_assistant_restricted_evidence_record_stat.stat.mode == '0600'
-        fail_msg: >-
-          Protected evidence record metadata is not owner-, group-, or mode-safe.
         quiet: true
       changed_when: false
       no_log: true

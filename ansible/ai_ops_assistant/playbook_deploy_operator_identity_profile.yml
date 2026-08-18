@@ -7,6 +7,27 @@
     - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
   vars:
     ai_ops_assistant_operator_identity_boundary_enabled: false
+    ai_ops_assistant_operator_identity_boundary_source_run_id: "2026-0004"
+    ai_ops_assistant_operator_identity_boundary_source_directory: /run/openstack-ai-ops/2026-0004/operator-reader
+    ai_ops_assistant_operator_identity_boundary_source_directory_owner: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_source_file_owner: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_source_revision: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_source_freshness_status: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_source_freshness_reference: ""
+    ai_ops_assistant_operator_identity_boundary_source_generated_at: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_source_expires_at: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_identity_owner: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_approved_role_scope: neutron_agent_health
+    ai_ops_assistant_operator_identity_boundary_expiry_policy: maximum-24-hours
+    ai_ops_assistant_operator_identity_boundary_rotation_owner: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_revocation_owner: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_mutation_denial_reference: ""
+    ai_ops_assistant_operator_identity_boundary_rotation_requested: false
+    ai_ops_assistant_operator_identity_boundary_rotation_authorization: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_rotation_validation_outcome: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_revocation_requested: false
+    ai_ops_assistant_operator_identity_boundary_revocation_authorization: unconfirmed
+    ai_ops_assistant_operator_identity_boundary_revocation_validation_outcome: unconfirmed
     ai_ops_assistant_operator_identity_boundary_deployment_authorization: unconfirmed
     ai_ops_assistant_operator_identity_boundary_phase05_acceptance_outcome: unconfirmed
     ai_ops_assistant_operator_identity_boundary_project_reader_need_proof: unconfirmed
@@ -14,8 +35,6 @@
     ai_ops_assistant_operator_identity_boundary_profile_name: aiops-assistant-operator-reader
     ai_ops_assistant_operator_identity_boundary_profile_directory: /opt/openstack-ai-ops-assistant/credentials/operator-reader
     ai_ops_assistant_operator_identity_boundary_profile_selection: neutron_agent_health
-    ai_ops_assistant_operator_identity_boundary_rotation_validation_outcome: unconfirmed
-    ai_ops_assistant_operator_identity_boundary_revocation_validation_outcome: unconfirmed
     ai_ops_assistant_operator_identity_boundary_mutation_denial_outcomes:
       - operation: create
         result: unconfirmed
@@ -92,7 +111,9 @@
           identity ownership, approved scope, lifecycle ownership, and the
           outcome-only mutation-denial reference are supplied.
         quiet: true
-      when: ai_ops_assistant_operator_identity_boundary_enabled | bool
+      when:
+        - ai_ops_assistant_operator_identity_boundary_enabled | bool
+        - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
       changed_when: false
       no_log: true
 
@@ -110,6 +131,9 @@
           revocation: "{{ ai_ops_assistant_operator_identity_boundary_revocation_validation_outcome }}"
       changed_when: false
       no_log: true
+      when:
+        - not ai_ops_assistant_operator_identity_boundary_enabled | bool
+        - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
 
     - name: Require all operator-owned gates before profile tasks
       ansible.builtin.assert:
@@ -125,9 +149,12 @@
           Phase 05 acceptance, project-reader need proof, and independent
           mutation-denial outcomes are owner-approved.
         quiet: true
-      when: ai_ops_assistant_operator_identity_boundary_enabled | bool
+      when:
+        - ai_ops_assistant_operator_identity_boundary_enabled | bool
+        - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
       changed_when: false
       no_log: true
   roles:
     - role: ai_ops_assistant_operator_identity_boundary
-      when: ai_ops_assistant_operator_identity_boundary_enabled | bool
+      when:
+        - ai_ops_assistant_operator_identity_boundary_enabled | bool or ai_ops_assistant_operator_identity_boundary_revocation_requested | bool

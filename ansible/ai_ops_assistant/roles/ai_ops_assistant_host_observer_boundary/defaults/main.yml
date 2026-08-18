@@ -17,6 +17,10 @@ ai_ops_assistant_host_observer_boundary_account_home: /var/lib/aiops-host-observ
 ai_ops_assistant_host_observer_boundary_account_shell: /usr/sbin/nologin
 ai_ops_assistant_host_observer_boundary_account_owner: ""
 ai_ops_assistant_host_observer_boundary_account_removal_owner: ""
+ai_ops_assistant_host_observer_boundary_lifecycle_action: present
+ai_ops_assistant_host_observer_boundary_disablement_authorization: unconfirmed
+ai_ops_assistant_host_observer_boundary_disablement_reference: ""
+ai_ops_assistant_host_observer_boundary_removal_authorization: unconfirmed
 
 ai_ops_assistant_host_observer_boundary_key_label: aiops-assistant-host-observer-key
 ai_ops_assistant_host_observer_boundary_key_source: ""
@@ -24,6 +28,12 @@ ai_ops_assistant_host_observer_boundary_key_source_owner: ""
 ai_ops_assistant_host_observer_boundary_key_rotation_owner: ""
 ai_ops_assistant_host_observer_boundary_key_revocation_owner: ""
 ai_ops_assistant_host_observer_boundary_ssh_source_restriction: ""
+ai_ops_assistant_host_observer_boundary_authorized_keys_path: /var/lib/aiops-host-observer/.ssh/authorized_keys
+ai_ops_assistant_host_observer_boundary_authorized_keys_owner: aiops-host-observer
+ai_ops_assistant_host_observer_boundary_authorized_keys_group: aiops-host-observer
+ai_ops_assistant_host_observer_boundary_authorized_keys_mode: "0600"
+ai_ops_assistant_host_observer_boundary_ssh_directory: /var/lib/aiops-host-observer/.ssh
+ai_ops_assistant_host_observer_boundary_ssh_directory_mode: "0700"
 ai_ops_assistant_host_observer_boundary_ssh_restrictions:
   - no-agent-forwarding
   - no-X11-forwarding
@@ -40,10 +50,20 @@ ai_ops_assistant_host_observer_boundary_collector_files:
   - source: host_observer/host_observer_collector.py
     destination: host-observer-collector
     mode: "0750"
+ai_ops_assistant_host_observer_boundary_collector_policy_directory: /etc/openstack-ai-ops-assistant
+ai_ops_assistant_host_observer_boundary_collector_policy_directory_owner: root
+ai_ops_assistant_host_observer_boundary_collector_policy_directory_group: aiops-host-observer
+ai_ops_assistant_host_observer_boundary_collector_policy_directory_mode: "0750"
 ai_ops_assistant_host_observer_boundary_collector_policy_path: /etc/openstack-ai-ops-assistant/host-observer-policy.yml
+ai_ops_assistant_host_observer_boundary_collector_policy_source: ""
 ai_ops_assistant_host_observer_boundary_collector_policy_owner: root
 ai_ops_assistant_host_observer_boundary_collector_policy_group: aiops-host-observer
 ai_ops_assistant_host_observer_boundary_collector_policy_mode: "0640"
+ai_ops_assistant_host_observer_boundary_inventory_projection_path: /etc/openstack-ai-ops-assistant/host-observer-inventory-projection.yml
+ai_ops_assistant_host_observer_boundary_inventory_projection_source: ""
+ai_ops_assistant_host_observer_boundary_inventory_projection_owner: root
+ai_ops_assistant_host_observer_boundary_inventory_projection_group: aiops-host-observer
+ai_ops_assistant_host_observer_boundary_inventory_projection_mode: "0640"
 ai_ops_assistant_host_observer_boundary_collector_metadata_status: unresolved
 ai_ops_assistant_host_observer_boundary_collector_policy_metadata_status: unresolved
 ai_ops_assistant_host_observer_boundary_approved_source_classes: []
@@ -63,3 +83,4 @@ ai_ops_assistant_host_observer_boundary_sudo_rule_reference: ""
 
 ai_ops_assistant_host_observer_boundary_rollback_owner: ""
 ai_ops_assistant_host_observer_boundary_source_key_removal_owner: ""
+ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes: {}

@@ -10,55 +10,38 @@ fail() {
 }
 
 [[ -f "$playbook" && ! -L "$playbook" ]] || fail "validation producer playbook is missing or symlinked"
+for required in \
+  'ai_ops_assistant_phase06_validation_enabled: false' \
+  'ai_ops_assistant_phase06_validation_tool_outcomes: []' \
+  'ai_ops_assistant_phase06_validation_negative_controls: []' \
+  'ai_ops_assistant_phase06_validation_scope_outcomes: []' \
+  'ai_ops_assistant_phase06_validation_audit_pairs: []' \
+  'operation: seven_tool_acceptance_orchestration' \
+  'seven-tool outcome collection' \
+  'negative-control collection' \
+  'ordered scope outcomes' \
+  'Derive final acceptance from the closed outcome set' \
+  'final_acceptance: false' \
+  'no_log: true'; do
+  grep -Fq "$required" "$playbook" || fail "missing producer contract: $required"
+done
 
-grep -Fq 'hosts: ai_ops_assistant' "$playbook"
-grep -Fq "inventory_hostname == 'assistant02'" "$playbook"
-grep -Fq "ansible_limit | default('') == 'assistant02'" "$playbook"
-grep -Fq 'ai_ops_assistant_phase06_validation_enabled: false' "$playbook"
-grep -Fq 'ai_ops_assistant_phase06_validation_phase05_acceptance_gate: unconfirmed' "$playbook"
-grep -Fq 'ai_ops_assistant_phase06_validation_phase05_acceptance_outcome: unconfirmed' "$playbook"
-grep -Fq 'ai_ops_assistant_phase06_validation_phase05_acceptance_evidence_reference: unconfirmed' "$playbook"
-grep -Fq "ai_ops_assistant_phase06_validation_scope: project-reader-neutron-read-only" "$playbook"
-grep -Fq "ai_ops_assistant_phase06_validation_profile_name: aiops-assistant-project-reader" "$playbook"
-grep -Fq 'ai_ops_assistant_phase06_validation_public_parameters: []' "$playbook"
-grep -Fq 'ai_ops_assistant_phase06_validation_operation_label: neutron_agent_list_project_reader' "$playbook"
-grep -Fq 'schema_version: "1.0"' "$playbook"
-grep -Fq 'status: blocked' "$playbook"
-grep -Fq 'limitation_class: authorization_pending' "$playbook"
-grep -Fq 'validation_producer_not_implemented' "$playbook"
-grep -Fq 'no_log: true' "$playbook"
-grep -Fq 'ansible.builtin.command:' "$playbook"
-grep -Fq "'/usr/bin/env', '-i', 'HOME=/home/aiops_assistant'" "$playbook"
-grep -Fq "'OS_CLIENT_CONFIG_FILE=/opt/openstack-ai-ops-assistant/credentials/profiles/clouds.yaml'" "$playbook"
-grep -Fq "'OS_CLOUD=aiops-assistant-project-reader'" "$playbook"
-grep -Fq 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' "$playbook"
-grep -Fq 'become_user: aiops_assistant' "$playbook"
-grep -Fq 'failed_when: false' "$playbook"
-grep -Fq 'ansible.builtin.copy:' "$playbook"
-grep -Fq 'force: false' "$playbook"
-grep -Fq 'mode: "0700"' "$playbook"
-grep -Fq 'mode: "0600"' "$playbook"
-grep -Fq 'follow: false' "$playbook"
-grep -Fq 'json_shape_valid' "$playbook"
-grep -Fq "'policy_denied'" "$playbook"
-grep -Fq "'catalog_missing'" "$playbook"
-grep -Fq "'connectivity_error'" "$playbook"
-grep -Fq "'authentication_error'" "$playbook"
-grep -Fq "'configuration_error'" "$playbook"
-grep -Fq "administrator-authorized-phase06-validation" "$playbook"
-grep -Fq "administrator-confirmed-external-evidence" "$playbook"
-grep -Fq "phase05_acceptance_outcome in ['accepted', 'blocked', 'failed']" "$playbook"
-grep -Fq "phase05_acceptance_evidence_reference != 'unconfirmed'" "$playbook"
-grep -Fq "phase05_acceptance_evidence_reference is match('^' ~ ai_ops_assistant_phase06_validation_run_id ~ '-')" "$playbook"
-grep -Fq "administrator-approved-protected-validation-location" "$playbook"
-grep -Fq "ai_ops_assistant_phase06_validation_source_revision != 'unconfirmed'" "$playbook"
+grep -Fq "| length == 7" "$playbook"
+grep -Fq "| length == 18" "$playbook"
+grep -Fq "| length == 11" "$playbook"
+grep -Fq "'neutron_agent_health', 'project_resource_summary', 'recent_metadata_errors', 'recent_neutron_errors', 'recent_nova_errors', 'server_basic_info', 'server_network_info'" "$playbook"
+grep -Fq "'agent_forwarding', 'alternate_sudo_arguments', 'arbitrary_command" "$playbook"
+grep -Fq "'prerequisite_readiness', 'operator_reader_deployment', 'observer_deployment', 'host_source_contact'" "$playbook"
+grep -Fq "post_attestation.unchanged" "$playbook"
+grep -Fq "audit_pairs_acceptable" "$playbook"
+grep -Fq "representative_workflow_pending" "$playbook"
 
-if grep -nE 'ansible\.builtin\.(shell|raw|debug)|playbook_validate_phase06_restricted_host_diagnostics|ai_ops_runtime|(^|[[:space:]])stdout:|(^|[[:space:]])stderr:|content:.*(stdout|stderr)|private.key|password' "$playbook"; then
-  fail "shell execution, historical reuse, raw output persistence, or sensitive handling found"
+if grep -nE 'ansible\.builtin\.(shell|command|raw|debug)|stdout|stderr|private\.key|password|token|credential|address|raw.log' "$playbook"; then
+  fail "producer contains execution, raw disclosure, or protected-value handling"
 fi
 
-if grep -nE "phase05_acceptance_confirmed: true|'phase05_acceptance_confirmed': true|neutron_read_classified: true|operator_reader_reviewed: true|observer_policy_reviewed: true|negative_test_plan_approved: true|output_schema_frozen: true|redaction_check_completed: true" "$playbook"; then
-  fail "validation producer contains success-shaped gate defaults"
+if grep -nE "phase05_acceptance_confirmed: true|final_acceptance: true|status: accepted|neutron_read_classified" "$playbook"; then
+  fail "producer contains success-shaped defaults or obsolete Neutron-only fields"
 fi
 
-printf 'Phase 06 validation producer stub test passed\n'
+printf 'Phase 06 seven-tool validation producer static test passed\n'
