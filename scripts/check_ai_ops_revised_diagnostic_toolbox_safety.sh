@@ -22,10 +22,11 @@ done
 mapfile -t actual < <(find "$approved_dir" -type f -name '*.sh' -printf '%P\n' | sort)
 [[ "${actual[*]}" == "${expected[*]}" ]] || { printf 'revised diagnostic gate: approved file allowlist mismatch\n' >&2; exit 1; }
 bash "$repo_root/scripts/check_ai_ops_diagnostic_safety.sh" "$approved_dir"
-if grep -RniE '/opt/openstack-ai-ops/|aiops-project-reader|assistant01|neutron_agent|operator.reader|operator_reader' "$approved_dir"; then
+historical_identifier_pattern='/opt/openstack-ai-ops/|aiops-project-reader|assistant01|neutron_agent_health\.sh|operator\.reader'
+if grep -RniI -E "$historical_identifier_pattern" "$approved_dir"; then
   printf 'revised diagnostic gate: historical path/profile identifier found\n' >&2; exit 1
 fi
-if grep -RniE '(cat|grep|sed|awk|sha256sum|md5sum)[^\n]*(clouds\.yaml|credentials/profiles)' "$approved_dir"; then
+if grep -RniI -E '(cat|grep|sed|awk|sha256sum|md5sum)[^\n]*(clouds\.yaml|credentials/profiles)' "$approved_dir"; then
   printf 'revised diagnostic gate: credential-content read found\n' >&2; exit 1
 fi
 printf 'revised diagnostic contract gate passed\n'

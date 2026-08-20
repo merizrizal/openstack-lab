@@ -6,6 +6,7 @@
   gather_facts: false
   serial: 1
   vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
     - roles/ai_ops_assistant_host_observer_boundary/defaults/main.yml
   vars:
     ai_ops_assistant_host_observer_boundary_enabled: false
@@ -68,7 +69,7 @@
           - "'ai_ops_host_observers' in group_names"
         quiet: true
       changed_when: false
-      no_log: true
+      # no_log: true
 
     - name: Normalize bounded observer acceptance fixtures
       ansible.builtin.set_fact:

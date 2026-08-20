@@ -65,9 +65,14 @@
         shared: true
         state: present
 
-    - name: Add AI-OPS project-reader security group
+    - name: Add AI-OPS project-reader updatesecurity group
       openstack.cloud.security_group:
-        name: "aiops-delete-probe-{{ security_group_name }}"
+        name: "aiops-probe-update"
+        state: present
+
+    - name: Add AI-OPS project-reader delete security group
+      openstack.cloud.security_group:
+        name: "aiops-probe-delete"
         state: present
 
     - name: Create small flavor with 2048MB RAM, 2 vCPU, 15GB disk
