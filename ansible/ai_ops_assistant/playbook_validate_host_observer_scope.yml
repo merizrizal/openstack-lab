@@ -21,6 +21,7 @@
     ai_ops_assistant_host_observer_boundary_positive_collector_fixture:
       case: approved_fixed_collector
       collector_path: /usr/local/libexec/openstack-ai-ops-assistant/host-observer-collector
+      evidence_reference: 2026-0004-evidence-ref
       source_class: synthetic-approved-source
       output_contract: bounded-redacted-structured
       result: unconfirmed
@@ -69,7 +70,7 @@
           - "'ai_ops_host_observers' in group_names"
         quiet: true
       changed_when: false
-      # no_log: true
+      no_log: true
 
     - name: Normalize bounded observer acceptance fixtures
       ansible.builtin.set_fact:
@@ -155,4 +156,6 @@
       no_log: true
   roles:
     - role: ai_ops_assistant_host_observer_boundary
-      when: ai_ops_assistant_host_observer_boundary_enabled | bool
+      when:
+        - ai_ops_assistant_host_observer_boundary_enabled | bool
+        - not ai_ops_assistant_host_observer_boundary_validation_mode | bool

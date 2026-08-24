@@ -13,7 +13,7 @@ lab:
       hosts:
         controller01:
           ansible_host: "{{ controller01.mgmtnet_ip_address }}"
-        compute01:
-          ansible_host: "{{ compute01.mgmtnet_ip_address }}"
-        compute02:
-          ansible_host: "{{ compute02.mgmtnet_ip_address }}"
+        # compute01:
+        #   ansible_host: "{{ compute01.mgmtnet_ip_address }}"
+        # compute02:
+        #   ansible_host: "{{ compute02.mgmtnet_ip_address }}"

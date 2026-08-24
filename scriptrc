@@ -75,7 +75,6 @@ deploy_aiops_assistant() {
 			params="-e @$ROOT_DIR/generated/identity_profile.yml"
 		fi
 
-        echo "$extra_params"
         ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_$playbook.yml $params $(echo "$extra_params")
     else
         ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_deploy.yml
