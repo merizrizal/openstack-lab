@@ -130,7 +130,7 @@ cat >"$wrapper" <<EOF_WRAPPER
       no_log: true
 EOF_WRAPPER
 
-python_bin="${PYTHON_BIN:-/home/meriz/Documents/PyEnv/myEnv/bin/python}"
+python_bin="${PYTHON_BIN:-$(command -v python3 || command -v python || true)}"
 [[ -x "$python_bin" ]] || fail "approved Python environment is unavailable"
 ansible_cmd=("$python_bin" -m ansible.cli.playbook)
 rtk "${ansible_cmd[@]}" -i localhost, "$wrapper" >/dev/null 2>&1 || fail "normalized result integration failed"
