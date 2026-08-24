@@ -11,7 +11,7 @@
     ai_ops_assistant_mutation_profile_directory: /opt/openstack-ai-ops-assistant/credentials/profiles
     ai_ops_assistant_mutation_profile_name: aiops-assistant-project-reader
     ai_ops_assistant_mutation_run_id: ""
-    ai_ops_assistant_mutation_target_prefix: aiops-deny-
+    ai_ops_assistant_mutation_target_prefix: aiops-probe-
     ai_ops_assistant_mutation_update_target_name: ""
     ai_ops_assistant_mutation_delete_target_name: ""
     ai_ops_assistant_mutation_update_baseline_description: ""

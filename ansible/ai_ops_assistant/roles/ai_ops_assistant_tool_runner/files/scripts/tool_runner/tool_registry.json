@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "registry_name": "ai-ops-assistant-tool-runner-steps-01-04",
+  "registry_name": "ai-ops-assistant-tool-runner-steps-01-07",
   "defaults": {
     "credential_profile": "aiops-assistant-project-reader",
     "risk_class": "low_readonly_project_scope",
@@ -11,6 +11,7 @@
   "tools": [
     {
       "name": "project_resource_summary",
+      "authority_class": "openstack-project-reader",
       "description": "List project-visible OpenStack resources using the fixed read-only diagnostic.",
       "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/project_resource_summary.sh",
       "credential_profile": "aiops-assistant-project-reader",
@@ -22,6 +23,7 @@
     },
     {
       "name": "server_basic_info",
+      "authority_class": "openstack-project-reader",
       "description": "Show basic information for one project-visible server.",
       "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/server_basic_info.sh",
       "credential_profile": "aiops-assistant-project-reader",
@@ -44,6 +46,7 @@
     },
     {
       "name": "server_network_info",
+      "authority_class": "openstack-project-reader",
       "description": "Show server ports and permitted related network information.",
       "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/server_network_info.sh",
       "credential_profile": "aiops-assistant-project-reader",
@@ -61,6 +64,153 @@
           "pattern": "^[A-Za-z0-9._:-]+$",
           "max_length": 255,
           "description": "Server name or ID using the approved safe identifier character set."
+        }
+      ]
+    },
+    {
+      "name": "neutron_agent_health",
+      "authority_class": "openstack-operator-reader",
+      "description": "List Neutron agents using the fixed read-only operator diagnostic.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/approved/neutron_agent_health.py",
+      "credential_profile": "aiops-assistant-operator-reader",
+      "risk_class": "higher_visibility_operator_scope",
+      "timeout_seconds": 15,
+      "output_limit_bytes": 16384,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": []
+    },
+    {
+      "name": "recent_metadata_errors",
+      "authority_class": "aiops-assistant-host-observer",
+      "description": "Collect bounded redacted recent metadata-service error evidence from an approved host.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/tool_runner/host_observer_connector.py",
+      "credential_profile": null,
+      "risk_class": "high_readonly_restricted_host_scope",
+      "timeout_seconds": 15,
+      "output_limit_bytes": 16384,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": [
+        {
+          "name": "host_label",
+          "position": 1,
+          "required": true,
+          "type": "string",
+          "validation": "safe_host_label_pattern",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+          "max_length": 64,
+          "description": "Approved lowercase host label from the maintained observer projection."
+        },
+        {
+          "name": "window_class",
+          "position": 2,
+          "required": false,
+          "type": "string",
+          "validation": "closed_value",
+          "max_length": 3,
+          "allowed_values": ["15m", "30m", "1h"],
+          "default": "30m",
+          "description": "Closed recent-evidence time window."
+        },
+        {
+          "name": "line_limit_class",
+          "position": 3,
+          "required": false,
+          "type": "string",
+          "validation": "closed_value",
+          "max_length": 6,
+          "allowed_values": ["small", "medium", "large"],
+          "default": "medium",
+          "description": "Closed source-line bound class."
+        }
+      ]
+    },
+    {
+      "name": "recent_neutron_errors",
+      "authority_class": "aiops-assistant-host-observer",
+      "description": "Collect bounded redacted recent Neutron error evidence from an approved host.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/tool_runner/host_observer_connector.py",
+      "credential_profile": null,
+      "risk_class": "high_readonly_restricted_host_scope",
+      "timeout_seconds": 15,
+      "output_limit_bytes": 16384,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": [
+        {
+          "name": "host_label",
+          "position": 1,
+          "required": true,
+          "type": "string",
+          "validation": "safe_host_label_pattern",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+          "max_length": 64,
+          "description": "Approved lowercase host label from the maintained observer projection."
+        },
+        {
+          "name": "window_class",
+          "position": 2,
+          "required": false,
+          "type": "string",
+          "validation": "closed_value",
+          "max_length": 3,
+          "allowed_values": ["15m", "30m", "1h"],
+          "default": "30m",
+          "description": "Closed recent-evidence time window."
+        },
+        {
+          "name": "line_limit_class",
+          "position": 3,
+          "required": false,
+          "type": "string",
+          "validation": "closed_value",
+          "max_length": 6,
+          "allowed_values": ["small", "medium", "large"],
+          "default": "medium",
+          "description": "Closed source-line bound class."
+        }
+      ]
+    },
+    {
+      "name": "recent_nova_errors",
+      "authority_class": "aiops-assistant-host-observer",
+      "description": "Collect bounded redacted recent Nova error evidence from an approved host.",
+      "implementation_target": "/opt/openstack-ai-ops-assistant/scripts/tool_runner/host_observer_connector.py",
+      "credential_profile": null,
+      "risk_class": "high_readonly_restricted_host_scope",
+      "timeout_seconds": 15,
+      "output_limit_bytes": 16384,
+      "mutation_guarantee": "read_only_fixed_diagnostic_script",
+      "parameters": [
+        {
+          "name": "host_label",
+          "position": 1,
+          "required": true,
+          "type": "string",
+          "validation": "safe_host_label_pattern",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+          "max_length": 64,
+          "description": "Approved lowercase host label from the maintained observer projection."
+        },
+        {
+          "name": "window_class",
+          "position": 2,
+          "required": false,
+          "type": "string",
+          "validation": "closed_value",
+          "max_length": 3,
+          "allowed_values": ["15m", "30m", "1h"],
+          "default": "30m",
+          "description": "Closed recent-evidence time window."
+        },
+        {
+          "name": "line_limit_class",
+          "position": 3,
+          "required": false,
+          "type": "string",
+          "validation": "closed_value",
+          "max_length": 6,
+          "allowed_values": ["small", "medium", "large"],
+          "default": "medium",
+          "description": "Closed source-line bound class."
         }
       ]
     }

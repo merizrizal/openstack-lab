@@ -1,0 +1,123 @@
+---
+- name: Validate non-activating live-acceptance readiness gate
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_readiness_gate_enabled: false
+    ai_ops_assistant_readiness_gate_authorization_reference: >-
+      phase06-live-acceptance-2026-0004
+    ai_ops_assistant_readiness_gate_authorization_class: >-
+      phase06-restricted-diagnostics-live-acceptance
+    ai_ops_assistant_readiness_gate_run_id: "2026-0004"
+    ai_ops_assistant_readiness_gate_manifest_path: >-
+      /run/openstack-ai-ops/2026-0004/phase06-readiness.json
+    ai_ops_assistant_readiness_gate_validator_path: >-
+      /opt/openstack-ai-ops-assistant/scripts/tool_runner/readiness_manifest.py
+    ai_ops_assistant_readiness_gate_result:
+      schema_version: "1.0"
+      status: blocked
+      limitation_class: authorization_pending
+      ready: false
+  pre_tasks:
+    - name: Assert readiness-gate scope and fixed non-secret contract
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+          - ai_ops_assistant_readiness_gate_enabled is boolean
+          - ai_ops_assistant_readiness_gate_authorization_reference == 'phase06-live-acceptance-2026-0004'
+          - ai_ops_assistant_readiness_gate_authorization_class == 'phase06-restricted-diagnostics-live-acceptance'
+          - ai_ops_assistant_readiness_gate_run_id == '2026-0004'
+          - ai_ops_assistant_readiness_gate_manifest_path == '/run/openstack-ai-ops/2026-0004/phase06-readiness.json'
+          - ai_ops_assistant_readiness_gate_validator_path == '/opt/openstack-ai-ops-assistant/scripts/tool_runner/readiness_manifest.py'
+          - ai_ops_assistant_readiness_gate_result is mapping
+          - ai_ops_assistant_readiness_gate_result.schema_version == '1.0'
+          - ai_ops_assistant_readiness_gate_result.status == 'blocked'
+          - ai_ops_assistant_readiness_gate_result.limitation_class == 'authorization_pending'
+          - not (ai_ops_assistant_readiness_gate_result.ready | bool)
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Run fixed readiness-manifest validator after explicit authorization
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /opt/openstack-ai-ops-assistant/scripts/tool_runner/readiness_manifest.py
+      register: ai_ops_assistant_readiness_gate_raw
+      changed_when: false
+      failed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_gate_enabled | bool
+
+    - name: Assert fixed readiness-validator process boundary
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_gate_raw.rc is integer
+          - ai_ops_assistant_readiness_gate_raw.rc in [0, 5]
+          - ai_ops_assistant_readiness_gate_raw.stderr | trim == ''
+          - ai_ops_assistant_readiness_gate_raw.stdout | trim | length > 0
+          - ai_ops_assistant_readiness_gate_raw.stdout | length <= 256
+        fail_msg: >-
+          The fixed readiness validator returned an unexpected process or output
+          boundary.
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_gate_enabled | bool
+
+    - name: Parse normalized readiness-validator outcome in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_gate_output: >-
+          {{ ai_ops_assistant_readiness_gate_raw.stdout | trim | from_json }}
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_gate_enabled | bool
+
+    - name: Accept only a normalized ready readiness-gate outcome
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_gate_output is mapping
+          - >-
+            ai_ops_assistant_readiness_gate_output.keys() | list | sort ==
+            ['limitation_class', 'ready', 'schema_version', 'status']
+          - ai_ops_assistant_readiness_gate_raw.rc == 0
+          - ai_ops_assistant_readiness_gate_output.schema_version == '1.0'
+          - ai_ops_assistant_readiness_gate_output.status == 'ready'
+          - ai_ops_assistant_readiness_gate_output.limitation_class == 'none'
+          - ai_ops_assistant_readiness_gate_output.ready is boolean
+          - ai_ops_assistant_readiness_gate_output.ready
+        fail_msg: >-
+          The readiness manifest is malformed, non-ready, or returned an
+          unexpected validator outcome.
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_gate_enabled | bool
+
+    - name: Publish normalized ready readiness-gate outcome in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_gate_result: >-
+          {{ ai_ops_assistant_readiness_gate_output | combine({
+            'run_id': ai_ops_assistant_readiness_gate_run_id
+          }) }}
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_gate_enabled | bool
+
+  tasks:
+    - name: Publish disabled readiness-gate outcome in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_gate_result: >-
+          {{ ai_ops_assistant_readiness_gate_result | combine({
+            'run_id': ai_ops_assistant_readiness_gate_run_id
+          }) }}
+      changed_when: false
+      no_log: true
+      when: not (ai_ops_assistant_readiness_gate_enabled | bool)

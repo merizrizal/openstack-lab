@@ -161,7 +161,7 @@ It must not contain server or project identifiers, addresses, topology payloads,
 Use the confirmed Python environment:
 
 ```bash
-source /home/meriz/Documents/PyEnv/myEnv/bin/activate
+source <user defined Python Venv>
 export ROOT_DIR="$PWD"
 ```
 

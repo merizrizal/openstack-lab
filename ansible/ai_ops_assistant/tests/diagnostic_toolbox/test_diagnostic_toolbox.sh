@@ -11,6 +11,9 @@ fail() {
 }
 
 [[ -r "$helper" ]] || fail "helper is missing"
+safety_gate="$repo_root/scripts/check_ai_ops_revised_diagnostic_toolbox_safety.sh"
+[[ -r "$safety_gate" ]] || fail "revised diagnostic safety gate is missing"
+bash "$safety_gate" >/dev/null 2>&1 || fail "revised diagnostic safety gate failed"
 # shellcheck source=../../roles/ai_ops_assistant_diagnostic_toolbox/files/scripts/approved/lib/aiops_common.sh
 source "$helper"
 

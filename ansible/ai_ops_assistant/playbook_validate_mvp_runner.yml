@@ -26,11 +26,19 @@
       - server_basic_info
       - server_network_info
     ai_ops_assistant_mvp_run_id: ""
+    ai_ops_assistant_mvp_source_revision: unconfirmed
     ai_ops_assistant_mvp_pre_attestation_valid: false
     ai_ops_assistant_mvp_post_attestation_valid: false
     ai_ops_assistant_mvp_post_attestation_unchanged: false
     ai_ops_assistant_mvp_prior_runtime_isolation_confirmed: false
     ai_ops_assistant_mvp_bounded_audit_inspection_implemented: true
+    ai_ops_assistant_mvp_validation_output_directory: /run/openstack-ai-ops/phase05-validation
+    ai_ops_assistant_mvp_validation_output_directory_owner: aiops_assistant
+    ai_ops_assistant_mvp_validation_output_directory_group: aiops_assistant
+    ai_ops_assistant_mvp_validation_output_directory_mode: "0700"
+    ai_ops_assistant_mvp_validation_output_file_mode: "0600"
+    ai_ops_assistant_mvp_validation_output_path: >-
+      {{ ai_ops_assistant_mvp_validation_output_directory }}/{{ ai_ops_assistant_mvp_run_id }}.json
     ai_ops_assistant_mvp_exit_codes:
       ok: 0
       error: 1
@@ -80,6 +88,8 @@
           - ai_ops_assistant_mvp_post_attestation_interface == 'administrator-owned-boolean-only'
           - ai_ops_assistant_mvp_external_evidence_location == 'administrator-approved-protected-location'
           - ai_ops_assistant_mvp_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_mvp_source_revision is match('^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$')
+          - ai_ops_assistant_mvp_source_revision != 'unconfirmed'
           - ai_ops_assistant_mvp_pre_attestation_valid | bool
           - ai_ops_assistant_mvp_prior_runtime_isolation_confirmed | bool
           - ai_ops_assistant_mvp_bounded_audit_inspection_implemented | bool
@@ -99,6 +109,101 @@
           acceptance report is permitted until the complete local harness is ready.
         quiet: true
       changed_when: false
+
+    - name: Inspect MVP validation output parent before any runner call
+      ansible.builtin.stat:
+        path: /run/openstack-ai-ops
+        follow: false
+      register: ai_ops_assistant_mvp_validation_output_parent_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert MVP validation output parent is a protected real directory
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_validation_output_parent_metadata.stat.exists
+          - ai_ops_assistant_mvp_validation_output_parent_metadata.stat.isdir
+          - not ai_ops_assistant_mvp_validation_output_parent_metadata.stat.islnk
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Inspect MVP validation output directory before creation
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_validation_output_directory }}"
+        follow: false
+      register: ai_ops_assistant_mvp_validation_output_directory_before_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert MVP validation output directory is absent or protected
+      ansible.builtin.assert:
+        that:
+          - >-
+            not ai_ops_assistant_mvp_validation_output_directory_before_metadata.stat.exists or
+            (
+              ai_ops_assistant_mvp_validation_output_directory_before_metadata.stat.isdir and
+              not ai_ops_assistant_mvp_validation_output_directory_before_metadata.stat.islnk and
+              ai_ops_assistant_mvp_validation_output_directory_before_metadata.stat.pw_name ==
+              ai_ops_assistant_mvp_validation_output_directory_owner and
+              ai_ops_assistant_mvp_validation_output_directory_before_metadata.stat.gr_name ==
+              ai_ops_assistant_mvp_validation_output_directory_group and
+              ai_ops_assistant_mvp_validation_output_directory_before_metadata.stat.mode ==
+              ai_ops_assistant_mvp_validation_output_directory_mode
+            )
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Create protected MVP validation output directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_assistant_mvp_validation_output_directory }}"
+        state: directory
+        owner: "{{ ai_ops_assistant_mvp_validation_output_directory_owner }}"
+        group: "{{ ai_ops_assistant_mvp_validation_output_directory_group }}"
+        mode: "{{ ai_ops_assistant_mvp_validation_output_directory_mode }}"
+      register: ai_ops_assistant_mvp_validation_output_directory_result
+      no_log: true
+
+    - name: Verify protected MVP validation output directory metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_validation_output_directory }}"
+        follow: false
+      register: ai_ops_assistant_mvp_validation_output_directory_stat
+      changed_when: false
+      no_log: true
+
+    - name: Assert protected MVP validation output directory metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_validation_output_directory_stat.stat.isdir
+          - not ai_ops_assistant_mvp_validation_output_directory_stat.stat.islnk
+          - ai_ops_assistant_mvp_validation_output_directory_stat.stat.pw_name == ai_ops_assistant_mvp_validation_output_directory_owner
+          - ai_ops_assistant_mvp_validation_output_directory_stat.stat.gr_name == ai_ops_assistant_mvp_validation_output_directory_group
+          - ai_ops_assistant_mvp_validation_output_directory_stat.stat.mode == ai_ops_assistant_mvp_validation_output_directory_mode
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Inspect unused MVP validation producer result path
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_validation_output_path }}"
+        follow: false
+      register: ai_ops_assistant_mvp_validation_output_path_metadata
+      changed_when: false
+      no_log: true
+
+    - name: Assert MVP validation producer result path is unused and safe
+      ansible.builtin.assert:
+        that:
+          - not ai_ops_assistant_mvp_validation_output_path_metadata.stat.exists
+          - not (ai_ops_assistant_mvp_validation_output_path_metadata.stat.islnk | default(false))
+        fail_msg: >-
+          MVP validation refuses to overwrite an existing producer result; use a
+          fresh non-secret run ID.
+        quiet: true
+      changed_when: false
+      no_log: true
 
     - name: Inspect fixed runner metadata before any runner call
       ansible.builtin.stat:
@@ -517,16 +622,19 @@
               correlation_id: "{{ ai_ops_assistant_mvp_project_summary_result.correlation_id }}"
               duration_ms: "{{ ai_ops_assistant_mvp_project_summary_result.duration_ms }}"
               truncated: "{{ ai_ops_assistant_mvp_project_summary_result.truncated }}"
+              exit_code_agreement: true
             - name: server_basic_info
               status: "{{ ai_ops_assistant_mvp_server_basic_result.status }}"
               correlation_id: "{{ ai_ops_assistant_mvp_server_basic_result.correlation_id }}"
               duration_ms: "{{ ai_ops_assistant_mvp_server_basic_result.duration_ms }}"
               truncated: "{{ ai_ops_assistant_mvp_server_basic_result.truncated }}"
+              exit_code_agreement: true
             - name: server_network_info
               status: "{{ ai_ops_assistant_mvp_server_network_result.status }}"
               correlation_id: "{{ ai_ops_assistant_mvp_server_network_result.correlation_id }}"
               duration_ms: "{{ ai_ops_assistant_mvp_server_network_result.duration_ms }}"
               truncated: "{{ ai_ops_assistant_mvp_server_network_result.truncated }}"
+              exit_code_agreement: true
           result_process_agreement: true
           audit_pair_validated: "{{ ai_ops_assistant_mvp_audit_inspection_raw.rc == 0 }}"
           path_isolation_confirmed: "{{ ai_ops_assistant_mvp_prior_runtime_isolation_confirmed | bool }}"
@@ -548,6 +656,96 @@
           - ai_ops_assistant_mvp_outcome_report.unchanged_state_confirmed | bool
         fail_msg: >-
           Normalized MVP outcome report is incomplete; no success report is permitted.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Build normalized MVP acceptance producer result
+      ansible.builtin.set_fact:
+        ai_ops_assistant_mvp_producer_result:
+          schema_version: "1.0"
+          producer: mvp_acceptance_validation
+          operation: mvp_three_tool_acceptance
+          status: blocked
+          limitation_class: ai_review_pending
+          rollback_status: pending
+          unresolved_gates:
+            - owner_review_pending
+            - ai_review_pending
+            - rollback_review_pending
+            - redaction_check_pending
+          known_gap_labels:
+            - owner_review_pending
+            - ai_review_pending
+            - rollback_review_pending
+            - redaction_check_pending
+          owner_reviewed: false
+          pre_attestation_valid: "{{ ai_ops_assistant_mvp_pre_attestation_valid | bool }}"
+          post_attestation_valid: "{{ ai_ops_assistant_mvp_post_attestation_valid | bool }}"
+          post_attestation_unchanged: "{{ ai_ops_assistant_mvp_post_attestation_unchanged | bool }}"
+          result_process_agreement: "{{ ai_ops_assistant_mvp_outcome_report.result_process_agreement | bool }}"
+          audit_pair_validated: "{{ ai_ops_assistant_mvp_outcome_report.audit_pair_validated | bool }}"
+          path_isolation_confirmed: "{{ ai_ops_assistant_mvp_outcome_report.path_isolation_confirmed | bool }}"
+          redaction_check_completed: false
+          ai_explanation_reviewed: false
+          ai_refusal_reviewed: false
+          ai_disclosure_reviewed: false
+          rollback_reviewed: false
+          result_schema_validated: true
+          run_id: "{{ ai_ops_assistant_mvp_run_id }}"
+          source_revision: "{{ ai_ops_assistant_mvp_source_revision }}"
+          tools: "{{ ai_ops_assistant_mvp_outcome_report.tools }}"
+      changed_when: false
+      no_log: true
+
+    - name: Assert normalized MVP acceptance producer result schema
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_producer_result.schema_version == '1.0'
+          - ai_ops_assistant_mvp_producer_result.producer == 'mvp_acceptance_validation'
+          - ai_ops_assistant_mvp_producer_result.operation == 'mvp_three_tool_acceptance'
+          - ai_ops_assistant_mvp_producer_result.status == 'blocked'
+          - ai_ops_assistant_mvp_producer_result.tools | length == 3
+          - ai_ops_assistant_mvp_producer_result.unresolved_gates | length > 0
+          - not ai_ops_assistant_mvp_producer_result.owner_reviewed
+          - not ai_ops_assistant_mvp_producer_result.ai_explanation_reviewed
+          - not ai_ops_assistant_mvp_producer_result.rollback_reviewed
+        fail_msg: >-
+          MVP producer output must remain explicitly blocked until owner, AI,
+          redaction, and rollback review evidence is supplied.
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Write normalized MVP acceptance producer result
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_assistant_mvp_validation_output_path }}"
+        owner: "{{ ai_ops_assistant_mvp_validation_output_directory_owner }}"
+        group: "{{ ai_ops_assistant_mvp_validation_output_directory_group }}"
+        mode: "{{ ai_ops_assistant_mvp_validation_output_file_mode }}"
+        force: false
+        content: "{{ ai_ops_assistant_mvp_producer_result | to_nice_json }}"
+      register: ai_ops_assistant_mvp_validation_output_result
+      no_log: true
+
+    - name: Verify normalized MVP acceptance producer result metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_mvp_validation_output_path }}"
+        follow: false
+      register: ai_ops_assistant_mvp_validation_output_stat
+      changed_when: false
+      no_log: true
+
+    - name: Assert normalized MVP acceptance producer result metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_mvp_validation_output_stat.stat.isreg
+          - not ai_ops_assistant_mvp_validation_output_stat.stat.islnk
+          - ai_ops_assistant_mvp_validation_output_stat.stat.pw_name == ai_ops_assistant_mvp_validation_output_directory_owner
+          - ai_ops_assistant_mvp_validation_output_stat.stat.gr_name == ai_ops_assistant_mvp_validation_output_directory_group
+          - ai_ops_assistant_mvp_validation_output_stat.stat.mode == ai_ops_assistant_mvp_validation_output_file_mode
+        fail_msg: >-
+          Normalized MVP acceptance producer result metadata is unsafe.
         quiet: true
       changed_when: false
       no_log: true

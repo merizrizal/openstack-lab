@@ -9,6 +9,12 @@ ai_ops_assistant_tool_runner_registry_path: /opt/openstack-ai-ops-assistant/scri
 ai_ops_assistant_tool_runner_audit_inspector_path: /opt/openstack-ai-ops-assistant/scripts/tool_runner/audit_inspector.py
 ai_ops_assistant_tool_runner_approved_script_root: /opt/openstack-ai-ops-assistant/scripts/approved
 ai_ops_assistant_tool_runner_credential_profile: aiops-assistant-project-reader
+ai_ops_assistant_tool_runner_host_observer_projection_directory: /opt/openstack-ai-ops-assistant/credentials/host-observer
+ai_ops_assistant_tool_runner_host_observer_projection_path: /opt/openstack-ai-ops-assistant/credentials/host-observer/destination-projection.json
+ai_ops_assistant_tool_runner_host_observer_projection_owner: aiops_assistant
+ai_ops_assistant_tool_runner_host_observer_projection_group: aiops_assistant
+ai_ops_assistant_tool_runner_host_observer_projection_directory_mode: "0700"
+ai_ops_assistant_tool_runner_host_observer_projection_mode: "0600"
 ai_ops_assistant_tool_runner_audit_directory: /opt/openstack-ai-ops-assistant/audit
 ai_ops_assistant_tool_runner_audit_active_file: /opt/openstack-ai-ops-assistant/audit/tool-runner.jsonl
 ai_ops_assistant_tool_runner_audit_lock_file: /opt/openstack-ai-ops-assistant/audit/.tool-runner.lock
@@ -27,10 +33,15 @@ ai_ops_assistant_tool_runner_targets:
   - /opt/openstack-ai-ops-assistant/scripts/approved/project_resource_summary.sh
   - /opt/openstack-ai-ops-assistant/scripts/approved/server_basic_info.sh
   - /opt/openstack-ai-ops-assistant/scripts/approved/server_network_info.sh
+  - /opt/openstack-ai-ops-assistant/scripts/approved/neutron_agent_health.py
 ai_ops_assistant_tool_runner_files:
   - source: aiops_tool_runner.py
     mode: "0750"
   - source: audit_inspector.py
     mode: "0750"
+  - source: host_observer_connector.py
+    mode: "0750"
+  - source: readiness_manifest.py
+    mode: "0640"
   - source: tool_registry.json
     mode: "0640"

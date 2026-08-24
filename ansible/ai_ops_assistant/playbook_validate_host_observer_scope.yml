@@ -1,0 +1,161 @@
+---
+- name: Validate bounded host-observer acceptance outcomes without host contact
+  hosts: ai_ops_host_observers
+  connection: local
+  become: false
+  gather_facts: false
+  serial: 1
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+    - roles/ai_ops_assistant_host_observer_boundary/defaults/main.yml
+  vars:
+    ai_ops_assistant_host_observer_boundary_enabled: false
+    ai_ops_assistant_host_observer_boundary_validation_mode: true
+    ai_ops_assistant_host_observer_boundary_deployment_authorization: unconfirmed
+    ai_ops_assistant_host_observer_boundary_required_inventory_group: ai_ops_host_observers
+    ai_ops_assistant_host_observer_boundary_required_limit: ai_ops_host_observers
+    ai_ops_assistant_host_observer_boundary_live_validation_authorization: unconfirmed
+    ai_ops_assistant_host_observer_boundary_negative_test_plan_authorization: unconfirmed
+    ai_ops_assistant_host_observer_boundary_host_destination_override: ""
+    ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes: {}
+    ai_ops_assistant_host_observer_boundary_positive_collector_fixture:
+      case: approved_fixed_collector
+      collector_path: /usr/local/libexec/openstack-ai-ops-assistant/host-observer-collector
+      evidence_reference: 2026-0004-evidence-ref
+      source_class: synthetic-approved-source
+      output_contract: bounded-redacted-structured
+      result: unconfirmed
+    ai_ops_assistant_host_observer_boundary_negative_test_cases:
+      - { case: interactive_shell, expected: denied }
+      - { case: pty_allocation, expected: denied }
+      - { case: agent_forwarding, expected: denied }
+      - { case: x11_forwarding, expected: denied }
+      - { case: local_forwarding, expected: denied }
+      - { case: remote_forwarding, expected: denied }
+      - { case: tunnel_request, expected: denied }
+      - { case: arbitrary_command, expected: denied }
+      - { case: extra_arguments, expected: denied }
+      - { case: environment_injection, expected: denied }
+      - { case: destination_bypass, expected: denied }
+      - { case: out_of_policy_file_read, expected: denied }
+      - { case: editor_execution, expected: denied }
+      - { case: package_manager_execution, expected: denied }
+      - { case: service_control, expected: denied }
+      - { case: unrestricted_sudo, expected: denied }
+      - { case: alternate_sudo_arguments, expected: denied }
+      - { case: collector_output_redirection, expected: denied }
+    ai_ops_assistant_host_observer_boundary_audit_pair:
+      result_present: false
+      audit_present: false
+      correlation_valid: false
+      sanitized: false
+    ai_ops_assistant_host_observer_boundary_pre_attestation:
+      valid: false
+      unchanged: false
+    ai_ops_assistant_host_observer_boundary_post_attestation:
+      valid: false
+      unchanged: false
+    ai_ops_assistant_host_observer_boundary_rollback:
+      status: pending
+      operator_reader_revoked: false
+      observer_revoked: false
+      authority_isolated: false
+  pre_tasks:
+    - name: Assert fixed host-observer group and limit contract
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_host_observer_boundary_required_inventory_group == 'ai_ops_host_observers'
+          - ai_ops_assistant_host_observer_boundary_required_limit == 'ai_ops_host_observers'
+          - ansible_limit | default('') == ai_ops_assistant_host_observer_boundary_required_limit
+          - "'ai_ops_host_observers' in group_names"
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Normalize bounded observer acceptance fixtures
+      ansible.builtin.set_fact:
+        ai_ops_assistant_host_observer_boundary_validation_outcome:
+          schema_version: "1.0"
+          status: blocked
+          limitation_class: authorization_pending
+          positive_fixed_collector: "{{ ai_ops_assistant_host_observer_boundary_positive_collector_fixture }}"
+          negative_controls: "{{ ai_ops_assistant_host_observer_boundary_negative_test_cases }}"
+          audit_pair: "{{ ai_ops_assistant_host_observer_boundary_audit_pair }}"
+          pre_attestation: "{{ ai_ops_assistant_host_observer_boundary_pre_attestation }}"
+          post_attestation: "{{ ai_ops_assistant_host_observer_boundary_post_attestation }}"
+          revocation_rollback: "{{ ai_ops_assistant_host_observer_boundary_rollback }}"
+          final_acceptance: false
+      changed_when: false
+      no_log: true
+
+    - name: Validate exact negative-control fixture
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_host_observer_boundary_negative_test_cases | length == 18
+          - ai_ops_assistant_host_observer_boundary_negative_test_cases | map(attribute='expected') | list | unique == ['denied']
+          - ai_ops_assistant_host_observer_boundary_negative_test_cases | map(attribute='case') | list | sort == ['agent_forwarding',
+            'alternate_sudo_arguments', 'arbitrary_command', 'collector_output_redirection', 'destination_bypass', 'editor_execution', 'environment_injection',
+            'extra_arguments', 'interactive_shell', 'local_forwarding', 'out_of_policy_file_read', 'package_manager_execution', 'pty_allocation',
+            'remote_forwarding', 'service_control', 'tunnel_request', 'unrestricted_sudo', 'x11_forwarding']
+          - ai_ops_assistant_host_observer_boundary_positive_collector_fixture.keys() | list | sort == ['case', 'collector_path', 'evidence_reference',
+            'output_contract', 'result', 'source_class']
+          - ai_ops_assistant_host_observer_boundary_positive_collector_fixture.result == 'unconfirmed'
+          - ai_ops_assistant_host_observer_boundary_audit_pair.keys() | list | sort == ['audit_present', 'correlation_valid', 'result_present', 'sanitized']
+          - ai_ops_assistant_host_observer_boundary_pre_attestation.keys() | list | sort == ['unchanged', 'valid']
+          - ai_ops_assistant_host_observer_boundary_post_attestation.keys() | list | sort == ['unchanged', 'valid']
+          - ai_ops_assistant_host_observer_boundary_rollback.keys() | list | sort == ['authority_isolated', 'observer_revoked', 'operator_reader_revoked',
+            'status']
+        fail_msg: >-
+          Observer validation remains a closed fixture-only contract and refuses
+          incomplete or success-shaped controls.
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_host_observer_boundary_enabled | bool
+
+    - name: Require exact inventory projection and per-host authorization before role tasks
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_host_observer_boundary_deployment_authorization == 'approved'
+          - ai_ops_assistant_host_observer_boundary_live_validation_authorization == 'approved'
+          - ai_ops_assistant_host_observer_boundary_negative_test_plan_authorization == 'approved'
+          - ai_ops_assistant_host_observer_boundary_inventory_projection_status == 'accepted'
+          - ai_ops_assistant_host_observer_boundary_maintained_inventory_source | length > 0
+          - ai_ops_assistant_host_observer_boundary_inventory_projection_revision | length > 0
+          - ai_ops_assistant_host_observer_boundary_inventory_owner | length > 0
+          - ai_ops_assistant_host_observer_boundary_inventory_role | length > 0
+          - ai_ops_assistant_host_observer_boundary_inventory_role in ai_ops_assistant_host_observer_boundary_allowed_inventory_roles
+          - ai_ops_assistant_host_observer_boundary_allowed_host_labels | length > 0
+          - ansible_play_hosts_all | difference(ai_ops_assistant_host_observer_boundary_allowed_host_labels) | length == 0
+          - inventory_hostname in ai_ops_assistant_host_observer_boundary_allowed_host_labels
+          - ai_ops_assistant_host_observer_boundary_per_host_enablement[inventory_hostname] | default(false) | bool
+          - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes is mapping
+          - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes[inventory_hostname].owner | default('') | length > 0
+          - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes[inventory_hostname].procedure | default('') | length > 0
+          - ai_ops_assistant_host_observer_boundary_host_destination_override | length == 0
+        fail_msg: >-
+          Host-observer validation is blocked until the maintained projection,
+          per-host authorization, and disablement contract are supplied.
+        quiet: true
+      when: ai_ops_assistant_host_observer_boundary_enabled | bool
+      changed_when: false
+      no_log: true
+
+    - name: Require the fixture-only observer boundary before future live tasks
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_host_observer_boundary_validation_mode | bool
+          - ai_ops_assistant_host_observer_boundary_positive_collector_fixture.result == 'unconfirmed'
+          - ai_ops_assistant_host_observer_boundary_negative_test_cases | length == 18
+        fail_msg: >-
+          Host-observer validation remains non-activating; no live adversarial
+          task may run from this entrypoint.
+        quiet: true
+      when: ai_ops_assistant_host_observer_boundary_enabled | bool
+      changed_when: false
+      no_log: true
+  roles:
+    - role: ai_ops_assistant_host_observer_boundary
+      when:
+        - ai_ops_assistant_host_observer_boundary_enabled | bool
+        - not ai_ops_assistant_host_observer_boundary_validation_mode | bool

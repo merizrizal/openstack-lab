@@ -266,7 +266,7 @@ Preserve the basic result if it was accepted, but report network relationships a
 
 ### Metadata troubleshooting workflow
 
-**Status:** documented for Chunk 4; live execution and AI behavior testing remain outside Steps 1–3.
+**Status:** baseline project/server workflow; the Phase 06 extension below is static and synthetic only. Live execution and AI behavior testing remain separately gated.
 
 Use this workflow when an operator reports a cloud-init symptom or a request failure involving `169.254.169.254`. The report is context supplied by the operator, not a tool-observed fact unless accepted evidence explicitly contains it. The workflow produces a bounded initial evidence package; it does not prove the complete metadata path or authorize remediation.
 
@@ -339,11 +339,76 @@ A bounded conclusion may say: “The fake server `demo-server` is `ACTIVE` with 
 
 This workflow must not claim that the historical metadata incident is the current cause. It must not suggest restarting services, editing configuration, changing routes, entering a guest, querying hosts, or requesting broader credentials. Any such action remains a separate manual operator decision.
 
+### Phase 06 restricted metadata evidence extension
+
+**Status:** static and synthetic workflow contract only. The sequence below does not
+authorize deployment, host contact, OpenStack authentication, audit inspection, or
+live acceptance. Every request remains independently gated and retains its own
+sanitized correlation and audit outcome.
+
+#### Evidence sequence
+
+Use only accepted redacted result envelopes and stop narrowing the diagnosis when
+a required result is unavailable, denied, failed, timed out, stale, contradictory,
+or truncated:
+
+1. `project_resource_summary` establishes project-visible context and selects one
+   safe returned server identifier.
+2. `server_basic_info` inspects that exact identifier.
+3. `server_network_info` inspects the same exact identifier and its visible
+   attachments.
+4. `neutron_agent_health` is used only when its separately approved
+   operator-reader capability is available; otherwise record an optional-tool
+   evidence gap.
+5. `recent_metadata_errors` is used only when the separately approved
+   host-observer projection, policy, and source are available.
+6. `recent_neutron_errors` is used only when its separately approved
+   host-observer capability is available.
+7. `recent_nova_errors` is used only when its separately approved host-observer
+   capability is available.
+
+The three host-observer tools accept only the closed `host_label`,
+`window_class`, and `line_limit_class` inputs. They do not accept a destination,
+address, source, path, unit, command, account, key, timeout, or output limit.
+Missing projection, policy, key metadata, source approval, or deployment state
+produces `unavailable`; it never falls back to another authority or source.
+Neutron-agent, Neutron, and Nova evidence may be absent without converting the
+workflow into a generic host or API executor.
+
+#### Evidence-to-domain interpretation
+
+| Observed synthetic pattern | Bounded interpretation |
+| --- | --- |
+| Server and visible attachments are coherent | Project control-plane identity and attachment evidence are coherent; guest reachability and metadata health remain unverified. |
+| Neutron-agent evidence is `ok` with a bounded unhealthy signal | Neutron agent/proxy failure is a hypothesis supported by that result; it does not prove the guest path or Nova metadata state. |
+| Metadata events are `ok` with normalized error records | Metadata-service evidence is present for the approved host/source scope; it does not establish causality for an operator symptom. |
+| Nova events are unavailable or absent | Nova API/listener evidence is missing; do not infer health or failure. |
+| Any required result is denied, stale, failed, timed out, truncated, or contradictory | Preserve the evidence gap and avoid a definitive failure-domain claim. |
+| The operator reports a cloud-init or metadata symptom without matching evidence | Label it as an operator report, not an observed guest or service fact. |
+
+The explanation must retain this structure:
+
+```text
+Observed evidence: [tool, status, correlation, truncation, and retained fields].
+Healthy signals: [only affirmative signals present in accepted results].
+Failing signals: [failed, unavailable, denied, stale, empty, or contradictory evidence].
+Inference and likely failure domain: [bounded hypothesis, explicitly labeled].
+Missing or unavailable evidence: [guest, route, proxy/agent, Nova, listener, host, or log gaps].
+Manual recommendations: [unexecuted operator follow-up only].
+```
+
+Manual recommendations may suggest reviewing separately authorized normalized
+evidence or comparing an owner-approved pre/post state. They must not contain a
+shell command, SSH action, sudo action, raw-log request, service restart,
+configuration edit, route change, guest entry, credential escalation, or other
+remediation instruction. Requests to perform those actions are refused as
+outside this diagnostic-only workflow.
+
 ## Cross-workflow acceptance matrix
 
 | Contract area | Project summary | Single-server inspection | Metadata troubleshooting | Evidence status |
 | --- | --- | --- | --- | --- |
-| Approved tools | `project_resource_summary` | `server_basic_info`, `server_network_info` | All three in project → basic → network order | Static documentation complete; no live execution |
+| Approved tools | `project_resource_summary` | `server_basic_info`, `server_network_info` | Seven named tools in project → basic → network → optional/host-observer order | Static documentation and synthetic fixtures; no live execution |
 | Argument boundary | No arguments | One safe `server_identifier` | Reuses the same validated identifier | Runner-only interface documented |
 | Evidence handling | Section-level `ok`, `empty`, `unavailable`, failure, and truncation semantics | Same-identifier correlation and attachment limits | Operator symptom separated from tool evidence; Phase 06 gaps preserved | Fake fixtures and templates reviewed |
 | Explanation | Observed evidence, healthy/failing signals, inference, gaps, manual recommendations | Adds status, `config_drive`, ports, fixed IPs, networks, and subnets | Adds guest → Neutron → Nova path and insufficient-evidence outcome | Diagnostic-only and non-remediation language present |

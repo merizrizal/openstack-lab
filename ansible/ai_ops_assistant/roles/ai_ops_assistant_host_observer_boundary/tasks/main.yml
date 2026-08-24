@@ -1,0 +1,726 @@
+---
+- name: Validate disabled-by-default host-observer policy contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_enabled is boolean
+      - ai_ops_assistant_host_observer_boundary_validation_mode is boolean
+      - ai_ops_assistant_host_observer_boundary_account_name != 'aiops_assistant'
+      - ai_ops_assistant_host_observer_boundary_account_group != 'aiops_assistant'
+      - ai_ops_assistant_host_observer_boundary_account_shell == '/usr/sbin/nologin'
+      - ai_ops_assistant_host_observer_boundary_lifecycle_action in ['present', 'disable', 'remove']
+      - ai_ops_assistant_host_observer_boundary_key_label != 'aiops-assistant-project-reader'
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_path == '/var/lib/aiops-host-observer/.ssh/authorized_keys'
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_mode == '0600'
+      - ai_ops_assistant_host_observer_boundary_ssh_directory == '/var/lib/aiops-host-observer/.ssh'
+      - ai_ops_assistant_host_observer_boundary_ssh_directory_mode == '0700'
+      - ai_ops_assistant_host_observer_boundary_ssh_restrictions == ['no-agent-forwarding', 'no-X11-forwarding', 'no-port-forwarding', 'no-pty']
+      - ai_ops_assistant_host_observer_boundary_collector_path == '/usr/local/libexec/openstack-ai-ops-assistant/host-observer-collector'
+      - ai_ops_assistant_host_observer_boundary_collector_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_collector_mode == '0750'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_directory == '/etc/openstack-ai-ops-assistant'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_directory_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_directory_group == 'aiops-host-observer'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_directory_mode == '0750'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_path == '/etc/openstack-ai-ops-assistant/host-observer-policy.json'
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_path == '/etc/openstack-ai-ops-assistant/host-observer-inventory-projection.json'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_group == 'aiops-host-observer'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_mode == '0640'
+      - >-
+        ai_ops_assistant_host_observer_boundary_collector_files | map(attribute='source') | list == [
+        'host_observer/host_observer_collector.py'
+        ]
+      - >-
+        ai_ops_assistant_host_observer_boundary_collector_files | map(attribute='destination') | list == [
+        'host-observer-collector'
+        ]
+      - >-
+        ai_ops_assistant_host_observer_boundary_collector_files | map(attribute='mode') | list == ['0750']
+      - ai_ops_assistant_host_observer_boundary_sudoers_path == '/etc/sudoers.d/aiops-host-observer'
+      - ai_ops_assistant_host_observer_boundary_sudoers_owner == 'root'
+      - ai_ops_assistant_host_observer_boundary_sudoers_mode == '0440'
+      - ai_ops_assistant_host_observer_boundary_allowed_inventory_roles is sequence
+      - ai_ops_assistant_host_observer_boundary_allowed_host_labels is sequence
+      - ai_ops_assistant_host_observer_boundary_per_host_enablement is mapping
+      - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes is mapping
+      - ai_ops_assistant_host_observer_boundary_sudo_required is false
+    quiet: true
+  changed_when: false
+  no_log: true
+
+- name: Reject unsafe or historical host-observer policy paths
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_collector_path is match('^/usr/local/libexec/openstack-ai-ops-assistant/[^/]+$')
+      - ai_ops_assistant_host_observer_boundary_collector_policy_path is match('^/etc/openstack-ai-ops-assistant/[^/]+$')
+      - ai_ops_assistant_host_observer_boundary_sudoers_path is match('^/etc/sudoers.d/aiops-host-observer$')
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_path is match('^/var/lib/aiops-host-observer/\\.ssh/authorized_keys$')
+      - ai_ops_assistant_host_observer_boundary_ssh_directory is match('^/var/lib/aiops-host-observer/\\.ssh$')
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_path is match('^/etc/openstack-ai-ops-assistant/[^/]+$')
+      - "'..' not in ai_ops_assistant_host_observer_boundary_authorized_keys_path.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_ssh_directory.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_collector_path.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_collector_policy_path.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_inventory_projection_path.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_sudoers_path.split('/')"
+    quiet: true
+  changed_when: false
+  no_log: true
+
+- name: Inspect host-observer collector source
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/scripts/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_host_observer_boundary_collector_files }}"
+  loop_control:
+    label: "{{ item.source }}"
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_host_observer_boundary_collector_source_metadata
+  changed_when: false
+
+- name: Assert host-observer collector source is regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_collector_source_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
+
+- name: Require approved observer policy before any provisioning task
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+      - ai_ops_assistant_host_observer_boundary_deployment_authorization == 'approved'
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_maintained_inventory_source | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_revision | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_allowed_inventory_roles | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_role | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_role in ai_ops_assistant_host_observer_boundary_allowed_inventory_roles
+      - ai_ops_assistant_host_observer_boundary_allowed_host_labels | length > 0
+      - inventory_hostname in ai_ops_assistant_host_observer_boundary_allowed_host_labels
+      - ai_ops_assistant_host_observer_boundary_per_host_enablement[inventory_hostname] | default(false) | bool
+      - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes[inventory_hostname].owner | default('') | length > 0
+      - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes[inventory_hostname].procedure | default('') | length > 0
+      - ai_ops_assistant_host_observer_boundary_account_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_account_removal_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_source | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_source.startswith('/run/openstack-ai-ops/')
+      - "'..' not in ai_ops_assistant_host_observer_boundary_key_source.split('/')"
+      - ai_ops_assistant_host_observer_boundary_key_source_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_rotation_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_key_revocation_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_ssh_source_restriction is
+        match('^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])/32$')
+      - ai_ops_assistant_host_observer_boundary_forced_command == ai_ops_assistant_host_observer_boundary_forced_command_path
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_path == '/var/lib/aiops-host-observer/.ssh/authorized_keys'
+      - ai_ops_assistant_host_observer_boundary_approved_source_classes | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_source_allowlist | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_time_bound_class | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_line_bound_class | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_byte_bound_class | length > 0
+      - ai_ops_assistant_host_observer_boundary_redaction_policy_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_collector_metadata_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_metadata_status == 'accepted'
+      - ai_ops_assistant_host_observer_boundary_collector_policy_source | length > 0
+      - ai_ops_assistant_host_observer_boundary_collector_policy_source.startswith('/run/openstack-ai-ops/')
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_source | length > 0
+      - ai_ops_assistant_host_observer_boundary_inventory_projection_source.startswith('/run/openstack-ai-ops/')
+      - "'..' not in ai_ops_assistant_host_observer_boundary_collector_policy_source.split('/')"
+      - "'..' not in ai_ops_assistant_host_observer_boundary_inventory_projection_source.split('/')"
+      - ai_ops_assistant_host_observer_boundary_sudo_policy_status in ['not_required', 'accepted']
+      - >-
+        not ai_ops_assistant_host_observer_boundary_sudo_required | bool or
+        (ai_ops_assistant_host_observer_boundary_sudo_collector_argv | length > 0 and
+        ai_ops_assistant_host_observer_boundary_sudo_collector_argv[0] ==
+        ai_ops_assistant_host_observer_boundary_collector_path and
+        ai_ops_assistant_host_observer_boundary_sudo_rule_reference | length > 0)
+      - >-
+        ai_ops_assistant_host_observer_boundary_sudo_required | bool or
+        ai_ops_assistant_host_observer_boundary_sudo_collector_argv | length == 0
+      - ai_ops_assistant_host_observer_boundary_rollback_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_source_key_removal_owner | length > 0
+    fail_msg: >-
+      Host-observer provisioning is blocked until the maintained inventory
+      projection, dedicated identity, forced collector, source bounds, redaction,
+      sudo decision, and rollback owners are approved.
+    quiet: true
+  when: ai_ops_assistant_host_observer_boundary_enabled | bool
+  changed_when: false
+  no_log: true
+
+- name: Inspect owner-supplied observer public key source
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_host_observer_boundary_key_source }}"
+    follow: false
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_host_observer_boundary_key_source_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Assert owner-supplied observer public key source metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_key_source_metadata.stat.exists
+      - ai_ops_assistant_host_observer_boundary_key_source_metadata.stat.isreg
+      - not ai_ops_assistant_host_observer_boundary_key_source_metadata.stat.islnk
+      - lookup('ansible.builtin.file', ai_ops_assistant_host_observer_boundary_key_source) is match('^ssh-ed25519 [A-Za-z0-9+/]+={0,2}( .+)?$')
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Inspect owner-supplied observer policy sources
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_policy_source }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_source }}"
+  loop_control:
+    label: observer-policy-source
+  register: ai_ops_assistant_host_observer_boundary_policy_source_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Assert owner-supplied observer policy sources are regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_policy_source_metadata.results }}"
+  loop_control:
+    label: observer-policy-source
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Ensure observer account group is present
+  ansible.builtin.group:
+    name: "{{ ai_ops_assistant_host_observer_boundary_account_group }}"
+    state: present
+    system: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Ensure observer account is present with a non-interactive shell
+  ansible.builtin.user:
+    name: "{{ ai_ops_assistant_host_observer_boundary_account_name }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_account_group }}"
+    home: "{{ ai_ops_assistant_host_observer_boundary_account_home }}"
+    shell: "{{ ai_ops_assistant_host_observer_boundary_account_shell }}"
+    state: present
+    system: true
+    create_home: true
+    password_lock: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Ensure observer account home metadata is restrictive
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_host_observer_boundary_account_home }}"
+    state: directory
+    owner: "{{ ai_ops_assistant_host_observer_boundary_account_name }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_account_group }}"
+    mode: "0700"
+    recurse: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Ensure observer SSH directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_host_observer_boundary_ssh_directory }}"
+    state: directory
+    owner: "{{ ai_ops_assistant_host_observer_boundary_account_name }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_account_group }}"
+    mode: "{{ ai_ops_assistant_host_observer_boundary_ssh_directory_mode }}"
+    recurse: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Materialize exact observer authorized key policy
+  ansible.posix.authorized_key:
+    user: "{{ ai_ops_assistant_host_observer_boundary_account_name }}"
+    path: "{{ ai_ops_assistant_host_observer_boundary_authorized_keys_path }}"
+    key: "{{ lookup('ansible.builtin.file', ai_ops_assistant_host_observer_boundary_key_source) }}"
+    key_options: 'from="{{ ai_ops_assistant_host_observer_boundary_ssh_source_restriction }}",command="{{ ai_ops_assistant_host_observer_boundary_forced_command }}",{{
+      ai_ops_assistant_host_observer_boundary_ssh_restrictions | join(",") }}'
+    state: present
+    exclusive: true
+    manage_dir: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Assert observer authorized key metadata
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_host_observer_boundary_authorized_keys_path }}"
+    follow: false
+  register: ai_ops_assistant_host_observer_boundary_authorized_keys_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+    - not ansible_check_mode
+
+- name: Verify observer authorized key file metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_metadata.stat.exists
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_metadata.stat.isreg
+      - not ai_ops_assistant_host_observer_boundary_authorized_keys_metadata.stat.islnk
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_metadata.stat.pw_name == ai_ops_assistant_host_observer_boundary_authorized_keys_owner
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_metadata.stat.gr_name == ai_ops_assistant_host_observer_boundary_authorized_keys_group
+      - ai_ops_assistant_host_observer_boundary_authorized_keys_metadata.stat.mode == ai_ops_assistant_host_observer_boundary_authorized_keys_mode
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+    - not ansible_check_mode
+
+- name: Ensure fixed host-observer collector directory is present
+  ansible.builtin.file:
+    path: /usr/local/libexec/openstack-ai-ops-assistant
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_host_observer_boundary_collector_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_host_observer_boundary_enabled | bool
+
+- name: Materialize exact host-observer collector
+  ansible.builtin.copy:
+    src: "scripts/{{ item.source }}"
+    dest: "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    owner: "{{ ai_ops_assistant_host_observer_boundary_collector_owner }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_collector_group }}"
+    mode: "{{ item.mode }}"
+    backup: false
+  loop: "{{ ai_ops_assistant_host_observer_boundary_collector_files }}"
+  loop_control:
+    label: "{{ item.destination }}"
+  when: ai_ops_assistant_host_observer_boundary_enabled | bool
+
+- name: Inspect materialized host-observer collector
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    follow: false
+  register: ai_ops_assistant_host_observer_boundary_collector_destination_metadata
+  changed_when: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - not ansible_check_mode
+
+- name: Assert materialized host-observer collector metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.exists
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.isreg
+      - not ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.islnk
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.pw_name == ai_ops_assistant_host_observer_boundary_collector_owner
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.gr_name == ai_ops_assistant_host_observer_boundary_collector_group
+      - ai_ops_assistant_host_observer_boundary_collector_destination_metadata.stat.mode == '0750'
+    quiet: true
+  changed_when: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - not ansible_check_mode
+
+- name: Ensure fixed observer policy directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_directory }}"
+    state: directory
+    owner: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_directory_owner }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_directory_group }}"
+    mode: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_directory_mode }}"
+    recurse: false
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Inspect fixed observer policy directory
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_directory }}"
+    follow: false
+  register: ai_ops_assistant_host_observer_boundary_policy_directory_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+    - not ansible_check_mode
+
+- name: Assert fixed observer policy directory metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_policy_directory_metadata.stat.exists
+      - ai_ops_assistant_host_observer_boundary_policy_directory_metadata.stat.isdir
+      - not ai_ops_assistant_host_observer_boundary_policy_directory_metadata.stat.islnk
+      - ai_ops_assistant_host_observer_boundary_policy_directory_metadata.stat.pw_name ==
+        ai_ops_assistant_host_observer_boundary_collector_policy_directory_owner
+      - ai_ops_assistant_host_observer_boundary_policy_directory_metadata.stat.gr_name ==
+        ai_ops_assistant_host_observer_boundary_collector_policy_directory_group
+      - ai_ops_assistant_host_observer_boundary_policy_directory_metadata.stat.mode == ai_ops_assistant_host_observer_boundary_collector_policy_directory_mode
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+    - not ansible_check_mode
+
+- name: Materialize owner-supplied host-observer policy
+  ansible.builtin.copy:
+    src: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_source }}"
+    dest: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+    remote_src: true
+    owner: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_owner }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_group }}"
+    mode: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_mode }}"
+    backup: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Materialize owner-supplied observer inventory projection
+  ansible.builtin.copy:
+    src: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_source }}"
+    dest: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+    remote_src: true
+    owner: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_owner }}"
+    group: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_group }}"
+    mode: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_mode }}"
+    backup: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+
+- name: Inspect materialized observer policy artifacts
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+  loop:
+    - path: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+      owner: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_owner }}"
+      group: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_group }}"
+      mode: "{{ ai_ops_assistant_host_observer_boundary_collector_policy_mode }}"
+    - path: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+      owner: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_owner }}"
+      group: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_group }}"
+      mode: "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_mode }}"
+  loop_control:
+    label: observer-policy-artifact
+  register: ai_ops_assistant_host_observer_boundary_policy_destination_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+    - not ansible_check_mode
+
+- name: Assert materialized observer policy artifact metadata
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == item.item.owner
+      - item.stat.gr_name == item.item.group
+      - item.stat.mode == item.item.mode
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_policy_destination_metadata.results }}"
+  loop_control:
+    label: observer-policy-artifact
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_enabled | bool
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'present'
+    - not ansible_check_mode
+
+- name: Keep host-observer provisioning unavailable by default
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_assistant_host_observer_boundary_enabled | bool or ai_ops_assistant_host_observer_boundary_deployment_authorization == 'approved'
+    fail_msg: >-
+      Host-observer provisioning remains unavailable until the maintained
+      projection, forced-command policy, collector sources, optional sudo
+      contract, and rollback owners are independently approved.
+    quiet: true
+  changed_when: false
+
+- name: Require independently authorized host-observer disablement
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+      - ai_ops_assistant_host_observer_boundary_disablement_authorization == 'approved'
+      - ai_ops_assistant_host_observer_boundary_disablement_reference | length > 0
+      - ai_ops_assistant_host_observer_boundary_source_key_removal_owner == 'OpenStack security or senior lab administrator'
+      - ai_ops_assistant_host_observer_boundary_per_host_enablement[inventory_hostname] | default(false) | bool == false
+      - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes[inventory_hostname].owner | default('') | length > 0
+      - ai_ops_assistant_host_observer_boundary_per_host_disablement_outcomes[inventory_hostname].procedure | default('') | length > 0
+    fail_msg: >-
+      Host-observer disablement is independently authorized per host and must
+      remove the key and policy without changing other reader authorities.
+    quiet: true
+  changed_when: false
+  no_log: true
+  when: ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+
+- name: Disable observer authorized key independently
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_host_observer_boundary_authorized_keys_path }}"
+    state: absent
+  no_log: true
+  when: ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+
+- name: Disable observer policy and inventory projection independently
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+  loop_control:
+    label: observer-disabled-artifact
+  no_log: true
+  when: ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+
+- name: Verify observer disablement artifacts are absent
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - "{{ ai_ops_assistant_host_observer_boundary_authorized_keys_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+  loop_control:
+    label: observer-disabled-artifact
+  register: ai_ops_assistant_host_observer_boundary_disablement_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+    - not ansible_check_mode
+
+- name: Assert observer disablement completed
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_disablement_metadata.results }}"
+  loop_control:
+    label: observer-disabled-artifact
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+    - not ansible_check_mode
+
+- name: Normalize observer disablement outcome
+  ansible.builtin.set_fact:
+    ai_ops_assistant_host_observer_boundary_validation_outcome:
+      schema_version: "1.0"
+      status: disabled
+      limitation_class: none
+      host_label: "{{ inventory_hostname }}"
+      account: "{{ ai_ops_assistant_host_observer_boundary_account_name }}"
+      key: revoked
+      policy: removed
+      collector: retained
+  changed_when: false
+  no_log: true
+  when: ai_ops_assistant_host_observer_boundary_lifecycle_action == 'disable'
+
+- name: Require independently authorized host-observer removal
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+      - ai_ops_assistant_host_observer_boundary_removal_authorization == 'approved'
+      - ai_ops_assistant_host_observer_boundary_account_removal_owner == 'OpenStack security or senior lab administrator'
+      - ai_ops_assistant_host_observer_boundary_source_key_removal_owner == 'OpenStack security or senior lab administrator'
+      - ai_ops_assistant_host_observer_boundary_rollback_owner | length > 0
+      - ai_ops_assistant_host_observer_boundary_per_host_enablement[inventory_hostname] | default(false) | bool == false
+    fail_msg: >-
+      Host-observer removal is independently authorized per host and must not
+      broaden into project-reader or operator-reader removal.
+    quiet: true
+  changed_when: false
+  no_log: true
+  when: ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+
+- name: Inspect observer home before complete removal
+  ansible.builtin.find:
+    paths:
+      - "{{ ai_ops_assistant_host_observer_boundary_account_home }}"
+    recurse: true
+    file_type: any
+    hidden: true
+    follow: false
+  register: ai_ops_assistant_host_observer_boundary_removal_home_entries
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Assert observer removal home is isolated
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (ai_ops_assistant_host_observer_boundary_removal_home_entries.files | default([])) or
+        (ai_ops_assistant_host_observer_boundary_removal_home_entries.files |
+        map(attribute='path') | list | difference([
+          ai_ops_assistant_host_observer_boundary_account_home ~ '/.ssh',
+          ai_ops_assistant_host_observer_boundary_authorized_keys_path
+        ]) | length == 0)
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Inspect observer authority artifacts before removal
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - "{{ ai_ops_assistant_host_observer_boundary_authorized_keys_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+  loop_control:
+    label: observer-removal-artifact
+  register: ai_ops_assistant_host_observer_boundary_removal_artifact_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Reject symlinked observer authority artifacts before removal
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.isreg or item.stat.isdir)
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_removal_artifact_metadata.results }}"
+  loop_control:
+    label: observer-removal-artifact
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Remove observer authority artifacts
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ ai_ops_assistant_host_observer_boundary_authorized_keys_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+  loop_control:
+    label: observer-removal-artifact
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Remove observer account and dedicated group
+  ansible.builtin.user:
+    name: "{{ ai_ops_assistant_host_observer_boundary_account_name }}"
+    state: absent
+    remove: true
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Remove observer account group after account removal
+  ansible.builtin.group:
+    name: "{{ ai_ops_assistant_host_observer_boundary_account_group }}"
+    state: absent
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Verify observer account and authority removal
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - "{{ ai_ops_assistant_host_observer_boundary_account_home }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_collector_policy_path }}"
+    - "{{ ai_ops_assistant_host_observer_boundary_inventory_projection_path }}"
+  loop_control:
+    label: observer-removal-artifact
+  register: ai_ops_assistant_host_observer_boundary_removal_verification
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Assert observer authority removal completed
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists
+    quiet: true
+  loop: "{{ ai_ops_assistant_host_observer_boundary_removal_verification.results }}"
+  loop_control:
+    label: observer-removal-artifact
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'
+    - not ansible_check_mode
+
+- name: Normalize observer removal outcome
+  ansible.builtin.set_fact:
+    ai_ops_assistant_host_observer_boundary_validation_outcome:
+      schema_version: "1.0"
+      status: removed
+      limitation_class: none
+      host_label: "{{ inventory_hostname }}"
+      account: revoked
+      key: revoked
+      policy: removed
+      collector: removed
+  changed_when: false
+  no_log: true
+  when: ai_ops_assistant_host_observer_boundary_lifecycle_action == 'remove'

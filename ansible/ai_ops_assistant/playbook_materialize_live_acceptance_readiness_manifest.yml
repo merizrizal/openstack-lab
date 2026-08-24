@@ -1,0 +1,405 @@
+---
+- name: Prepare owner-controlled live-acceptance readiness-manifest materialization
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  vars:
+    ansible_pipelining: true
+    ai_ops_assistant_readiness_manifest_materializer_enabled: false
+    ai_ops_assistant_readiness_manifest_materializer_mode: runtime
+    ai_ops_assistant_readiness_manifest_materializer_run_id: "2026-0004"
+    ai_ops_assistant_readiness_manifest_materializer_authorization_reference: >-
+      phase06-live-acceptance-2026-0004
+    ai_ops_assistant_readiness_manifest_materializer_authorization_class: >-
+      phase06-restricted-diagnostics-live-acceptance
+    ai_ops_assistant_readiness_manifest_materializer_source_revision: 2026-0004-source-r1
+    ai_ops_assistant_readiness_manifest_materializer_environment_label: local-lab
+    ai_ops_assistant_readiness_manifest_materializer_evidence_owner: openstack lab admin
+    ai_ops_assistant_readiness_manifest_materializer_issued_at: unconfirmed
+    ai_ops_assistant_readiness_manifest_materializer_expires_at: unconfirmed
+    ai_ops_assistant_readiness_manifest_materializer_directory: >-
+      /run/openstack-ai-ops/2026-0004
+    ai_ops_assistant_readiness_manifest_materializer_path: >-
+      /run/openstack-ai-ops/2026-0004/phase06-readiness.json
+    ai_ops_assistant_readiness_manifest_materializer_directory_owner: aiops_assistant
+    ai_ops_assistant_readiness_manifest_materializer_directory_group: aiops_assistant
+    ai_ops_assistant_readiness_manifest_materializer_directory_mode: "0700"
+    ai_ops_assistant_readiness_manifest_materializer_file_mode: "0600"
+    ai_ops_assistant_readiness_manifest_materializer_scope_approvals: []
+    ai_ops_assistant_readiness_manifest_materializer_protected_input_references: {}
+    ai_ops_assistant_readiness_manifest_materializer_integrity_checks: {}
+    ai_ops_assistant_readiness_manifest_materializer_result:
+      schema_version: "1.0"
+      status: blocked
+      limitation_class: authorization_pending
+      materialized: false
+      mode: runtime
+  pre_tasks:
+    - name: Assert readiness-manifest materializer scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+          - ai_ops_assistant_readiness_manifest_materializer_enabled is boolean
+          - ai_ops_assistant_readiness_manifest_materializer_mode in ['campaign', 'runtime']
+          - ai_ops_assistant_readiness_manifest_materializer_result is mapping
+          - ai_ops_assistant_readiness_manifest_materializer_result.schema_version == '1.0'
+          - ai_ops_assistant_readiness_manifest_materializer_result.status == 'blocked'
+          - ai_ops_assistant_readiness_manifest_materializer_result.limitation_class == 'authorization_pending'
+          - not (ai_ops_assistant_readiness_manifest_materializer_result.materialized | bool)
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Assert owner-provided readiness-manifest identity inputs
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_manifest_materializer_run_id is match('^[a-z0-9][a-z0-9-]{0,47}$')
+          - ai_ops_assistant_readiness_manifest_materializer_run_id != 'unconfirmed'
+          - ai_ops_assistant_readiness_manifest_materializer_authorization_reference is match('^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$')
+          - ai_ops_assistant_readiness_manifest_materializer_authorization_reference != 'unconfirmed'
+          - ai_ops_assistant_readiness_manifest_materializer_authorization_class == 'phase06-restricted-diagnostics-live-acceptance'
+          - ai_ops_assistant_readiness_manifest_materializer_source_revision is match('^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$')
+          - ai_ops_assistant_readiness_manifest_materializer_source_revision is match('^' ~ ai_ops_assistant_readiness_manifest_materializer_run_id ~ '-')
+          - ai_ops_assistant_readiness_manifest_materializer_environment_label is match('^[a-z0-9][a-z0-9._-]{0,63}$')
+          - ai_ops_assistant_readiness_manifest_materializer_evidence_owner is match('^[^\\r\\n]{1,96}$')
+          - ai_ops_assistant_readiness_manifest_materializer_evidence_owner != 'unconfirmed'
+          - ai_ops_assistant_readiness_manifest_materializer_issued_at is match('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$')
+          - ai_ops_assistant_readiness_manifest_materializer_expires_at is match('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$')
+          - ai_ops_assistant_readiness_manifest_materializer_directory == '/run/openstack-ai-ops/2026-0004'
+          - ai_ops_assistant_readiness_manifest_materializer_path == '/run/openstack-ai-ops/2026-0004/phase06-readiness.json'
+          - ai_ops_assistant_readiness_manifest_materializer_directory_owner == 'aiops_assistant'
+          - ai_ops_assistant_readiness_manifest_materializer_directory_group == 'aiops_assistant'
+          - ai_ops_assistant_readiness_manifest_materializer_directory_mode == '0700'
+          - ai_ops_assistant_readiness_manifest_materializer_file_mode == '0600'
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+
+    - name: Assert closed readiness-manifest scope-approval collection
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_manifest_materializer_scope_approvals is sequence
+          - ai_ops_assistant_readiness_manifest_materializer_scope_approvals is not string
+          - ai_ops_assistant_readiness_manifest_materializer_scope_approvals | length == 11
+          - >-
+            (ai_ops_assistant_readiness_manifest_materializer_scope_approvals |
+            select('mapping') | list | length) ==
+            (ai_ops_assistant_readiness_manifest_materializer_scope_approvals | length)
+          - >-
+            ai_ops_assistant_readiness_manifest_materializer_scope_approvals |
+            map(attribute='scope') | list | sort ==
+            ['host_source_contact', 'negative_boundary_validation',
+            'observer_deployment', 'operator_reader_deployment',
+            'outcome_evidence_recording', 'positive_validation',
+            'prerequisite_readiness', 'protected_audit_inspection',
+            'representative_workflow', 'revocation_rollback',
+            'unchanged_state_comparison']
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+
+    - name: Assert each readiness-manifest scope approval
+      ansible.builtin.assert:
+        that:
+          - item.keys() | list | sort == ['authorization_reference', 'outcome_evidence_reference', 'owner_label', 'scope', 'status']
+          - item.status in ['approved', 'pending', 'denied', 'revoked', 'expired']
+          - item.owner_label is match('^[^\\r\\n]{1,96}$')
+          - item.authorization_reference == ai_ops_assistant_readiness_manifest_materializer_authorization_reference
+          - >-
+            item.outcome_evidence_reference is match(
+            '^' ~ ai_ops_assistant_readiness_manifest_materializer_run_id ~
+            '-[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$')
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_readiness_manifest_materializer_scope_approvals }}"
+      loop_control:
+        label: approval
+      when: ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+
+    - name: Assert closed readiness-manifest protected-input references
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_manifest_materializer_protected_input_references is mapping
+          - >-
+            ai_ops_assistant_readiness_manifest_materializer_protected_input_references.keys() |
+            list | sort == ['destination_projection_revision', 'host_collector_revision',
+            'host_policy_revision', 'manifest_revision', 'observer_key_revision',
+            'operator_reader_revision']
+        quiet: true
+      changed_when: false
+      no_log: true
+      when: ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+
+    - name: Assert each readiness-manifest protected-input reference
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.value is match('^' ~
+            ai_ops_assistant_readiness_manifest_materializer_run_id ~
+            '-[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$')
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_readiness_manifest_materializer_protected_input_references | dict2items }}"
+      loop_control:
+        label: protected-input-reference
+      when: ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+
+    - name: Assert closed readiness-manifest integrity-check collection
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_manifest_materializer_integrity_checks is mapping
+          - >-
+            ai_ops_assistant_readiness_manifest_materializer_integrity_checks.keys() |
+            list | sort == ['destination_projection_directory', 'destination_projection_file',
+            'destination_projection_freshness', 'host_collector', 'host_policy',
+            'observer_private_key', 'operator_reader_source', 'operator_reader_target']
+        quiet: true
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Assert each readiness-manifest integrity check
+      ansible.builtin.assert:
+        that:
+          - item.value is mapping
+          - item.value.keys() | list | sort == ['outcome_evidence_reference', 'status']
+          - item.value.status in ['passed', 'blocked', 'failed', 'unavailable']
+          - >-
+            item.value.outcome_evidence_reference is match('^' ~
+            ai_ops_assistant_readiness_manifest_materializer_run_id ~
+            '-[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$')
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_readiness_manifest_materializer_integrity_checks | dict2items }}"
+      loop_control:
+        label: integrity-check
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Require every readiness-manifest scope approval
+      ansible.builtin.assert:
+        that:
+          - item.status == 'approved'
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_readiness_manifest_materializer_scope_approvals }}"
+      loop_control:
+        label: approval
+      when: ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+
+    - name: Require every readiness-manifest integrity check
+      ansible.builtin.assert:
+        that:
+          - item.value.status == 'passed'
+        quiet: true
+      changed_when: false
+      no_log: true
+      loop: "{{ ai_ops_assistant_readiness_manifest_materializer_integrity_checks | dict2items }}"
+      loop_control:
+        label: integrity-check
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Build normalized ready readiness manifest in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_manifest_materializer_document:
+          schema_version: "1.0"
+          run_id: "{{ ai_ops_assistant_readiness_manifest_materializer_run_id }}"
+          authorization_reference: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_authorization_reference }}
+          authorization_class: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_authorization_class }}
+          source_revision: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_source_revision }}
+          environment_label: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_environment_label }}
+          evidence_owner: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_evidence_owner }}
+          scope_approvals: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_scope_approvals }}
+          protected_input_references: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_protected_input_references }}
+          integrity_checks: >-
+            {{ ai_ops_assistant_readiness_manifest_materializer_integrity_checks }}
+          status: ready
+          issued_at: "{{ ai_ops_assistant_readiness_manifest_materializer_issued_at }}"
+          expires_at: "{{ ai_ops_assistant_readiness_manifest_materializer_expires_at }}"
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Assert serialized readiness-manifest bound
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_manifest_materializer_document | to_json | length <= 16384
+        quiet: true
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Inspect fixed readiness-manifest parent path
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_readiness_manifest_materializer_directory }}"
+        follow: false
+      register: ai_ops_assistant_readiness_manifest_materializer_directory_before
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Reject unsafe fixed readiness-manifest parent path
+      ansible.builtin.assert:
+        that:
+          - >-
+            not ai_ops_assistant_readiness_manifest_materializer_directory_before.stat.exists or
+            (ai_ops_assistant_readiness_manifest_materializer_directory_before.stat.isdir and
+            not ai_ops_assistant_readiness_manifest_materializer_directory_before.stat.islnk and
+            ai_ops_assistant_readiness_manifest_materializer_directory_before.stat.pw_name ==
+            ai_ops_assistant_readiness_manifest_materializer_directory_owner and
+            ai_ops_assistant_readiness_manifest_materializer_directory_before.stat.gr_name ==
+            ai_ops_assistant_readiness_manifest_materializer_directory_group and
+            ai_ops_assistant_readiness_manifest_materializer_directory_before.stat.mode ==
+            ai_ops_assistant_readiness_manifest_materializer_directory_mode)
+        quiet: true
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Materialize fixed readiness-manifest parent directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_assistant_readiness_manifest_materializer_directory }}"
+        state: directory
+        owner: "{{ ai_ops_assistant_readiness_manifest_materializer_directory_owner }}"
+        group: "{{ ai_ops_assistant_readiness_manifest_materializer_directory_group }}"
+        mode: "{{ ai_ops_assistant_readiness_manifest_materializer_directory_mode }}"
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Inspect fixed readiness-manifest destination before materialization
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_readiness_manifest_materializer_path }}"
+        follow: false
+      register: ai_ops_assistant_readiness_manifest_materializer_path_before
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Refuse an existing readiness manifest
+      ansible.builtin.assert:
+        that:
+          - not ai_ops_assistant_readiness_manifest_materializer_path_before.stat.exists
+        quiet: true
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Atomically write fixed readiness manifest
+      ansible.builtin.copy:
+        dest: "{{ ai_ops_assistant_readiness_manifest_materializer_path }}"
+        content: "{{ ai_ops_assistant_readiness_manifest_materializer_document | to_json }}"
+        owner: "{{ ai_ops_assistant_readiness_manifest_materializer_directory_owner }}"
+        group: "{{ ai_ops_assistant_readiness_manifest_materializer_directory_group }}"
+        mode: "{{ ai_ops_assistant_readiness_manifest_materializer_file_mode }}"
+        force: false
+        unsafe_writes: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Verify fixed readiness-manifest metadata
+      ansible.builtin.stat:
+        path: "{{ ai_ops_assistant_readiness_manifest_materializer_path }}"
+        follow: false
+      register: ai_ops_assistant_readiness_manifest_materializer_path_after
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Assert fixed readiness-manifest metadata
+      ansible.builtin.assert:
+        that:
+          - ai_ops_assistant_readiness_manifest_materializer_path_after.stat.isreg
+          - not ai_ops_assistant_readiness_manifest_materializer_path_after.stat.islnk
+          - ai_ops_assistant_readiness_manifest_materializer_path_after.stat.pw_name == ai_ops_assistant_readiness_manifest_materializer_directory_owner
+          - ai_ops_assistant_readiness_manifest_materializer_path_after.stat.gr_name == ai_ops_assistant_readiness_manifest_materializer_directory_group
+          - ai_ops_assistant_readiness_manifest_materializer_path_after.stat.mode == ai_ops_assistant_readiness_manifest_materializer_file_mode
+          - ai_ops_assistant_readiness_manifest_materializer_path_after.stat.size | int <= 16384
+        quiet: true
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Publish ready readiness-manifest materializer outcome in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_manifest_materializer_result:
+          schema_version: "1.0"
+          status: ready
+          limitation_class: none
+          materialized: true
+          mode: runtime
+          run_id: "{{ ai_ops_assistant_readiness_manifest_materializer_run_id }}"
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'runtime'
+
+    - name: Publish campaign authorization outcome without materialization
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_manifest_materializer_result:
+          schema_version: "1.0"
+          status: authorized
+          limitation_class: none
+          materialized: false
+          mode: campaign
+          run_id: "{{ ai_ops_assistant_readiness_manifest_materializer_run_id }}"
+      changed_when: false
+      no_log: true
+      when:
+        - ai_ops_assistant_readiness_manifest_materializer_enabled | bool
+        - ai_ops_assistant_readiness_manifest_materializer_mode == 'campaign'
+
+  tasks:
+    - name: Publish disabled readiness-manifest materializer outcome in protected task state
+      ansible.builtin.set_fact:
+        ai_ops_assistant_readiness_manifest_materializer_result: >-
+          {{ ai_ops_assistant_readiness_manifest_materializer_result | combine({
+            'run_id': 'unconfirmed',
+            'mode': ai_ops_assistant_readiness_manifest_materializer_mode
+          }) }}
+      changed_when: false
+      no_log: true
+      when: not (ai_ops_assistant_readiness_manifest_materializer_enabled | bool)

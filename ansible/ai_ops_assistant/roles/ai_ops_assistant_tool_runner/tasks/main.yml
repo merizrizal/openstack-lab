@@ -23,6 +23,16 @@
         ai_ops_assistant_tool_runner_runtime_root + '/scripts/approved'
       - ai_ops_assistant_tool_runner_credential_profile == 'aiops-assistant-project-reader'
       - >-
+        ai_ops_assistant_tool_runner_host_observer_projection_directory ==
+        ai_ops_assistant_tool_runner_runtime_root + '/credentials/host-observer'
+      - >-
+        ai_ops_assistant_tool_runner_host_observer_projection_path ==
+        ai_ops_assistant_tool_runner_host_observer_projection_directory + '/destination-projection.json'
+      - ai_ops_assistant_tool_runner_host_observer_projection_owner == 'aiops_assistant'
+      - ai_ops_assistant_tool_runner_host_observer_projection_group == 'aiops_assistant'
+      - ai_ops_assistant_tool_runner_host_observer_projection_directory_mode == '0700'
+      - ai_ops_assistant_tool_runner_host_observer_projection_mode == '0600'
+      - >-
         ai_ops_assistant_tool_runner_audit_directory ==
         ai_ops_assistant_tool_runner_runtime_root + '/audit'
       - >-
@@ -47,14 +57,15 @@
       - >-
         ai_ops_assistant_tool_runner_targets == [ ai_ops_assistant_tool_runner_approved_script_root + '/project_resource_summary.sh',
         ai_ops_assistant_tool_runner_approved_script_root + '/server_basic_info.sh', ai_ops_assistant_tool_runner_approved_script_root +
-        '/server_network_info.sh' ]
+        '/server_network_info.sh', ai_ops_assistant_tool_runner_approved_script_root + '/neutron_agent_health.py' ]
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='source') | list == [
-        'aiops_tool_runner.py', 'audit_inspector.py', 'tool_registry.json'
+        'aiops_tool_runner.py', 'audit_inspector.py', 'host_observer_connector.py',
+        'readiness_manifest.py', 'tool_registry.json'
         ]
       - >-
         ai_ops_assistant_tool_runner_files | map(attribute='mode') | list == [
-        '0750', '0750', '0640'
+        '0750', '0750', '0750', '0640', '0640'
         ]
       - "'..' not in ai_ops_assistant_tool_runner_directory.split('/')"
     quiet: true

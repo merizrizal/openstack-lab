@@ -13,5 +13,7 @@ ai_ops_assistant_diagnostic_toolbox_files:
     mode: "0750"
   - source: server_network_info.sh
     mode: "0750"
+  - source: neutron_agent_health.py
+    mode: "0750"
   - source: secure_diagnostic_acceptance_consumer
     mode: "0750"

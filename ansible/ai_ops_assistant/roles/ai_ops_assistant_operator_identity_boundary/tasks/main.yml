@@ -1,0 +1,659 @@
+---
+- name: Validate disabled-by-default operator-reader boundary contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_operator_identity_boundary_enabled is boolean
+      - >-
+        ai_ops_assistant_operator_identity_boundary_runtime_root ==
+        '/opt/openstack-ai-ops-assistant'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_runtime_user ==
+        'aiops_assistant'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_runtime_group ==
+        'aiops_assistant'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_name ==
+        'aiops-assistant-operator-reader'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_name !=
+        'aiops-assistant-project-reader'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_directory ==
+        '/opt/openstack-ai-ops-assistant/credentials/operator-reader'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_directory !=
+        '/opt/openstack-ai-ops-assistant/credentials/profiles'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_directory_mode ==
+        '0700'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_file_mode ==
+        '0600'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_expected_filenames ==
+        ['clouds.yaml', 'secure.yaml']
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_classification ==
+        'controller-local'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_root ==
+        '/run/openstack-ai-ops'
+      - ai_ops_assistant_operator_identity_boundary_source_directory is string
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_directory_owner is
+        string
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_file_owner is string
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_directory_mode ==
+        '0700'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_file_mode ==
+        '0600'
+      - >-
+        ai_ops_assistant_operator_identity_boundary_selection_tool ==
+        'neutron_agent_health'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_directory | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_directory_owner |
+        length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_file_owner | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_identity_owner | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_approved_role_scope |
+        length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_expiry_policy | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_rotation_owner | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_owner | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_mutation_denial_reference |
+        length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_identity_owner ==
+        'OpenStack platform operations / lab administrator'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_approved_role_scope ==
+        'neutron_agent_health'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_rotation_owner ==
+        'OpenStack platform operations / lab administrator'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_owner ==
+        'OpenStack security or senior lab administrator'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_directory.startswith(
+        ai_ops_assistant_operator_identity_boundary_source_root + '/')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_directory !=
+        ai_ops_assistant_operator_identity_boundary_source_root
+      - >-
+        '..' not in
+        ai_ops_assistant_operator_identity_boundary_source_directory.split('/')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_run_id is match(
+        '^[a-z0-9][a-z0-9-]{0,47}$')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_directory ==
+        ai_ops_assistant_operator_identity_boundary_source_root ~ '/' ~
+        ai_ops_assistant_operator_identity_boundary_source_run_id ~
+        '/operator-reader'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_revision | length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_revision is match(
+        '^' ~ ai_ops_assistant_operator_identity_boundary_source_run_id ~ '-')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_freshness_status ==
+        'fresh'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_freshness_reference |
+        length > 0
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_freshness_reference is
+        match('^' ~ ai_ops_assistant_operator_identity_boundary_source_run_id ~ '-')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_generated_at is
+        match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_expires_at is
+        match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$')
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_source_generated_at <
+        ai_ops_assistant_operator_identity_boundary_source_expires_at
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_enabled | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_expiry_policy ==
+        'maximum-24-hours'
+      - >-
+        not (
+          ai_ops_assistant_operator_identity_boundary_rotation_requested | bool and
+          ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+        )
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_rotation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_rotation_authorization ==
+        'approved'
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool or
+        ai_ops_assistant_operator_identity_boundary_revocation_authorization ==
+        'approved'
+    quiet: true
+  no_log: true
+
+- name: Inspect transient operator-reader source directory
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_source_directory }}"
+    follow: false
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_operator_identity_boundary_source_directory_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Assert transient operator-reader source directory metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_operator_identity_boundary_source_directory_metadata.stat.exists
+      - ai_ops_assistant_operator_identity_boundary_source_directory_metadata.stat.isdir
+      - not ai_ops_assistant_operator_identity_boundary_source_directory_metadata.stat.islnk
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_directory_metadata.stat.pw_name ==
+        ai_ops_assistant_operator_identity_boundary_source_directory_owner
+      - >-
+        ai_ops_assistant_operator_identity_boundary_source_directory_metadata.stat.mode ==
+        ai_ops_assistant_operator_identity_boundary_source_directory_mode
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Inspect transient operator-reader source entries
+  ansible.builtin.find:
+    paths:
+      - "{{ ai_ops_assistant_operator_identity_boundary_source_directory }}"
+    recurse: false
+    file_type: any
+    hidden: true
+    follow: false
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_operator_identity_boundary_source_entries
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Assert only approved transient operator-reader source entries exist
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_operator_identity_boundary_source_entries.matched == 2
+      - >-
+        (ai_ops_assistant_operator_identity_boundary_source_entries.files |
+        map(attribute='path') | list | sort) ==
+        ([
+          ai_ops_assistant_operator_identity_boundary_source_directory ~ '/clouds.yaml',
+          ai_ops_assistant_operator_identity_boundary_source_directory ~ '/secure.yaml'
+        ] | sort)
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Inspect transient operator-reader source files
+  ansible.builtin.stat:
+    path: >-
+      {{ ai_ops_assistant_operator_identity_boundary_source_directory }}/{{ item }}
+    follow: false
+  loop: "{{ ai_ops_assistant_operator_identity_boundary_expected_filenames }}"
+  loop_control:
+    label: operator-reader-source-file
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_operator_identity_boundary_source_file_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Assert transient operator-reader source file metadata
+  ansible.builtin.assert:
+    that:
+      - item.item in ai_ops_assistant_operator_identity_boundary_expected_filenames
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == ai_ops_assistant_operator_identity_boundary_source_file_owner
+      - item.stat.mode == ai_ops_assistant_operator_identity_boundary_source_file_mode
+    quiet: true
+  loop: "{{ ai_ops_assistant_operator_identity_boundary_source_file_metadata.results }}"
+  loop_control:
+    label: operator-reader-source-file
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Inspect operator-reader target directory before materialization
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    follow: false
+  register: ai_ops_assistant_operator_identity_boundary_profile_directory_before
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Assert operator-reader target path is a directory or absent
+  ansible.builtin.assert:
+    that:
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_profile_directory_before.stat.exists or
+        (
+          ai_ops_assistant_operator_identity_boundary_profile_directory_before.stat.isdir and
+          not ai_ops_assistant_operator_identity_boundary_profile_directory_before.stat.islnk
+        )
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Ensure operator-reader target directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    state: directory
+    owner: "{{ ai_ops_assistant_operator_identity_boundary_runtime_user }}"
+    group: "{{ ai_ops_assistant_operator_identity_boundary_runtime_group }}"
+    mode: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory_mode }}"
+    recurse: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Inspect operator-reader target directory entries
+  ansible.builtin.find:
+    paths:
+      - "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    recurse: false
+    file_type: any
+    hidden: true
+    follow: false
+  register: ai_ops_assistant_operator_identity_boundary_profile_entries
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Assert operator-reader target has no unexpected entries
+  ansible.builtin.assert:
+    that:
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_entries.matched == 0 or
+        (
+          ai_ops_assistant_operator_identity_boundary_profile_entries.matched == 2 and
+          (ai_ops_assistant_operator_identity_boundary_profile_entries.files |
+          map(attribute='path') | list | sort) ==
+          ([
+            ai_ops_assistant_operator_identity_boundary_profile_directory ~ '/clouds.yaml',
+            ai_ops_assistant_operator_identity_boundary_profile_directory ~ '/secure.yaml'
+          ] | sort)
+        )
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Materialize operator-reader profile files
+  ansible.builtin.copy:
+    src: >-
+      {{ ai_ops_assistant_operator_identity_boundary_source_directory }}/{{ item }}
+    dest: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}/{{ item }}"
+    owner: "{{ ai_ops_assistant_operator_identity_boundary_runtime_user }}"
+    group: "{{ ai_ops_assistant_operator_identity_boundary_runtime_group }}"
+    mode: "{{ ai_ops_assistant_operator_identity_boundary_profile_file_mode }}"
+    backup: false
+  loop: "{{ ai_ops_assistant_operator_identity_boundary_expected_filenames }}"
+  loop_control:
+    label: operator-reader-profile-file
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Inspect operator-reader target directory metadata
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    follow: false
+  register: ai_ops_assistant_operator_identity_boundary_profile_directory_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Assert operator-reader target directory metadata
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_operator_identity_boundary_profile_directory_metadata.stat.exists
+      - ai_ops_assistant_operator_identity_boundary_profile_directory_metadata.stat.isdir
+      - not ai_ops_assistant_operator_identity_boundary_profile_directory_metadata.stat.islnk
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_directory_metadata.stat.pw_name ==
+        ai_ops_assistant_operator_identity_boundary_runtime_user
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_directory_metadata.stat.gr_name ==
+        ai_ops_assistant_operator_identity_boundary_runtime_group
+      - >-
+        ai_ops_assistant_operator_identity_boundary_profile_directory_metadata.stat.mode ==
+        ai_ops_assistant_operator_identity_boundary_profile_directory_mode
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Inspect operator-reader target files
+  ansible.builtin.stat:
+    path: >-
+      {{ ai_ops_assistant_operator_identity_boundary_profile_directory }}/{{ item }}
+    follow: false
+  loop: "{{ ai_ops_assistant_operator_identity_boundary_expected_filenames }}"
+  loop_control:
+    label: operator-reader-profile-file
+  register: ai_ops_assistant_operator_identity_boundary_profile_file_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Assert operator-reader target file metadata
+  ansible.builtin.assert:
+    that:
+      - item.item in ai_ops_assistant_operator_identity_boundary_expected_filenames
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == ai_ops_assistant_operator_identity_boundary_runtime_user
+      - item.stat.gr_name == ai_ops_assistant_operator_identity_boundary_runtime_group
+      - item.stat.mode == ai_ops_assistant_operator_identity_boundary_profile_file_mode
+    quiet: true
+  loop: "{{ ai_ops_assistant_operator_identity_boundary_profile_file_metadata.results }}"
+  loop_control:
+    label: operator-reader-profile-file
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Remove transient operator-reader source after target verification
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_source_directory }}"
+    state: absent
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Verify transient operator-reader source cleanup
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_source_directory }}"
+    follow: false
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_operator_identity_boundary_source_cleanup_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Assert transient operator-reader source was removed
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_assistant_operator_identity_boundary_source_cleanup_metadata.stat.exists
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Normalize materialized operator-reader lifecycle outcome
+  ansible.builtin.set_fact:
+    ai_ops_assistant_operator_identity_boundary_validation_outcome:
+      schema_version: "1.0"
+      status: passed
+      limitation_class: none
+      profile: "{{ ai_ops_assistant_operator_identity_boundary_profile_name }}"
+      source_revision: "{{ ai_ops_assistant_operator_identity_boundary_source_revision }}"
+      materialization: passed
+      rotation: >-
+        {{ 'passed' if ai_ops_assistant_operator_identity_boundary_rotation_requested | bool
+        else 'not_requested' }}
+      revocation: not_requested
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_enabled | bool
+    - not ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Require independent operator-reader revocation authorization
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_operator_identity_boundary_revocation_authorization == 'approved'
+      - ai_ops_assistant_operator_identity_boundary_profile_name == 'aiops-assistant-operator-reader'
+      - ai_ops_assistant_operator_identity_boundary_profile_directory == '/opt/openstack-ai-ops-assistant/credentials/operator-reader'
+      - ai_ops_assistant_operator_identity_boundary_revocation_owner == 'OpenStack security or senior lab administrator'
+    fail_msg: >-
+      Operator-reader revocation is fail-closed and requires its own approved
+      scope, fixed target, and security-owner authorization.
+    quiet: true
+  changed_when: false
+  no_log: true
+  when: ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+
+- name: Inspect operator-reader target path before revocation
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    follow: false
+  register: ai_ops_assistant_operator_identity_boundary_revocation_directory_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Assert operator-reader revocation path is a directory or absent
+  ansible.builtin.assert:
+    that:
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_revocation_directory_metadata.stat.exists or
+        (
+          ai_ops_assistant_operator_identity_boundary_revocation_directory_metadata.stat.isdir and
+          not ai_ops_assistant_operator_identity_boundary_revocation_directory_metadata.stat.islnk
+        )
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Inspect operator-reader target before revocation
+  ansible.builtin.find:
+    paths:
+      - "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    recurse: false
+    file_type: any
+    hidden: true
+    follow: false
+  register: ai_ops_assistant_operator_identity_boundary_revocation_entries
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+    - ai_ops_assistant_operator_identity_boundary_revocation_directory_metadata.stat.exists
+
+- name: Assert operator-reader revocation target is isolated
+  ansible.builtin.assert:
+    that:
+      - >-
+        not ai_ops_assistant_operator_identity_boundary_revocation_directory_metadata.stat.exists or
+        (
+          ai_ops_assistant_operator_identity_boundary_revocation_entries.files |
+          map(attribute='path') | list |
+          difference([
+            ai_ops_assistant_operator_identity_boundary_profile_directory ~ '/clouds.yaml',
+            ai_ops_assistant_operator_identity_boundary_profile_directory ~ '/secure.yaml'
+          ]) | length == 0
+        )
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Revoke operator-reader profile files independently
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}/{{ item }}"
+    state: absent
+  loop: "{{ ai_ops_assistant_operator_identity_boundary_expected_filenames }}"
+  loop_control:
+    label: operator-reader-revocation-file
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Revoke empty operator-reader profile directory independently
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    state: absent
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Verify independent operator-reader revocation
+  ansible.builtin.stat:
+    path: "{{ ai_ops_assistant_operator_identity_boundary_profile_directory }}"
+    follow: false
+  register: ai_ops_assistant_operator_identity_boundary_revocation_metadata
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Assert operator-reader profile was independently revoked
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_assistant_operator_identity_boundary_revocation_metadata.stat.exists
+    quiet: true
+  changed_when: false
+  no_log: true
+  when:
+    - ai_ops_assistant_operator_identity_boundary_revocation_requested | bool
+    - not ansible_check_mode
+
+- name: Normalize revoked operator-reader lifecycle outcome
+  ansible.builtin.set_fact:
+    ai_ops_assistant_operator_identity_boundary_validation_outcome:
+      schema_version: "1.0"
+      status: revoked
+      limitation_class: none
+      profile: "{{ ai_ops_assistant_operator_identity_boundary_profile_name }}"
+      materialization: not_requested
+      rotation: not_requested
+      revocation: passed
+  changed_when: false
+  no_log: true
+  when: ai_ops_assistant_operator_identity_boundary_revocation_requested | bool

@@ -67,24 +67,17 @@ deploy_openstack() {
 
 deploy_aiops_assistant() {
     local playbook=$1
+    local extra_params=${@:2}
 	local params=""
 
     if [[ ! -z $playbook ]]; then
-		if [[ "$playbook" == *"stage"* ]]; then
-			params="-e @$ROOT_DIR/generated/seed_stage.yml"
-		elif [[ "$playbook" == *"copy"* ]]; then
-			params="-e @$ROOT_DIR/generated/seed_copy.yml"
-		elif [[ "$playbook" == *"build"* ]]; then
-			params="-e @$ROOT_DIR/generated/build.yml"
-		elif [[ "$playbook" == *"transfer"* ]]; then
-			params="-e @$ROOT_DIR/generated/transfer.yml"
-		elif [[ "$playbook" == *"runtime"* ]]; then
-			params="-e @$ROOT_DIR/generated/runtime.yml"
+		if [[ "$playbook" == *"deploy_identity"* ]]; then
+			params="-e @$ROOT_DIR/generated/identity_profile.yml"
 		fi
 
-        ansible-playbook -i ai_ops_runtime/inventories/local/local.yml ai_ops_runtime/playbook_$playbook.yml $params
+        ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_$playbook.yml $params $(echo "$extra_params")
     else
-        ansible-playbook -i ai_ops_runtime/inventories/local/local.yml ai_ops_runtime/playbook_setup_assistant_runtime.yml
+        ansible-playbook -i ai_ops_assistant/inventories/local/local.yml ai_ops_assistant/playbook_deploy.yml
     fi
 }
 
