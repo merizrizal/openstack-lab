@@ -176,6 +176,13 @@ Done when:
 
 - [x] Maintainers can independently review MVP evidence and disable all assistant authority if needed.
 
+### Phase 06 prerequisite reconciliation
+
+The Phase 05 prerequisite was owner-accepted for the Phase 06 campaign. The
+accepted outcome reference is `2026-0004-phase05-acc-evid` for run `2026-0004`
+and source revision `2026-0004-src-rev`; the Phase 06 producer reported no
+remaining prerequisite gate.
+
 ## 05.6 Phase Definition of Done
 
 This phase is done when:

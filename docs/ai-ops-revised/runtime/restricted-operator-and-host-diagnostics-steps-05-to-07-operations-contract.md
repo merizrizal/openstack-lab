@@ -2,9 +2,17 @@
 
 ## Status and authority
 
-This is the **non-activation** operations contract for Phase 06 Steps 5–7. It records the repository-fixed safety boundary and the owner decisions that must be accepted before any recent-evidence diagnostic is implemented, registered, deployed, contacted, or executed.
+This contract records the repository-fixed safety boundary for Phase 06 Steps
+5–7 and the fail-closed rules for any future run. The pre-activation language
+below remains the default for new or separately scoped operations.
 
-This contract remains non-activating. D05–D07 are frozen at source revision `rev-2026-08-0002`; maintained host projection, observer identity and transport policy, deployment, evidence ownership, and live authorizations remain separately gated. Those unresolved gates are blockers, not defaults. Until every relevant activation blocker is accepted, all host diagnostics remain `unavailable`; static registry entries and connector code do not constitute live authorization.
+The exact Phase 06 run `2026-0004` is owner-accepted at source revision
+`2026-0004-src-rev`. Its outcome-only record was written, reviewed by
+`openstack-platform-operations-lab-admin`, and accepted at
+`2026-08-24T14:55:34Z` with no limitations.
+The protected evidence reference is `2026-0004-evidence-prtct-ref`.
+The accepted run does not broaden the contract, reuse stale run `2026-0002`, or
+authorize capabilities outside its recorded scopes.
 
 This contract does **not** authorize:
 
@@ -12,7 +20,7 @@ This contract does **not** authorize:
 - inspection of protected inventory, addresses, connection metadata, credentials, keys, raw output, logs, audits, or evidence;
 - SSH, host contact, OpenStack authentication, API calls, source reads, negative tests, or workflow execution;
 - live connector invocation, runner activation, deployment, host contact, live validation, or any protected-input operation; static contract reconciliation and synthetic tests remain non-activating; or
-- Phase 06 live acceptance or Phase 07 exposure.
+- Phase 06 live acceptance or Phase 07 exposure for any run not covered by a current owner-accepted outcome record.
 
 This contract is subordinate to:
 
@@ -42,16 +50,19 @@ The following are observed repository constraints, not deployment authorization:
 | Boundary | Contract |
 | --- | --- |
 | Public capability | No generic SSH, sudo, journal, file, service, command, path, unit, or OpenStack passthrough capability may be exposed. |
-| Diagnostic intents | `recent_metadata_errors`, `recent_neutron_errors`, and `recent_nova_errors` are the accepted D05 public identifiers and descriptions at `rev-2026-08-0002`; static registry entries exist, but remain unavailable until protected runtime gates and live authorization are satisfied. |
+| Diagnostic intents | `recent_metadata_errors`, `recent_neutron_errors`, and `recent_nova_errors` are the accepted D05 public identifiers and descriptions at `rev-2026-08-0002`; static registry entries remain unavailable for any run without the required protected runtime gates and live authorization. |
 | Public selectors | A future request may contain only an approved non-secret `host_label`, `window_class`, and `line_limit_class`. It may never contain a destination, address, path, unit, command, source selector, account, key, port, SSH option, sudo option, timeout, or byte cap. |
 | Observer files | The fixed candidate collector path is `/usr/local/libexec/openstack-ai-ops-assistant/host-observer-collector`; the fixed candidate policy path is `/etc/openstack-ai-ops-assistant/host-observer-policy.yml`. Their existence, owner, mode, regular-file status, and deployment are unapproved. |
 | Authority isolation | Project-reader, operator-reader, and host-observer authority must remain independently revocable. Host diagnostics must receive no `OS_*` environment; API diagnostics must receive no observer state. |
 | Historical reuse | Deferred host-diagnostic assets remain unselected under the selective-reuse manifest. No historical implementation may be inspected, copied, or adapted without an exact approved manifest amendment. |
 | Default behavior | Missing capability, gate, projection, policy, key metadata, source approval, or authorization produces explicit `unavailable`, never success or fallback. |
 
-## Pending decision register
+## Decision register and accepted-run status
 
-All entries below require outcome-only, administrator-owned evidence outside Git. The decision record must identify owner, decision, evidence reference, timestamp, source revision, retention label, and limitations. It must not retain protected values.
+The entries below define the required outcome-only decisions and their
+fail-closed effects for future runs. For the exact run `2026-0004`, the named
+evidence owner accepted the complete scope package and final outcome; no D01–D09
+or live-campaign gate remained unresolved.
 
 | ID | Decision required | Required owner-approved outcome | Fail-closed effect while unresolved |
 | --- | --- | --- | --- |
@@ -65,10 +76,12 @@ All entries below require outcome-only, administrator-owned evidence outside Git
 | D08 | Evidence, audit, rollback, and negative tests | Confirm evidence location/retention/audit access, unchanged-state comparator, rollback owner/order, and bounded positive/negative test plan | No live validation, audit inspection, revocation rehearsal, or acceptance claim. |
 | D09 | Step 7 representative metadata case | Confirm safe pre/post state procedure, case owner, and advisory-only interpretation boundary | No workflow execution or diagnosis claim. |
 
-## Confirmed decisions
+## Confirmed safety decisions
 
-The following decisions are recorded without authorizing deployment, credential use,
-host contact, source reads, negative testing, or live acceptance:
+The following safety decisions remain authoritative for the accepted run and
+future runs. They do not broaden the accepted scopes or replace a fresh
+owner-approved package when a new run changes authorization, revisions, inputs,
+or targets:
 
 - The canonical observer runtime username is `aiops-host-observer`. Connector,
   collector, policy, inventory, deployment, and test references must use this
@@ -330,11 +343,13 @@ and fail closed rather than infer a value or broaden a scope.
 
 ## Completion criteria and next action
 
-This contract remains reviewable but **non-activating** while the campaign or
-runtime readiness gate, D01–D04, D08–D09, or any deployment/live gate remains
-unresolved. D05–D07 are complete at source revision `rev-2026-08-0002`;
-static registry entries, connector validation, and synthetic bounded slices are
-present for all three diagnostic intents. Live source adapters, protected
-inputs, deployment, host contact, and acceptance evidence remain unavailable.
-No generated input, protected data, host contact, or live action may be used to
-manufacture activation completeness.
+The exact Phase 06 run `2026-0004` is complete and owner-accepted at source
+revision `2026-0004-src-rev`. The normalized evidence record reports accepted
+outcomes for all seven tools, 11 scopes, 18 negative controls, seven audit
+pairs, attestations, unchanged-state comparison, rollback, and the
+representative workflow, with no unresolved gates.
+
+The accepted run permits Phase 06 plan and operations-contract reconciliation
+and Phase 07 planning. It does not authorize MCP implementation or exposure by
+itself; Phase 07 must establish and validate its own local, runner-boundary,
+non-network contract before implementation.
