@@ -1,0 +1,37 @@
+[Unit]
+Description=AI-OPS authenticated internal MCP service
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User={{ ai_ops_assistant_mcp_service_user }}
+Group={{ ai_ops_assistant_mcp_service_group }}
+WorkingDirectory={{ ai_ops_assistant_mcp_directory }}
+Environment=PATH=/usr/bin:/bin
+Environment=HOME=/nonexistent
+Environment=PYTHONNOUSERSITE=1
+Environment=LANG=C.UTF-8
+Environment=LC_ALL=C.UTF-8
+ExecStart={{ ai_ops_assistant_mcp_venv_path }}/bin/python {{ ai_ops_assistant_mcp_adapter_path }}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+KillMode=mixed
+UMask=0077
+ReadWritePaths=/opt/openstack-ai-ops-assistant/audit
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

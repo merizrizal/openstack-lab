@@ -2,12 +2,12 @@
 
 ## 07.1 Goal
 
-Expose the already-trusted diagnostic registry through a local MCP interface so an AI client can discover curated tools, resources, and prompts without gaining a second or broader execution path.
+Expose the already-trusted diagnostic registry through a local or authenticated internal-network MCP interface so an authorized MCP client can discover curated tools, resources, and prompts without gaining a second or broader execution path.
 
 Target outcome:
 
 ```text
-local AI client -> revised MCP schema -> revised runner/registry -> revised audit path -> bounded diagnostic -> advisory explanation
+authorized MCP client over local stdio or approved internal network -> revised MCP schema -> revised runner/registry -> revised audit path -> bounded diagnostic -> advisory explanation
 ```
 
 ## 07.2 Estimate
@@ -23,7 +23,7 @@ Total estimate:
 
 Included:
 
-* Select a supported MCP implementation and local stdio-first transport.
+* Select a supported MCP implementation and local stdio-first transport; retain an explicit extension path for an authenticated internal-network service.
 * Mirror approved registry tools and argument schemas.
 * Evaluate the prior local stdio MCP server as a path-level reuse candidate; select or reimplement only the parts that match the revised contract and accepted runner.
 * Delegate all execution to the accepted revised runner/shared safety layer.
@@ -34,7 +34,7 @@ Included:
 
 Excluded:
 
-* Unauthenticated or publicly reachable network MCP.
+* Unauthenticated or publicly reachable network MCP; an authenticated internal-network service is covered only by the separate Option B extension contract.
 * Generic command, file, SSH, sudo, OpenStack, database, or remediation primitives.
 * Provider-specific private protocols or credential handling.
 * Local LLM deployment.
@@ -46,9 +46,9 @@ Excluded:
 
 - [ ] The revised runner and desired selectively reused or newly implemented tools have passed local and deployed-lab validation.
 - [ ] Revised MCP package, process, service, client-registration, resource, prompt, log, and audit identifiers are distinct from the prior MCP integration.
-- [ ] The first selected AI client supports a local stdio MCP process or equivalent non-network integration.
+- [ ] External AI-client implementation, registration, and provider/model integration are out of scope for this repository phase.
 - [ ] MCP is an interface layer; the revised registry, validation, execution limits, credentials, and audit path remain authoritative.
-- [ ] Remote MCP would require a separate approved authentication, authorization, network, and threat design.
+- [ ] Local stdio remains the baseline mode; Option B adds an authenticated internal-network service only after its separate transport, TLS, authentication, authorization, network, and threat contract is accepted.
 
 ## 07.5 Ordered Tasks
 
@@ -64,11 +64,12 @@ Estimate:
 Tasks:
 
 - [ ] Select a maintained MCP SDK/runtime compatible with the assistant host and repository language/tooling constraints.
-- [ ] Choose local stdio as the initial transport and confirm no TCP listener is required.
+- [ ] Choose local stdio as the baseline transport and confirm no TCP listener is required for that mode.
+- [ ] If Option B is selected, freeze the separate internal-network transport, bind scope, TLS/authentication, authorization, limits, service identity, and threat controls before implementation.
 - [ ] Compare the prior local stdio MCP server, resources, policy, and lifecycle behavior with the revised contract; record the selected path-level dependency closure and every required modification before reuse.
 - [ ] Decide whether revised MCP invokes the revised runner process or calls a shared revised runner library while preserving one validation/execution implementation.
-- [ ] Define distinct revised process identity, environment, working directory, credential access, startup, shutdown, and crash behavior.
-- [ ] Record the first supported AI client and explicitly defer provider/model-specific expansion.
+- [ ] Define distinct revised process/service identity, environment, working directory, credential access, startup, shutdown, and crash behavior.
+- [ ] Keep external client implementation, registration, and provider/model expansion outside this repository phase.
 
 Done when:
 
@@ -114,7 +115,7 @@ Tasks:
 
 Done when:
 
-- [ ] A local runner call and equivalent MCP call have the same safety, result, and audit behavior.
+- [ ] A local runner call and equivalent MCP call have the same safety, result, and audit behavior in each accepted transport mode.
 
 ### Step 4 - Add Curated Read-Only Resources
 
@@ -135,7 +136,7 @@ Tasks:
 
 Done when:
 
-- [ ] The AI client can retrieve useful lab context only from a reviewed static resource set.
+- [ ] An authorized MCP request can retrieve useful lab context only from a reviewed static resource set; no external client implementation is required in this phase.
 
 ### Step 5 - Add Repeatable Diagnostic Prompts
 
@@ -180,7 +181,7 @@ Done when:
 
 - [ ] MCP passes contract-equivalence and negative-capability tests without requiring mutation access.
 
-### Step 7 - Validate Client Setup and Rollback
+### Step 7 - Validate Service Disablement and Rollback
 
 Estimate:
 
@@ -191,10 +192,10 @@ Estimate:
 
 Tasks:
 
-- [ ] Configure the selected client to launch the local MCP process without embedding OpenStack secrets in client configuration.
-- [ ] Validate one low-risk project summary and one server inspection workflow before enabling higher-risk tools.
+- [ ] For local stdio, document the externally managed client integration without implementing or registering that client here.
+- [ ] For Option B, validate one low-risk authenticated project summary and one server inspection workflow through fixtures or a separately approved integration environment.
 - [ ] Verify “fix it” prompts remain advisory and cannot discover a remediation tool.
-- [ ] Document logs, process health, upgrades, client disablement, and MCP shutdown.
+- [ ] Document logs, process health, upgrades, service disablement, transport shutdown, and network-policy rollback.
 - [ ] Verify rollback leaves the manual/local runner workflow available unless the safety issue affects the runner itself.
 
 Done when:
@@ -205,13 +206,13 @@ Done when:
 
 This phase is done when:
 
-- [ ] Local MCP starts without a public network listener.
-- [ ] MCP exposes exactly the approved enabled diagnostics and equivalent parameter schemas.
+- [ ] The accepted local stdio mode starts without a network listener, or the separately accepted Option B mode binds only to its approved internal interface with authenticated access.
+- [ ] MCP exposes exactly the approved enabled diagnostics and equivalent parameter schemas in each accepted mode.
 - [ ] Every revised tool call traverses the revised safety, credential, timeout, output, redaction, and audit boundary without invoking prior-runtime components.
 - [ ] Curated resources and prompts contain no arbitrary file access or secrets.
 - [ ] Tests prove generic and remediation capabilities are absent.
-- [ ] The selected client completes representative advisory-only workflows.
-- [ ] MCP can be disabled independently and safely.
+- [ ] External client implementation and registration remain outside this repository phase.
+- [ ] MCP service/adapter disablement and rollback are independently safe.
 
 ## 07.7 Risks
 
@@ -219,8 +220,20 @@ This phase is done when:
 | ---- | ---------- |
 | MCP duplicates or weakens validation | Generate/mirror schemas from the registry and test call equivalence. |
 | Curated resources become arbitrary file access | Use a fixed resource allowlist with content scanning. |
-| Remote exposure appears as a convenience change | Enforce stdio/no-listener checks and require separate approval for networking. |
-| AI client logs sensitive results | Minimize/redact tool data and document client-log handling. |
+| Internal network exposure expands into public or unauthenticated access | Require a separate Option B contract with fixed bind scope, TLS/authentication, authorization, limits, and listener validation; reject wildcard/public binds. |
+| External client or network logs sensitive results | Keep external-client implementation out of scope, minimize/redact server responses and logs, and document the integration owner’s log-handling responsibility. |
 | Model integration expands into provider credential handling | Keep provider authentication outside repository diagnostic contracts and separately approved. |
 | Revised MCP collides with or modifies prior MCP registration | Use distinct process/client names and configuration locations; test both configurations independently. |
-| Selected MCP code imports historical orchestration or unrelated dependencies | Require a path-level dependency review; reject the orchestrator bridge and validate the stdio adapter directly against the revised runner. |
+| Selected MCP code imports historical orchestration or unrelated dependencies | Require a path-level dependency review; reject the orchestrator bridge and validate the adapter directly against the revised runner. |
+
+## 07.8 Option B — Authenticated Internal-Network MCP Extension
+
+The baseline local-stdio design remains valid, but the project may separately support an internal MCP service reachable by an independently managed external client. External-client implementation, registration, provider/model integration, and client-side logging are outside this repository phase.
+
+Option B is not public or network-only access. It requires a separate contract for the exact wire transport, internal bind/interface and port, TLS, authentication, principal authorization, request/response bounds, service identity, lifecycle, logging, audit origin, firewall/source allowlist, and rollback. The service must continue to delegate every tool call to the revised runner and must expose only the accepted registry subset and embedded resource catalog.
+
+Authoritative extension design:
+
+- [`ads/07-01-internal-network-mcp-extension-ads.md`](ads/07-01-internal-network-mcp-extension-ads.md)
+
+Option B implementation must execute its own Chunk 0 discovery and decision gate before modifying executable files, deploying a listener, issuing certificates, changing network policy, invoking the runner, inspecting audits, or registering an external client.

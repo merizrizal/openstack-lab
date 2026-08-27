@@ -278,7 +278,7 @@ Prompts are Step 5 and are not implemented or registered by this ADS. The histor
 - **Proposed MCP role:** repository-local Ansible role, default disabled until dependencies and static tests pass. Deployment uses fixed copy/template/package operations with strict owner/mode and non-symlink checks.
 - **Proposed resource catalog:** closed JSON with embedded reviewed Markdown, duplicate-key rejection, UTF-8 and byte limits, and no dynamic paths.
 - **Focused tests:** Python standard-library `unittest` following existing runner test conventions; SDK protocol/client harness only if the pinned dependency provides a stable supported test seam.
-- **Existing validation environment:** `/home/meriz/Documents/PyEnv/myEnv` is the approved repository Python environment from the Phase 06 handoff; Chunk 0 must verify it contains or can safely validate the selected MCP dependency before MCP tests run.
+- **Existing validation environment:** `<user defined Python venv>` is the approved repository Python environment from the Phase 06 handoff; Chunk 0 must verify it contains or can safely validate the selected MCP dependency before MCP tests run.
 - **Not permitted:** historical orchestrator/bridge/provider/egress/device-auth/wheelhouse packages; generic executor libraries; HTTP server/listener dependencies; SSH/database/message-bus clients; provider/model authentication packages; arbitrary file-serving frameworks.
 
 ### IV. Step-by-Step Procedure / Execution Flow
@@ -357,8 +357,8 @@ Validation is chunk-aware and local/fixture-driven. Commands are implementation 
 
 #### Python and dependency validation
 
-- Use `/home/meriz/Documents/PyEnv/myEnv` only after confirming the selected SDK/version is present or installation is separately authorized.
-- Run `rtk /home/meriz/Documents/PyEnv/myEnv/bin/python -m py_compile <changed-python-files>`.
+- Use `<user defined Python venv>` only after confirming the selected SDK/version is present or installation is separately authorized.
+- Run `rtk <user defined Python venv>/bin/python -m py_compile <changed-python-files>`.
 - Run focused `unittest` modules under `ansible/ai_ops_assistant/tests/mcp/`; do not start with the broad repository suite.
 - Verify imports resolve only to standard library, the approved MCP SDK, and repository-confirmed revised read-only seams.
 - Inspect the exact dependency lock/pin/hash diff and reject unpinned or unexpected network/server/provider dependencies.

@@ -1,0 +1,55 @@
+---
+ai_ops_assistant_mcp_enabled: false
+ai_ops_assistant_mcp_explicit_activation: false
+ai_ops_assistant_mcp_runtime_root: /opt/openstack-ai-ops-assistant
+ai_ops_assistant_mcp_runtime_user: aiops_assistant
+ai_ops_assistant_mcp_runtime_group: aiops_assistant
+ai_ops_assistant_mcp_directory: /opt/openstack-ai-ops-assistant/mcp
+ai_ops_assistant_mcp_adapter_path: >-
+  /opt/openstack-ai-ops-assistant/mcp/aiops_assistant_mcp_server.py
+ai_ops_assistant_mcp_catalog_path: >-
+  /opt/openstack-ai-ops-assistant/mcp/mcp_resource_catalog.json
+ai_ops_assistant_mcp_config_path: /etc/ai-ops-assistant/mcp/config.json
+ai_ops_assistant_mcp_venv_path: /opt/openstack-ai-ops-assistant/mcp/venv
+ai_ops_assistant_mcp_service_name: ai-ops-assistant-mcp
+ai_ops_assistant_mcp_service_unit_path: >-
+  /etc/systemd/system/ai-ops-assistant-mcp.service
+ai_ops_assistant_mcp_service_user: aiops_assistant
+ai_ops_assistant_mcp_service_group: aiops_assistant
+ai_ops_assistant_mcp_service_files:
+  - source: mcp/aiops_assistant_mcp_server.py
+    destination: aiops_assistant_mcp_server.py
+    mode: "0640"
+  - source: mcp/mcp_resource_catalog.json
+    destination: mcp_resource_catalog.json
+    mode: "0640"
+  - source: mcp/config.json
+    destination: config.json
+    mode: "0640"
+ai_ops_assistant_mcp_tls_files:
+  - path: /etc/ai-ops-assistant/mcp/tls/server.crt
+    owner: root
+    group: aiops_assistant
+    mode: "0640"
+  - path: /etc/ai-ops-assistant/mcp/tls/server.key
+    owner: root
+    group: aiops_assistant
+    mode: "0640"
+  - path: /etc/ai-ops-assistant/mcp/tls/client-ca.crt
+    owner: root
+    group: aiops_assistant
+    mode: "0640"
+  - path: /etc/ai-ops-assistant/mcp/tls/client-ca.crl
+    owner: root
+    group: aiops_assistant
+    mode: "0640"
+ai_ops_assistant_mcp_dependency_requirement: mcp==1.28.1
+ai_ops_assistant_mcp_dependency_installation: external-approved-offline-artifact
+ai_ops_assistant_mcp_bind_interface: eth0
+ai_ops_assistant_mcp_bind_address: 192.168.121.21
+ai_ops_assistant_mcp_port: 8443
+ai_ops_assistant_mcp_endpoint_path: /mcp
+ai_ops_assistant_mcp_allowed_source_cidrs:
+  - 192.168.121.0/24
+ai_ops_assistant_mcp_firewall_marker: ai-ops-assistant-mcp-https-ingress
+ai_ops_assistant_mcp_approval_reference: phase07-internal-mcp-https-mtls-0701
