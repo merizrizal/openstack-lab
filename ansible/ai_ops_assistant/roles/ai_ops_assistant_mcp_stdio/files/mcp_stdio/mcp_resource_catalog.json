@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "catalog_name": "ai-ops-assistant-mcp-resources-steps-01-04",
+  "resources": [
+    {
+      "uri": "aiops://architecture/lab-summary",
+      "name": "lab-architecture-summary",
+      "description": "Sanitized OpenStack lab architecture and service relationships.",
+      "mime_type": "text/markdown",
+      "content": "# OpenStack Lab Architecture Summary\n\n## Layers\n\nThe lab has infrastructure provisioning, configuration management, OpenStack services, and repository validation layers. The assistant runtime is a separate read-only interface layer above the accepted diagnostic runner.\n\n## Service Relationships\n\nControl-plane services provide the API boundary for project-visible evidence. Compute and network services provide server and attachment context. Storage and observability services are separate failure domains. Guest metadata follows a proxy and API path that cannot be proven healthy by general server or network evidence alone.\n\n## Diagnostic Limits\n\nThis is static architecture context, not live evidence. It contains no protected inventory, private topology, addresses, or service output. Use the exposed diagnostic tools for current state, preserve their status and request identifiers, and state unresolved evidence gaps.\n"
+    },
+    {
+      "uri": "aiops://policy/diagnostic-safety",
+      "name": "diagnostic-safety",
+      "description": "Read-only diagnostic safety policy and runner boundary.",
+      "mime_type": "text/markdown",
+      "content": "# Diagnostic Safety Policy\n\n## Boundary\n\nThe AI-OPS interface is diagnostic-only. It provides bounded, read-only evidence through explicitly reviewed tools and does not perform repair or administration.\n\n## Approved Interface\n\nThe initial interface exposes only project_resource_summary, server_basic_info, and server_network_info. Tool execution remains behind the accepted local runner, which owns validation, deadlines, output limits, result envelopes, and audit correlation.\n\n## Prohibited Capabilities\n\nThe interface does not expose mutation, remediation, arbitrary file access, generic shell or SSH, unrestricted privilege, raw API passthrough, database access, service control, package changes, or configuration edits. Do not invent tools or claim that a manual action was executed.\n\nTreat unavailable, timeout, validation error, and truncated results as evidence gaps rather than healthy signals.\n"
+    },
+    {
+      "uri": "aiops://policy/credential-profile",
+      "name": "credential-profile-policy",
+      "description": "Conceptual credential-profile separation and unavailable behavior.",
+      "mime_type": "text/markdown",
+      "content": "# Credential-Profile Policy\n\n## Separation\n\nProject-visible diagnostics, operator actions, and restricted observation are separate authority domains. A read-only project profile may provide project-scoped evidence; an operator profile is not implied by an MCP request; and restricted observation is not part of the initial interface.\n\n## Unavailable Behavior\n\nIf the required profile or authorization boundary is unavailable, the request fails closed. The adapter does not request broader access, expose profile details, reveal protected identifiers, or substitute another profile.\n\n## Disclosure\n\nResource content describes policy only. It contains no credential material, profile contents, readable locations, identifiers, keys, or access values.\n"
+    },
+    {
+      "uri": "aiops://policy/tool-registry",
+      "name": "tool-registry-policy",
+      "description": "Reviewed diagnostic tool names, schemas, and authority boundary.",
+      "mime_type": "text/markdown",
+      "content": "# Tool-Registry Policy\n\n## Reviewed Surface\n\nThe public local interface is projected from the accepted registry and exposes exactly three read-only diagnostic names: project_resource_summary, server_basic_info, and server_network_info. Their input schemas are closed and reject unknown fields.\n\n## Authority\n\nRegistry metadata determines the public description, parameter validation, deadline, and read-only authority classification. Optional or restricted tools are not enabled by omission, and an unknown registry entry fails startup rather than widening discovery.\n\n## Extension Review\n\nA future tool requires a separately reviewed registry entry, schema-equivalence proof, bounded runner behavior, redaction proof, and explicit exposure approval. This resource contains no implementation target, runtime location, or executable invocation.\n"
+    },
+    {
+      "uri": "aiops://policy/audit",
+      "name": "audit-policy",
+      "description": "Minimum-disclosure audit purpose and correlation policy.",
+      "mime_type": "text/markdown",
+      "content": "# Audit Policy\n\n## Purpose\n\nThe accepted runner is the sole writer of tool-execution audit events. An adapter request maps to one runner request and one corresponding completion event; the adapter does not create a duplicate event.\n\n## Correlation\n\nThe runner creates the timestamp and UUID version four correlation identifier. Callers cannot supply or alter correlation data, actor classification, authorization inputs, limits, or execution boundaries.\n\n## Minimum Disclosure\n\nAudit events support accountability and outcome review without retaining raw diagnostic payloads, protected evidence, credentials, or environment details in protocol logs. Audit inspection is an owner-controlled operation and is not a resource read.\n"
+    },
+    {
+      "uri": "aiops://runbooks/metadata-troubleshooting",
+      "name": "metadata-troubleshooting",
+      "description": "Safe evidence order for metadata troubleshooting.",
+      "mime_type": "text/markdown",
+      "content": "# Metadata Troubleshooting Context\n\n## Evidence Order\n\n1. Use project_resource_summary to confirm project-visible inventory context and locate the reviewed server.\n2. Use server_basic_info with the exact reviewed server identifier.\n3. Use server_network_info with the same identifier.\n4. Separate confirmed server and attachment evidence from metadata-path evidence that these tools cannot observe.\n\n## Interpretation\n\nA visible active server or expected attachment does not prove that guest metadata is healthy. Preserve status, request identifier, and truncation state for every result. Explain healthy signals, failing signals, the likely failure domain, evidence gaps, and manual operator follow-up without claiming an automated fix.\n\nRestricted observation, proxy evidence, service evidence, arbitrary files, raw logs, and unsupported actions are unavailable through the initial interface.\n"
+    }
+  ]
+}

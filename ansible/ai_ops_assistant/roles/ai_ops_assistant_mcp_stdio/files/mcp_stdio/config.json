@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "transport": "stdio",
+  "runtime_root": "/opt/openstack-ai-ops-assistant/mcp-stdio",
+  "adapter_path": "/opt/openstack-ai-ops-assistant/mcp-stdio/aiops_assistant_mcp_stdio_server.py",
+  "resource_catalog_path": "/opt/openstack-ai-ops-assistant/mcp-stdio/mcp_resource_catalog.json",
+  "max_concurrent_runner_children": 1,
+  "cleanup_grace_seconds": 5
+}

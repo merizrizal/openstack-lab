@@ -1,0 +1,55 @@
+---
+ai_ops_assistant_mcp_stdio_enabled: false
+ai_ops_assistant_mcp_stdio_explicit_activation: false
+ai_ops_assistant_mcp_stdio_lifecycle_action: present
+ai_ops_assistant_mcp_stdio_removal_requested: false
+ai_ops_assistant_mcp_stdio_removal_authorization: unconfirmed
+
+ai_ops_assistant_mcp_stdio_runtime_root: /opt/openstack-ai-ops-assistant
+ai_ops_assistant_mcp_stdio_runtime_user: aiops_assistant
+ai_ops_assistant_mcp_stdio_runtime_group: aiops_assistant
+ai_ops_assistant_mcp_stdio_directory: >-
+  /opt/openstack-ai-ops-assistant/mcp-stdio
+ai_ops_assistant_mcp_stdio_config_directory: /etc/ai-ops-assistant/mcp-stdio
+ai_ops_assistant_mcp_stdio_venv_path: >-
+  {{ ai_ops_assistant_mcp_stdio_directory + '/venv' }}
+
+ai_ops_assistant_mcp_stdio_adapter_filename: >-
+  aiops_assistant_mcp_stdio_server.py
+ai_ops_assistant_mcp_stdio_adapter_path: >-
+  {{ ai_ops_assistant_mcp_stdio_directory + '/' +
+  ai_ops_assistant_mcp_stdio_adapter_filename }}
+ai_ops_assistant_mcp_stdio_catalog_path: >-
+  /opt/openstack-ai-ops-assistant/mcp-stdio/mcp_resource_catalog.json
+ai_ops_assistant_mcp_stdio_config_path: >-
+  /etc/ai-ops-assistant/mcp-stdio/config.json
+ai_ops_assistant_mcp_stdio_requirements_path: >-
+  /opt/openstack-ai-ops-assistant/mcp-stdio/requirements.in
+ai_ops_assistant_mcp_stdio_dependency_lock_path: >-
+  /opt/openstack-ai-ops-assistant/mcp-stdio/requirements.lock
+
+ai_ops_assistant_mcp_stdio_dependency_requirement: >-
+  mcp==1.28.1
+ai_ops_assistant_mcp_stdio_dependency_installation: >-
+  external-approved-offline-artifact
+ai_ops_assistant_mcp_stdio_dependency_lock_source: mcp_stdio/requirements.lock
+
+ai_ops_assistant_mcp_stdio_source_artifacts:
+  - source: mcp_stdio/aiops_assistant_mcp_stdio_server.py
+    destination: "{{ ai_ops_assistant_mcp_stdio_adapter_path }}"
+    mode: "0640"
+  - source: mcp_stdio/mcp_resource_catalog.json
+    destination: >-
+      /opt/openstack-ai-ops-assistant/mcp-stdio/mcp_resource_catalog.json
+    mode: "0640"
+  - source: mcp_stdio/config.json
+    destination: /etc/ai-ops-assistant/mcp-stdio/config.json
+    mode: "0640"
+  - source: mcp_stdio/requirements.in
+    destination: /opt/openstack-ai-ops-assistant/mcp-stdio/requirements.in
+    mode: "0640"
+
+ai_ops_assistant_mcp_stdio_dependency_artifacts:
+  - source: mcp_stdio/requirements.lock
+    destination: /opt/openstack-ai-ops-assistant/mcp-stdio/requirements.lock
+    mode: "0640"
