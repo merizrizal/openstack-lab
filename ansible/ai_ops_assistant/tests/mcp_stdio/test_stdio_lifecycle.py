@@ -90,7 +90,7 @@ class StdioLifecycleTest(unittest.TestCase):
         self.assertEqual(stdout.getvalue(), "")
         self.assertEqual(stderr.getvalue(), "adapter_dependency_error\n")
 
-    def test_server_registers_initial_tools_and_curated_resources_without_prompts(self):
+    def test_server_registers_initial_tools_curated_resources_and_project_prompt(self):
         server = SERVER.create_server(
             self.configuration(),
             fixed_registry_path=REGISTRY_PATH,
@@ -102,13 +102,9 @@ class StdioLifecycleTest(unittest.TestCase):
         self.assertIn(types.CallToolRequest, server.request_handlers)
         self.assertIn(types.ListResourcesRequest, server.request_handlers)
         self.assertIn(types.ReadResourceRequest, server.request_handlers)
-        for request_type in (
-            types.ListResourceTemplatesRequest,
-            types.ListPromptsRequest,
-            types.GetPromptRequest,
-        ):
-            with self.subTest(request_type=request_type):
-                self.assertNotIn(request_type, server.request_handlers)
+        self.assertIn(types.ListPromptsRequest, server.request_handlers)
+        self.assertIn(types.GetPromptRequest, server.request_handlers)
+        self.assertNotIn(types.ListResourceTemplatesRequest, server.request_handlers)
 
         listed = asyncio.run(server.request_handlers[types.ListToolsRequest](None))
         self.assertEqual(

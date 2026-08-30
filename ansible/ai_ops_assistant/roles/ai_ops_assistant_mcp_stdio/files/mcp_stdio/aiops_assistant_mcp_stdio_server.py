@@ -11,7 +11,7 @@ import re
 import signal
 import sys
 import uuid
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -136,6 +136,28 @@ INITIAL_TOOL_SCHEMAS = {
     SERVER_BASIC_INFO: SERVER_BASIC_INFO_SCHEMA,
     SERVER_NETWORK_INFO: SERVER_NETWORK_INFO_SCHEMA,
 }
+PROJECT_SUMMARY_PROMPT = "project_summary"
+PROJECT_SUMMARY_DESCRIPTION = (
+    "Summarize project-visible diagnostic resources using approved read-only evidence."
+)
+SERVER_INSPECTION_PROMPT = "server_inspection"
+SERVER_INSPECTION_DESCRIPTION = (
+    "Inspect one project-visible server using basic and network evidence."
+)
+METADATA_DIAGNOSIS_PROMPT = "metadata_diagnosis"
+METADATA_DIAGNOSIS_DESCRIPTION = (
+    "Diagnose metadata symptoms using bounded project and server evidence."
+)
+PROMPT_SERVER_IDENTIFIER_ARGUMENT = "server_identifier"
+PROMPT_MAX_MESSAGE_BYTES = 16 * 1024
+PROMPT_REQUIRED_HEADINGS = (
+    "Observed evidence",
+    "Healthy signals",
+    "Failing signals",
+    "Inferences and likely failure domain",
+    "Missing or unavailable evidence",
+    "Manual next actions — not executed",
+)
 REGISTRY_MAX_BYTES = 256 * 1024
 REGISTRY_ROOT_FIELDS = frozenset(
     {"schema_version", "registry_name", "defaults", "tools"}
@@ -264,6 +286,45 @@ class RunnerProtocolError(RuntimeError):
 
 class RunnerRequestValidationError(RunnerProtocolError):
     """Raised when a public MCP request fails adapter-side validation."""
+
+
+class PromptContractError(ValueError):
+    """Raised when a prompt request or rendered contract is invalid."""
+
+
+@dataclass(frozen=True)
+class PromptDefinition:
+    """Closed metadata for one locally implemented diagnostic prompt."""
+
+    name: str
+    description: str
+    required_tools: tuple[str, ...]
+    argument_name: str | None = None
+
+
+_PROMPT_DEFINITIONS = (
+    PromptDefinition(
+        name=PROJECT_SUMMARY_PROMPT,
+        description=PROJECT_SUMMARY_DESCRIPTION,
+        required_tools=(PROJECT_RESOURCE_SUMMARY,),
+    ),
+    PromptDefinition(
+        name=SERVER_INSPECTION_PROMPT,
+        description=SERVER_INSPECTION_DESCRIPTION,
+        required_tools=(SERVER_BASIC_INFO, SERVER_NETWORK_INFO),
+        argument_name=PROMPT_SERVER_IDENTIFIER_ARGUMENT,
+    ),
+    PromptDefinition(
+        name=METADATA_DIAGNOSIS_PROMPT,
+        description=METADATA_DIAGNOSIS_DESCRIPTION,
+        required_tools=(
+            PROJECT_RESOURCE_SUMMARY,
+            SERVER_BASIC_INFO,
+            SERVER_NETWORK_INFO,
+        ),
+        argument_name=PROMPT_SERVER_IDENTIFIER_ARGUMENT,
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -1146,6 +1207,186 @@ def _require_sdk() -> None:
         raise AdapterDependencyError("approved MCP stdio SDK is unavailable")
 
 
+def _prompt_definition(prompt_name: str) -> PromptDefinition:
+    for definition in _PROMPT_DEFINITIONS:
+        if definition.name == prompt_name:
+            return definition
+    raise PromptContractError("prompt request is not approved")
+
+
+def list_diagnostic_prompts(
+    exposed_tool_names: Collection[str] | None = None,
+) -> list[Any]:
+    """Return only complete, deterministic prompt descriptors."""
+
+    _require_sdk()
+    available_tools = set(
+        INITIAL_TOOL_NAMES if exposed_tool_names is None else exposed_tool_names
+    )
+    return [
+        types.Prompt(
+            name=definition.name,
+            description=definition.description,
+            arguments=(
+                []
+                if definition.argument_name is None
+                else [
+                    types.PromptArgument(
+                        name=definition.argument_name,
+                        description="Safe project-visible server name or ID.",
+                        required=True,
+                    )
+                ]
+            ),
+        )
+        for definition in _PROMPT_DEFINITIONS
+        if set(definition.required_tools) <= available_tools
+    ]
+
+
+def validate_prompt_arguments(
+    prompt_name: str,
+    arguments: Mapping[str, Any] | None,
+) -> dict[str, str]:
+    """Validate the closed prompt argument map without performing I/O."""
+
+    definition = _prompt_definition(prompt_name)
+    if definition.argument_name is None:
+        if arguments is None:
+            return {}
+        if not isinstance(arguments, Mapping) or arguments:
+            raise PromptContractError("prompt arguments are invalid")
+        return {}
+
+    if not isinstance(arguments, Mapping) or set(arguments) != {
+        definition.argument_name
+    }:
+        raise PromptContractError("prompt arguments are invalid")
+    value = arguments[definition.argument_name]
+    if not isinstance(value, str):
+        raise PromptContractError("prompt arguments are invalid")
+    try:
+        value_length = len(value.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise PromptContractError("prompt arguments are invalid") from exc
+    if (
+        not value_length <= SERVER_IDENTIFIER_MAX_LENGTH
+        or "/" in value
+        or ".." in value
+        or re.fullmatch(SAFE_IDENTIFIER_PATTERN, value) is None
+    ):
+        raise PromptContractError("prompt arguments are invalid")
+    return {definition.argument_name: value}
+
+
+def _prompt_sections() -> str:
+    return "\n\n".join(f"## {heading}\n" for heading in PROMPT_REQUIRED_HEADINGS)
+
+
+def _prompt_workflow_instructions(
+    prompt_name: str, server_identifier: str | None
+) -> str:
+    if prompt_name == PROJECT_SUMMARY_PROMPT:
+        return (
+            f"Use only the exact approved tool name present in discovery: "
+            f"`{PROJECT_RESOURCE_SUMMARY}`. Do not request or use any other tool.\n\n"
+            "This workflow is limited to project-visible diagnostic resources. "
+            "It does not request or establish cloud-wide, server, guest, network, "
+            "volume, host, or service-health evidence."
+        )
+    if server_identifier is None:
+        raise PromptContractError("prompt identifier is unavailable")
+    if prompt_name == SERVER_INSPECTION_PROMPT:
+        return (
+            "Use only this exact ordered sequence when the named tools are present "
+            "in discovery:\n"
+            f"1. `{SERVER_BASIC_INFO}` with "
+            f"`{PROMPT_SERVER_IDENTIFIER_ARGUMENT}={server_identifier}`.\n"
+            f"2. `{SERVER_NETWORK_INFO}` with the same exact "
+            f"`{PROMPT_SERVER_IDENTIFIER_ARGUMENT}={server_identifier}`.\n\n"
+            "Keep server, network, port, fixed-IP, volume, and config-drive "
+            "evidence separate. Do not infer guest or application health."
+        )
+    if prompt_name == METADATA_DIAGNOSIS_PROMPT:
+        return (
+            "Use only this exact ordered sequence when the named tools are present "
+            "in discovery:\n"
+            f"1. `{PROJECT_RESOURCE_SUMMARY}` to establish project-visible context.\n"
+            f"2. `{SERVER_BASIC_INFO}` with the exact "
+            f"`{PROMPT_SERVER_IDENTIFIER_ARGUMENT}={server_identifier}`.\n"
+            f"3. `{SERVER_NETWORK_INFO}` with the same exact "
+            f"`{PROMPT_SERVER_IDENTIFIER_ARGUMENT}={server_identifier}`.\n\n"
+            "Treat any operator-reported metadata or cloud-init symptom as a report, "
+            "not as tool-observed evidence. Label guest behavior, routes and packet "
+            "delivery, Neutron proxy/agent state, Nova metadata, listeners "
+            "including port 8775, host state, and logs as unavailable unless a "
+            "separate approved contract exposes them."
+        )
+    raise PromptContractError("prompt request is not approved")
+
+
+def _prompt_common_instructions() -> str:
+    return (
+        "Preserve each tool result's status, correlation ID, duration, timestamp, "
+        "and truncation semantics. Treat unavailable, timeout, denied, "
+        "validation_error, error, empty sections, and truncation as evidence gaps, "
+        "not as healthy signals. Keep operator-reported symptoms separate from "
+        "tool-observed evidence.\n\n"
+        "If an earlier result or section is unavailable, denied, failed, timed out, "
+        "validation-invalid, mismatched, or truncated, stop further narrowing. Do "
+        "not guess, retry, or substitute a second identifier.\n\n"
+        "Never invent a tool, result, identifier, credential, observation, command, "
+        "or root cause. Refuse create, update, delete, restart, stop, install, "
+        "edit, SSH, sudo, shell, raw OpenStack, file, database, package, "
+        "service-control, mutation, or remediation requests.\n\n"
+        "The final section may contain only high-level follow-up. All recommendations "
+        "are manual, advisory, and unexecuted, and must not include commands or "
+        "remediation instructions."
+    )
+
+
+def _render_prompt_text(
+    definition: PromptDefinition, server_identifier: str | None
+) -> str:
+    return "\n\n".join(
+        (
+            _prompt_workflow_instructions(definition.name, server_identifier),
+            _prompt_common_instructions(),
+            _prompt_sections(),
+            "Summarize only evidence returned by the approved tools in the exact "
+            "sequence above.",
+        )
+    )
+
+
+def render_diagnostic_prompt(
+    prompt_name: str,
+    arguments: Mapping[str, Any] | None,
+    exposed_tool_names: Collection[str],
+) -> Any:
+    """Render one bounded, non-executable diagnostic prompt result."""
+
+    _require_sdk()
+    definition = _prompt_definition(prompt_name)
+    validated_arguments = validate_prompt_arguments(prompt_name, arguments)
+    available_tools = set(exposed_tool_names)
+    if not set(definition.required_tools) <= available_tools:
+        raise PromptContractError("prompt dependencies are unavailable")
+    server_identifier = validated_arguments.get(PROMPT_SERVER_IDENTIFIER_ARGUMENT)
+    text = _render_prompt_text(definition, server_identifier)
+    if len(text.encode("utf-8")) > PROMPT_MAX_MESSAGE_BYTES:
+        raise PromptContractError("prompt message exceeds the fixed bound")
+    return types.GetPromptResult(
+        description=definition.description,
+        messages=[
+            types.PromptMessage(
+                role="user",
+                content=types.TextContent(type="text", text=text),
+            )
+        ],
+    )
+
+
 def create_server(
     configuration: AdapterConfiguration,
     *,
@@ -1159,6 +1400,7 @@ def create_server(
     if configuration.transport != "stdio":
         raise AdapterConfigurationError("local transport is not stdio")
     exposed_tools = load_exposed_tool_schemas(fixed_registry_path)
+    exposed_tool_names = frozenset(tool["name"] for tool in exposed_tools)
     validated_catalog = (
         load_resource_catalog(configuration.resource_catalog_path)
         if catalog is None
@@ -1182,6 +1424,19 @@ def create_server(
     @server.read_resource()
     async def handle_read_resource(uri: Any) -> list[ReadResourceContents]:
         return read_curated_resource(uri, validated_catalog)
+
+    @server.list_prompts()
+    async def handle_list_prompts() -> list[Any]:
+        return list_diagnostic_prompts(exposed_tool_names)
+
+    @server.get_prompt()
+    async def handle_get_prompt(
+        prompt_name: str, arguments: dict[str, str] | None = None
+    ) -> Any:
+        validated_arguments = validate_prompt_arguments(prompt_name, arguments)
+        return render_diagnostic_prompt(
+            prompt_name, validated_arguments, exposed_tool_names
+        )
 
     @server.call_tool(validate_input=False)
     async def handle_call_tool(tool_name: str, arguments: dict[str, Any]) -> Any:

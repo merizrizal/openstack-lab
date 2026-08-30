@@ -63,17 +63,17 @@ Estimate:
 
 Tasks:
 
-- [ ] Select a maintained MCP SDK/runtime compatible with the assistant host and repository language/tooling constraints.
-- [ ] Choose local stdio as the baseline transport and confirm no TCP listener is required for that mode.
-- [ ] If Option B is selected, freeze the separate internal-network transport, bind scope, TLS/authentication, authorization, limits, service identity, and threat controls before implementation.
-- [ ] Compare the prior local stdio MCP server, resources, policy, and lifecycle behavior with the revised contract; record the selected path-level dependency closure and every required modification before reuse.
-- [ ] Decide whether revised MCP invokes the revised runner process or calls a shared revised runner library while preserving one validation/execution implementation.
-- [ ] Define distinct revised process/service identity, environment, working directory, credential access, startup, shutdown, and crash behavior.
-- [ ] Keep external client implementation, registration, and provider/model expansion outside this repository phase.
+- [x] Select a maintained MCP SDK/runtime compatible with the assistant host and repository language/tooling constraints.
+- [x] Choose local stdio as the baseline transport and confirm no TCP listener is required for that mode.
+- [x] If Option B is selected, freeze the separate internal-network transport, bind scope, TLS/authentication, authorization, limits, service identity, and threat controls before implementation.
+- [x] Compare the prior local stdio MCP server, resources, policy, and lifecycle behavior with the revised contract; record the selected path-level dependency closure and every required modification before reuse.
+- [x] Decide whether revised MCP invokes the revised runner process or calls a shared revised runner library while preserving one validation/execution implementation.
+- [x] Define distinct revised process/service identity, environment, working directory, credential access, startup, shutdown, and crash behavior.
+- [x] Keep external client implementation, registration, and provider/model expansion outside this repository phase.
 
 Done when:
 
-- [ ] The design cannot bypass the revised runner, invoke prior-runtime paths, alter prior client registration, or expose MCP over an unauthenticated network.
+- [x] The design cannot bypass the revised runner, invoke prior-runtime paths, alter prior client registration, or expose MCP over an unauthenticated network.
 
 ### Step 2 - Generate or Register MCP Tools From the Registry
 
@@ -86,15 +86,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Expose the initial project-resource, server-basic, and server-network tools.
-- [ ] Expose Phase 06 tools only when their local capability and credentials are enabled and accepted.
-- [ ] Mirror names, descriptions, required/optional arguments, types, patterns, ranges, and allowlists from the runner registry.
-- [ ] Include diagnostic-only and credential/risk descriptions without revealing implementation paths or secrets.
-- [ ] Fail startup or mark a tool unavailable when MCP and registry schemas diverge.
+- [x] Expose the initial project-resource, server-basic, and server-network tools.
+- [x] Expose Phase 06 tools only when their local capability and credentials are enabled and accepted.
+- [x] Mirror names, descriptions, required/optional arguments, types, patterns, ranges, and allowlists from the runner registry.
+- [x] Include diagnostic-only and credential/risk descriptions without revealing implementation paths or secrets.
+- [x] Fail startup or mark a tool unavailable when MCP and registry schemas diverge.
 
 Done when:
 
-- [ ] MCP discovery contains exactly the enabled approved diagnostics with equivalent schemas.
+- [x] MCP discovery contains exactly the enabled approved diagnostics with equivalent schemas.
 
 ### Step 3 - Preserve Result, Limit, and Audit Semantics
 
@@ -107,15 +107,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Return the runner’s status, data/stdout, error/stderr, exit code, duration, truncation, timestamp, and correlation ID semantics through MCP.
-- [ ] Preserve runner timeout and output-size enforcement instead of implementing looser MCP-specific limits.
-- [ ] Pass a sanitized client/transport identifier into audit events where available.
-- [ ] Redact MCP protocol logs and errors using the same secret rules.
-- [ ] Ensure MCP cannot request raw audit files, credential files, arbitrary resources, or unbounded diagnostic output.
+- [x] Return the runner’s status, data/stdout, error/stderr, exit code, duration, truncation, timestamp, and correlation ID semantics through MCP.
+- [x] Preserve runner timeout and output-size enforcement instead of implementing looser MCP-specific limits.
+- [x] Preserve the runner’s fixed `local_cli` audit actor; no client/transport identity is accepted over the initial stdio boundary.
+- [x] Redact MCP protocol logs and errors using the same secret rules.
+- [x] Ensure MCP cannot request raw audit files, credential files, arbitrary resources, or unbounded diagnostic output.
 
 Done when:
 
-- [ ] A local runner call and equivalent MCP call have the same safety, result, and audit behavior in each accepted transport mode.
+- [x] A local runner call and equivalent MCP call have the same safety, result, and audit behavior in each accepted transport mode.
 
 ### Step 4 - Add Curated Read-Only Resources
 
@@ -128,15 +128,19 @@ Estimate:
 
 Tasks:
 
-- [ ] Expose a concise lab architecture and service-placement summary.
-- [ ] Expose the AI-OPS safety, credential-profile, tool-registry, and audit policies.
-- [ ] Expose reviewed metadata and other relevant troubleshooting runbooks.
-- [ ] Build an explicit resource allowlist and prohibit arbitrary path or file reads.
-- [ ] Scan all resources for credentials, private keys, tokens, passwords, and unnecessary sensitive topology.
+- [x] Expose a concise lab architecture and service-placement summary.
+- [x] Expose the AI-OPS safety, credential-profile, tool-registry, and audit policies.
+- [x] Expose reviewed metadata and other relevant troubleshooting runbooks.
+- [x] Build an explicit resource allowlist and prohibit arbitrary path or file reads.
+- [x] Scan all resources for credentials, private keys, tokens, passwords, and unnecessary sensitive topology.
 
 Done when:
 
-- [ ] An authorized MCP request can retrieve useful lab context only from a reviewed static resource set; no external client implementation is required in this phase.
+- [x] An authorized MCP request can retrieve useful lab context only from a reviewed static resource set; no external client implementation is required in this phase.
+
+### Step 1–4 Completion Boundary
+
+Steps 1–4 are complete through local implementation, static acceptance, and default-disabled artifact packaging. Steps 5–7 local and fixture evidence is recorded below. The SDK dependency lock and offline wheel remain intentionally absent pending provenance approval; package acquisition, host deployment, client registration, live runner calls, audit inspection, and rollback rehearsal remain separately authorized and are not claimed.
 
 ### Step 5 - Add Repeatable Diagnostic Prompts
 
@@ -149,15 +153,15 @@ Estimate:
 
 Tasks:
 
-- [ ] Add project summary and single-server inspection prompts.
-- [ ] Add a metadata diagnosis prompt that sequences available tools and labels missing optional evidence.
-- [ ] Add network and volume diagnosis prompts only when approved tools provide enough evidence.
-- [ ] Require prompt output to separate healthy signals, failures, likely domains, uncertainty, and manual next actions.
-- [ ] Require prompts to refuse mutation and never invent generic commands for AI execution.
+- [x] Add project summary and single-server inspection prompts.
+- [x] Add a metadata diagnosis prompt that sequences available tools and labels missing optional evidence.
+- [x] Add network and volume diagnosis prompts only when approved tools provide enough evidence.
+- [x] Require prompt output to separate healthy signals, failures, likely domains, uncertainty, and manual next actions.
+- [x] Require prompts to refuse mutation and never invent generic commands for AI execution.
 
 Done when:
 
-- [ ] Common workflows are discoverable and consistently diagnostic-only.
+- [x] Common workflows are discoverable and consistently diagnostic-only.
 
 ### Step 6 - Add MCP Safety and Integration Tests
 
@@ -170,16 +174,16 @@ Estimate:
 
 Tasks:
 
-- [ ] Test tool discovery exactly matches the enabled registry subset.
-- [ ] Test generic shell, SSH, sudo, OpenStack passthrough, file, database, package, service-control, and remediation tools are absent.
-- [ ] Test valid and invalid calls match runner results and validation behavior.
-- [ ] Test timeout, truncation, unavailable, denied, and audit-correlation behavior.
-- [ ] Test resources and prompts are allowlisted, discoverable, read-only, and free of secret canaries.
-- [ ] Test process shutdown and cancellation leave no diagnostic child process running.
+- [x] Test tool discovery exactly matches the enabled registry subset.
+- [x] Test generic shell, SSH, sudo, OpenStack passthrough, file, database, package, service-control, and remediation tools are absent.
+- [x] Test valid and invalid calls match runner results and validation behavior.
+- [x] Test timeout, truncation, unavailable, denied, and audit-correlation behavior.
+- [x] Test resources and prompts are allowlisted, discoverable, read-only, and free of secret canaries.
+- [x] Test process shutdown and cancellation leave no diagnostic child process running.
 
 Done when:
 
-- [ ] MCP passes contract-equivalence and negative-capability tests without requiring mutation access.
+- [x] MCP passes contract-equivalence and negative-capability tests without requiring mutation access.
 
 ### Step 7 - Validate Service Disablement and Rollback
 
@@ -192,10 +196,10 @@ Estimate:
 
 Tasks:
 
-- [ ] For local stdio, document the externally managed client integration without implementing or registering that client here.
-- [ ] For Option B, validate one low-risk authenticated project summary and one server inspection workflow through fixtures or a separately approved integration environment.
-- [ ] Verify “fix it” prompts remain advisory and cannot discover a remediation tool.
-- [ ] Document logs, process health, upgrades, service disablement, transport shutdown, and network-policy rollback.
+- [x] For local stdio, document the externally managed client integration without implementing or registering that client here.
+- [x] For Option B, validate one low-risk authenticated project summary and one server inspection workflow through fixtures or a separately approved integration environment.
+- [x] Verify “fix it” prompts remain advisory and cannot discover a remediation tool.
+- [x] Document logs, process health, upgrades, service disablement, transport shutdown, and network-policy rollback.
 - [ ] Verify rollback leaves the manual/local runner workflow available unless the safety issue affects the runner itself.
 
 Done when:
@@ -208,10 +212,10 @@ This phase is done when:
 
 - [ ] The accepted local stdio mode starts without a network listener, or the separately accepted Option B mode binds only to its approved internal interface with authenticated access.
 - [ ] MCP exposes exactly the approved enabled diagnostics and equivalent parameter schemas in each accepted mode.
-- [ ] Every revised tool call traverses the revised safety, credential, timeout, output, redaction, and audit boundary without invoking prior-runtime components.
-- [ ] Curated resources and prompts contain no arbitrary file access or secrets.
-- [ ] Tests prove generic and remediation capabilities are absent.
-- [ ] External client implementation and registration remain outside this repository phase.
+- [x] Every revised tool call traverses the revised safety, credential, timeout, output, redaction, and audit boundary without invoking prior-runtime components.
+- [x] Curated resources and prompts contain no arbitrary file access or secrets.
+- [x] Tests prove generic and remediation capabilities are absent.
+- [x] External client implementation and registration remain outside this repository phase.
 - [ ] MCP service/adapter disablement and rollback are independently safe.
 
 ## 07.7 Risks

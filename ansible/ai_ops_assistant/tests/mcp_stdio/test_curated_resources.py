@@ -126,8 +126,8 @@ class CuratedResourcesTest(unittest.TestCase):
         self.assertIn(types.ListResourcesRequest, server.request_handlers)
         self.assertIn(types.ReadResourceRequest, server.request_handlers)
         self.assertNotIn(types.ListResourceTemplatesRequest, server.request_handlers)
-        self.assertNotIn(types.ListPromptsRequest, server.request_handlers)
-        self.assertNotIn(types.GetPromptRequest, server.request_handlers)
+        self.assertIn(types.ListPromptsRequest, server.request_handlers)
+        self.assertIn(types.GetPromptRequest, server.request_handlers)
 
         listed = asyncio.run(server.request_handlers[types.ListResourcesRequest](None))
         self.assertEqual(

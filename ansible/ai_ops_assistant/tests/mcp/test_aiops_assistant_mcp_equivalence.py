@@ -145,6 +145,100 @@ class ThreeToolAndResourceEquivalenceTest(unittest.TestCase):
         self.assertEqual([call[1]["timeout"] for call in calls], [30, 45])
         self.assertTrue(all(call[1]["shell"] is False for call in calls))
 
+    def test_authenticated_fixture_runs_project_then_same_identifier_server_workflow(
+        self,
+    ):
+        calls = []
+
+        def fake_runner(argv, **kwargs):
+            calls.append((argv, kwargs))
+            tool = argv[2]
+            arguments = (
+                {}
+                if tool == SERVER.PROJECT_RESOURCE_SUMMARY
+                else {"server_identifier": argv[4].split("=", 1)[1]}
+            )
+            envelope = self.runner_envelope(tool, arguments)
+            return subprocess.CompletedProcess(
+                argv,
+                0,
+                stdout=json.dumps(envelope).encode("utf-8"),
+                stderr=b"fixture-secret",
+            )
+
+        principal = SERVER.EXPECTED_PRINCIPAL_URI
+        project_result = SERVER.handle_authenticated_project_resource_summary(
+            principal, {}, runner=fake_runner
+        )
+        basic_result = SERVER.handle_authenticated_server_basic_info(
+            principal, {"server_identifier": "server-01"}, runner=fake_runner
+        )
+        network_result = SERVER.handle_authenticated_server_network_info(
+            principal, {"server_identifier": "server-01"}, runner=fake_runner
+        )
+
+        for result in (project_result, basic_result, network_result):
+            self.assertFalse(result.isError)
+            self.assertNotIn("fixture-secret", result.content[0].text)
+        self.assertEqual(
+            [call[0][2] for call in calls],
+            [
+                SERVER.PROJECT_RESOURCE_SUMMARY,
+                SERVER.SERVER_BASIC_INFO,
+                SERVER.SERVER_NETWORK_INFO,
+            ],
+        )
+        self.assertEqual(
+            calls[1][0][4],
+            "server_identifier=server-01",
+        )
+        self.assertEqual(
+            calls[2][0][4],
+            "server_identifier=server-01",
+        )
+        self.assertEqual([call[1]["timeout"] for call in calls], [45, 30, 45])
+        self.assertTrue(all(call[1]["shell"] is False for call in calls))
+        self.assertEqual(
+            [
+                result.structuredContent["arguments"]
+                for result in (
+                    project_result,
+                    basic_result,
+                    network_result,
+                )
+            ],
+            [
+                {},
+                {"server_identifier": "server-01"},
+                {"server_identifier": "server-01"},
+            ],
+        )
+
+    def test_authenticated_fixture_exposes_no_prompt_or_remediation_surface(self):
+        config = SERVER.NetworkMCPConfig.from_mapping(self.valid_configuration())
+        server = SERVER.create_authenticated_three_tool_server(
+            config,
+            SERVER.EXPECTED_PRINCIPAL_URI,
+            catalog=SERVER.load_resource_catalog(CATALOG_PATH),
+            runner=lambda *args, **kwargs: None,
+        )
+        listed = asyncio.run(server.request_handlers[types.ListToolsRequest](None))
+        self.assertEqual(
+            [tool.name for tool in listed.root.tools], list(SERVER.INITIAL_TOOL_NAMES)
+        )
+        for request_type in (types.ListPromptsRequest, types.GetPromptRequest):
+            self.assertNotIn(request_type, server.request_handlers)
+        for forbidden in (
+            "network_diagnosis",
+            "volume_diagnosis",
+            "fix_it",
+            "shell",
+            "ssh",
+            "sudo",
+            "remediation",
+        ):
+            self.assertNotIn(forbidden, [tool.name for tool in listed.root.tools])
+
     def test_invalid_initial_requests_and_phase06_tools_never_spawn(self):
         calls = []
 
@@ -160,9 +254,11 @@ class ThreeToolAndResourceEquivalenceTest(unittest.TestCase):
             ("neutron_agent_health", {}),
         ]
         for tool, arguments in invalid_requests:
-            with self.subTest(tool=tool, arguments=arguments):
-                with self.assertRaises(SERVER.RequestValidationError):
-                    SERVER.invoke_fixed_runner(tool, arguments, runner=fake_runner)
+            with (
+                self.subTest(tool=tool, arguments=arguments),
+                self.assertRaises(SERVER.RequestValidationError),
+            ):
+                SERVER.invoke_fixed_runner(tool, arguments, runner=fake_runner)
         self.assertEqual(calls, [])
 
     def test_authenticated_full_server_exposes_only_three_tools_and_catalog(self):
@@ -196,7 +292,7 @@ class ThreeToolAndResourceEquivalenceTest(unittest.TestCase):
             list(SERVER.REVIEWED_RESOURCE_METADATA),
         )
 
-        uri = list(SERVER.REVIEWED_RESOURCE_METADATA)[0]
+        uri = next(iter(SERVER.REVIEWED_RESOURCE_METADATA))
         request = types.ReadResourceRequest(params={"uri": uri})
         read_result = asyncio.run(
             server.request_handlers[types.ReadResourceRequest](request)
