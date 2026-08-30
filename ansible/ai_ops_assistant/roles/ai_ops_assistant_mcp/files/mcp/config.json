@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "transport": "streamable-http",
+  "bind_interface": "eth0",
+  "bind_address": "192.168.121.21",
+  "port": 8443,
+  "endpoint_path": "/mcp",
+  "allowed_source_cidrs": ["192.168.121.0/24"],
+  "tls_certificate_path": "/etc/ai-ops-assistant/mcp/tls/server.crt",
+  "tls_private_key_path": "/etc/ai-ops-assistant/mcp/tls/server.key",
+  "tls_client_ca_path": "/etc/ai-ops-assistant/mcp/tls/client-ca.crt",
+  "tls_client_crl_path": "/etc/ai-ops-assistant/mcp/tls/client-ca.crl",
+  "authorized_principal_uri": "spiffe://openstack-lab/mcp/mcp-internal-reader",
+  "max_header_bytes": 8192,
+  "max_request_body_bytes": 65536,
+  "max_response_body_bytes": 262144,
+  "max_concurrent_sessions": 4,
+  "max_concurrent_runner_children": 1,
+  "requests_per_minute": 10,
+  "request_burst": 2,
+  "session_idle_seconds": 300,
+  "request_deadline_seconds": 305
+}

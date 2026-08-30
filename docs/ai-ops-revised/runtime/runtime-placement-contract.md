@@ -7,8 +7,11 @@ This is a Phase 01 planning contract. It records the isolated placement and name
 The revised product remains limited to:
 
 ```text
-reviewed manual diagnostics -> one deny-by-default runner/registry -> local stdio MCP over that runner
+reviewed manual diagnostics -> one deny-by-default runner/registry -> local stdio MCP
+                                                     or separately accepted authenticated internal-network MCP
 ```
+
+The internal-network mode is a later Phase 07 extension. It does not authorize a listener, route, certificate, firewall rule, service, or external-client integration in this Phase 01 contract.
 
 ## Placement Contract
 
@@ -34,7 +37,7 @@ The final inventory declaration and host existence are Phase 01 Step 4 work. Pro
 | Runtime user/group | `assistant` | `aiops_assistant` |
 | Project-reader profile | `aiops-project-reader` | `aiops-assistant-project-reader` |
 | Audit root | `/opt/openstack-ai-ops/audit` | `/opt/openstack-ai-ops-assistant/audit` |
-| MCP registration | Historical registration | Separately named local stdio registration |
+| MCP registration | Historical registration | Separately named local stdio registration; any internal-network service identity is separately named and separately approved |
 
 The `aiops_assistant` account and group own only revised runtime-managed workspace, approved future diagnostic files, and revised audit locations. Credential material and raw audit evidence remain outside committed source and have separate restrictive-permission requirements.
 
@@ -43,11 +46,12 @@ The `aiops_assistant` account and group own only revised runtime-managed workspa
 | Direction | Contract | Status |
 | --- | --- | --- |
 | `assistant02` to `controller01:5000` | Management-path TCP reachability to Keystone only. | Required before Phase 01 Step 4 acceptance. |
+| `assistant02` internal MCP ingress | No listener or ingress in this foundation slice; a later Phase 07 extension may define an authenticated internal-only endpoint. | Deferred to the Option B network MCP contract. |
 | Keystone authentication | No credential installation or authentication in this slice. | Deferred to Phase 02. |
 | Additional OpenStack APIs | Require an accepted diagnostic and an explicit route justification. | Denied until justified. |
 | Tenant network | No placement or route requirement. | Denied/unneeded. |
 | Provider or model egress | No route or policy configuration. | Excluded. |
-| Inbound/public MCP | No listener, port, or public exposure. | Excluded. |
+| Inbound/public MCP | No public or unauthenticated listener, port, or exposure. | Public exposure remains excluded; authenticated internal MCP is deferred to the Phase 07 Option B contract. |
 | Historical runner/MCP/orchestrator paths | No invocation, route, or registration. | Excluded. |
 | Host SSH diagnostics | No route or authorization in the initial foundation. | Deferred to Phase 06. |
 
@@ -84,8 +88,9 @@ After the host and minimal foundation are explicitly approved, verification must
 
 1. the revised host identity and inventory group resolve to the intended separate observer host;
 2. no control-plane role is present;
-3. TCP reachability to `controller01:5000` succeeds from the revised host without installing credentials or starting an MCP listener; and
-4. denied routes and excluded capabilities remain absent.
+3. TCP reachability to `controller01:5000` succeeds from the revised host without installing credentials or starting an MCP listener;
+4. denied routes and excluded capabilities remain absent; and
+5. no internal MCP listener, route, certificate, or firewall state is introduced before the separately accepted Phase 07 Option B contract.
 
 The only rollback for this planning record is to revert this documentation. Once implementation begins, rollback must disconnect or destroy only the revised runtime and remove revised repository-managed state; it must not alter `assistant01`, the historical source, or OpenStack resources.
 

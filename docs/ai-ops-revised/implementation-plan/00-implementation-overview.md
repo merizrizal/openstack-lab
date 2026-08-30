@@ -59,7 +59,7 @@ The estimates assume one experienced engineer with reasonable access to the repo
 | 04 | `04-tool-runner-safety-gateway.md` | Enforce allowlisting, validation, limits, structured results, and auditing | 3-5 engineer-days |
 | 05 | `05-mvp-workflows-and-live-validation.md` | Prove useful diagnostic workflows against deployed lab state | 1.5-2.5 engineer-days |
 | 06 | `06-restricted-operator-and-host-diagnostics.md` | Add higher-visibility service and log evidence behind separate controls | 3-5 engineer-days |
-| 07 | `07-mcp-interface.md` | Expose the trusted toolbox through local, read-only MCP | 3-5 engineer-days |
+| 07 | `07-mcp-interface.md` | Expose the trusted toolbox through local or authenticated internal-network, read-only MCP | 3-6 engineer-days |
 | 08 | `08-hardening-rollout-and-operations.md` | Integrate quality gates, security review, rollout, rollback, and expansion governance | 2.5-4.5 engineer-days |
 
 Estimated MVP total through Phase 05:
@@ -87,7 +87,7 @@ Build in this order:
 5. Select or implement one revised deny-by-default runner and registry for those accepted diagnostics.
 6. Prove project inspection, server inspection, and metadata-oriented workflows against a deployed lab.
 7. Add operator-reader and restricted host diagnostics only after the lower-risk API path is accepted.
-8. Select or implement a local stdio MCP adapter over the accepted revised runner, without the historical orchestrator bridge.
+8. Select or implement a local stdio MCP adapter over the accepted revised runner, or separately design an authenticated internal-network MCP service, without the historical orchestrator bridge or external-client implementation.
 9. Consolidate security, regression, deployment, audit, rollback, and extension controls.
 
 This order preserves historical evidence without importing unrelated architecture. Each reuse decision is made in the phase that can validate the capability, so copied code cannot silently activate provider, orchestration, egress, host-access, or remote-operation behavior.
@@ -110,6 +110,7 @@ This order preserves historical evidence without importing unrelated architectur
 - [ ] Every allowed and denied request is auditable without recording secrets.
 - [ ] Missing optional credentials or host access produce `unavailable`, not unsafe fallback behavior.
 - [ ] Revised MCP reuses the revised registry and runner; it does not introduce an alternate execution path or historical orchestrator dependency.
+- [ ] Any internal-network MCP mode is separately authenticated, authorized, bounded, non-public, and independently disableable; external client implementation remains out of scope.
 - [ ] Important security-boundary changes are recorded with reproducible validation evidence.
 - [ ] Existing Vagrant, Ansible, OpenStack bootstrap, observability, and Molecule workflows remain unchanged unless a reviewed compatibility change is required.
 - [ ] Tests verify external behavior and safety rules rather than private implementation details.

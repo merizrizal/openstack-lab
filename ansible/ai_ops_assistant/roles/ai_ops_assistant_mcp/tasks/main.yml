@@ -1,0 +1,211 @@
+---
+- name: Validate revised internal MCP deployment contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_mcp_enabled is boolean
+      - ai_ops_assistant_mcp_explicit_activation is boolean
+      - >-
+        not (ai_ops_assistant_mcp_enabled | bool) or
+        (ai_ops_assistant_mcp_explicit_activation | bool)
+      - ai_ops_assistant_mcp_runtime_root == '/opt/openstack-ai-ops-assistant'
+      - ai_ops_assistant_mcp_runtime_user == 'aiops_assistant'
+      - ai_ops_assistant_mcp_runtime_group == 'aiops_assistant'
+      - >-
+        ai_ops_assistant_mcp_directory ==
+        ai_ops_assistant_mcp_runtime_root + '/mcp'
+      - >-
+        ai_ops_assistant_mcp_adapter_path ==
+        ai_ops_assistant_mcp_directory + '/aiops_assistant_mcp_server.py'
+      - >-
+        ai_ops_assistant_mcp_catalog_path ==
+        ai_ops_assistant_mcp_directory + '/mcp_resource_catalog.json'
+      - >-
+        ai_ops_assistant_mcp_config_path ==
+        '/etc/ai-ops-assistant/mcp/config.json'
+      - >-
+        ai_ops_assistant_mcp_venv_path ==
+        ai_ops_assistant_mcp_directory + '/venv'
+      - ai_ops_assistant_mcp_service_name == 'ai-ops-assistant-mcp'
+      - >-
+        ai_ops_assistant_mcp_service_unit_path ==
+        '/etc/systemd/system/ai-ops-assistant-mcp.service'
+      - ai_ops_assistant_mcp_service_user == 'aiops_assistant'
+      - ai_ops_assistant_mcp_service_group == 'aiops_assistant'
+      - ai_ops_assistant_mcp_dependency_requirement == 'mcp==1.28.1'
+      - >-
+        ai_ops_assistant_mcp_dependency_installation ==
+        'external-approved-offline-artifact'
+      - ai_ops_assistant_mcp_bind_interface == 'eth0'
+      - ai_ops_assistant_mcp_bind_address == '192.168.121.21'
+      - ai_ops_assistant_mcp_port == 8443
+      - ai_ops_assistant_mcp_endpoint_path == '/mcp'
+      - >-
+        ai_ops_assistant_mcp_allowed_source_cidrs == ['192.168.121.0/24']
+      - >-
+        ai_ops_assistant_mcp_firewall_marker ==
+        'ai-ops-assistant-mcp-https-ingress'
+      - >-
+        ai_ops_assistant_mcp_approval_reference ==
+        'phase07-internal-mcp-https-mtls-0701'
+      - >-
+        ai_ops_assistant_mcp_service_files | map(attribute='source') | list == [
+        'mcp/aiops_assistant_mcp_server.py', 'mcp/mcp_resource_catalog.json',
+        'mcp/config.json'
+        ]
+      - >-
+        ai_ops_assistant_mcp_service_files |
+        map(attribute='destination') | list == [
+        'aiops_assistant_mcp_server.py', 'mcp_resource_catalog.json',
+        'config.json'
+        ]
+      - >-
+        ai_ops_assistant_mcp_service_files | map(attribute='mode') | list == [
+        '0640', '0640', '0640'
+        ]
+      - >-
+        ai_ops_assistant_mcp_tls_files | map(attribute='path') | list == [
+        '/etc/ai-ops-assistant/mcp/tls/server.crt',
+        '/etc/ai-ops-assistant/mcp/tls/server.key',
+        '/etc/ai-ops-assistant/mcp/tls/client-ca.crt',
+        '/etc/ai-ops-assistant/mcp/tls/client-ca.crl'
+        ]
+      - >-
+        ai_ops_assistant_mcp_tls_files | map(attribute='mode') | list == [
+        '0640', '0640', '0640', '0640'
+        ]
+      - "'..' not in ai_ops_assistant_mcp_directory.split('/')"
+    quiet: true
+
+- name: Inspect revised MCP source artifacts
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_mcp_service_files }}"
+  loop_control:
+    label: "{{ item.source }}"
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_mcp_source_metadata
+  changed_when: false
+
+- name: Assert revised MCP source artifacts are regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_mcp_source_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
+
+- name: Ensure revised MCP directory is present with service-readable ownership
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_mcp_directory }}"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_mcp_enabled | bool
+
+- name: Ensure revised MCP configuration directory is present
+  ansible.builtin.file:
+    path: /etc/ai-ops-assistant/mcp
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_mcp_enabled | bool
+
+- name: Materialize revised MCP source artifacts
+  ansible.builtin.copy:
+    src: "{{ item.source }}"
+    dest: >-
+      {{ ai_ops_assistant_mcp_directory
+      if item.destination != 'config.json'
+      else '/etc/ai-ops-assistant/mcp' }}/{{ item.destination }}
+    owner: root
+    group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+    mode: "{{ item.mode }}"
+    backup: false
+  loop: "{{ ai_ops_assistant_mcp_service_files }}"
+  loop_control:
+    label: "{{ item.destination }}"
+  when: >-
+    ai_ops_assistant_mcp_enabled | bool
+
+- name: Install revised MCP service unit in a disabled state
+  ansible.builtin.template:
+    src: ai-ops-assistant-mcp.service.j2
+    dest: "{{ ai_ops_assistant_mcp_service_unit_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/systemd-analyze verify %s
+  when: ai_ops_assistant_mcp_enabled | bool
+
+- name: Ensure revised MCP service remains stopped and disabled
+  ansible.builtin.systemd_service:
+    name: "{{ ai_ops_assistant_mcp_service_name }}"
+    daemon_reload: true
+    enabled: false
+    state: stopped
+  when: ai_ops_assistant_mcp_enabled | bool
+
+- name: Inspect materialized revised MCP artifacts
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    follow: false
+  loop:
+    - path: "{{ ai_ops_assistant_mcp_directory }}"
+      type: directory
+      owner: root
+      group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+      mode: "0750"
+    - path: "{{ ai_ops_assistant_mcp_adapter_path }}"
+      type: file
+      owner: root
+      group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+      mode: "0640"
+    - path: "{{ ai_ops_assistant_mcp_catalog_path }}"
+      type: file
+      owner: root
+      group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+      mode: "0640"
+    - path: "{{ ai_ops_assistant_mcp_config_path }}"
+      type: file
+      owner: root
+      group: "{{ ai_ops_assistant_mcp_runtime_group }}"
+      mode: "0640"
+    - path: "{{ ai_ops_assistant_mcp_service_unit_path }}"
+      type: file
+      owner: root
+      group: root
+      mode: "0644"
+  register: ai_ops_assistant_mcp_destination_metadata
+  changed_when: false
+  when:
+    - ai_ops_assistant_mcp_enabled | bool
+    - not ansible_check_mode
+
+- name: Assert materialized revised MCP artifact metadata
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - (item.item.type == 'directory') == item.stat.isdir
+      - (item.item.type == 'file') == item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == item.item.owner
+      - item.stat.gr_name == item.item.group
+      - item.stat.mode == item.item.mode
+    quiet: true
+  loop: "{{ ai_ops_assistant_mcp_destination_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+  changed_when: false
+  when:
+    - ai_ops_assistant_mcp_enabled | bool
+    - not ansible_check_mode

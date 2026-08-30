@@ -1,0 +1,201 @@
+---
+- name: Validate local-stdio artifact deployment contract
+  ansible.builtin.assert:
+    that:
+      - ai_ops_assistant_mcp_stdio_enabled is boolean
+      - ai_ops_assistant_mcp_stdio_explicit_activation is boolean
+      - >-
+        not (ai_ops_assistant_mcp_stdio_enabled | bool) or
+        (ai_ops_assistant_mcp_stdio_explicit_activation | bool)
+      - ai_ops_assistant_mcp_stdio_lifecycle_action == 'present'
+      - not (ai_ops_assistant_mcp_stdio_removal_requested | bool)
+      - >-
+        ai_ops_assistant_mcp_stdio_removal_authorization == 'unconfirmed'
+      - >-
+        ai_ops_assistant_mcp_stdio_runtime_root ==
+        '/opt/openstack-ai-ops-assistant'
+      - ai_ops_assistant_mcp_stdio_runtime_user == 'aiops_assistant'
+      - ai_ops_assistant_mcp_stdio_runtime_group == 'aiops_assistant'
+      - >-
+        ai_ops_assistant_mcp_stdio_directory ==
+        '/opt/openstack-ai-ops-assistant/mcp-stdio'
+      - >-
+        ai_ops_assistant_mcp_stdio_config_directory ==
+        '/etc/ai-ops-assistant/mcp-stdio'
+      - >-
+        ai_ops_assistant_mcp_stdio_venv_path ==
+        ai_ops_assistant_mcp_stdio_directory + '/venv'
+      - >-
+        ai_ops_assistant_mcp_stdio_adapter_path ==
+        ai_ops_assistant_mcp_stdio_directory +
+        '/aiops_assistant_mcp_stdio_server.py'
+      - >-
+        ai_ops_assistant_mcp_stdio_catalog_path ==
+        ai_ops_assistant_mcp_stdio_directory +
+        '/mcp_resource_catalog.json'
+      - >-
+        ai_ops_assistant_mcp_stdio_config_path ==
+        ai_ops_assistant_mcp_stdio_config_directory + '/config.json'
+      - >-
+        ai_ops_assistant_mcp_stdio_requirements_path ==
+        ai_ops_assistant_mcp_stdio_directory + '/requirements.in'
+      - >-
+        ai_ops_assistant_mcp_stdio_dependency_lock_path ==
+        ai_ops_assistant_mcp_stdio_directory + '/requirements.lock'
+      - ai_ops_assistant_mcp_stdio_dependency_requirement == 'mcp==1.28.1'
+      - >-
+        ai_ops_assistant_mcp_stdio_dependency_installation ==
+        'external-approved-offline-artifact'
+      - >-
+        ai_ops_assistant_mcp_stdio_source_artifacts |
+        map(attribute='source') | list == [
+        'mcp_stdio/aiops_assistant_mcp_stdio_server.py',
+        'mcp_stdio/mcp_resource_catalog.json',
+        'mcp_stdio/config.json',
+        'mcp_stdio/requirements.in'
+        ]
+      - >-
+        ai_ops_assistant_mcp_stdio_source_artifacts |
+        map(attribute='destination') | list == [
+        ai_ops_assistant_mcp_stdio_adapter_path,
+        ai_ops_assistant_mcp_stdio_catalog_path,
+        ai_ops_assistant_mcp_stdio_config_path,
+        ai_ops_assistant_mcp_stdio_requirements_path
+        ]
+      - >-
+        ai_ops_assistant_mcp_stdio_source_artifacts |
+        map(attribute='mode') | list == ['0640', '0640', '0640', '0640']
+      - >-
+        ai_ops_assistant_mcp_stdio_dependency_artifacts |
+        map(attribute='source') | list == ['mcp_stdio/requirements.lock']
+      - >-
+        ai_ops_assistant_mcp_stdio_dependency_artifacts |
+        map(attribute='destination') | list ==
+        [ai_ops_assistant_mcp_stdio_dependency_lock_path]
+      - >-
+        ai_ops_assistant_mcp_stdio_dependency_artifacts |
+        map(attribute='mode') | list == ['0640']
+      - >-
+        ai_ops_assistant_mcp_stdio_runtime_root ==
+        '/opt/openstack-ai-ops-assistant'
+      - "'..' not in ai_ops_assistant_mcp_stdio_directory.split('/')"
+      - "'..' not in ai_ops_assistant_mcp_stdio_config_directory.split('/')"
+    quiet: true
+
+- name: Inspect local-stdio source artifacts
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_mcp_stdio_source_artifacts }}"
+  loop_control:
+    label: "{{ item.source }}"
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_mcp_stdio_source_metadata
+  changed_when: false
+
+- name: Assert local-stdio source artifacts are regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_mcp_stdio_source_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
+
+- name: Inspect approved local-stdio dependency lock input
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/{{ item.source }}"
+    follow: false
+  loop: "{{ ai_ops_assistant_mcp_stdio_dependency_artifacts }}"
+  loop_control:
+    label: "{{ item.source }}"
+  delegate_to: localhost
+  become: false
+  register: ai_ops_assistant_mcp_stdio_dependency_metadata
+  changed_when: false
+  when: ai_ops_assistant_mcp_stdio_enabled | bool
+
+- name: Assert approved local-stdio dependency lock is regular and non-symlinked
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+    quiet: true
+  loop: "{{ ai_ops_assistant_mcp_stdio_dependency_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.source }}"
+  changed_when: false
+  when: ai_ops_assistant_mcp_stdio_enabled | bool
+
+- name: Ensure local-stdio runtime directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_mcp_stdio_directory }}"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_mcp_stdio_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_mcp_stdio_enabled | bool
+
+- name: Ensure local-stdio configuration directory is present
+  ansible.builtin.file:
+    path: "{{ ai_ops_assistant_mcp_stdio_config_directory }}"
+    state: directory
+    owner: root
+    group: "{{ ai_ops_assistant_mcp_stdio_runtime_group }}"
+    mode: "0750"
+    recurse: false
+  when: ai_ops_assistant_mcp_stdio_enabled | bool
+
+- name: Materialize exact local-stdio artifacts
+  ansible.builtin.copy:
+    src: "{{ item.source }}"
+    dest: "{{ item.destination }}"
+    owner: root
+    group: "{{ ai_ops_assistant_mcp_stdio_runtime_group }}"
+    mode: "{{ item.mode }}"
+    backup: false
+  loop: >-
+    {{ ai_ops_assistant_mcp_stdio_source_artifacts +
+    ai_ops_assistant_mcp_stdio_dependency_artifacts }}
+  loop_control:
+    label: "{{ item.destination }}"
+  when: ai_ops_assistant_mcp_stdio_enabled | bool
+
+- name: Inspect materialized local-stdio artifacts
+  ansible.builtin.stat:
+    path: "{{ item.destination }}"
+    follow: false
+  loop: >-
+    {{ ai_ops_assistant_mcp_stdio_source_artifacts +
+    ai_ops_assistant_mcp_stdio_dependency_artifacts }}
+  loop_control:
+    label: "{{ item.destination }}"
+  register: ai_ops_assistant_mcp_stdio_destination_metadata
+  changed_when: false
+  when:
+    - ai_ops_assistant_mcp_stdio_enabled | bool
+    - not ansible_check_mode
+
+- name: Assert materialized local-stdio artifact metadata
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - not item.stat.islnk
+      - item.stat.pw_name == 'root'
+      - item.stat.gr_name == ai_ops_assistant_mcp_stdio_runtime_group
+      - item.stat.mode == item.item.mode
+    quiet: true
+  loop: "{{ ai_ops_assistant_mcp_stdio_destination_metadata.results }}"
+  loop_control:
+    label: "{{ item.item.destination }}"
+  changed_when: false
+  when:
+    - ai_ops_assistant_mcp_stdio_enabled | bool
+    - not ansible_check_mode
