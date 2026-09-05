@@ -1,0 +1,32 @@
+---
+- name: Transfer the approved offline MCP wheelhouse to assistant02
+  hosts: ai_ops_assistant
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  pre_tasks:
+    - name: Assert MCP wheelhouse transfer deployment scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'assistant02'
+          - "'ai_ops_assistant' in group_names"
+          - ansible_play_hosts_all == ['assistant02']
+          - ansible_limit | default('') == 'assistant02'
+        quiet: true
+      changed_when: false
+  roles:
+    - role: mcp_wheelhouse_transfer
+      vars:
+        ai_ops_mcp_wheelhouse_transfer:
+          enabled: false
+          approval:
+            id: ""
+          builder:
+            host: builder01
+            publication_root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/mcp
+          controller:
+            staging_root: /tmp/openstack-ai-ops-wheelhouse-transfer/mcp
+          assistant:
+            publication_root: /var/lib/openstack-ai-ops/wheelhouse/mcp
+            staging_root: /var/lib/openstack-ai-ops/wheelhouse/mcp/.staging

@@ -1,0 +1,252 @@
+---
+- name: Define approval-scoped MCP wheelhouse paths
+  ansible.builtin.set_fact:
+    ai_ops_mcp_wheelhouse_stage: >-
+      {{ ai_ops_mcp_wheelhouse_build.publication.staging_root }}/{{ ai_ops_mcp_wheelhouse_build.approval.id }}
+    ai_ops_mcp_wheelhouse_artifact: >-
+      {{ ai_ops_mcp_wheelhouse_build.publication.root }}/{{ ai_ops_mcp_wheelhouse_build.approval.id }}
+    ai_ops_mcp_wheelhouse_validator: >-
+      {{ ai_ops_mcp_wheelhouse_build.publication.staging_root }}/{{ ai_ops_mcp_wheelhouse_build.approval.id }}.validator.py
+
+- name: Create MCP wheelhouse publication root
+  ansible.builtin.file:
+    path: "{{ ai_ops_mcp_wheelhouse_build.publication.root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Create MCP wheelhouse staging root
+  ansible.builtin.file:
+    path: "{{ ai_ops_mcp_wheelhouse_build.publication.staging_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Inspect approval-scoped MCP wheelhouse publication path
+  ansible.builtin.stat:
+    path: "{{ ai_ops_mcp_wheelhouse_artifact }}"
+    follow: false
+  register: ai_ops_mcp_wheelhouse_artifact_stat
+  changed_when: false
+
+- name: Reject replacement of an existing MCP wheelhouse publication
+  ansible.builtin.assert:
+    that:
+      - not ai_ops_mcp_wheelhouse_artifact_stat.stat.exists
+    fail_msg: ERR_MCP_WHEELHOUSE_PUBLICATION_EXISTS
+
+- name: Verify and publish offline MCP wheelhouse
+  block:
+    - name: Remove stale approval-scoped MCP wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_wheelhouse_stage }}"
+        state: absent
+
+    - name: Create approval-scoped MCP wheelhouse staging directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ ai_ops_mcp_wheelhouse_stage }}"
+        - "{{ ai_ops_mcp_wheelhouse_stage }}/wheels"
+
+    - name: Copy reviewed MCP dependency lock into wheelhouse staging
+      ansible.builtin.copy:
+        src: "{{ ai_ops_mcp_wheelhouse_build.dependency_lock_source }}"
+        dest: "{{ ai_ops_mcp_wheelhouse_stage }}/requirements.lock"
+        owner: root
+        group: root
+        mode: "0400"
+
+    - name: Copy reviewed MCP provenance manifest into wheelhouse staging
+      ansible.builtin.copy:
+        src: "{{ ai_ops_mcp_wheelhouse_build.provenance_manifest_source }}"
+        dest: "{{ ai_ops_mcp_wheelhouse_stage }}/manifest.json"
+        owner: root
+        group: root
+        mode: "0400"
+
+    - name: Copy MCP wheelhouse validator to temporary path
+      ansible.builtin.copy:
+        src: validate_wheelhouse_inputs.py
+        dest: "{{ ai_ops_mcp_wheelhouse_validator }}"
+        owner: root
+        group: root
+        mode: "0500"
+
+    - name: Select only hash-locked compatible offline MCP wheels
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_wheelhouse_build.python_executable }}"
+          - -m
+          - pip
+          - download
+          - --no-index
+          - --require-hashes
+          - --no-cache-dir
+          - "--only-binary=:all:"
+          - --platform
+          - "{{ ai_ops_mcp_wheelhouse_build.target.platform }}"
+          - --python-version
+          - "{{ ai_ops_mcp_wheelhouse_build.target.python_version }}"
+          - --implementation
+          - "{{ ai_ops_mcp_wheelhouse_build.target.implementation }}"
+          - --abi
+          - "{{ ai_ops_mcp_wheelhouse_build.target.abi }}"
+          - --find-links
+          - "{{ ai_ops_mcp_wheelhouse_seed_path }}"
+          - --dest
+          - "{{ ai_ops_mcp_wheelhouse_stage }}/wheels"
+          - -r
+          - "{{ ai_ops_mcp_wheelhouse_stage }}/requirements.lock"
+      changed_when: false
+      no_log: true
+
+    - name: Discover selected MCP wheel artifacts
+      ansible.builtin.find:
+        paths: "{{ ai_ops_mcp_wheelhouse_stage }}/wheels"
+        patterns: "*.whl"
+        file_type: file
+        recurse: false
+      register: ai_ops_mcp_wheelhouse_wheels
+      changed_when: false
+
+    - name: Validate approved MCP wheelhouse inputs before publication
+      ansible.builtin.command:
+        argv:
+          - "{{ ai_ops_mcp_wheelhouse_build.python_executable }}"
+          - "{{ ai_ops_mcp_wheelhouse_validator }}"
+          - --manifest
+          - "{{ ai_ops_mcp_wheelhouse_stage }}/manifest.json"
+          - --lock
+          - "{{ ai_ops_mcp_wheelhouse_stage }}/requirements.lock"
+          - --wheel-dir
+          - "{{ ai_ops_mcp_wheelhouse_stage }}/wheels"
+          - --attestation
+          - "{{ ai_ops_mcp_wheelhouse_build.environment_attestation_source }}"
+          - --approval-id
+          - "{{ ai_ops_mcp_wheelhouse_build.approval.id }}"
+          - --approval-expires-at-utc
+          - "{{ ai_ops_mcp_wheelhouse_build.approval.expires_at_utc }}"
+          - --python-executable
+          - "{{ ai_ops_mcp_wheelhouse_build.python_executable }}"
+          - --expected-host
+          - builder01
+          - --expected-python-version
+          - "{{ ai_ops_mcp_wheelhouse_build.target.python_version }}"
+          - --expected-abi
+          - "{{ ai_ops_mcp_wheelhouse_build.target.abi }}"
+          - --expected-platform
+          - "{{ ai_ops_mcp_wheelhouse_build.target.platform }}"
+          - --expected-implementation
+          - "{{ ai_ops_mcp_wheelhouse_build.target.implementation }}"
+          - --expected-architecture
+          - "{{ ai_ops_mcp_wheelhouse_build.target.architecture }}"
+          - --expected-tags-json
+          - "{{ ai_ops_mcp_wheelhouse_build.target.compatibility_tags | to_json }}"
+      changed_when: false
+      no_log: true
+
+    - name: Assert hash-verified MCP wheel artifacts were selected
+      ansible.builtin.assert:
+        that:
+          - ai_ops_mcp_wheelhouse_wheels.matched | int > 0
+        fail_msg: ERR_MCP_WHEELHOUSE_INTEGRITY
+
+    - name: Define staged MCP wheelhouse manifest inputs
+      ansible.builtin.set_fact:
+        ai_ops_mcp_wheelhouse_manifest_inputs: >-
+          {{
+            [
+              {"path": ai_ops_mcp_wheelhouse_stage ~ "/requirements.lock"},
+              {"path": ai_ops_mcp_wheelhouse_stage ~ "/manifest.json"}
+            ] +
+            (ai_ops_mcp_wheelhouse_wheels.files | sort(attribute="path"))
+          }}
+
+    - name: Calculate staged MCP wheelhouse manifest checksums
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+        checksum_algorithm: sha256
+        follow: false
+      loop: "{{ ai_ops_mcp_wheelhouse_manifest_inputs }}"
+      register: ai_ops_mcp_wheelhouse_manifest_stats
+      changed_when: false
+
+    - name: Assert staged MCP manifest inputs are regular files
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg
+          - not item.stat.islnk
+          - item.stat.checksum is match("^[a-f0-9]{64}$")
+        fail_msg: ERR_MCP_WHEELHOUSE_INTEGRITY
+      loop: "{{ ai_ops_mcp_wheelhouse_manifest_stats.results }}"
+      loop_control:
+        label: manifest-input
+
+    - name: Write staged MCP wheelhouse SHA-256 manifest
+      ansible.builtin.copy:
+        content: |-
+          {% for item in ai_ops_mcp_wheelhouse_manifest_stats.results %}
+          {{ item.stat.checksum }}  {{ item.item.path | regex_replace("^" ~ (ai_ops_mcp_wheelhouse_stage | regex_escape) ~ "/", "") }}
+          {% endfor %}
+        dest: "{{ ai_ops_mcp_wheelhouse_stage }}/manifest.sha256"
+        owner: root
+        group: root
+        mode: "0440"
+
+    - name: Seal staged MCP wheel artifacts as root-owned read-only files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: "0440"
+      loop: "{{ ai_ops_mcp_wheelhouse_wheels.files }}"
+
+    - name: Seal reviewed MCP dependency inputs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+        group: root
+        mode: "0440"
+      loop:
+        - "{{ ai_ops_mcp_wheelhouse_stage }}/requirements.lock"
+        - "{{ ai_ops_mcp_wheelhouse_stage }}/manifest.json"
+
+    - name: Seal staged MCP wheel directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_wheelhouse_stage }}/wheels"
+        owner: root
+        group: root
+        mode: "0550"
+
+    - name: Publish immutable approval-scoped MCP wheelhouse atomically
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/mv
+          - "{{ ai_ops_mcp_wheelhouse_stage }}"
+          - "{{ ai_ops_mcp_wheelhouse_artifact }}"
+      changed_when: true
+
+    - name: Seal published MCP wheelhouse directory
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_wheelhouse_artifact }}"
+        owner: root
+        group: root
+        mode: "0550"
+  always:
+    - name: Remove approval-scoped MCP wheelhouse staging path
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_wheelhouse_stage }}"
+        state: absent
+
+    - name: Remove temporary MCP wheelhouse validator
+      ansible.builtin.file:
+        path: "{{ ai_ops_mcp_wheelhouse_validator }}"
+        state: absent
