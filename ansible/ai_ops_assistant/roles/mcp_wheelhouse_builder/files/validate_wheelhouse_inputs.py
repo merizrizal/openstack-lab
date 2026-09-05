@@ -90,6 +90,22 @@ def runtime_record(python_executable: Path) -> dict[str, str]:
     }
 
 
+def require_utc_timestamp(value: object, label: str) -> None:
+    if not isinstance(value, str):
+        fail(f"{label} is not UTC ISO-8601")
+    try:
+        timestamp = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        fail(f"{label} is not UTC ISO-8601")
+    if timestamp > datetime.now(timezone.utc):
+        fail(f"{label} is in the future")
+
+
+def require_sha256_digest(value: object, label: str) -> None:
+    if not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{64}", value):
+        fail(f"{label} is not a SHA-256 digest")
+
+
 def load_json(path: Path, label: str) -> dict:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -173,6 +189,11 @@ def validate(args: argparse.Namespace) -> None:
     required_attestation_strings = ("host", "image_identity", "server_uuid", "environment_fingerprint_sha256", "captured_at_utc", "approval_id")
     if any(not isinstance(attestation[key], str) or not attestation[key] for key in required_attestation_strings):
         fail("builder attestation contains an empty identity field")
+    require_utc_timestamp(attestation["captured_at_utc"], "builder attestation capture time")
+    require_sha256_digest(
+        attestation["environment_fingerprint_sha256"],
+        "builder attestation environment fingerprint",
+    )
     if attestation["immutable"] is not True or attestation["host"] != args.expected_host:
         fail("builder attestation is not immutable or is for the wrong host")
     if attestation["approval_id"] != args.approval_id:
