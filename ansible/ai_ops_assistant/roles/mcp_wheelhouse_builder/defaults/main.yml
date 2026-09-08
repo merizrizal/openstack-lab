@@ -1,0 +1,22 @@
+---
+ai_ops_mcp_wheelhouse_build:
+  enabled: false
+  approval:
+    id: ""
+    expires_at_utc: ""
+  dependency_lock_source: mcp/requirements.lock
+  provenance_manifest_source: mcp/manifest.json
+  publication:
+    root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/mcp
+    staging_root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/mcp/.staging
+  seed:
+    inbox_root: /tmp/openstack-ai-ops-wheelhouse-seed-inbox/mcp
+  environment_attestation_source: ""
+  python_executable: /usr/bin/python3
+  target:
+    python_version: "3.12"
+    abi: cp312
+    platform: ""
+    implementation: cp
+    architecture: x86_64
+    compatibility_tags: []

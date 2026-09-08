@@ -1,0 +1,8 @@
+---
+- name: Verify and publish the approved offline MCP wheelhouse
+  hosts: wheelhouse_builders
+  become: true
+  vars_files:
+    - "{{ root_dir ~ '/inventories/' ~ target_env ~ '/nodes.yml' }}"
+  roles:
+    - role: mcp_wheelhouse_builder

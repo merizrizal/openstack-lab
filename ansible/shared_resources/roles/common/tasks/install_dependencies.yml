@@ -16,6 +16,7 @@
       - nano
       - wget
       - build-essential
+      - pkg-config
       - chrony
       - curl
       - openssh-server

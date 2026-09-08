@@ -1,0 +1,13 @@
+---
+ai_ops_mcp_wheelhouse_transfer:
+  enabled: false
+  approval:
+    id: ""
+  builder:
+    host: builder01
+    publication_root: /var/lib/openstack-ai-ops/wheelhouse-artifacts/mcp
+  controller:
+    staging_root: /tmp/openstack-ai-ops-wheelhouse-transfer/mcp
+  assistant:
+    publication_root: /var/lib/openstack-ai-ops/wheelhouse/mcp
+    staging_root: /var/lib/openstack-ai-ops/wheelhouse/mcp/.staging
