@@ -39,10 +39,6 @@ func main() {
 		"codex",
 	)
 
-	// Optional.
-	//
-	// Leave empty to use whatever model your current Codex
-	// account/session makes available by default.
 	codexModel := strings.TrimSpace(
 		os.Getenv("CODEX_MODEL"),
 	)
@@ -163,7 +159,6 @@ func getenv(
 	key string,
 	fallback string,
 ) string {
-
 	value := strings.TrimSpace(
 		os.Getenv(key),
 	)

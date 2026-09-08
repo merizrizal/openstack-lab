@@ -13,5 +13,5 @@ log
 *.class
 *.py[cod]
 *.egg-info
-
+**/bin/*
 .*cache

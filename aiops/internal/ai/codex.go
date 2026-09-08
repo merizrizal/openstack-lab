@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -27,8 +28,6 @@ func NewCodexClient(binary, model string) *CodexClient {
 	}
 }
 
-// codexEvent represents the subset of Codex exec JSONL
-// events that Stage 1 cares about.
 type codexEvent struct {
 	Type string `json:"type"`
 
@@ -51,18 +50,14 @@ type codexEvent struct {
 	Message string `json:"message,omitempty"`
 }
 
-func (c *CodexClient) Chat(
+func (c *CodexClient) run(
 	ctx context.Context,
 	messages []Message,
+	schema []byte,
 ) (Response, error) {
-
-	// Give every inference request a clean working directory.
-	//
-	// Stage 1 should not depend on repository contents,
-	// AGENTS.md files, OpenStack credentials, etc.
 	workDir, err := os.MkdirTemp(
 		"",
-		"openstack-ai-stage1-*",
+		"openstack-ai-*",
 	)
 	if err != nil {
 		return Response{}, fmt.Errorf(
@@ -76,39 +71,19 @@ func (c *CodexClient) Chat(
 
 	args := []string{
 		"exec",
-
-		// Produce machine-readable JSONL events.
 		"--json",
-
-		// Do not persist the Codex thread/session.
 		"--ephemeral",
-
-		// Don't allow local ~/.codex configuration to modify
-		// our learning experiment. Authentication is still used.
 		"--ignore-user-config",
-
-		// Ignore project/user execution rules.
 		"--ignore-rules",
-
-		// Our temporary directory is intentionally not a Git repo.
 		"--skip-git-repo-check",
-
-		// Stage 1 must not write files.
 		"--sandbox",
 		"read-only",
-
 		"--color",
 		"never",
-
-		// Run Codex from our empty temporary directory.
 		"--cd",
 		workDir,
 	}
 
-	// Model selection is optional.
-	//
-	// If CODEX_MODEL is not configured, we let the user's
-	// Codex account/configuration choose its available default.
 	if c.model != "" {
 		args = append(
 			args,
@@ -117,7 +92,30 @@ func (c *CodexClient) Chat(
 		)
 	}
 
-	// "-" means read the prompt from stdin.
+	if len(schema) > 0 {
+		schemaPath := filepath.Join(
+			workDir,
+			"output.schema.json",
+		)
+
+		if err := os.WriteFile(
+			schemaPath,
+			schema,
+			0600,
+		); err != nil {
+			return Response{}, fmt.Errorf(
+				"write Codex output schema: %w",
+				err,
+			)
+		}
+
+		args = append(
+			args,
+			"--output-schema",
+			schemaPath,
+		)
+	}
+
 	args = append(args, "-")
 
 	cmd := exec.CommandContext(
@@ -154,8 +152,6 @@ func (c *CodexClient) Chat(
 
 	scanner := bufio.NewScanner(stdout)
 
-	// Codex responses/events can be larger than Scanner's
-	// small default token size.
 	scanner.Buffer(
 		make([]byte, 64*1024),
 		10*1024*1024,
@@ -183,7 +179,6 @@ func (c *CodexClient) Chat(
 			if event.Item != nil &&
 				event.Item.Type == "agent_message" {
 
-				// Keep the latest completed assistant message.
 				finalText = event.Item.Text
 			}
 
@@ -248,13 +243,35 @@ func (c *CodexClient) Chat(
 	}, nil
 }
 
-// buildPrompt converts our application's role-based conversation
-// into one prompt for Codex.
-//
-// This is important:
-//
-// Codex exec accepts an initial prompt. Our application therefore
-// owns the logical message model and serializes it into that prompt.
+func (c *CodexClient) Chat(
+	ctx context.Context,
+	messages []Message,
+) (Response, error) {
+	return c.run(
+		ctx,
+		messages,
+		nil,
+	)
+}
+
+func (c *CodexClient) ChatStructured(
+	ctx context.Context,
+	messages []Message,
+	schema []byte,
+) (Response, error) {
+	if len(schema) == 0 {
+		return Response{}, fmt.Errorf(
+			"structured chat requires JSON schema",
+		)
+	}
+
+	return c.run(
+		ctx,
+		messages,
+		schema,
+	)
+}
+
 func buildPrompt(messages []Message) string {
 	var builder strings.Builder
 
