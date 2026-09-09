@@ -48,6 +48,7 @@ type ServerObservation struct {
 	Status           string                  `json:"status"`
 	VMState          string                  `json:"vm_state,omitempty"`
 	TaskState        string                  `json:"task_state,omitempty"`
+	FlavorID         string                  `json:"flavor_id,omitempty"`
 	AvailabilityZone string                  `json:"availability_zone,omitempty"`
 	Host             string                  `json:"host,omitempty"`
 	Created          string                  `json:"created,omitempty"`
@@ -84,6 +85,7 @@ func (t *GetServerTool) Execute(ctx context.Context, rawArguments json.RawMessag
 		Status:           server.Status,
 		VMState:          server.VmState,
 		TaskState:        server.TaskState,
+		FlavorID:         mapString(server.Flavor, "id"),
 		AvailabilityZone: server.AvailabilityZone,
 		Host:             server.Host,
 		Created:          formatTime(server.Created),
@@ -114,6 +116,11 @@ func truncate(value string, max int) string {
 	}
 
 	return value[:max] + "...[truncated]"
+}
+
+func mapString(values map[string]any, key string) string {
+	value, _ := values[key].(string)
+	return strings.TrimSpace(value)
 }
 
 func formatTime(value time.Time) string {
