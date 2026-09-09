@@ -21,12 +21,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "server_id": {
+        "server_identifier": {
           "type": "string"
         }
       },
       "required": [
-        "server_id"
+        "server_identifier"
       ]
     },
     "answer": {

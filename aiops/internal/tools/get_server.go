@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,14 +27,14 @@ func (t *GetServerTool) Name() string {
 func (t *GetServerTool) Description() string {
 	return `
 Retrieve current information about one OpenStack Nova server
-using its exact server UUID.
+using its exact server UUID or server name.
 
 This tool is read-only.
 `
 }
 
 type getServerArguments struct {
-	ServerID string `json:"server_id"`
+	ServerIdentifier string `json:"server_identifier"`
 }
 
 type ServerFaultObservation struct {
@@ -67,16 +68,15 @@ func (t *GetServerTool) Execute(ctx context.Context, rawArguments json.RawMessag
 		return nil, fmt.Errorf("decode get_server arguments: %w", err)
 	}
 
-	arguments.ServerID = strings.TrimSpace(arguments.ServerID)
+	arguments.ServerIdentifier = strings.TrimSpace(arguments.ServerIdentifier)
 
-	if arguments.ServerID == "" {
-		return nil, fmt.Errorf("server_id is required")
+	if arguments.ServerIdentifier == "" {
+		return nil, fmt.Errorf("server_identifier is required")
 	}
 
-	server, err := servers.Get(ctx, t.compute, arguments.ServerID).Extract()
-
+	server, err := t.resolveServer(ctx, arguments.ServerIdentifier)
 	if err != nil {
-		return nil, fmt.Errorf("get Nova server %q: %w", arguments.ServerID, err)
+		return nil, fmt.Errorf("get Nova server %q: %w", arguments.ServerIdentifier, err)
 	}
 
 	observation := ServerObservation{
@@ -108,6 +108,47 @@ func (t *GetServerTool) Execute(ctx context.Context, rawArguments json.RawMessag
 	}
 
 	return result, nil
+}
+
+var serverUUIDPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+func (t *GetServerTool) resolveServer(ctx context.Context, identifier string) (*servers.Server, error) {
+	if serverUUIDPattern.MatchString(identifier) {
+		return servers.Get(ctx, t.compute, identifier).Extract()
+	}
+
+	allPages, err := servers.List(t.compute, servers.ListOpts{Name: identifier}).AllPages(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list Nova servers by name: %w", err)
+	}
+
+	candidates, err := servers.ExtractServers(allPages)
+	if err != nil {
+		return nil, fmt.Errorf("decode Nova servers by name: %w", err)
+	}
+
+	matches := make([]servers.Server, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.Name == identifier {
+			matches = append(matches, candidate)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return nil, gophercloud.ErrResourceNotFound{
+			Name:         identifier,
+			ResourceType: "server",
+		}
+	case 1:
+		return servers.Get(ctx, t.compute, matches[0].ID).Extract()
+	default:
+		return nil, gophercloud.ErrMultipleResourcesFound{
+			Name:         identifier,
+			Count:        len(matches),
+			ResourceType: "server",
+		}
+	}
 }
 
 func truncate(value string, max int) string {

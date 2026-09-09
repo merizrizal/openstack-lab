@@ -9,8 +9,8 @@ import (
 )
 
 type ToolArguments struct {
-	ServerID string `json:"server_id,omitempty"`
-	FlavorID string `json:"flavor_id,omitempty"`
+	ServerIdentifier string `json:"server_identifier,omitempty"`
+	FlavorID         string `json:"flavor_id,omitempty"`
 }
 
 type Decision struct {
@@ -37,8 +37,8 @@ func (d Decision) Validate() error {
 
 		switch d.ToolName {
 		case "get_server":
-			if d.Arguments.ServerID == "" {
-				return fmt.Errorf("get_server requires server_id")
+			if d.Arguments.ServerIdentifier == "" {
+				return fmt.Errorf("get_server requires server_identifier")
 			}
 			if d.Arguments.FlavorID != "" {
 				return fmt.Errorf("get_server must not contain flavor_id")
@@ -48,8 +48,8 @@ func (d Decision) Validate() error {
 			if d.Arguments.FlavorID == "" {
 				return fmt.Errorf("get_flavor requires flavor_id")
 			}
-			if d.Arguments.ServerID != "" {
-				return fmt.Errorf("get_flavor must not contain server_id")
+			if d.Arguments.ServerIdentifier != "" {
+				return fmt.Errorf("get_flavor must not contain server_identifier")
 			}
 
 		default:
@@ -67,7 +67,7 @@ func (d *Decision) Normalize() {
 	d.Action = strings.TrimSpace(d.Action)
 	d.ToolName = strings.TrimSpace(d.ToolName)
 	d.FinalAnswer = strings.TrimSpace(d.FinalAnswer)
-	d.Arguments.ServerID = strings.TrimSpace(d.Arguments.ServerID)
+	d.Arguments.ServerIdentifier = strings.TrimSpace(d.Arguments.ServerIdentifier)
 	d.Arguments.FlavorID = strings.TrimSpace(d.Arguments.FlavorID)
 
 	if d.Action == "finish" {

@@ -6,7 +6,7 @@ import (
 )
 
 type ToolArguments struct {
-	ServerID string `json:"server_id"`
+	ServerIdentifier string `json:"server_identifier"`
 }
 
 type Decision struct {
@@ -32,8 +32,8 @@ func (d Decision) Validate() error {
 			return fmt.Errorf("unsupported tool %q", d.ToolName)
 		}
 
-		if strings.TrimSpace(d.Arguments.ServerID) == "" {
-			return fmt.Errorf("get_server requires server_id")
+		if strings.TrimSpace(d.Arguments.ServerIdentifier) == "" {
+			return fmt.Errorf("get_server requires server_identifier")
 		}
 
 		if strings.TrimSpace(d.Answer) != "" {

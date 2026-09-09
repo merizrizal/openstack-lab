@@ -22,7 +22,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "server_id": {
+        "server_identifier": {
           "type": "string"
         },
         "flavor_id": {
@@ -30,7 +30,7 @@
         }
       },
       "required": [
-        "server_id",
+        "server_identifier",
         "flavor_id"
       ]
     },
