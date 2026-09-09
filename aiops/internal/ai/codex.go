@@ -50,20 +50,10 @@ type codexEvent struct {
 	Message string `json:"message,omitempty"`
 }
 
-func (c *CodexClient) run(
-	ctx context.Context,
-	messages []Message,
-	schema []byte,
-) (Response, error) {
-	workDir, err := os.MkdirTemp(
-		"",
-		"openstack-ai-*",
-	)
+func (c *CodexClient) run(ctx context.Context, messages []Message, schema []byte) (Response, error) {
+	workDir, err := os.MkdirTemp("", "openstack-ai-*")
 	if err != nil {
-		return Response{}, fmt.Errorf(
-			"create temporary Codex directory: %w",
-			err,
-		)
+		return Response{}, fmt.Errorf("create temporary Codex directory: %w", err)
 	}
 	defer os.RemoveAll(workDir)
 
@@ -85,63 +75,35 @@ func (c *CodexClient) run(
 	}
 
 	if c.model != "" {
-		args = append(
-			args,
-			"--model",
-			c.model,
-		)
+		args = append(args, "--model", c.model)
 	}
 
 	if len(schema) > 0 {
-		schemaPath := filepath.Join(
-			workDir,
-			"output.schema.json",
-		)
+		schemaPath := filepath.Join(workDir, "output.schema.json")
 
-		if err := os.WriteFile(
-			schemaPath,
-			schema,
-			0600,
-		); err != nil {
-			return Response{}, fmt.Errorf(
-				"write Codex output schema: %w",
-				err,
-			)
+		if err := os.WriteFile(schemaPath, schema, 0600); err != nil {
+			return Response{}, fmt.Errorf("write Codex output schema: %w", err)
 		}
 
-		args = append(
-			args,
-			"--output-schema",
-			schemaPath,
-		)
+		args = append(args, "--output-schema", schemaPath)
 	}
 
 	args = append(args, "-")
 
-	cmd := exec.CommandContext(
-		ctx,
-		c.binary,
-		args...,
-	)
-
+	cmd := exec.CommandContext(ctx, c.binary, args...)
+	cmd.Env = filteredCodexEnvironment()
 	cmd.Stdin = strings.NewReader(prompt)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return Response{}, fmt.Errorf(
-			"capture Codex stdout: %w",
-			err,
-		)
+		return Response{}, fmt.Errorf("capture Codex stdout: %w", err)
 	}
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
 	if err := cmd.Start(); err != nil {
-		return Response{}, fmt.Errorf(
-			"start Codex: %w",
-			err,
-		)
+		return Response{}, fmt.Errorf("start Codex: %w", err)
 	}
 
 	var (
@@ -151,11 +113,7 @@ func (c *CodexClient) run(
 	)
 
 	scanner := bufio.NewScanner(stdout)
-
-	scanner.Buffer(
-		make([]byte, 64*1024),
-		10*1024*1024,
-	)
+	scanner.Buffer(make([]byte, 64*1024), 10*1024*1024)
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -166,22 +124,14 @@ func (c *CodexClient) run(
 			_ = cmd.Process.Kill()
 			_ = cmd.Wait()
 
-			return Response{}, fmt.Errorf(
-				"decode Codex JSONL event: %w\nline: %s",
-				err,
-				string(line),
-			)
+			return Response{}, fmt.Errorf("decode Codex JSONL event: %w\nline: %s", err, string(line))
 		}
 
 		switch event.Type {
-
 		case "item.completed":
-			if event.Item != nil &&
-				event.Item.Type == "agent_message" {
-
+			if event.Item != nil && event.Item.Type == "agent_message" {
 				finalText = event.Item.Text
 			}
-
 		case "turn.completed":
 			if event.Usage != nil {
 				usage = Usage{
@@ -191,12 +141,10 @@ func (c *CodexClient) run(
 					ReasoningOutputTokens: event.Usage.ReasoningOutputTokens,
 				}
 			}
-
 		case "turn.failed":
 			if event.Error != nil {
 				turnError = event.Error.Message
 			}
-
 		case "error":
 			if event.Message != "" {
 				turnError = event.Message
@@ -208,10 +156,7 @@ func (c *CodexClient) run(
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 
-		return Response{}, fmt.Errorf(
-			"read Codex JSONL stream: %w",
-			err,
-		)
+		return Response{}, fmt.Errorf("read Codex JSONL stream: %w", err)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -223,18 +168,13 @@ func (c *CodexClient) run(
 	}
 
 	if turnError != "" {
-		return Response{}, fmt.Errorf(
-			"Codex turn failed: %s",
-			turnError,
-		)
+		return Response{}, fmt.Errorf("Codex turn failed: %s", turnError)
 	}
 
 	finalText = strings.TrimSpace(finalText)
 
 	if finalText == "" {
-		return Response{}, fmt.Errorf(
-			"Codex returned no final assistant message",
-		)
+		return Response{}, fmt.Errorf("Codex returned no final assistant message")
 	}
 
 	return Response{
@@ -243,33 +183,16 @@ func (c *CodexClient) run(
 	}, nil
 }
 
-func (c *CodexClient) Chat(
-	ctx context.Context,
-	messages []Message,
-) (Response, error) {
-	return c.run(
-		ctx,
-		messages,
-		nil,
-	)
+func (c *CodexClient) Chat(ctx context.Context, messages []Message) (Response, error) {
+	return c.run(ctx, messages, nil)
 }
 
-func (c *CodexClient) ChatStructured(
-	ctx context.Context,
-	messages []Message,
-	schema []byte,
-) (Response, error) {
+func (c *CodexClient) ChatStructured(ctx context.Context, messages []Message, schema []byte) (Response, error) {
 	if len(schema) == 0 {
-		return Response{}, fmt.Errorf(
-			"structured chat requires JSON schema",
-		)
+		return Response{}, fmt.Errorf("structured chat requires JSON schema")
 	}
 
-	return c.run(
-		ctx,
-		messages,
-		schema,
-	)
+	return c.run(ctx, messages, schema)
 }
 
 func buildPrompt(messages []Message) string {
@@ -287,6 +210,10 @@ IMPORTANT MODE CONSTRAINTS:
 - Do not modify anything.
 - Do not search the web.
 - Do not attempt to access OpenStack.
+- Do not access OpenStack or external systems yourself.
+- Do not execute shell commands to retrieve infrastructure data.
+- If the application asks for a tool decision, request only one of the explicitly supplied tools.
+- Tool execution happens outside Codex.
 - Use only the supplied conversation below.
 - Respond only to the final USER message.
 
@@ -295,9 +222,7 @@ messages below.
 `)
 
 	for _, message := range messages {
-		role := strings.ToUpper(
-			strings.TrimSpace(message.Role),
-		)
+		role := strings.ToUpper(strings.TrimSpace(message.Role))
 
 		builder.WriteString("\n\n===== ")
 		builder.WriteString(role)
@@ -314,4 +239,25 @@ Respond to the final USER message.
 `)
 
 	return builder.String()
+}
+
+func filteredCodexEnvironment() []string {
+	current := os.Environ()
+	filtered := make([]string, 0, len(current))
+
+	for _, entry := range current {
+		key, _, ok := strings.Cut(entry, "=")
+
+		if !ok {
+			continue
+		}
+
+		if strings.HasPrefix(key, "OS_") {
+			continue
+		}
+
+		filtered = append(filtered, entry)
+	}
+
+	return filtered
 }

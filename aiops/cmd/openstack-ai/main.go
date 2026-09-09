@@ -34,24 +34,10 @@ actual OpenStack environment.
 `
 
 func main() {
-	codexBinary := getenv(
-		"CODEX_BIN",
-		"codex",
-	)
-
-	codexModel := strings.TrimSpace(
-		os.Getenv("CODEX_MODEL"),
-	)
-
-	client := ai.NewCodexClient(
-		codexBinary,
-		codexModel,
-	)
-
-	session := chat.NewSession(
-		client,
-		systemPrompt,
-	)
+	codexBinary := getenv("CODEX_BIN", "codex")
+	codexModel := strings.TrimSpace(os.Getenv("CODEX_MODEL"))
+	client := ai.NewCodexClient(codexBinary, codexModel)
+	session := chat.NewSession(client, systemPrompt)
 
 	fmt.Println("OpenStack AI Assistant - Stage 1")
 	fmt.Println()
@@ -60,10 +46,7 @@ func main() {
 	if codexModel == "" {
 		fmt.Println("Model: Codex account default")
 	} else {
-		fmt.Printf(
-			"Model: %s\n",
-			codexModel,
-		)
+		fmt.Printf("Model: %s\n", codexModel)
 	}
 
 	fmt.Println()
@@ -73,11 +56,7 @@ func main() {
 	fmt.Println()
 
 	scanner := bufio.NewScanner(os.Stdin)
-
-	scanner.Buffer(
-		make([]byte, 1024),
-		1024*1024,
-	)
+	scanner.Buffer(make([]byte, 1024), 1024*1024)
 
 	for {
 		fmt.Print("> ")
@@ -86,48 +65,29 @@ func main() {
 			break
 		}
 
-		input := strings.TrimSpace(
-			scanner.Text(),
-		)
+		input := strings.TrimSpace(scanner.Text())
 
 		if input == "" {
 			continue
 		}
 
 		switch input {
-
 		case "/exit":
 			fmt.Println("Bye.")
 			return
-
 		case "/reset":
 			session.Reset()
-
-			fmt.Println(
-				"Conversation history cleared.",
-			)
+			fmt.Println("Conversation history cleared.")
 			fmt.Println()
-
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(
-			context.Background(),
-			5*time.Minute,
-		)
-
-		response, err := session.Ask(
-			ctx,
-			input,
-		)
-
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		response, err := session.Ask(ctx, input)
 		cancel()
 
 		if err != nil {
-			fmt.Printf(
-				"\nError: %v\n\n",
-				err,
-			)
+			fmt.Printf("\nError: %v\n\n", err)
 
 			continue
 		}
@@ -147,21 +107,12 @@ func main() {
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(
-			os.Stderr,
-			"read stdin: %v\n",
-			err,
-		)
+		fmt.Fprintf(os.Stderr, "read stdin: %v\n", err)
 	}
 }
 
-func getenv(
-	key string,
-	fallback string,
-) string {
-	value := strings.TrimSpace(
-		os.Getenv(key),
-	)
+func getenv(key, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
 
 	if value == "" {
 		return fallback

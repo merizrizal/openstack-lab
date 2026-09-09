@@ -15,3 +15,5 @@ log
 *.egg-info
 **/bin/*
 .*cache
+
+.env

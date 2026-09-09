@@ -20,16 +20,9 @@ type Response struct {
 }
 
 type Client interface {
-	Chat(
-		ctx context.Context,
-		messages []Message,
-	) (Response, error)
+	Chat(ctx context.Context, messages []Message) (Response, error)
 }
 
 type StructuredClient interface {
-	ChatStructured(
-		ctx context.Context,
-		messages []Message,
-		schema []byte,
-	) (Response, error)
+	ChatStructured(ctx context.Context, messages []Message, schema []byte) (Response, error)
 }

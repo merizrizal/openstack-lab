@@ -21,64 +21,32 @@ type IncidentAnalysis struct {
 
 func (a IncidentAnalysis) Validate() error {
 	switch a.Domain {
-	case "compute",
-		"network",
-		"storage",
-		"identity",
-		"image",
-		"load_balancing",
-		"unknown":
+	case "compute", "network", "storage", "identity", "image", "load_balancing", "unknown":
 	default:
-		return fmt.Errorf(
-			"invalid domain %q",
-			a.Domain,
-		)
+		return fmt.Errorf("invalid domain %q", a.Domain)
 	}
 
 	switch a.PrimaryService {
-	case "nova",
-		"placement",
-		"neutron",
-		"cinder",
-		"keystone",
-		"glance",
-		"octavia",
-		"ceph",
-		"unknown":
+	case "nova", "placement", "neutron", "cinder", "keystone", "glance", "octavia", "ceph", "unknown":
 	default:
-		return fmt.Errorf(
-			"invalid primary service %q",
-			a.PrimaryService,
-		)
+		return fmt.Errorf("invalid primary service %q", a.PrimaryService)
 	}
 
 	switch a.Assessment {
-	case "insufficient_evidence",
-		"hypothesis_available",
-		"root_cause_confirmed":
+	case "insufficient_evidence", "hypothesis_available", "root_cause_confirmed":
 	default:
-		return fmt.Errorf(
-			"invalid assessment %q",
-			a.Assessment,
-		)
+		return fmt.Errorf("invalid assessment %q", a.Assessment)
 	}
 
 	for i, hypothesis := range a.Hypotheses {
 		switch hypothesis.Confidence {
 		case "low", "medium", "high":
 		default:
-			return fmt.Errorf(
-				"hypothesis %d has invalid confidence %q",
-				i,
-				hypothesis.Confidence,
-			)
+			return fmt.Errorf("hypothesis %d has invalid confidence %q", i, hypothesis.Confidence)
 		}
 
 		if hypothesis.Summary == "" {
-			return fmt.Errorf(
-				"hypothesis %d has empty summary",
-				i,
-			)
+			return fmt.Errorf("hypothesis %d has empty summary", i)
 		}
 	}
 

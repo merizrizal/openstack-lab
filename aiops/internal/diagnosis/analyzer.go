@@ -39,24 +39,17 @@ type Analyzer struct {
 	client ai.StructuredClient
 }
 
-func NewAnalyzer(
-	client ai.StructuredClient,
-) *Analyzer {
+func NewAnalyzer(client ai.StructuredClient) *Analyzer {
 	return &Analyzer{
 		client: client,
 	}
 }
 
-func (a *Analyzer) Analyze(
-	ctx context.Context,
-	evidence string,
-) (IncidentAnalysis, ai.Usage, error) {
+func (a *Analyzer) Analyze(ctx context.Context, evidence string) (IncidentAnalysis, ai.Usage, error) {
 	evidence = strings.TrimSpace(evidence)
 
 	if evidence == "" {
-		return IncidentAnalysis{},
-			ai.Usage{},
-			fmt.Errorf("evidence cannot be empty")
+		return IncidentAnalysis{}, ai.Usage{}, fmt.Errorf("evidence cannot be empty")
 	}
 
 	messages := []ai.Message{
@@ -77,47 +70,23 @@ EVIDENCE:
 		},
 	}
 
-	response, err := a.client.ChatStructured(
-		ctx,
-		messages,
-		analysisSchema,
-	)
+	response, err := a.client.ChatStructured(ctx, messages, analysisSchema)
 	if err != nil {
-		return IncidentAnalysis{},
-			ai.Usage{},
-			fmt.Errorf(
-				"structured inference failed: %w",
-				err,
-			)
+		return IncidentAnalysis{}, ai.Usage{}, fmt.Errorf("structured inference failed: %w", err)
 	}
 
 	var result IncidentAnalysis
 
-	decoder := json.NewDecoder(
-		strings.NewReader(response.Text),
-	)
-
+	decoder := json.NewDecoder(strings.NewReader(response.Text))
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&result); err != nil {
-		return IncidentAnalysis{},
-			ai.Usage{},
-			fmt.Errorf(
-				"decode structured AI response: %w",
-				err,
-			)
+		return IncidentAnalysis{}, ai.Usage{}, fmt.Errorf("decode structured AI response: %w", err)
 	}
 
 	if err := result.Validate(); err != nil {
-		return IncidentAnalysis{},
-			ai.Usage{},
-			fmt.Errorf(
-				"validate structured AI response: %w",
-				err,
-			)
+		return IncidentAnalysis{}, ai.Usage{}, fmt.Errorf("validate structured AI response: %w", err)
 	}
 
-	return result,
-		response.Usage,
-		nil
+	return result, response.Usage, nil
 }

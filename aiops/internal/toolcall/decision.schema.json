@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "answer",
+        "tool"
+      ]
+    },
+    "tool_name": {
+      "type": "string",
+      "enum": [
+        "none",
+        "get_server"
+      ]
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "server_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "server_id"
+      ]
+    },
+    "answer": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "tool_name",
+    "arguments",
+    "answer"
+  ]
+}

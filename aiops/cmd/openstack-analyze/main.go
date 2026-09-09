@@ -14,57 +14,29 @@ import (
 )
 
 func main() {
-	codexBinary := getenv(
-		"CODEX_BIN",
-		"codex",
-	)
-
-	codexModel := strings.TrimSpace(
-		os.Getenv("CODEX_MODEL"),
-	)
-
-	client := ai.NewCodexClient(
-		codexBinary,
-		codexModel,
-	)
-
-	analyzer := diagnosis.NewAnalyzer(
-		client,
-	)
+	codexBinary := getenv("CODEX_BIN", "codex")
+	codexModel := strings.TrimSpace(os.Getenv("CODEX_MODEL"))
+	client := ai.NewCodexClient(codexBinary, codexModel)
+	analyzer := diagnosis.NewAnalyzer(client)
 
 	evidence, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		fail(
-			"read evidence: %v",
-			err,
-		)
+		fail("read evidence: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		5*time.Minute,
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	result, usage, err := analyzer.Analyze(
-		ctx,
-		string(evidence),
-	)
+	result, usage, err := analyzer.Analyze(ctx, string(evidence))
 	if err != nil {
-		fail(
-			"analyze incident: %v",
-			err,
-		)
+		fail("analyze incident: %v", err)
 	}
 
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 
 	if err := encoder.Encode(result); err != nil {
-		fail(
-			"encode result: %v",
-			err,
-		)
+		fail("encode result: %v", err)
 	}
 
 	fmt.Fprintf(
@@ -77,13 +49,8 @@ func main() {
 	)
 }
 
-func getenv(
-	key string,
-	fallback string,
-) string {
-	value := strings.TrimSpace(
-		os.Getenv(key),
-	)
+func getenv(key, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
 
 	if value == "" {
 		return fallback
@@ -92,15 +59,7 @@ func getenv(
 	return value
 }
 
-func fail(
-	format string,
-	args ...any,
-) {
-	fmt.Fprintf(
-		os.Stderr,
-		format+"\n",
-		args...,
-	)
-
+func fail(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)
 }

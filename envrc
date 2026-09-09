@@ -1,9 +1,22 @@
+echo "+==============================+"
+echo "| OpenStack Lab Project        |"
+echo "+==============================+"
+
 rootdir=$(pwd)
 
 export ROOT_DIR=${rootdir}
 export ANSIBLE_CONFIG=$ROOT_DIR/ansible.cfg
 export BASE_IMAGE_NAME=ubuntu
 export OS_CLIENT_CONFIG_FILE=$ROOT_DIR/generated/local_clouds.yml
+
+if [[ -f "$rootdir/.env" ]]; then
+  echo "Loading environment variables from .env file"
+  set -a
+  source "$rootdir/.env"
+  set +a
+else
+  echo "No .env file found at $rootdir/.env"
+fi
 
 cp -f ${rootdir}/githooks/* ${rootdir}/.git/hooks/
 
