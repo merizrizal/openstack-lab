@@ -51,3 +51,7 @@ copy-image-to-vm: check-available-image
 		image_name=$$IMAGE_FILE; \
 	fi; \
 	vagrant upload $$IMAGE_PATH /home/vagrant/$$image_name controller01
+
+copy-file-to-vm:
+	@filename=`(basename $$FILE)`; \
+	vagrant upload $$FILE /home/vagrant/$$filename controller01

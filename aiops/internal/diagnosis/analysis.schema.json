@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain": {
+      "type": "string",
+      "enum": [
+        "compute",
+        "network",
+        "storage",
+        "identity",
+        "image",
+        "load_balancing",
+        "unknown"
+      ]
+    },
+    "primary_service": {
+      "type": "string",
+      "enum": [
+        "nova",
+        "placement",
+        "neutron",
+        "cinder",
+        "keystone",
+        "glance",
+        "octavia",
+        "ceph",
+        "unknown"
+      ]
+    },
+    "problem_type": {
+      "type": "string"
+    },
+    "assessment": {
+      "type": "string",
+      "enum": [
+        "insufficient_evidence",
+        "hypothesis_available",
+        "root_cause_confirmed"
+      ]
+    },
+    "observed_facts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "supporting_facts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "confidence",
+          "supporting_facts"
+        ]
+      }
+    },
+    "missing_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_evidence_to_collect": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "domain",
+    "primary_service",
+    "problem_type",
+    "assessment",
+    "observed_facts",
+    "hypotheses",
+    "missing_evidence",
+    "next_evidence_to_collect"
+  ]
+}

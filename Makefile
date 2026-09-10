@@ -1,7 +1,18 @@
 MAKEFLAGS += --no-print-directory
 SHELL := /bin/bash
 
+-include .env
+
 export MAKE := make
+
+setup:
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "Created .env"; \
+		sed -i 's/OS_PASSWORD=/OS_PASSWORD=$(OPENSTACK_PASSWORD)/g' .env; \
+	else \
+		echo ".env already exists"; \
+	fi
 
 validate-ceph:
 	@$(MAKE) start-validate-ceph TARGET_ENV=local
