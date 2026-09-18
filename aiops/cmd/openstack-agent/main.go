@@ -12,6 +12,7 @@ import (
 
 	"openstacklab/openstack-ai/internal/agent"
 	"openstacklab/openstack-ai/internal/ai"
+	"openstacklab/openstack-ai/internal/knowledge"
 	"openstacklab/openstack-ai/internal/openstackclient"
 	"openstacklab/openstack-ai/internal/tools"
 )
@@ -45,10 +46,22 @@ func main() {
 		fail("initialize state store: %v", err)
 	}
 
-	runtime := agent.NewRuntime(aiClient, registry, store, 6, 2)
+	knowledgeDir := getenv("OPENSTACK_AI_KNOWLEDGE_DIR", "knowledge")
 
-	fmt.Println("OpenStack AI Assistant - Stage 5")
+	chunks, err := knowledge.LoadDir(knowledgeDir, 220, 40)
+	if err != nil {
+		fail("load knowledge: %v", err)
+	}
+
+	retriever := knowledge.NewBM25(chunks)
+
+	runtime := agent.NewRuntime(aiClient, registry, store, 6, 2).
+		WithKnowledge(retriever, 4)
+
+	fmt.Println("OpenStack AI Assistant")
 	fmt.Printf("Data directory: %s\n", dataDir)
+	fmt.Printf("Knowledge directory: %s\n", knowledgeDir)
+	fmt.Printf("Knowledge chunks: %d\n", len(chunks))
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  <goal>               start a new investigation")
