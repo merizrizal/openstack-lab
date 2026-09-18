@@ -199,7 +199,7 @@ func buildPrompt(messages []Message) string {
 	var builder strings.Builder
 
 	builder.WriteString(`
-You are being used as the text inference backend for a Stage 1
+You are being used as the text inference backend for
 AI-engineering learning application.
 
 IMPORTANT MODE CONSTRAINTS:

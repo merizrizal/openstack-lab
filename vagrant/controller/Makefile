@@ -16,6 +16,12 @@ start-vm:
 			if [[ -z "$$WITH_CEPH" && "$$node" == *"ceph"* ]]; then \
 				continue; \
 			fi; \
+			if [[ -z "$$WITH_BUILDER" && "$$node" == *"builder"* ]]; then \
+				continue; \
+			fi; \
+			if [[ -z "$$WITH_ASSISTANT" && "$$node" == *"assistant"* ]]; then \
+				continue; \
+			fi; \
 			$(MAKE) spin-up-vm VM=$$node; \
 		done; \
 	}
