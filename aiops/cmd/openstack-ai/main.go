@@ -39,7 +39,7 @@ func main() {
 	client := ai.NewCodexClient(codexBinary, codexModel)
 	session := chat.NewSession(client, systemPrompt)
 
-	fmt.Println("OpenStack AI Assistant - Stage 1")
+	fmt.Println("OpenStack AI Assistant - Conversational Mode")
 	fmt.Println()
 	fmt.Println("Provider: OpenAI Codex via Codex CLI")
 

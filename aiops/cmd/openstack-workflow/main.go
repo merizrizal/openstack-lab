@@ -15,6 +15,7 @@ import (
 	"openstacklab/openstack-ai/internal/knowledge"
 	"openstacklab/openstack-ai/internal/openstackclient"
 	"openstacklab/openstack-ai/internal/tools"
+	"openstacklab/openstack-ai/internal/workflow"
 )
 
 func main() {
@@ -40,13 +41,12 @@ func main() {
 	}
 
 	dataDir := getenv("OPENSTACK_AI_DATA_DIR", defaultDataDir())
-
-	store, err := agent.NewFileStore(dataDir)
-	if err != nil {
-		fail("initialize state store: %v", err)
-	}
-
 	knowledgeDir := getenv("OPENSTACK_AI_KNOWLEDGE_DIR", "knowledge")
+
+	agentStore, err := agent.NewFileStore(dataDir)
+	if err != nil {
+		fail("initialize agent store: %v", err)
+	}
 
 	chunks, err := knowledge.LoadDir(knowledgeDir, 220, 40)
 	if err != nil {
@@ -55,20 +55,33 @@ func main() {
 
 	retriever := knowledge.NewBM25(chunks)
 
-	runtime := agent.NewRuntime(aiClient, registry, store, 6, 2).
+	agentRuntime := agent.NewRuntime(aiClient, registry, agentStore, 6, 2).
 		WithKnowledge(retriever, 4)
 
-	fmt.Println("OpenStack AI Assistant - Agent Mode")
-	fmt.Printf("Data directory: %s\n", dataDir)
-	fmt.Printf("Knowledge directory: %s\n", knowledgeDir)
+	classifier := workflow.NewClassifier(aiClient)
+
+	workflowStore, err := workflow.NewFileStore(filepath.Join(dataDir, "workflows"))
+	if err != nil {
+		fail("initialize workflow store: %v", err)
+	}
+
+	engine, err := workflow.NewEngine(
+		workflowStore,
+		20,
+		workflow.ServerIncidentSteps(registry, classifier, agentRuntime)...,
+	)
+	if err != nil {
+		fail("initialize workflow engine: %v", err)
+	}
+
+	fmt.Println("OpenStack AI Assistant - Workflow Mode")
 	fmt.Printf("Knowledge chunks: %d\n", len(chunks))
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  <goal>               start a new investigation")
-	fmt.Println("  /resume <id>         resume an investigation")
-	fmt.Println("  /show <id>           show persisted state")
-	fmt.Println("  /memory <server-id>  show historical memory")
-	fmt.Println("  /exit                quit")
+	fmt.Println("  <goal>          start workflow")
+	fmt.Println("  /resume <id>    resume workflow")
+	fmt.Println("  /show <id>      show workflow state")
+	fmt.Println("  /exit           quit")
 	fmt.Println()
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -92,15 +105,12 @@ func main() {
 
 		case strings.HasPrefix(input, "/resume "):
 			id := strings.TrimSpace(strings.TrimPrefix(input, "/resume "))
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			result, err := runtime.Resume(ctx, id)
-			cancel()
-			printResult(result, err)
+			runWorkflow(engine.Resume, id)
 
 		case strings.HasPrefix(input, "/show "):
 			id := strings.TrimSpace(strings.TrimPrefix(input, "/show "))
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			state, err := store.LoadState(ctx, id)
+			state, err := workflowStore.Load(ctx, id)
 			cancel()
 
 			if err != nil {
@@ -110,24 +120,8 @@ func main() {
 
 			printJSON(state)
 
-		case strings.HasPrefix(input, "/memory "):
-			subject := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(input, "/memory ")))
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			memories, err := store.FindMemoriesBySubject(ctx, subject, 10)
-			cancel()
-
-			if err != nil {
-				fmt.Printf("\nError: %v\n\n", err)
-				continue
-			}
-
-			printJSON(memories)
-
 		default:
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			result, err := runtime.Start(ctx, input)
-			cancel()
-			printResult(result, err)
+			runWorkflow(engine.Start, input)
 		}
 	}
 
@@ -136,44 +130,29 @@ func main() {
 	}
 }
 
-func printResult(result agent.Result, runErr error) {
-	if result.InvestigationID != "" {
-		fmt.Printf("\nInvestigation: %s\n", result.InvestigationID)
-	}
+func runWorkflow(run func(context.Context, string) (workflow.State, error), value string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	state, err := run(ctx, value)
+	cancel()
 
-	for _, observation := range result.Observations {
-		fmt.Printf(
-			"[step %d] tool=%s args=%s\n",
-			observation.Step,
-			observation.Tool,
-			string(observation.Arguments),
-		)
+	fmt.Printf("\nWorkflow: %s\n", state.ID)
 
-		if observation.Error != "" {
-			fmt.Printf("[step %d] error=%s\n", observation.Step, observation.Error)
-			continue
+	for _, transition := range state.History {
+		fmt.Printf("%s -> %s", transition.From, transition.To)
+		if transition.Error != "" {
+			fmt.Printf(" error=%q", transition.Error)
 		}
-
-		fmt.Printf("[step %d] result=%s\n", observation.Step, string(observation.Result))
+		fmt.Println()
 	}
 
-	if result.Answer != "" {
-		fmt.Printf("\n%s\n", result.Answer)
+	if state.FinalReport != "" {
+		fmt.Printf("\n%s\n", state.FinalReport)
 	}
 
-	fmt.Printf(
-		"\n[status=%s steps=%d historical_memories=%d input=%d cached=%d output=%d reasoning=%d]\n",
-		result.Status,
-		result.Steps,
-		result.HistoricalMemory,
-		result.Usage.InputTokens,
-		result.Usage.CachedInputTokens,
-		result.Usage.OutputTokens,
-		result.Usage.ReasoningOutputTokens,
-	)
+	fmt.Printf("\nstatus=%s current_step=%s\n", state.Status, state.CurrentStep)
 
-	if runErr != nil {
-		fmt.Printf("\nAgent error: %v\n", runErr)
+	if err != nil {
+		fmt.Printf("error=%v\n", err)
 	}
 
 	fmt.Println()

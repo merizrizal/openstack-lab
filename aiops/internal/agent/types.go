@@ -27,6 +27,23 @@ type Decision struct {
 	FinalAnswer string        `json:"final_answer"`
 }
 
+func (a ToolArguments) JSONForTool(tool string) (json.RawMessage, error) {
+	switch tool {
+	case "get_server":
+		return json.Marshal(struct {
+			ServerIdentifier string `json:"server_identifier"`
+		}{ServerIdentifier: a.ServerIdentifier})
+
+	case "get_flavor":
+		return json.Marshal(struct {
+			FlavorID string `json:"flavor_id"`
+		}{FlavorID: a.FlavorID})
+
+	default:
+		return nil, fmt.Errorf("unsupported tool %q", tool)
+	}
+}
+
 func (d *Decision) Normalize() {
 	d.Action = strings.TrimSpace(d.Action)
 	d.ToolName = strings.TrimSpace(d.ToolName)
