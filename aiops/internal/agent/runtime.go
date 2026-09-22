@@ -151,6 +151,10 @@ func NewRuntime(client ai.StructuredClient, registry *tools.Registry, store Stor
 }
 
 func (r *Runtime) Start(ctx context.Context, goal string) (Result, error) {
+	return r.StartWithObservations(ctx, goal, nil)
+}
+
+func (r *Runtime) StartWithObservations(ctx context.Context, goal string, observations []Observation) (Result, error) {
 	goal = strings.TrimSpace(goal)
 	if goal == "" {
 		return Result{}, fmt.Errorf("goal cannot be empty")
@@ -161,13 +165,23 @@ func (r *Runtime) Start(ctx context.Context, goal string) (Result, error) {
 		return Result{}, fmt.Errorf("create investigation ID: %w", err)
 	}
 
+	copied := append([]Observation(nil), observations...)
+	step := 0
+
+	for _, observation := range copied {
+		if observation.Step > step {
+			step = observation.Step
+		}
+	}
+
 	now := time.Now().UTC()
 
 	state := State{
 		ID:           id,
 		Goal:         goal,
 		Status:       StatusRunning,
-		Observations: []Observation{},
+		Step:         step,
+		Observations: copied,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -251,7 +265,7 @@ func (r *Runtime) run(ctx context.Context, state *State) (Result, error) {
 			return result, nil
 		}
 
-		arguments, err := json.Marshal(decision.Arguments)
+		arguments, err := decision.Arguments.JSONForTool(decision.ToolName)
 		if err != nil {
 			r.pause(ctx, state)
 			return resultFromState(*state, len(memories)), fmt.Errorf("encode tool arguments: %w", err)

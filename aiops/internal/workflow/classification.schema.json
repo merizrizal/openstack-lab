@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "domain": {
+      "type": "string",
+      "enum": [
+        "compute",
+        "network",
+        "storage",
+        "identity",
+        "image",
+        "load_balancing",
+        "unknown"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "domain",
+    "reason"
+  ]
+}
