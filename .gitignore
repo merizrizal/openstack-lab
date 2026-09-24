@@ -5,6 +5,7 @@
 
 log
 .vscode
+.zed
 .ansible
 
 .agents
@@ -16,4 +17,4 @@ log
 **/bin/*
 .*cache
 
-.env
+.*env

@@ -16,7 +16,14 @@ operator question
   -> manual operator follow-up only
 ```
 
-This document does not authorize deployment, credential creation, profile access, host connections, OpenStack mutation, automatic AI tool calling, MCP, chat UI integration, SSH, sudo, raw command execution, or remediation.
+Except for the scoped local Pi integration below, this document does not authorize deployment, credential creation, profile access, host connections, OpenStack mutation, automatic AI tool calling, MCP, chat UI integration, SSH, sudo, raw command execution, or remediation.
+
+The local `aiops/cmd/openstack-ai` and `aiops/cmd/openstack-agent` may use the Pi client only when `AI_CLIENT=pi` and `AI_PI_ALLOW_OUTBOUND=true`.
+
+- `openstack-ai` sends its application instructions and full conversation history to the configured Pi provider.
+- `openstack-agent` sends its goals, system instructions, current observations, working summaries, historical memories, and retrieved knowledge for inference and summarization. Its current tools remain limited to the existing read-only `get_server` and `get_flavor` tools; observations may include resource IDs, names, host and fault details, and flavor extra specs.
+
+This process-wide opt-in authorizes that context to the configured provider; it is not per-request consent, content redaction, or egress isolation. It does not authorize credential disclosure, mutations, additional tools, or provider integrations through other commands. This exception is not Phase 05 acceptance evidence.
 
 The project, server, and metadata workflow sections below are documented for Steps 1–3 and remain manual, diagnostic-only procedures. Their documentation does not constitute deployed-lab validation, AI behavior testing, or Phase 05 acceptance evidence.
 
@@ -103,8 +110,9 @@ A refusal must not be converted into a raw command, an invented tool request, or
 
 ## Evidence handling rules
 
-- Share only the minimum necessary redacted result envelope with an approved AI client.
-- Do not share credential profiles, tokens, passwords, environment values, raw audit logs, private keys, or unredacted live output.
+- For the manual workflow above, share only the minimum necessary redacted result envelope with an approved AI client.
+- In either workflow, do not share credential profiles, tokens, passwords, environment values, raw audit logs, or private keys. Do not put them in agent goals or local knowledge files.
+- Opted-in Pi agent mode sends the full context described above, including structured OpenStack observations; the adapter does not redact that content. The opt-in is broader than manual sharing and must only be enabled for an approved provider and data set.
 - Treat project identifiers and topology as potentially sensitive; use fake or pseudonymized values in committed examples.
 - Preserve each result's tool, status, correlation identity, duration, truncation state, and relevant section status.
 - Interpret `empty` as no records visible in the current scope, not proof of global absence.

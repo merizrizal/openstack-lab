@@ -10,7 +10,7 @@ import (
 	"openstacklab/openstack-ai/internal/tools"
 )
 
-var serverIDPattern = regexp.MustCompile(`[a-z0-9]+[_-].[a-z0-9]+`)
+var serverIdPattern = regexp.MustCompile(`[a-z0-9]+[_-].[a-z0-9]+`)
 
 func ServerIncidentSteps(
 	registry *tools.Registry,
@@ -39,7 +39,7 @@ func (s *validateInputStep) Run(ctx context.Context, state *State) (StepName, er
 		return "", err
 	}
 
-	matches := serverIDPattern.FindAllString(state.Goal, -1)
+	matches := serverIdPattern.FindAllString(state.Goal, -1)
 
 	if len(matches) == 0 {
 		return "", fmt.Errorf("workflow requires an exact server ID")

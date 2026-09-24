@@ -34,20 +34,17 @@ actual OpenStack environment.
 `
 
 func main() {
-	codexBinary := getenv("CODEX_BIN", "codex")
-	codexModel := strings.TrimSpace(os.Getenv("CODEX_MODEL"))
-	client := ai.NewCodexClient(codexBinary, codexModel)
+	client, providerName, modelName, err := newAIClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "configure AI client: %v\n", err)
+		os.Exit(1)
+	}
 	session := chat.NewSession(client, systemPrompt)
 
 	fmt.Println("OpenStack AI Assistant - Conversational Mode")
 	fmt.Println()
-	fmt.Println("Provider: OpenAI Codex via Codex CLI")
-
-	if codexModel == "" {
-		fmt.Println("Model: Codex account default")
-	} else {
-		fmt.Printf("Model: %s\n", codexModel)
-	}
+	fmt.Printf("Provider: %s\n", providerName)
+	fmt.Printf("Model: %s\n", modelName)
 
 	fmt.Println()
 	fmt.Println("Commands:")
@@ -108,6 +105,40 @@ func main() {
 
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintf(os.Stderr, "read stdin: %v\n", err)
+	}
+}
+
+func newAIClient() (ai.Client, string, string, error) {
+	clientType := strings.ToLower(getenv("AI_CLIENT", "codex"))
+	switch clientType {
+	case "codex":
+		codexModel := strings.TrimSpace(os.Getenv("CODEX_MODEL"))
+		modelName := codexModel
+		if modelName == "" {
+			modelName = "Codex account default"
+		}
+		return ai.NewCodexClient(getenv("CODEX_BIN", "codex"), codexModel), "OpenAI Codex via Codex CLI", modelName, nil
+	case "pi":
+		if !strings.EqualFold(getenv("AI_PI_ALLOW_OUTBOUND", "false"), "true") {
+			return nil, "", "", fmt.Errorf("Pi outbound requests are disabled; set AI_PI_ALLOW_OUTBOUND=true only after approving transmission of the full chat context to the configured provider")
+		}
+		provider := strings.TrimSpace(os.Getenv("AI_MODEL_PROVIDER"))
+		model := strings.TrimSpace(os.Getenv("AI_MODEL"))
+		client, err := ai.NewPiClientFromEnv(func(ctx context.Context, request ai.PiOutbound) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if request.Provider != provider || request.Model != model {
+				return fmt.Errorf("Pi outbound request does not match the configured provider and model")
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, "", "", fmt.Errorf("configure Pi client: %w", err)
+		}
+		return client, fmt.Sprintf("Pi CLI via %s", provider), model, nil
+	default:
+		return nil, "", "", fmt.Errorf("unsupported AI_CLIENT %q (supported: codex, pi)", clientType)
 	}
 }
 
