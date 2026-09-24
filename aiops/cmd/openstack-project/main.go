@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -20,9 +19,12 @@ import (
 	"openstacklab/openstack-ai/internal/workflow"
 )
 
-var serverIdPattern = regexp.MustCompile(`[a-z0-9]+[_-].[a-z0-9]+`)
-
 func main() {
+	aiClient, aiClientName, aiModel, err := newAIClient()
+	if err != nil {
+		fail("configure AI client: %v", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	computeClient, err := openstackclient.NewComputeClient(ctx)
 	cancel()
@@ -30,11 +32,6 @@ func main() {
 	if err != nil {
 		fail("initialize OpenStack: %v", err)
 	}
-
-	aiClient := ai.NewCodexClient(
-		getenv("CODEX_BIN", "codex"),
-		strings.TrimSpace(os.Getenv("CODEX_MODEL")),
-	)
 
 	registry, err := tools.NewRegistry(
 		tools.NewGetServerTool(computeClient),
@@ -93,13 +90,63 @@ func main() {
 		fail("initialize project engine: %v", err)
 	}
 
-	runCLI(projectEngine, projectStore)
+	runCLI(projectEngine, projectStore, aiClientName, aiModel)
 }
 
-func runCLI(engine *project.Engine, store *project.FileStore) {
+type cliAIClient interface {
+	ai.Client
+	ai.StructuredClient
+}
+
+func newAIClient() (cliAIClient, string, string, error) {
+	clientType := strings.ToLower(getenv("AI_CLIENT", "codex"))
+	switch clientType {
+	case "codex":
+		model := strings.TrimSpace(os.Getenv("CODEX_MODEL"))
+		modelName := model
+		if modelName == "" {
+			modelName = "Codex account default"
+		}
+		client := ai.NewCodexClient(getenv("CODEX_BIN", "codex"), model)
+		return client, "OpenAI Codex via Codex CLI", modelName, nil
+	case "pi":
+		if !strings.EqualFold(getenv("AI_PI_ALLOW_OUTBOUND", "false"), "true") {
+			return nil, "", "", fmt.Errorf("Pi outbound is disabled; set AI_PI_ALLOW_OUTBOUND=true only after approving agent context transmission")
+		}
+		provider := strings.TrimSpace(os.Getenv("AI_MODEL_PROVIDER"))
+		model := strings.TrimSpace(os.Getenv("AI_MODEL"))
+		client, err := ai.NewPiClientFromEnv(piRequestAuthorizer(provider, model))
+		if err != nil {
+			return nil, "", "", fmt.Errorf("configure Pi client: %w", err)
+		}
+		return client, fmt.Sprintf("Pi CLI via %s", provider), model, nil
+	default:
+		return nil, "", "", fmt.Errorf("unsupported AI_CLIENT %q (supported: codex, pi)", clientType)
+	}
+}
+
+func piRequestAuthorizer(provider, model string) func(context.Context, ai.PiOutbound) error {
+	return func(ctx context.Context, request ai.PiOutbound) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if request.Provider != provider || request.Model != model {
+			return fmt.Errorf("Pi outbound request does not match the configured provider and model")
+		}
+		return nil
+	}
+}
+
+func runCLI(engine *project.Engine, store *project.FileStore, aiClientName, aiModel string) {
 	fmt.Println("OpenStack AI Assistant - Project Mode")
+	fmt.Printf("AI client: %s\n", aiClientName)
+	fmt.Printf("AI model: %s\n", aiModel)
+	if strings.EqualFold(getenv("AI_CLIENT", "codex"), "pi") {
+		fmt.Println("Outbound context: instructions, goals, observations, summaries, memories, and retrieved knowledge")
+	}
 	fmt.Println()
-	fmt.Println("Enter a project goal containing one or more server UUIDs.")
+	fmt.Println("Enter a project goal with one or more canonical server UUIDs.")
+	fmt.Println("For names, use server_identifier=<exact name> (quote names with spaces or punctuation).")
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  /resume <id>   resume project")
@@ -163,21 +210,21 @@ func runCLI(engine *project.Engine, store *project.FileStore) {
 }
 
 func buildTasks(goal string) ([]project.Task, error) {
-	serverIDs := serverIdPattern.FindAllString(goal, -1)
-	if len(serverIDs) == 0 {
-		return nil, fmt.Errorf("project goal must contain at least one server UUID")
+	serverIdentifiers := workflow.ExtractServerIdentifiers(goal)
+	if len(serverIdentifiers) == 0 {
+		return nil, fmt.Errorf("project goal must contain a canonical server UUID or server_identifier=<exact name>")
 	}
 
-	tasks := make([]project.Task, 0, len(serverIDs)+1)
-	dependencies := make([]string, 0, len(serverIDs))
+	tasks := make([]project.Task, 0, len(serverIdentifiers)+1)
+	dependencies := make([]string, 0, len(serverIdentifiers))
 
-	for i, serverID := range serverIDs {
+	for i, serverIdentifier := range serverIdentifiers {
 		taskID := fmt.Sprintf("investigate-server-%d", i+1)
 
 		tasks = append(tasks, project.Task{
 			ID:        taskID,
 			Type:      project.TaskTypeServerIncident,
-			Goal:      fmt.Sprintf("Investigate the current problem for server %s.", strings.ToLower(serverID)),
+			Goal:      fmt.Sprintf("server_identifier=%q\nInvestigation goal: %s", serverIdentifier, goal),
 			DependsOn: []string{},
 		})
 

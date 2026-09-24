@@ -3,14 +3,11 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"openstacklab/openstack-ai/internal/agent"
 	"openstacklab/openstack-ai/internal/tools"
 )
-
-var serverIdPattern = regexp.MustCompile(`[a-z0-9]+[_-].[a-z0-9]+`)
 
 func ServerIncidentSteps(
 	registry *tools.Registry,
@@ -39,16 +36,21 @@ func (s *validateInputStep) Run(ctx context.Context, state *State) (StepName, er
 		return "", err
 	}
 
-	matches := serverIdPattern.FindAllString(state.Goal, -1)
+	matches := ExtractServerIdentifiers(state.Goal)
+	if identifier, ok := LeadingServerIdentifier(state.Goal); ok {
+		matches = []string{identifier}
+	} else if marked := markedServerIdentifiers(state.Goal); len(marked) > 0 {
+		matches = marked
+	}
 
 	if len(matches) == 0 {
-		return "", fmt.Errorf("workflow requires an exact server ID")
+		return "", fmt.Errorf("workflow requires a canonical server UUID or server_identifier=<exact name>")
 	}
 	if len(matches) > 1 {
-		return "", fmt.Errorf("workflow accepts exactly one server ID")
+		return "", fmt.Errorf("workflow accepts exactly one server identifier")
 	}
 
-	state.ServerIdentifier = strings.ToLower(matches[0])
+	state.ServerIdentifier = matches[0]
 	return StepCollectBaseline, nil
 }
 

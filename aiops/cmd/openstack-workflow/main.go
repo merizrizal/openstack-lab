@@ -19,6 +19,11 @@ import (
 )
 
 func main() {
+	aiClient, aiClientName, aiModel, err := newAIClient()
+	if err != nil {
+		fail("configure AI client: %v", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	computeClient, err := openstackclient.NewComputeClient(ctx)
 	cancel()
@@ -26,11 +31,6 @@ func main() {
 	if err != nil {
 		fail("initialize OpenStack: %v", err)
 	}
-
-	aiClient := ai.NewCodexClient(
-		getenv("CODEX_BIN", "codex"),
-		strings.TrimSpace(os.Getenv("CODEX_MODEL")),
-	)
 
 	registry, err := tools.NewRegistry(
 		tools.NewGetServerTool(computeClient),
@@ -75,6 +75,11 @@ func main() {
 	}
 
 	fmt.Println("OpenStack AI Assistant - Workflow Mode")
+	fmt.Printf("AI client: %s\n", aiClientName)
+	fmt.Printf("AI model: %s\n", aiModel)
+	if strings.EqualFold(getenv("AI_CLIENT", "codex"), "pi") {
+		fmt.Println("Outbound context: instructions, goals, observations, summaries, memories, and retrieved knowledge")
+	}
 	fmt.Printf("Knowledge chunks: %d\n", len(chunks))
 	fmt.Println()
 	fmt.Println("Commands:")
@@ -82,6 +87,8 @@ func main() {
 	fmt.Println("  /resume <id>    resume workflow")
 	fmt.Println("  /show <id>      show workflow state")
 	fmt.Println("  /exit           quit")
+	fmt.Println("Use one canonical server UUID or server_identifier=<exact name>.")
+	fmt.Println("Quote server names containing spaces or punctuation.")
 	fmt.Println()
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -127,6 +134,50 @@ func main() {
 
 	if err := scanner.Err(); err != nil {
 		fail("read stdin: %v", err)
+	}
+}
+
+type cliAIClient interface {
+	ai.Client
+	ai.StructuredClient
+}
+
+func newAIClient() (cliAIClient, string, string, error) {
+	clientType := strings.ToLower(getenv("AI_CLIENT", "codex"))
+	switch clientType {
+	case "codex":
+		model := strings.TrimSpace(os.Getenv("CODEX_MODEL"))
+		modelName := model
+		if modelName == "" {
+			modelName = "Codex account default"
+		}
+		client := ai.NewCodexClient(getenv("CODEX_BIN", "codex"), model)
+		return client, "OpenAI Codex via Codex CLI", modelName, nil
+	case "pi":
+		if !strings.EqualFold(getenv("AI_PI_ALLOW_OUTBOUND", "false"), "true") {
+			return nil, "", "", fmt.Errorf("Pi outbound is disabled; set AI_PI_ALLOW_OUTBOUND=true only after approving agent context transmission")
+		}
+		provider := strings.TrimSpace(os.Getenv("AI_MODEL_PROVIDER"))
+		model := strings.TrimSpace(os.Getenv("AI_MODEL"))
+		client, err := ai.NewPiClientFromEnv(piRequestAuthorizer(provider, model))
+		if err != nil {
+			return nil, "", "", fmt.Errorf("configure Pi client: %w", err)
+		}
+		return client, fmt.Sprintf("Pi CLI via %s", provider), model, nil
+	default:
+		return nil, "", "", fmt.Errorf("unsupported AI_CLIENT %q (supported: codex, pi)", clientType)
+	}
+}
+
+func piRequestAuthorizer(provider, model string) func(context.Context, ai.PiOutbound) error {
+	return func(ctx context.Context, request ai.PiOutbound) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if request.Provider != provider || request.Model != model {
+			return fmt.Errorf("Pi outbound request does not match the configured provider and model")
+		}
+		return nil
 	}
 }
 
