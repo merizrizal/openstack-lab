@@ -37,8 +37,6 @@ type piCompletion struct {
 	Usage               piTokenUsage
 }
 
-// Accept one completed, text-only inference. Do not mistake exit status 0,
-// streaming deltas, or a valid-looking partial JSON string for success.
 func piParseEvents(data []byte, provider, model string) (piCompletion, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	scanner.Buffer(make([]byte, 64*1024), 16<<20)
@@ -74,13 +72,13 @@ func piParseEvents(data []byte, provider, model string) (piCompletion, error) {
 
 		switch event.Type {
 		case "session", "agent_start", "turn_start", "turn_end", "agent_settled":
-			// No output is accepted from snapshots or lifecycle metadata.
+
 		case "queue_update":
 			if len(event.Steering) != 0 || len(event.FollowUp) != 0 {
 				return piCompletion{}, errors.New("Pi queued additional input; one-shot contract violated")
 			}
 		case "message_update":
-			// Ignore text/thinking deltas. Only message_end is authoritative.
+
 		case "message_start", "message_end":
 			var header struct {
 				Role         string            `json:"role"`
@@ -101,8 +99,6 @@ func piParseEvents(data []byte, provider, model string) (piCompletion, error) {
 				if len(header.ToolsAdded) != 0 || len(header.ToolsRemoved) != 0 {
 					return piCompletion{}, errors.New("Pi declared or changed native tools; rejecting inference")
 				}
-				// Pi can emit initial system/user messages. They are input,
-				// not model output. Do not decode, return or log their content.
 				continue
 			case "assistant":
 				if event.Type == "message_start" {
@@ -134,7 +130,7 @@ func piParseEvents(data []byte, provider, model string) (piCompletion, error) {
 				case "text":
 					text.WriteString(block.Text)
 				case "thinking":
-					// Never return, log, or persist reasoning content.
+
 				default:
 					return piCompletion{}, errors.New("Pi returned non-text/non-thinking content")
 				}
@@ -150,8 +146,6 @@ func piParseEvents(data []byte, provider, model string) (piCompletion, error) {
 				return piCompletion{}, errors.New("Pi ended without exactly one completed assistant message")
 			}
 		default:
-			// Includes auto_retry/compaction/model-change events. Those may add
-			// hidden model calls; this adapter deliberately does not accept them.
 			return piCompletion{}, fmt.Errorf("unsupported Pi event type %q", event.Type)
 		}
 	}

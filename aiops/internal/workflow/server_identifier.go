@@ -20,9 +20,6 @@ type locatedServerIdentifier struct {
 	value string
 }
 
-// ExtractServerIdentifiers returns complete canonical UUIDs and explicitly
-// marked server names, ordered by their first appearance in text. Names must
-// use server_identifier=<name>; quote names containing spaces or punctuation.
 func ExtractServerIdentifiers(text string) []string {
 	located := make([]locatedServerIdentifier, 0)
 
@@ -79,9 +76,6 @@ func uniqueServerIdentifiers(located []locatedServerIdentifier) []string {
 	return identifiers
 }
 
-// LeadingServerIdentifier returns a server_identifier assignment at the start
-// of text. Generated project tasks use this field to keep their selected target
-// distinct from other identifiers mentioned in the copied investigation goal.
 func LeadingServerIdentifier(text string) (string, bool) {
 	assignment := serverIdentifierAssignment.FindStringIndex(text)
 	if assignment == nil || strings.TrimSpace(text[:assignment[0]]) != "" {

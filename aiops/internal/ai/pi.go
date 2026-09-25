@@ -15,8 +15,6 @@ var ErrPiOutboundBlocked = errors.New("Pi inference blocked: no outbound authori
 
 const piMaxRequestBytes = 1 << 20
 
-// PiOutbound is the Go-controlled input, NOT Pi's complete upstream HTTP payload.
-// An authorization callback is not a substitute for an egress/redaction gateway.
 type PiOutbound struct {
 	Provider     string `json:"provider"`
 	Model        string `json:"model"`
@@ -42,8 +40,6 @@ type PiConfig struct {
 	OnResponse      func(PiMetadata)
 }
 
-// PiMetadata contains accounting/identity only; never prompts or reasoning text.
-// OnResponse may run concurrently if the caller uses the client concurrently.
 type PiMetadata struct {
 	Version, Provider, Model, ResponseModel string
 	Attempt                                 int
@@ -107,8 +103,6 @@ const piRepairInstruction = `The previous attempt failed local JSON/schema valid
 Generate a fresh answer to the SAME request using the SAME schema. Return exactly
 one JSON value, without fences, commentary, missing required fields or extra keys.`
 
-// Preview constructs the exact Go input without starting Pi or sending a request.
-// It is useful for inspection and exact allowlisting of synthetic test fixtures.
 func (c *PiClient) Preview(messages []Message, schema []byte, attempt int) (PiOutbound, error) {
 	if attempt < 1 || attempt > 2 || (len(schema) == 0 && attempt != 1) {
 		return PiOutbound{}, errors.New("invalid Pi attempt")
@@ -193,8 +187,6 @@ func (c *PiClient) ChatStructured(ctx context.Context, messages []Message, schem
 			response.Usage = total
 			return response, nil
 		}
-		// Retry only completed text with invalid JSON/schema. Do not resend raw
-		// invalid output or error details, and do not retry transport/tool errors.
 	}
 	return Response{Usage: total}, errors.New("Pi returned invalid structured output after two attempts")
 }

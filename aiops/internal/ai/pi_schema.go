@@ -13,10 +13,6 @@ import (
 	"unicode/utf8"
 )
 
-// This is a FAIL-CLOSED SUBSET, not a general JSON Schema implementation.
-// Supported: type, properties, required, additionalProperties (bool), items,
-// enum, and annotation keys $schema/title/description. Unknown keywords fail
-// before inference. It covers the schemas supplied in curriculum Stages 2-8.
 type piSchema struct {
 	kind       string
 	properties map[string]*piSchema
@@ -204,8 +200,7 @@ func piJSONEqual(a, b any) bool {
 		br, bok := new(big.Rat).SetString(string(bn))
 		return aok && bok && ar.Cmp(br) == 0
 	}
-	// Enums in the curriculum are scalar strings. For composite values, compare
-	// recursively so mathematically equal JSON numbers remain equal.
+
 	switch av := a.(type) {
 	case []any:
 		bv, ok := b.([]any)
@@ -235,7 +230,6 @@ func piJSONEqual(a, b any) bool {
 	}
 }
 
-// Reject fences, trailing JSON, duplicate object keys, and excessively deep data.
 func piDecodeJSON(data []byte) (any, error) {
 	if len(data) > 1<<20 || !utf8.Valid(data) {
 		return nil, errors.New("JSON exceeds byte budget or is not UTF-8")

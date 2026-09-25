@@ -21,7 +21,6 @@ func piIsolationFlags() []string {
 	}
 }
 
-// Check runs version/help only. It does not submit an inference request.
 func (c *PiClient) Check(ctx context.Context) error {
 	if err := c.checkSettings(); err != nil {
 		return err
@@ -62,8 +61,6 @@ func (c *PiClient) runProcess(ctx context.Context, request PiOutbound) (piComple
 	}
 	defer os.RemoveAll(workdir)
 
-	// Use a 0600 prompt file so application instructions do not enter argv.
-	// Pi itself reads this explicitly passed file; model filesystem tools stay off.
 	promptPath := filepath.Join(workdir, "system.txt")
 	if err := os.WriteFile(promptPath, []byte(request.SystemPrompt), 0600); err != nil {
 		return piCompletion{}, fmt.Errorf("write Pi instructions: %w", err)
@@ -87,14 +84,13 @@ func (c *PiClient) command(ctx context.Context, workdir string, args []string, i
 	}
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
 	output := &piBoundedBuffer{limit: limit, cancel: cancel}
 	cmd := exec.CommandContext(childCtx, binary, args...)
 	cmd.Dir = workdir
 	cmd.Env = c.environment()
 	cmd.Stdin = strings.NewReader(input)
 	cmd.Stdout = output
-	// Do not leak provider errors, prompts, credentials or reasoning into logs.
-	// Investigate failures separately with synthetic data, never raw lab payloads.
 	cmd.Stderr = io.Discard
 	cmd.WaitDelay = 2 * time.Second
 	err = cmd.Run()
@@ -126,8 +122,6 @@ func (b *piBoundedBuffer) Write(data []byte) (int, error) {
 	return b.buffer.Write(data)
 }
 
-// Deliberate allowlist, NOT os.Environ(): no OS_*, SSH_AUTH_SOCK, NODE_OPTIONS,
-// arbitrary API keys, or application secrets are inherited implicitly.
 func (c *PiClient) environment() []string {
 	values := map[string]string{
 		"PI_CODING_AGENT_DIR": c.config.AgentDir,
