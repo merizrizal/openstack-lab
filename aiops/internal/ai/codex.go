@@ -17,6 +17,9 @@ type CodexClient struct {
 	model  string
 }
 
+var _ Client = (*CodexClient)(nil)
+var _ StructuredClient = (*CodexClient)(nil)
+
 func NewCodexClient(binary, model string) *CodexClient {
 	if strings.TrimSpace(binary) == "" {
 		binary = "codex"
