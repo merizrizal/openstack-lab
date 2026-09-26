@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"openstacklab/openstack-ai/internal/ai"
@@ -90,39 +89,27 @@ func TestNewAIClientRejectsUnknownClient(t *testing.T) {
 	}
 }
 
-func TestBuildTasksSupportsUUIDsAndMarkedNamesAndPreservesGoal(t *testing.T) {
+func TestBuildPlanningRequestSupportsUUIDsAndMarkedNames(t *testing.T) {
 	serverUUID := "550e8400-e29b-41d4-a716-446655440000"
 	serverName := "Web Application 01"
 	goal := "Investigate API failures for " + serverUUID + " and server_identifier=\"" + serverName + "\"."
 
-	tasks, err := buildTasks(goal)
+	req, err := buildPlanningRequest(goal)
 	if err != nil {
-		t.Fatalf("buildTasks() error = %v", err)
+		t.Fatalf("buildPlanningRequest() error = %v", err)
 	}
-	if len(tasks) != 3 {
-		t.Fatalf("buildTasks() returned %d tasks, want 2 investigations and summary", len(tasks))
+	if req.Goal != goal {
+		t.Errorf("request goal = %q, want original goal %q", req.Goal, goal)
 	}
-
-	for i, identifier := range []string{serverUUID, serverName} {
-		task := tasks[i]
-		wantPrefix := "server_identifier=\"" + identifier + "\"\nInvestigation goal:"
-		if !strings.HasPrefix(task.Goal, wantPrefix) {
-			t.Errorf("task %q goal = %q, want prefix %q", task.ID, task.Goal, wantPrefix)
-		}
-		if !strings.Contains(task.Goal, goal) {
-			t.Errorf("task %q goal does not preserve original goal %q", task.ID, goal)
-		}
-	}
-
-	if got := tasks[2].DependsOn; len(got) != 2 || got[0] != tasks[0].ID || got[1] != tasks[1].ID {
-		t.Errorf("summary dependencies = %#v, want both investigation tasks in order", got)
+	if len(req.ServerIdentifiers) != 2 || req.ServerIdentifiers[0] != serverUUID || req.ServerIdentifiers[1] != serverName {
+		t.Errorf("request identifiers = %#v, want UUID then exact name", req.ServerIdentifiers)
 	}
 }
 
-func TestBuildTasksRejectsUnmarkedNamesAndMalformedUUIDs(t *testing.T) {
+func TestBuildPlanningRequestRejectsUnmarkedNamesAndMalformedUUIDs(t *testing.T) {
 	goal := "Investigate server web-01; malformed UUID 550e8400-e29b-41d4-a716"
 
-	if _, err := buildTasks(goal); err == nil {
-		t.Fatal("buildTasks() error = nil, want missing canonical or marked identifier error")
+	if _, err := buildPlanningRequest(goal); err == nil {
+		t.Fatal("buildPlanningRequest() error = nil, want missing canonical or marked identifier error")
 	}
 }

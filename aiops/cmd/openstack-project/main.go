@@ -14,6 +14,7 @@ import (
 	"openstacklab/openstack-ai/internal/ai"
 	"openstacklab/openstack-ai/internal/knowledge"
 	"openstacklab/openstack-ai/internal/openstackclient"
+	"openstacklab/openstack-ai/internal/planning"
 	"openstacklab/openstack-ai/internal/project"
 	"openstacklab/openstack-ai/internal/tools"
 	"openstacklab/openstack-ai/internal/workflow"
@@ -90,7 +91,8 @@ func main() {
 		fail("initialize project engine: %v", err)
 	}
 
-	runCLI(projectEngine, projectStore, aiClientName, aiModel)
+	planner := planning.NewPlanner(aiClient)
+	runCLI(projectEngine, projectStore, planner, aiClientName, aiModel)
 }
 
 type cliAIClient interface {
@@ -137,7 +139,7 @@ func piRequestAuthorizer(provider, model string) func(context.Context, ai.PiOutb
 	}
 }
 
-func runCLI(engine *project.Engine, store *project.FileStore, aiClientName, aiModel string) {
+func runCLI(engine *project.Engine, store *project.FileStore, planner *planning.Planner, aiClientName, aiModel string) {
 	fmt.Println("OpenStack AI Assistant - Project Mode")
 	fmt.Printf("AI client: %s\n", aiClientName)
 	fmt.Printf("AI model: %s\n", aiModel)
@@ -145,8 +147,9 @@ func runCLI(engine *project.Engine, store *project.FileStore, aiClientName, aiMo
 		fmt.Println("Outbound context: instructions, goals, observations, summaries, memories, and retrieved knowledge")
 	}
 	fmt.Println()
-	fmt.Println("Enter a project goal with one or more canonical server UUIDs.")
+	fmt.Println("Enter a project goal with one or more server UUIDs or explicitly marked exact names.")
 	fmt.Println("For names, use server_identifier=<exact name> (quote names with spaces or punctuation).")
+	fmt.Println("Review the generated plan; only the displayed exact approval digest starts it.")
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  /resume <id>   resume project")
@@ -191,15 +194,19 @@ func runCLI(engine *project.Engine, store *project.FileStore, aiClientName, aiMo
 			printJSON(state)
 
 		default:
-			tasks, err := buildTasks(input)
+			req, err := buildPlanningRequest(input)
 			if err != nil {
 				fmt.Printf("\nError: %v\n\n", err)
 				continue
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-			state, err := engine.Start(ctx, input, tasks)
+			state, err := planner.ReviewAndStart(ctx, engine, req, scanner, os.Stdout)
 			cancel()
+			if err != nil && state.ID == "" {
+				fmt.Printf("\nError: %v\n\n", err)
+				continue
+			}
 			printProject(state, err)
 		}
 	}
@@ -209,36 +216,12 @@ func runCLI(engine *project.Engine, store *project.FileStore, aiClientName, aiMo
 	}
 }
 
-func buildTasks(goal string) ([]project.Task, error) {
+func buildPlanningRequest(goal string) (planning.Request, error) {
 	serverIdentifiers := workflow.ExtractServerIdentifiers(goal)
 	if len(serverIdentifiers) == 0 {
-		return nil, fmt.Errorf("project goal must contain a canonical server UUID or server_identifier=<exact name>")
+		return planning.Request{}, fmt.Errorf("project goal must contain a canonical server UUID or server_identifier=<exact name>")
 	}
-
-	tasks := make([]project.Task, 0, len(serverIdentifiers)+1)
-	dependencies := make([]string, 0, len(serverIdentifiers))
-
-	for i, serverIdentifier := range serverIdentifiers {
-		taskID := fmt.Sprintf("investigate-server-%d", i+1)
-
-		tasks = append(tasks, project.Task{
-			ID:        taskID,
-			Type:      project.TaskTypeServerIncident,
-			Goal:      fmt.Sprintf("server_identifier=%q\nInvestigation goal: %s", serverIdentifier, goal),
-			DependsOn: []string{},
-		})
-
-		dependencies = append(dependencies, taskID)
-	}
-
-	tasks = append(tasks, project.Task{
-		ID:        "project-summary",
-		Type:      project.TaskTypeProjectSummary,
-		Goal:      "Produce the final project assessment.",
-		DependsOn: dependencies,
-	})
-
-	return tasks, nil
+	return planning.Request{Goal: goal, ServerIdentifiers: serverIdentifiers}, nil
 }
 
 func runProject(run func(context.Context, string) (project.State, error), value string) {

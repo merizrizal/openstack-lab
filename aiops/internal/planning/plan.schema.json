@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "disposition": {"type": "string", "enum": ["ready", "needs_input", "unsupported"]},
+    "explanation": {"type": "string"},
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"type": "string", "enum": ["server_incident", "project_summary"]},
+          "server_identifier": {"type": "string"},
+          "focus": {"type": "string"},
+          "depends_on": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["id", "type", "server_identifier", "focus", "depends_on"]
+      }
+    }
+  },
+  "required": ["disposition", "explanation", "tasks"]
+}
