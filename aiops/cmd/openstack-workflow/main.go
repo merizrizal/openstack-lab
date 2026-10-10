@@ -68,7 +68,7 @@ func main() {
 	engine, err := workflow.NewEngine(
 		workflowStore,
 		20,
-		workflow.ServerIncidentSteps(registry, classifier, agentRuntime)...,
+		workflow.ServerIncidentSteps(registry, classifier, agentRuntime, aiClient)...,
 	)
 	if err != nil {
 		fail("initialize workflow engine: %v", err)

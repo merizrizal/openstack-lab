@@ -100,11 +100,12 @@ func (d Decision) Validate() error {
 }
 
 type Observation struct {
-	Step      int             `json:"step"`
-	Tool      string          `json:"tool"`
-	Arguments json.RawMessage `json:"arguments"`
-	Result    json.RawMessage `json:"result,omitempty"`
-	Error     string          `json:"error,omitempty"`
+	Step       int             `json:"step"`
+	Tool       string          `json:"tool"`
+	ObservedAt time.Time       `json:"observed_at"`
+	Arguments  json.RawMessage `json:"arguments"`
+	Result     json.RawMessage `json:"result,omitempty"`
+	Error      string          `json:"error,omitempty"`
 }
 
 type State struct {

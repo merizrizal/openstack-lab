@@ -275,10 +275,11 @@ func (r *Runtime) run(ctx context.Context, state *State) (Result, error) {
 
 		if _, exists := seen[callKey]; exists {
 			state.Observations = append(state.Observations, Observation{
-				Step:      state.Step,
-				Tool:      decision.ToolName,
-				Arguments: arguments,
-				Error:     "duplicate tool call rejected by agent runtime",
+				Step:       state.Step,
+				Tool:       decision.ToolName,
+				ObservedAt: time.Now().UTC(),
+				Arguments:  arguments,
+				Error:      "duplicate tool call rejected by agent runtime",
 			})
 
 			if err := r.afterObservation(ctx, state, &usage); err != nil {
@@ -291,7 +292,12 @@ func (r *Runtime) run(ctx context.Context, state *State) (Result, error) {
 		seen[callKey] = struct{}{}
 
 		toolResult, toolErr := r.registry.Execute(ctx, decision.ToolName, arguments)
-		observation := Observation{Step: state.Step, Tool: decision.ToolName, Arguments: arguments}
+		observation := Observation{
+			Step:       state.Step,
+			Tool:       decision.ToolName,
+			ObservedAt: time.Now().UTC(),
+			Arguments:  arguments,
+		}
 
 		if toolErr != nil {
 			observation.Error = toolErr.Error()

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"openstacklab/openstack-ai/internal/agent"
+	"openstacklab/openstack-ai/internal/ai"
 	"openstacklab/openstack-ai/internal/tools"
 )
 
@@ -13,6 +15,7 @@ func ServerIncidentSteps(
 	registry *tools.Registry,
 	classifier *Classifier,
 	agentRuntime *agent.Runtime,
+	client ai.StructuredClient,
 ) []Step {
 	return []Step{
 		&validateInputStep{},
@@ -21,6 +24,7 @@ func ServerIncidentSteps(
 		&routeStep{},
 		&investigateComputeStep{runtime: agentRuntime},
 		&validateResultStep{},
+		&reviewSnapshotStep{runtime: agentRuntime, client: client},
 		&renderReportStep{},
 	}
 }
@@ -75,6 +79,7 @@ func (s *collectBaselineStep) Run(ctx context.Context, state *State) (StepName, 
 
 	state.BaselineArguments = arguments
 	state.BaselineResult = result
+	state.BaselineObservedAt = time.Now().UTC()
 
 	return StepClassify, nil
 }
@@ -141,10 +146,11 @@ func (s *investigateComputeStep) Run(ctx context.Context, state *State) (StepNam
 
 	if state.AgentInvestigationID == "" {
 		baseline := agent.Observation{
-			Step:      1,
-			Tool:      "get_server",
-			Arguments: state.BaselineArguments,
-			Result:    state.BaselineResult,
+			Step:       1,
+			Tool:       "get_server",
+			ObservedAt: state.BaselineObservedAt,
+			Arguments:  state.BaselineArguments,
+			Result:     state.BaselineResult,
 		}
 
 		result, err = s.runtime.StartWithObservations(ctx, state.Goal, []agent.Observation{baseline})
@@ -182,7 +188,7 @@ func (s *validateResultStep) Run(ctx context.Context, state *State) (StepName, e
 		return "", fmt.Errorf("agent investigation returned no answer")
 	}
 
-	return StepRenderReport, nil
+	return StepReviewSnapshot, nil
 }
 
 type renderReportStep struct{}
@@ -197,6 +203,13 @@ func (s *renderReportStep) Run(ctx context.Context, state *State) (StepName, err
 	}
 
 	findings := strings.TrimSpace(state.AgentAnswer)
+	if state.EvidenceReview != nil {
+		reviewed, err := formatReviewedSnapshot(state.EvidenceReview)
+		if err != nil {
+			return "", err
+		}
+		findings = reviewed
+	}
 	if findings == "" {
 		findings = strings.TrimSpace(state.Outcome)
 	}
