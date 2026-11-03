@@ -9,6 +9,7 @@ import (
 
 	"openstacklab/openstack-ai/internal/agent"
 	"openstacklab/openstack-ai/internal/ai"
+	"openstacklab/openstack-ai/internal/delegation"
 	"openstacklab/openstack-ai/internal/team"
 )
 
@@ -28,14 +29,58 @@ func reviewSnapshot(ctx context.Context, client ai.StructuredClient, input team.
 		return response.Text, nil
 	}
 
-	investigator, err := team.NewModelInvestigator(generate)
+	selector, err := delegation.NewModelSelector(generate)
 	if err != nil {
 		return team.Result{}, err
 	}
+
+	compute, err := delegation.NewModelSpecialist(delegation.Compute, generate)
+	if err != nil {
+		return team.Result{}, err
+	}
+
+	network, err := delegation.NewModelSpecialist(delegation.Network, generate)
+	if err != nil {
+		return team.Result{}, err
+	}
+
+	generalInvestigator, err := team.NewModelInvestigator(generate)
+	if err != nil {
+		return team.Result{}, err
+	}
+
+	dispatcher, err := delegation.NewDispatcher(
+		selector,
+		generalInvestigator,
+		90*time.Second,
+		delegation.Registration{
+			Agent: compute,
+			AllowedEvidenceTools: []string{
+				"get_server",
+				"get_flavor",
+			},
+		},
+		delegation.Registration{
+			Agent: network,
+			AllowedEvidenceTools: []string{
+				"get_server",
+			},
+		},
+	)
+	if err != nil {
+		return team.Result{}, err
+	}
+
+	investigator, err := delegation.NewInvestigatorAdapter(dispatcher, nil)
+	if err != nil {
+		return team.Result{}, err
+	}
+
 	reviewer, err := team.NewModelReviewer(generate)
 	if err != nil {
 		return team.Result{}, err
 	}
+
 	coordinator, err := team.NewCoordinator(investigator, reviewer, 1, 5*time.Minute)
 	if err != nil {
 		return team.Result{}, err

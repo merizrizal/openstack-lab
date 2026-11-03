@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "action": {"type": "string", "enum": ["delegate", "direct"]},
+    "specialist": {"type": "string", "enum": ["none", "compute", "network"]},
+    "objective": {"type": "string"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "reason": {"type": "string"}
+  },
+  "required": ["action", "specialist", "objective", "evidence_ids", "reason"]
+}
