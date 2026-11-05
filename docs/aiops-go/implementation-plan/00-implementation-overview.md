@@ -1,6 +1,6 @@
 # 00. Implementation Plan Overview
 
-This plan replaces the previous toolbox/advisory implementation plan with delivery of the approved [OpenStack investigation and orchestration PRD](../prd.md). The canonical source is now `docs/aiops-go/prd.md`, formerly `prd-v2.md`. The user approved its product direction in the planning conversation; its remaining draft wording does not authorize deployment or imply verified safety. This plan does not modify the PRD.
+This draft plan replaces the previous toolbox/advisory implementation plan with a proposed delivery of the [OpenStack investigation and orchestration PRD](../prd.md). The canonical source is now `docs/aiops-go/prd.md`, formerly `prd-v2.md`, and remains draft for product and architecture review. The planning conversation reported human approval of its product direction, but no separate approval record was written and the approved source revision is not recorded. Subsequent local PRD additions are distinct from that reported direction approval; they do not establish approval of the current PRD or this plan. This plan does not modify the PRD or authorize implementation or deployment.
 
 **Project mode: Existing Project with Partial Implementation.** All work remains unchecked until verified. Approval of this plan does not itself authorize coding, live cloud calls, credential provisioning, inference, staging, or deployment.
 
@@ -14,13 +14,14 @@ One ordered delivery plan lives beside its requirements authority. The previous 
 
 ### Observed reuse baseline
 
-Source inspection for this plan found:
+Source inspection for this plan found the following reuse seams. The workflow and review paths were inspected at repository revision `13d047c1b96a746f8e91ed94130cf04057e536ff`; this identifies the code baseline, not an approved PRD revision:
 
 | Evidence inspected | Reuse opportunity and remaining obligation |
 | --- | --- |
 | `aiops/internal/tools/registry.go`, `Registry.Execute` | Named dispatch rejects unknown tools, but its interface does not carry explicit investigation scope. Enforce scope at actual dispatch, including nested calls. |
 | `aiops/internal/planning/review.go`, `ReviewAndStart`; planning test cases | Preserve exact-digest review, non-ready dispositions, original goal, UUID/exact-name behavior; extend policy/scope bindings rather than replacing review. |
-| `aiops/internal/workflow/server_incident.go`, routing and result validation | Compute path exists; network/storage route to unsupported. Nonempty completed-agent output is not sufficient evidence review. |
+| `aiops/internal/workflow/server_incident.go`, `ServerIncidentSteps`, routing and result validation | The compute path already proceeds from result validation to snapshot review and report rendering; network/storage route to unsupported. A nonempty completed-agent answer alone is not sufficient evidence review. |
+| `aiops/internal/workflow/review_snapshot.go`, `reviewSnapshot` and `reviewSnapshotStep.Run` | Reuse the completed-snapshot evidence-review seam, but note that it constructs a model selector and specialist dispatcher. Gate or disable existing specialist routing when integrating the Phase 02 single-agent path; preserve evidence review and verify the baseline without specialist invocation. |
 | `aiops/internal/project/engine.go`, run/pause/readiness paths | Sequential dependency scheduling and checkpoints exist; several failure/pause saves discard errors. Harden failure propagation, partial reporting, and recovery. |
 | `aiops/internal/agent/filestore.go`, memory lookup and atomic writer | Protected temporary files and atomic replacement are useful foundations. Subject matching alone does not establish cloud/project isolation, schema compatibility, or concurrent-writer safety. |
 | `aiops/internal/knowledge/loader.go`, `LoadDir` and chunk creation | Reuse bounded chunks and source identities; directory discovery is not content approval, scope control, or safe ingestion. |
@@ -81,7 +82,9 @@ Each phase must be designed into compile-safe, thin vertical chunks before codin
 | Related-resource authorization and separate project-wide/host visibility | Operator/security owner | Phase 01; unreviewed relationships denied |
 | Initial provider/model, outbound data classes, isolation and enforceable egress | Operator/security owner | Phase 02; remote inference disabled until approved and validated |
 | Retention, maximum data volume, freshness, export permissions | Data owner | Phase 03; production persistence/exports blocked pending policy |
-| State version/conversion, locking, uncertain-call replay semantics | Maintainer | Phase 03; incompatible state rejected, never silently migrated |
+| Supported state versions, conversion and uncertain-call recovery policy | Maintainer | Phase 03 before resume; incompatible state rejected, never silently migrated; preserve completed work and make uncertain calls visible |
+| Compliant single-writer locking or equivalent conflict-rejection mechanism | Level 1 engineering discretion | Phase 03; satisfy the specified writer exclusion and recovery tests without a separate mechanism-approval gate |
+| Changes to required recovery behavior, architecture or accepted data-integrity risk | Human approval (Level 2) | Before affected work; do not silently change the approved boundary or accept new material risk |
 | Supported domain evidence, including Placement/capacity and attachments | Maintainer/operator | Phase 04; unimplemented subdiagnostics explicitly unavailable |
 | Initial MCP client/protocol/local transport and host aliases | Maintainer/operator | Phase 05; corresponding capabilities disabled until decided |
 | Corpus/rubric and quality, latency, token/cost, unnecessary-call thresholds | Product/release owner | Phase 06 before release measurements; model rollout blocked |
@@ -95,6 +98,7 @@ Go core, local protected persistence, sequential scheduling, lexical retrieval, 
 - [ ] Every important transition is checkpointed and correlated. Required authorization, audit, or control failures stop new dispatch and are visible locally.
 - [ ] Every call/run has finite budgets, cancellation, bounded output/context, and reviewed retry rules. Denials and invalid requests are not transient retries.
 - [ ] Sanitize and minimize before any report, storage, model context, export, or telemetry. Treat goals, logs, knowledge, summaries, and delegated outputs as untrusted data.
+- [ ] When integrating the Phase 02 investigation path, disable or gate existing specialist selection and dispatch so the single-agent plus evidence-review baseline runs without specialist invocation. Verify that behavior at integration; Phase 06 records the release status. Enable specialists only under the existing separate approval, isolation and comparison gates.
 - [ ] Keep fresh evidence, working summaries, historical memory, and reference knowledge distinct. Model agreement and tool exit success do not prove root cause.
 - [ ] Preserve original/resolved identifiers, manual diagnostics, and existing automation. Version incompatible tools, exports, and state with tested rollback.
 - [ ] Provider failure never disables permitted local diagnostics or inspection; no silent provider switch. Remote opt-in is not credential isolation or egress enforcement.
@@ -144,7 +148,7 @@ Ranges below are inclusive and refer only to the current canonical PRD.
 | FR-027–FR-030 | 01 | Result/audit/redaction and permanent mutation denial |
 | FR-031–FR-034 | 02 | Model contracts, disclosure/isolation and degraded operation |
 | FR-035 | 05 | MCP parity, curated resources and diagnostic prompts |
-| FR-036 | 06 | Disabled-by-default specialist gate; future enablement requires isolation and measured benefit |
+| FR-036 | 02, 06 | Gate existing specialist routing during Phase 02 integration; Phase 06 records disabled status or separately approved isolation and measured-benefit evidence |
 | FR-037–FR-038 | 06 | Versioned offline evaluation and metrics |
 | FR-039–FR-040 | 02, 06 | Correlation and finite budgets from first run; consolidated operational reporting |
 | FR-041–FR-042 | 06, 07 | Startup, lifecycle, revocation and rollback |

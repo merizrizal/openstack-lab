@@ -22,6 +22,40 @@ For the maintainer and learner, the system must also make the distinction betwee
 
 The selected baseline determines the broader product concept; the prior PRD supplies OpenStack-specific constraints. The learning examples of code modification, deployment tasks, read-only database queries, and approval of writes do not override the prior PRD's exclusions. No domain glossary or ADR collection was found in the targeted conventional locations; this PRD therefore defines the terms it needs without claiming an exhaustive architecture review.
 
+## Baseline Alignment and Learning Scope
+
+The [AI-OPS baseline](aiops-baseline.md) supplies the conceptual progression; this PRD translates it into observable behavior for a read-only OpenStack investigation product. The mapping below uses the final Stage 0–14 list in [Our practical curriculum](aiops-baseline.md#our-practical-curriculum), which separates observability, MCP, and deployment from the earlier combined production-engineering stage.
+
+### Product traceability
+
+These references describe intended product coverage, not verified implementation or learner achievement. Stage numbers are not release milestones or a required implementation order. Safety applies from the first executable slice, and optional technologies do not become mandatory merely because they appear in the curriculum.
+
+| Stage | Baseline concept | Product coverage | Acceptance / disposition |
+| --- | --- | --- | --- |
+| 0 | Mental model of AI engineering | Product vocabulary; User Story 31; separation of model proposals from application authority | Inspectable concepts support learning; lessons and learner assessment are outside product acceptance. |
+| 1 | LLM application fundamentals | FR-031–FR-034: bounded model interfaces, disclosure, isolation, and degraded operation | AC-016–AC-018 verify runtime contracts, not mastery of LLM fundamentals. |
+| 2 | Structured output | FR-004, FR-007, FR-031: validated plans and control-flow responses | AC-001, AC-003, AC-016. |
+| 3 | Tool calling | FR-010–FR-011, FR-023–FR-024, FR-027: authorized, reviewed calls and structured results | AC-004, AC-012, AC-014. |
+| 4 | Agent loop | FR-008–FR-009, FR-040: bounded decisions, application-owned transitions, and stop reasons | AC-003, AC-022. |
+| 5 | Context, state and memory | FR-014–FR-016; NFR-004: checkpoints, resume, provenance, and distinct memory classes | AC-007–AC-008. |
+| 6 | RAG and external knowledge | FR-017–FR-018: curated retrieval, citations, and untrusted-content handling | AC-009; lexical retrieval first, with advanced retrieval justified by measured need. |
+| 7 | Workflow orchestration | FR-005, FR-009, FR-012, FR-020: approved workflows, deterministic control, and evidence review | AC-001, AC-005, AC-010. |
+| 8 | Project/task orchestration | FR-006, FR-013: validated dependency graphs and per-target project synthesis | AC-003, AC-006. |
+| 9 | Multi-agent systems | FR-036: optional restricted specialist roles under orchestrator control | AC-020; remain disabled unless evaluation demonstrates value over the single-agent baseline. |
+| 10 | Evaluation | FR-037–FR-038: versioned offline scenarios and quality/resource measurements | AC-021, AC-025. |
+| 11 | Guardrails and human approval | FR-005, FR-010, FR-021–FR-030, FR-032–FR-033: exact approval, least privilege, policy, audit, and disclosure | AC-004, AC-011–AC-017; approval never permits infrastructure mutation. |
+| 12 | Observability, cost and reliability | FR-039–FR-040; NFR-003–NFR-009: correlated events, finite budgets, recovery, and honest usage reporting | AC-007, AC-014, AC-022, AC-025. |
+| 13 | MCP and integration architecture | FR-035; NFR-010: interoperability over the same reviewed tool and knowledge contracts | AC-012, AC-019, AC-024; introduce MCP after direct execution is validated. |
+| 14 | Production deployment | FR-041–FR-042; NFR-014: readiness, protected operation, recovery, and rollback | AC-023–AC-025; deployment administration stays outside the diagnostic agent. |
+
+The baseline's generic coding, deployment-task, database-query, and write-approval examples are educational illustrations, not additional product capabilities. The Non-Goals and read-only boundary continue to govern. Likewise, specialist distribution, vector databases, embeddings, parallel scheduling, and network service exposure require their existing justification and review rather than curriculum-driven expansion.
+
+### Learning-plan boundary
+
+Lessons, exercises, demonstrations, and learner assessments belong in a separate learning plan, not in this product acceptance contract. That plan should use the same progressively developed investigation project and include a genuine Stage 0 lesson on models, LLMs, agents, tokens, context windows, inference, prompts, tool calling, and deterministic versus probabilistic control. Product vocabulary alone does not satisfy that lesson.
+
+The learning plan should define stage-specific learning outcomes, exercises, and evidence of understanding while reusing permitted product workflows and fixtures. It must not authorize excluded capabilities or live infrastructure access. Completing a lesson does not establish product acceptance; passing product tests does not establish learner mastery. This PRD neither creates that separate plan nor claims that the curriculum has been delivered.
+
 ## Project Mode
 
 **Existing Project with Partial Implementation.**
