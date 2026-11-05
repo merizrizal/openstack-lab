@@ -26,14 +26,21 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	computeClient, err := openstackclient.NewComputeClient(ctx)
 	cancel()
-
 	if err != nil {
-		fail("initialize OpenStack: %v", err)
+		fail("initialize Compute client: %v", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	networkClient, projectID, err := openstackclient.NewNetworkClient(ctx)
+	cancel()
+	if err != nil {
+		fail("initialize Neutron client: %v", err)
 	}
 
 	registry, err := tools.NewRegistry(
 		tools.NewGetServerTool(computeClient),
 		tools.NewGetFlavorTool(computeClient),
+		tools.NewGetPortsTool(networkClient, projectID),
 	)
 	if err != nil {
 		fail("create tool registry: %v", err)
