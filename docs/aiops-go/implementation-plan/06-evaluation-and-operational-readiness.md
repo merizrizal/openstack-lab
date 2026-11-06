@@ -25,7 +25,7 @@ Excluded: a new observability platform, live inference by default, invented SLAs
 - [ ] Product/release owner agrees corpus/rubric and quality, latency, usage/cost and unnecessary-call thresholds before release measurements. Unresolved thresholds block model-enabled rollout.
 - [ ] Optional specialists remain disabled unless a separately approved design and measured comparison justify implementation; estimates exclude that future work.
 
-Dependency: Phase 04; Phase 05 only for integrations selected for release.
+Dependency: [Phase 04](04-domain-and-project-orchestration.md); [Phase 05](05-gated-host-and-mcp-integrations.md) only for integrations selected for release. Before any executable task contract proceeds, identify and link the approved PRD and other governing source revisions, accepted prerequisite-phase revisions, applicable contract amendments and prerequisite verification records, including the inherited [Phase 01 contract reconciliation](01-safety-boundary-and-manual-slice.md#constraint-reconciliation-and-authority). Neither a commit nor a draft review establishes approval or prerequisite acceptance.
 
 ## 06.5 Ordered Tasks
 
@@ -36,7 +36,7 @@ Estimate: **2-3 days / 12-18 hours**.
 - [ ] Package versioned incident fixtures with deterministic model/tool substitutes, expected targets/calls, required evidence, outcomes and safety assertions. Run the full CLI/orchestrator path without cloud/provider credentials or network dependency.
 - [ ] Cover healthy server, sufficient and insufficient-evidence NoValidHost, metadata listener failure, Neutron failure, volume-attachment symptom, permission denial, ambiguous name, missing resource, provider outage, hostile logs and multi-server partial failure.
 - [ ] Include malformed decisions/graphs, stale approval, out-of-scope nested/resumed calls, audit failure, checkpoint corruption, concurrent resume, cancellation and secret-canary regressions from earlier phases.
-- [ ] Emit machine-readable versioned results with fixture/runtime/policy/model-substitute versions, expected/actual outcome, task success, appropriate tool selection, unsupported factual claims, unnecessary calls, safety violations, elapsed time and available usage/cost.
+- [ ] Emit machine-readable versioned results with fixture/runtime/policy/model-substitute versions, expected/actual outcome, task success, appropriate tool selection, unsupported factual claims, unnecessary calls, safety violations, elapsed time and available usage/cost. Include corpus, rubric and threshold-set identifiers—or an immutable release-manifest reference identifying them—in each result package.
 - [ ] Score fixture-supported inconclusive outcomes separately from fabricated diagnosis and unnecessary failure. Define human-labeled semantic evidence support where deterministic checks alone cannot establish causality; do not use model self-review as the oracle.
 - [ ] Publish per-scenario tool counts and latency distributions with sample counts; report measured versus unavailable token/cost and pricing basis. Deterministic fake usage is labeled synthetic, not measured provider cost.
 - [ ] Pin dataset/rubric and pre-agreed release thresholds before measuring a candidate. Require zero unauthorized executions, mutations and prohibited disclosures in deterministic safety tests; record other thresholds as owner-approved values, not guessed SLAs.
@@ -50,12 +50,12 @@ Done when:
 
 Estimate: **1-2 days / 6-12 hours**.
 
-- [ ] Correlate plan, project/task, investigation, tool, model, review, resume and export events with concise decisions/outcomes, policy/approval identity and safe failure reasons. Preserve provenance without hidden chain-of-thought or raw sensitive payloads.
+- [ ] Correlate plan, project/task, investigation, tool, model, review, resume and export events with concise decisions/outcomes, policy/approval identity and safe failure reasons. Preserve provenance without hidden chain-of-thought or raw sensitive payloads. Use compliant application-owned correlation mappings; the [retained runner contract](../../ai-ops-revised/runtime/tool-runner-safety-gateway-steps-05-to-07-operations-contract.md) preserves internally generated identity, audit cardinality, actor, closed fields, fixed paths and rotation/retention unless an applicable contract amendment is approved.
 - [ ] Expose counters/timing for retries, denials, timeouts, truncation, audit/checkpoint failures, incomplete reports and usage. Validate correlation survives failed and resumed runs; unavailable metrics remain unknown.
 - [ ] Verify aggregate limits for task count, agent steps, calls, retries, elapsed time, context/output and available tokens/cost across children and resume. Exhaustion/cancellation prevents subsequent dispatch and bounds active subprocess cleanup.
 - [ ] Add startup/preflight checks for configured registry/tools, profile bindings, state stores, curated knowledge, enabled model/MCP adapters, policy and audit dependencies. Required failure stops execution/startup; optional failure disables capability with actionable diagnostics.
 - [ ] Verify readiness probes themselves are bounded and do not silently authenticate to cloud or call providers without approved mode. Offer offline configuration validation distinct from authorized connectivity checks.
-- [ ] Implement/review shutdown, data quota/retention/export/deletion, credential rotation/revocation and policy-version identification procedures using Phase 03 data rules. Shutdown preserves interruption visibility and does not mutate workloads.
+- [ ] Implement/review shutdown, data quota/retention/export/deletion, credential rotation/revocation and policy-version identification procedures using Phase 03 data rules. Shutdown preserves interruption visibility and does not mutate workloads. Credential rotation/revocation procedures remain operator-owned and grant the diagnostic runtime no credential-administration authority.
 - [ ] Reuse current build/deployment/validation seams and document prerequisites/version pinning; do not add a parallel deployment lineage or require a monitoring cluster for local visibility.
 
 Done when:
@@ -69,7 +69,7 @@ Estimate: **1-2 days / 6-12 hours**.
 - [ ] Record single-agent plus evidence-review baseline results and specialist capability as disabled in configuration, discovery and the release matrix. Review is a core stage, not dependent on specialists.
 - [ ] Define future specialist enablement gate: approved task/scope/tool/context budgets, application-owned dependencies, structured evidence-linked handoffs, conflict-as-review handling and no autonomous delegation. Future work must rerun delegated scope-escape fixtures.
 - [ ] Require a versioned quality/cost/latency comparison against the single-agent baseline and passing isolation tests before any specialist activation. Do not implement multi-agent complexity merely to satisfy an educational milestone; AC-020 records optional-disabled until separately authorized.
-- [ ] Assemble FR/NFR/AC evidence links from the overview matrix, capability versions, pass/fail/blocked/optional-disabled statuses, security exceptions (which block affected enablement), unresolved decisions and owners.
+- [ ] Assemble FR/NFR/AC evidence links from the overview matrix, capability versions, pass/fail/blocked/optional-disabled statuses, unapproved or unresolved security deviations (which block affected enablement), approved exceptions with their exact scope and approval evidence (without generalizing them), unresolved decisions and owners.
 - [ ] Document operator workflows for no-provider operation, partial diagnosis, checkpoint/audit failure, revocation, data handling, extension review and rollback; ensure a second operator can interpret evidence without private model reasoning.
 
 Done when:
