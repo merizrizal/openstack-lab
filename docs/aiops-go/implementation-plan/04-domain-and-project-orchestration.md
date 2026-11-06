@@ -25,7 +25,7 @@ Excluded: unrestricted diagnostic DAG types, generic tools, parallel/distributed
 - [ ] A single agent plus a deterministic review stage, with bounded model-assisted semantic review where authorized, is the baseline.
 - [ ] Higher-visibility positive scenarios can use offline fixtures now; deployed host/operator use remains independently gated.
 
-Dependency: Phase 03; Phase 05 is needed only for live optional evidence, not for honest partial reports or offline domain acceptance.
+Dependency: [Phase 03](03-durable-state-and-knowledge.md), including its inherited [Phase 01 contract reconciliation](01-safety-boundary-and-manual-slice.md#constraint-reconciliation-and-authority), required approved amendments and acceptance-evidence gates. Before implementation, the later executable contract must identify the approved PRD and other governing source revisions, accepted Phase 01–03 revisions, applicable amendments and prerequisite verification evidence; neither a commit nor a draft review establishes approval or prerequisite acceptance. Phase 05 is needed only for live optional evidence, not for honest partial reports or offline domain acceptance.
 
 ## 04.5 Ordered Tasks
 
@@ -56,6 +56,7 @@ Estimate: **2-3 days / 12-18 hours**.
 - [ ] Preserve completed dependencies on resume and recheck current authorization for remaining tasks. Test child checkpoint failure, interrupted task result and approval/policy revocation without duplicating accepted work.
 - [ ] Keep normal synthesis blocked if required evidence tasks fail. Provide an application-defined partial-report path after dependency outcomes are known that explicitly describes failed/blocked coverage; it must not mark failed dependencies successful or execute a success-only graph node.
 - [ ] Test two-server success, one-server failure/other completed evidence, missing/blocked dependencies, cancellation and resume. Record exact call order, per-target observations and terminal/report outcomes at the CLI/orchestrator seam.
+- [ ] Inject a partial-report finalization checkpoint failure and test concurrent resume of a partially completed project. Preserve committed evidence and provenance, expose failure without false completion or successful publication, and prevent duplicate dispatch.
 
 Done when:
 
@@ -67,10 +68,11 @@ Estimate: **2-3 days / 12-18 hours**.
 
 - [ ] Define material claims with supporting/contradicting evidence IDs and verification classifications. Deterministically validate reference existence, source/scope/time, collection status and required task coverage before finalization.
 - [ ] Add semantic review against a labeled corpus: a valid citation is not automatically supporting evidence. Cover unsupported causal claims, irrelevant references, contradictions, truncated collections, stale memory and fabricated confirmation.
-- [ ] Permit only bounded follow-up inside existing approved scope/capabilities and remaining budgets. A needed scope expansion returns a new proposal for approval; a review concern cannot silently schedule new authority.
+- [ ] Permit bounded follow-up only when already authorized by the approved tasks, scope, capabilities and remaining budgets. Any change to the validated plan, including its tasks, dependencies or limits, invalidates the existing approval and requires renewed approval; a needed scope expansion likewise returns a new proposal for approval. A review concern cannot silently schedule new authority.
 - [ ] Finalize reports with scope, task coverage, facts, interpretations, hypotheses, missing/contradictory evidence, review findings, outcome, manual recommendations, citations and usage/stop metadata.
 - [ ] Ensure a completed process with insufficient evidence yields partial/inconclusive diagnosis. Root-cause confirmation requires direct support, not confidence, tool success or reviewer agreement.
 - [ ] Test hostile child reports and model review output; neither may alter policy, dependencies, provider, approval or evidence records. No self-delegation or mutation tools are introduced.
+- [ ] Test multi-target synthesis with colliding child-local evidence IDs (for example, each child has `E1`). Claims and exports must resolve to the correct child and target or reject ambiguous references; preserve provenance and never substitute another child's evidence.
 - [ ] Regress the single-server and no-provider paths plus versioned exports. Capture reviewer false acceptance/rejection cases for Phase 06 quality measurement, not merely snapshot formatting tests.
 
 Done when:

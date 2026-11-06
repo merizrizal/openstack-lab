@@ -14,7 +14,7 @@ Total: **5-8 engineer-days / 30-48 focused hours**.
 
 ## 03.3 Scope
 
-Included: versioned investigation/workflow/project persistence, writer exclusion, interruption semantics, migration/rollback, context classes, scoped memory, curated lexical retrieval and protected exports. Primary requirements: FR-014–FR-018, continued FR-001/FR-019/FR-029; NFR-004–NFR-005, NFR-012. Evidence: AC-007–AC-009 and resumed-call portion of AC-004.
+Included: versioned investigation/workflow/project persistence, writer exclusion, interruption semantics, migration/rollback, context classes, scoped memory, curated lexical retrieval and protected exports. Primary requirements: FR-014–FR-018, continued FR-001/FR-019/FR-029/FR-039–FR-040; NFR-004–NFR-005, NFR-012. Evidence: AC-007–AC-009, resumed-call portion of AC-004 and recovery subset of AC-022.
 
 Excluded: database/distributed stores, concurrent operators, parallel scheduling, raw repository ingestion, embeddings/vector services and automatic in-place historical conversion.
 
@@ -25,7 +25,9 @@ Excluded: database/distributed stores, concurrent operators, parallel scheduling
 - [ ] Data owner selects retention, size ceilings, freshness windows and export permissions before persistent production use.
 - [ ] Single local operator and sequential execution are sufficient; conflicting writers are serialized or rejected explicitly.
 
-Dependency: Phase 02. Provides durable contracts for multi-server orchestration and MCP resources.
+Dependency: [Phase 02](02-bounded-investigation.md), including its inherited [Phase 01 contract reconciliation](01-safety-boundary-and-manual-slice.md#constraint-reconciliation-and-authority). Before execution, identify the approved PRD revision, accepted Phase 01–02 revisions, applicable amendments and verification evidence; a commit or draft review does not establish approval. Provides durable contracts for multi-server orchestration and MCP resources.
+
+Checkpoint intent is application state, not authorization to extend the accepted runner's closed audit protocol. Preserve its event fields and cardinality, fixed paths, rotation/retention and unsafe-path recovery rules unless an applicable amendment is approved; a proposed audit intent/event extension requires Level 2 approval and governing contract amendment before activation. General data retention must not silently replace those audit rules.
 
 ## 03.5 Ordered Tasks
 
@@ -41,10 +43,14 @@ Estimate: **2-3 days / 12-18 hours**.
 - [ ] Make intentional refresh/re-observation explicit and audited, creating a new timestamped observation rather than replacing historical evidence. Preserve cumulative budgets and usage across resume; no reset loophole.
 - [ ] Separate pause from cancellation and operational completion from diagnostic outcome. Inspect interrupted/blocked work without a provider, and propagate checkpoint errors from all failure and pause paths.
 - [ ] Inject crashes before dispatch, during calls, after results before checkpoint and during finalization; test failed writes, corrupt versions, revoked policy, duplicate resume and uncertain-call display at the CLI boundary.
+- [ ] Test restart with exhausted and partially consumed budgets, including a crash after dispatch before result/checkpoint. Keep uncertain usage explicit as unknown and enforce conservative limits, never treating it as zero or replenishing allowance; if remaining allowance cannot be bounded safely, prevent further dispatch. Prove intentional re-observation consumes remaining allowance and exhausted budgets permit no further model or tool dispatch. [Phase 06](06-evaluation-and-operational-readiness.md) consolidates and reruns these regressions; it does not defer this gate.
+- [ ] Exercise cross-sink recovery for terminal-audit failure and for checkpoint failure after a durable terminal audit: no premature successful publication or automatic replay, committed evidence and persisted audit events remain intact, and incomplete/uncertain transitions are visible on restart. For audit failure, withhold diagnostic payload and raw errors, expose failure locally and block further calls until safe recovery. Do not erase an audit event to simulate rollback or claim atomicity across external calls and both sinks.
+- [ ] Test duplicate record/evidence IDs and requested-versus-stored ID mismatch; reject collisions or mismatches without overwriting unrelated records. Test an exact name resolving to a different canonical resource after restart: never silently rebind the approved target; do not impose uniqueness on OpenStack names.
 
 Done when:
 
 - [ ] AC-007 and resumed AC-004 cases prove no silent replay or scope expansion, no falsely reported save, and preservation of completed work.
+- [ ] Before resume is enabled, the restart, uncertain-usage, re-observation and exhaustion tests above pass for cumulative budgets (FR-039–FR-040, recovery subset of AC-022), alongside the cross-sink and identity regressions.
 
 ### Step 2 - Bound and partition context and retrieval
 
@@ -67,9 +73,10 @@ Done when:
 Estimate: **1-2 days / 6-12 hours**.
 
 - [ ] Inventory representative existing state/exports with sanitized fixtures. Define supported legacy versions, read-only inspection of unsupported records and explicit conversion to a new destination with verification and backup.
-- [ ] Test migration preservation of original goals, IDs, timestamps, child links and outcomes; absent legacy authority/evidence fields must not be invented. Legacy records without sufficient approval remain non-resumable until reviewed.
+- [ ] Test migration preservation of original goals, original/resolved identity, IDs, timestamps, child links and outcomes; absent legacy authority/evidence fields must not be invented. Legacy records without sufficient authority remain non-resumable until the existing validated-plan and exact-approval requirements, including current authorization, are satisfied.
+- [ ] Test duplicate record/evidence IDs and conversion-destination collisions; reject unsafe conversions without overwriting unrelated records or silently rebinding a target.
 - [ ] Rehearse rollback using untouched backups and compatible runtime/configuration. Do not migrate saved state in place or remove original audit evidence on conversion failure.
-- [ ] Implement approved retention, maximum data volume, safe export/deletion and restrictive permissions. Protect exports with the same scope/redaction policy; constrain local application writes to its data area.
+- [ ] Implement approved retention, maximum data volume, safe export/deletion and restrictive permissions without changing the inherited audit retention and unsafe-path contract. Protect exports with the same scope/redaction policy; constrain local application writes to its data area.
 - [ ] Verify cross-version export schemas, dangling evidence handling after retention, provider-independent inspection and full checkpoint/resume/knowledge regression of the Phase 02 workflow.
 
 Done when:
@@ -79,7 +86,7 @@ Done when:
 ## 03.6 Phase Definition of Done
 
 - [ ] Durable state/resume handles all defined interruption points, writer conflicts and policy changes honestly.
-- [ ] Completed work is retained; re-observation is visible, budgeted and auditable.
+- [ ] Completed work is retained; re-observation is visible, budgeted and auditable. Resume remains disabled until the focused restart and cumulative-budget regressions pass, including uncertain usage and zero dispatch on exhaustion.
 - [ ] Scoped memory and curated retrieval enrich reports with provenance without acquiring authority.
 - [ ] Schema, retention, freshness and migration decisions have owners and tests; no unresolved production-data assumption is hidden.
 

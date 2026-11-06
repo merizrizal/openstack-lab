@@ -10,6 +10,7 @@ import (
 
 	"openstacklab/openstack-ai/internal/agent"
 	"openstacklab/openstack-ai/internal/ai"
+	"openstacklab/openstack-ai/internal/delegation"
 	"openstacklab/openstack-ai/internal/team"
 )
 
@@ -32,6 +33,18 @@ func (c *reviewSnapshotClient) ChatStructured(_ context.Context, messages []ai.M
 			c.t.Fatal(err)
 		}
 		if len(work.Input.Evidence) != 1 || !strings.Contains(string(work.Input.Evidence[0].Data), "NoValidHost") {
+			c.t.Fatalf("selector did not receive the scoped snapshot: %+v", work.Input)
+		}
+		return jsonResponse(c.t, delegation.Selection{
+			Action: delegation.Direct, Specialist: delegation.None, Objective: "",
+			EvidenceIDs: []string{}, Reason: "No specialist is required for this evidence.",
+		}), nil
+	case 2:
+		var work team.Work
+		if err := json.Unmarshal([]byte(messages[1].Content), &work); err != nil {
+			c.t.Fatal(err)
+		}
+		if len(work.Input.Evidence) != 1 || !strings.Contains(string(work.Input.Evidence[0].Data), "NoValidHost") {
 			c.t.Fatalf("investigator did not receive the scoped snapshot: %+v", work.Input)
 		}
 		report := team.Report{
@@ -41,7 +54,7 @@ func (c *reviewSnapshotClient) ChatStructured(_ context.Context, messages []ai.M
 			MissingEvidence: []string{},
 		}
 		return jsonResponse(c.t, report), nil
-	case 2:
+	case 3:
 		var input team.ReviewInput
 		if err := json.Unmarshal([]byte(messages[1].Content), &input); err != nil {
 			c.t.Fatal(err)
@@ -122,7 +135,7 @@ func TestReviewSnapshotStepPublishesReviewedReport(t *testing.T) {
 	if next != StepRenderReport {
 		t.Fatalf("next step = %q, want %q", next, StepRenderReport)
 	}
-	if client.calls != 2 || state.EvidenceReview == nil || state.EvidenceReview.Outcome != team.Accepted {
+	if client.calls != 3 || state.EvidenceReview == nil || state.EvidenceReview.Outcome != team.Accepted {
 		t.Fatalf("calls=%d evidence review=%+v", client.calls, state.EvidenceReview)
 	}
 	if got := state.EvidenceReview.Rounds[0].Report.Claims[0].EvidenceIDs; len(got) != 1 || got[0] != "E1" {

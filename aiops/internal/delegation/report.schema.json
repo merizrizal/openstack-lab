@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string", "enum": ["observation", "interpretation", "hypothesis"]},
+          "text": {"type": "string"},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["id", "kind", "text", "evidence_ids"]
+      }
+    },
+    "missing_evidence": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["claims", "missing_evidence"]
+}
