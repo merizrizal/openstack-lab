@@ -8,14 +8,14 @@
 
 **Related contract:** [DRAFT bounded Phase 01 task](../tasks/01-safety-boundary-and-manual-slice-task.md).
 
-**Approval reference:** `Approved-phase-01`, supplemented by the user's Q1–Q3 decisions recorded in §6. Q1 confirms the Phase 01 requirements baseline at `0182da9f7c2b322df5da49262748974009db7332`; Q2 approves compatibility-first revised-runner reuse subject to scope/parity proof; Q3 selects versioned amendments for full Phase 01 behavior.
+**Approval reference (reported; provenance unconfirmed):** `Approved-phase-01`, supplemented by the Q1–Q3 decisions recorded in §6; see the provenance limitation in §1. Q1 confirms the Phase 01 requirements baseline at `0182da9f7c2b322df5da49262748974009db7332`; Q2 approves compatibility-first revised-runner reuse subject to scope/parity proof; Q3 selects versioned amendments for full Phase 01 behavior.
 
 **Disposition:** Ready for independent draft specification review, not implementation. The product/approach choices are recorded; the detailed amendment clauses remain DRAFT proposals requiring review, approval and incorporation before activation. This ADR neither approves itself nor edits governing sources.
 
 ## 1. Source hierarchy and revision record
 
 1. Repository instructions are exposed by `.agents/AGENTS.md`, a symlink to `$HOME/.agents/AGENTS.md`; there is no root `AGENTS.md` at the inspected revision. The session also supplies `$HOME/.pi/agent/AGENTS.md`. They require explicit scope, committed approved task contracts, independent review and Level 0/1/2 authority separation.
-2. The canonical [Go PRD](../prd.md) defines intended product behavior. Its file header and [Overview 00](../implementation-plan/00-implementation-overview.md) still describe draft status and historically missing approval. The later user Q1 confirmation in §6 approves **only the Phase 01 requirements in the PRD and source plan at the recorded revision**. It does not approve all later phases, alter those source files, or authorize implementation/deployment. Q2/Q3 record the selected approach and amendment route, not approval of every newly drafted wire detail.
+2. The canonical [Go PRD](../prd.md) defines intended product behavior. Its file header and [Overview 00](../implementation-plan/00-implementation-overview.md) still describe draft status and historically missing approval. The recorded Q1 confirmation in §6 reports approval of **only the Phase 01 requirements in the PRD and source plan at the recorded revision**. It does not approve all later phases, alter those source files, or authorize implementation/deployment. Q2/Q3 record the selected approach and amendment route, not approval of every newly drafted wire detail.
 3. Source plan §01.4, “Constraint reconciliation and authority,” expressly preserves the revised placement, identity, selective-reuse and runner contracts. Their fixed constraints govern this integration until specifically amended. Revised phase numbers are not Go phase numbers. Later restricted-host amendments do not grant this task host access.
 4. [Knowledge base](../../base-knowledge.md), [architecture study](../../architecture.md), root `README.md` and `docs/README.md` describe existing lab topology and validation. They do not grant diagnostic privileges. The [baseline](../aiops-baseline.md), including its ending curriculum, is conceptual/educational; generic coding, deployment, database and write-approval examples are not product capabilities.
 5. Current code and test sources establish observed seams, not accepted deployment or a fresh passing baseline. These two new draft files are below all approved sources in authority.
@@ -25,13 +25,14 @@
 | Inspection base / candidate implementation-base proposal | `0182da9f7c2b322df5da49262748974009db7332` |
 | Branch | `aiops-go-phase01` |
 | Original authoring working tree | Clean before the first drafts were created. |
-| Approval-revision starting tree | Only these two untracked drafts, already renamed to their current `01-...-adr.md` / `01-...-task.md` paths. Existing user filename, cross-reference and `$HOME` portability edits are preserved. No tracked or staged changes. |
+| Historical approval-revision starting tree | Only these two untracked drafts, already renamed to their current `01-...-adr.md` / `01-...-task.md` paths. Existing user filename, cross-reference and `$HOME` portability edits are preserved. No tracked or staged changes. |
 | Approved requirements baseline | Q1 confirms Phase 01 requirements in `docs/aiops-go/prd.md` and `docs/aiops-go/implementation-plan/01-safety-boundary-and-manual-slice.md` at `0182da9f7c2b322df5da49262748974009db7332`. This is not whole-PRD/later-phase approval. |
-| Future implementation base | Current HEAD is the inspected code baseline; future preflight must identify the actual base after approved specifications/amendments are committed. No implementation authorization is inferred. |
+| Future implementation base | `0182da9f7c2b322df5da49262748974009db7332` remains the inspected code baseline; only the two drafts changed through `d9cf32e36e33e29aa4f75e261fbcfafe6ce8558d`. Future preflight must identify the actual base after approved specifications/amendments are committed. No implementation authorization is inferred. |
 | Selective-reuse provenance | Manifest pins repository `0fbc8a45d5a31e5728caafe90d3cda7da616c911` and historical runtime tree `3abc4bcf3fa4caf1c6d89f8d25865e2c0aef8e07`. Read-only Git object resolution confirmed that tree at the pin and at current HEAD. This is not complete per-path dependency review or activation permission. |
-| Authoring candidate | Only `docs/aiops-go/architecture/01-safety-boundary-and-manual-slice-adr.md` and `docs/aiops-go/tasks/01-safety-boundary-and-manual-slice-task.md`, new untracked Markdown files; not staged or committed. |
+| Historical authoring candidate at `0182da9…` | Only `docs/aiops-go/architecture/01-safety-boundary-and-manual-slice-adr.md` and `docs/aiops-go/tasks/01-safety-boundary-and-manual-slice-task.md`, then new untracked Markdown files; not staged or committed. |
+| Reviewed committed draft candidate / correction-pass base | Both drafts are tracked and committed in `d9cf32e36e33e29aa4f75e261fbcfafe6ce8558d`. This correction pass started at that HEAD with a clean tree and both SHA-256 hashes matching the supplied review. Commitment does not establish approval. |
 
-At initial inspection no repository approval record/ref/message matching `Approved-phase-01` existed. The subsequent user confirmations reproduced in §6 now supply the missing Phase 01 approval provenance; these drafts record them without inventing a tracker reference, timestamp or separate signed record.
+**Approval-provenance limitation:** The original authoring pass reported no repository approval record/ref/message matching `Approved-phase-01`. This correction pass located Q1–Q3 only in these drafts, not a separately retrievable conversation/decision source or independent owner attestation. Preserve the recorded choices without automatically reopening them. At human approval, attach a retrievable source reference or obtain explicit owner attestation of their bounded scope. Neither draft commitment nor independent draft review authenticates prior conversational approval or grants execution authority. No approval record, timestamp or signed attestation is manufactured here.
 
 ## 2. Context and observed integration seams
 
@@ -55,7 +56,7 @@ Relevant revised test seams include `tests/tool_runner/test_request_gateway.py`,
 
 ## 3. Decision fidelity register
 
-F01–F12 are **local traceability row labels, not invented approved decision IDs**. `Approved-phase-01` and the user Q1–Q3 confirmations in §6 provide decision provenance. “Binding” means a retained existing constraint; “target” means the approved full Phase 01 behavior whose detailed versioned amendment is drafted in task §6.6. AM1–AM5 identify proposed amendment clauses, not already approved source changes. Original stakeholder rationale beyond the sources was not provided; engineering consequences in §4 are the author's reasoning.
+F01–F12 are **local traceability row labels, not invented approved decision IDs**. `Approved-phase-01` and the Q1–Q3 record in §6 identify the reported decisions, subject to the approval-provenance limitation in §1. “Binding” means a retained existing constraint; “target” means the approved full Phase 01 behavior whose detailed versioned amendment is drafted in task §6.6. AM1–AM5 identify proposed amendment clauses, not already approved source changes. Original stakeholder rationale beyond the sources was not provided; engineering consequences in §4 are the author's reasoning.
 
 | Row / authority | Affirmative rule and explicit negative/no-op rule | ADR consequence | Task location / future proof |
 | --- | --- | --- | --- |
@@ -125,6 +126,8 @@ No cloud resource IDs, names, relationships or existing application state may be
 
 ## 6. Recorded human decisions and amendment gate
 
+The quotations below are preserved from the original authoring record, not an independently retrieved transcript. The provenance limitation and source-reference/owner-attestation gate in §1 apply; no Q1–Q3 choice is reopened by this correction.
+
 ### Q1 — Phase 01 requirements baseline confirmed
 
 **User evidence:** After approving the Q1/Q2 recommendations, the user answered `Q1: Yes` to the explicit question whether approval covers the Phase 01 requirements in the PRD and source plan at `0182da9f7c2b322df5da49262748974009db7332`.
@@ -167,7 +170,9 @@ Binding references, read through their endings:
 - Restricted-host [Steps 1–4](../../ai-ops-revised/runtime/restricted-operator-and-host-diagnostics-steps-01-to-04-operations-contract.md) and [Steps 5–7](../../ai-ops-revised/runtime/restricted-operator-and-host-diagnostics-steps-05-to-07-operations-contract.md): inspected to account for current seven-tool source; their run-specific acceptance grants no Go Phase 01 host scope.
 - [Go Phase 03 recovery](../implementation-plan/03-durable-state-and-knowledge.md): owns later resumability, not authorization to extend this runner audit contract.
 
-The first authoring pass completed full-source inspection and document checks. This approval-revision pass preserves the user's renamed files and portability edits, records Q1–Q3 and adds draft AM1–AM5; its own full rereads, cross-document fidelity/requirement/link checks and complete pre-existing-untracked-versus-revised diff review are recorded with the task's authoring evidence. HEAD and approved sources remain unchanged; only these two untracked draft files are revised. No implementation formatter, test, build, migration, cloud call, credential operation or deployment is part of this pass. Author self-checks are not independent specification review.
+**Historical authoring evidence at `0182da9…`:** The first authoring pass completed full-source inspection and document checks. The subsequent approval-revision pass preserved the user's renamed files and portability edits, recorded Q1–Q3 and added draft AM1–AM5; its full rereads, cross-document fidelity/requirement/link checks and complete pre-existing-untracked-versus-revised diff review are recorded with the task's historical authoring evidence. In that snapshot, HEAD and approved sources remained unchanged and only these two untracked drafts were revised. Those are historical author self-checks, not current Git-state or independent-approval evidence.
+
+**Review-correction boundary:** The starting candidate is the committed draft pair identified in §1. This pass corrects historical Git-state wording and preserves the approval-provenance limitation only; it does not change product decisions or AM1–AM5. Only these two drafts are edited, with no staging/commit, implementation formatter/test/build, source-contract amendment, migration, cloud call, credential operation or deployment. Author self-checks do not replace independent review.
 
 Approval of these drafts, approval/commit of any amendments, later implementation preflight and a separately authorized compile-safe implementation plan/execution are distinct future gates. No execution ladder or automatic next phase is issued here.
 
