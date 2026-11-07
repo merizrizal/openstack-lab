@@ -2,7 +2,7 @@
 
 ## 1. Publication Status and Authority
 
-**Status:** Human-approved documentation publication for independent review. AM1–AM5 content approval, approval of the four-document incorporation candidate and explicit authorization to commit before independent review are recorded below with exact content identities. Independent review remains outstanding; verify commitment from Git rather than inferring it from approval. Whole-ADR/task approval and Q1–Q3 provenance remain unresolved. This document grants no implementation, deployment or live-use authority.
+**Status:** Human-approved documentation publication for independent review. AM1–AM5 content approval, approval of the four-document incorporation candidate, explicit authorization to commit that candidate before independent review, and whole-ADR/task approval are recorded below with exact content identities. Fresh independent review remains outstanding; verify commitment from Git rather than inferring it from approval. Q1–Q3 provenance remains unresolved. This document grants no implementation, deployment or live-use authority.
 
 **Bounded purpose:** Incorporate the already-approved full Go Phase 01 amendments into the revised toolbox and runner contracts, without reducing the delivery to legacy behavior or selecting a different policy/registry/dispatch owner. This is a contract addendum, not an implementation plan or a second execution ladder.
 
@@ -11,10 +11,10 @@
 | Publication base | `4c5e6ae987cfeaafe5abc79bbeb6b5df076b5f74`, branch `aiops-go-phase01`; starting working tree clean. This is not a future implementation base or approval. |
 | Approved amendment text | [Task §6.6](../../aiops-go/tasks/01-safety-boundary-and-manual-slice-task.md#66-draft-versioned-amendment-package--am1am5), task Git blob `04991e450d6659eeffc69f660749fb8b27700d65`, AM1 through AM5 only. |
 | Approval evidence | [Delivery §1](../../aiops-go/delivery/01-safety-boundary-and-manual-slice-delivery.md#1-plan-identity-and-objective), delivery Git blob `ffb89dc6d69a9bc051d11acf9fb0de1261affa4b`, records the user's statement `I explicitly approve AM1–AM5` against that task blob. Do not reopen unchanged amendment-content approval. |
-| Whole-document / provenance boundary | [ADR §§1/6](../../aiops-go/architecture/01-safety-boundary-and-manual-slice-adr.md), ADR blob `ff53a9fe28359592494e637a7f8e16186b8bddb0`, and task §2.1 retain independent review, human whole-document approval, bounded Q1–Q3 source reference or owner attestation, and commitment gates. Amendment approval is not any of those. |
+| Whole-document / provenance boundary | [ADR §§1/6](../../aiops-go/architecture/01-safety-boundary-and-manual-slice-adr.md), ADR blob `ff53a9fe28359592494e637a7f8e16186b8bddb0`, and task §2.1 historically required independent review, human whole-document approval, bounded Q1–Q3 source reference or owner attestation, and commitment. Amendment approval alone was not any of those. The subsequent whole-document approval is recorded below; provenance and fresh independent review remain separate gates. |
 | Report being addressed | User-supplied Delivery 1 implementation-preflight report for the publication base concluded `PREFLIGHT_BLOCKED`: whole-document approval/provenance and committed governing incorporation were not established; execution environment/baseline remained unverified. It is negative readiness evidence, not approval or a passing test result. |
 
-The source task/ADR/plan remain unchanged so that their recorded content identities stay inspectable. Their older descriptions of AM1–AM5 as draft/proposed describe the original authoring state; the later exact-content approval above resolves amendment-content approval only. This publication does not retroactively approve the whole task/ADR, authenticate Q1–Q3, or change PRD/source-plan headers.
+The source task/ADR/plan remain unchanged so that their recorded content identities stay inspectable. Their older descriptions of AM1–AM5 as draft/proposed and whole-document approval as outstanding describe their historical authoring state. The separate later approvals below do not authenticate Q1–Q3 or change PRD/source-plan headers.
 
 Section 3 reproduces the five approved clause bodies and headings verbatim. Words such as “proposed” within that preserved text are historical proposal wording, not a request to approve the same content again. Section 2 states exactly where the clauses apply; §4 preserves outstanding gates. A material change to a clause requires its own review/approval, not reuse of the recorded approval.
 
@@ -35,11 +35,22 @@ The addendum hash identifies the submitted candidate **before this approval-reco
 
 **Subsequent commit authorization:** The user then stated: `I approve all the changes, so we need  to commit first  then we can hand this over to the independent review`. At that instruction, the addendum including its first approval record had Git blob identity `50d590524602fe45f9a1a65f2c16b79cda96859c`; the three contract hashes above were unchanged. This explicitly authorizes staging and committing these four documentation files before fresh independent review. This additional record changes no amendment clause or scoped governing delta.
 
-**Approval boundary:** These statements approve the documentation changes and, in the subsequent instruction, their commit for review. They do not approve the unchanged whole ADR/task, attest Q1–Q3, supply independent review, or authorize implementation, deployment, push/merge or live operations. Those separate gates remain explicit in §4.
+**Approval boundary:** These incorporation statements approve the documentation changes and, in the subsequent instruction, their commit for review. By themselves they did not approve the unchanged whole ADR/task, attest Q1–Q3, supply independent review, or authorize implementation, deployment, push/merge or live operations. The separate subsequent whole-document approval and remaining gates are recorded below.
+
+### Human Whole-Document Approval of the ADR and Task
+
+After the reviewed candidate `980080745cc97401a6796fffd1dc17c75fcf2c81`, the human stated in this conversation: `I have completely approve them.` This approves the whole Delivery 1 ADR and task candidates, identified by their Git blobs:
+
+| Approved document | Approved Git blob |
+| --- | --- |
+| [Delivery 1 ADR](../../aiops-go/architecture/01-safety-boundary-and-manual-slice-adr.md) | `ff53a9fe28359592494e637a7f8e16186b8bddb0` |
+| [Delivery 1 task](../../aiops-go/tasks/01-safety-boundary-and-manual-slice-task.md) | `04991e450d6659eeffc69f660749fb8b27700d65` |
+
+This approval is distinct from the earlier AM1–AM5 and incorporation approvals; none needs to be requested again absent material content drift. It does not attest Q1–Q3 provenance, supply independent review or authorize implementation, deployment, push/merge or live use. No timestamp, signature or prior approval source is inferred. The earlier whole-document approval gate is resolved for these exact blobs; material changes require fresh independent review and applicable approval.
 
 ## 2. Governing Incorporation and Version-Scoped Precedence
 
-The three affected operations contracts link to this addendum. Human approval of the incorporation candidate and authorization to commit it before independent review are recorded in §1. Once independent review and commitment are complete, the following deltas govern the explicitly selected Go Phase 01 view. Commitment must be verified from Git and does not satisfy the independent-review, whole-ADR/task approval or provenance gates.
+The three affected operations contracts link to this addendum. Human approval of the incorporation candidate and authorization to commit it before independent review are recorded in §1. Once independent review and commitment are complete, the following deltas govern the explicitly selected Go Phase 01 view. Commitment must be verified from Git and does not itself satisfy independent review, whole-ADR/task approval or provenance; the separate whole-document approval is recorded in §1.
 
 | Governing contract / affected sections | Incorporated clauses / precise scoped replacement |
 | --- | --- |
@@ -138,7 +149,7 @@ Rollback first stops new admission, bounds/cancels active work and preserves dur
 
 ## 4. Remaining Resolution and Verification Gates
 
-Cross-references such as “§4” inside the verbatim clauses retain their original **task** section meaning, not this addendum's numbering. In particular, AM1's metadata reference is to task §4. The enclosing task's other invariants and V1–V11 verification obligations remain; this publication does not replace or approve that whole task.
+Cross-references such as “§4” inside the verbatim clauses retain their original **task** section meaning, not this addendum's numbering. In particular, AM1's metadata reference is to task §4. The enclosing task's other invariants and V1–V11 verification obligations remain; this addendum does not replace that task. Whole-document approval is separately recorded in §1.
 
 | Gate | Current evidence / required resolution |
 | --- | --- |
@@ -146,14 +157,14 @@ Cross-references such as “§4” inside the verbatim clauses retain their orig
 | Incorporation-candidate human approval | Established by `I explicitly approve the changes` for the exact four-document candidate in §1. This resolves that documentation approval only; it does not establish the separate gates below. |
 | Independent review | The supplied implementation preflight is blocked, not a positive whole-specification verdict. Review this publication candidate and the exact ADR/task candidate in a fresh session; author self-checks are not independent review. |
 | Q1–Q3 provenance | Not established here. Owner must attach a retrievable bounded source or explicitly attest: Q1 approves Phase 01 PRD/source-plan requirements at `0182da9f7c2b322df5da49262748974009db7332` only; Q2 selects conditional compatibility-first revised-runner ownership, not a Go-owned fallback; Q3 selects full Phase 01 via versioned amendments, not reduced scope. No attestation is recorded as given. |
-| Whole-ADR/task approval | Not established here. Following review, the authorized human must explicitly approve the exact ADR/task identities in §1 for the bounded Phase 01 scope, with the already-approved AM1–AM5 and this publication's scoped incorporation. Do not relabel the unchanged drafts “approved” without that evidence. |
-| Governing publication/commit | Human approval and explicit authorization to stage/commit the four documentation files **before independent review** are recorded in §1. Verify the resulting exact commit and source identities with Git. This resolves commit authority, not independent review, whole-ADR/task approval, provenance, implementation readiness or deployment. Preserve approved clause bodies and approval records; do not stage unrelated work. |
+| Whole-ADR/task approval | Established for the exact ADR and task blobs in §1 by the human's subsequent whole-document statement. Historical draft headers remain unchanged; approval does not establish Q1–Q3 provenance, independent review or execution readiness. |
+| Governing publication/commit | Human approval and explicit authorization to stage/commit the four documentation files **before independent review** are recorded in §1. The reviewed candidate `980080745cc97401a6796fffd1dc17c75fcf2c81` contains that publication; verify exact source identities and the status of any later changes with Git. Commit authority does not itself establish independent review, whole-ADR/task approval, provenance, implementation readiness or deployment. Preserve approved clause bodies and approval records; do not stage unrelated work. |
 | Fresh implementation preflight | Repeat against the resulting committed sources and actual base. Verify approval separately from commitment; do not reuse the negative report or planner status as a positive verdict. The existing delivery plan remains the only ladder; reconcile any material source/plan drift before execution. |
-| Execution prerequisites | Per-path dependency closure and consumer review, compatible Go toolchain, confirmed user-provided Python venv and practical offline baseline remain execution-time work, not proven by this documentation. No tests/builds/formatters or live operations ran to author the publication. |
+| Execution prerequisites | Per-path dependency closure and consumer review, trusted-context feasibility, compatible Go toolchain, confirmed user-provided Python venv and practical offline baseline remain unverified execution-time prerequisites, not proven by this documentation. No tests/builds/formatters or live operations ran to author this approval update. |
 | Live use | Remains disabled until Phase 07 or a separately authorized equivalent deployed gate. Fixtures never establish current placement, routes, effective reader policy, credentials or model isolation. |
 
-**Decision request — approval/provenance:** Preserve the selected full scope and revised-runner direction. Prefer a retrievable Q1–Q3 source; explicit bounded owner attestation is the documented alternative when that source is unavailable. Obtain whole-specification approval after independent review rather than waiving the gate or inventing provenance. Independent documentation review can continue now; implementation cannot.
+**Decision request — provenance:** Preserve the selected full scope and revised-runner direction. Prefer a retrievable Q1–Q3 source; explicit bounded owner attestation is the documented alternative when that source is unavailable. Do not infer provenance from whole-document approval or invent an attestation. Fresh independent documentation review can continue now; implementation cannot.
 
 **Documentation verification required before submission:** Compare §3 byte-for-byte with task blob `04991e450d6659eeffc69f660749fb8b27700d65` from the AM1 heading through the end of AM5; verify all three incorporation notices, local links, tables, headings and endings; inspect the complete tracked/untracked diff and whitespace. Confirm PRD/ADR/task/plan and executable/configuration/protected inputs are unchanged. This prescribes document QA, not a claim that future implementation tests passed.
 
-**End of publication candidate. Approved amendment content is preserved; independent review, bounded whole-specification approval/provenance, committed incorporation, fresh preflight and separate execution authorization remain required.**
+**End of publication candidate. Approved amendment content and whole-document approval are recorded; fresh independent review, bounded Q1–Q3 provenance, verification of committed governing sources, fresh preflight and separate execution authorization remain required.**
