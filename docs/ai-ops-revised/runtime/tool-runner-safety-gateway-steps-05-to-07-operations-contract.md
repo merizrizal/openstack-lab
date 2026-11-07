@@ -15,6 +15,12 @@ It freezes the final result envelope, redaction boundary, audit event, audit per
 
 The runner remains the only execution boundary. Every request, including denied and pre-execution failures, follows one normalized result and audit path. No branch may emit raw child output, raw exceptions, or partially redacted content.
 
+## Go Phase 01 Amendment Incorporation — Publication Candidate
+
+The [versioned diagnostic addendum](go-phase01-versioned-diagnostic-amendments.md) reproduces the approved AM1–AM5 clauses from task blob `04991e450d6659eeffc69f660749fb8b27700d65`. Amendment-content approval does not establish incorporation review/commit, whole-ADR/task approval, Q1–Q3 provenance or implementation-preflight readiness; the addendum §§1–2/4 preserve those gates. This notice authorizes no implementation or live operation.
+
+For the explicitly selected Go Phase 01 view, AM3 replaces the closed result/status contract with result `2.0`, seven statuses and distinct child/process exits. AM4 replaces single-terminal cardinality with audit `2.0` intent-before-dispatch and terminal-before-success, adding shared/restart-safe control failure handling and unresolved-intent retention within the fixed filesystem bounds. AM5 governs explicit consumer versions, mixed-version inspection, no-rewrite/no-replay compatibility and safe rollback. AM1/AM2 constrain the same revised owner and bounded catalog. After publication gates pass, those clauses take precedence over conflicting legacy wording below and the historical result/audit ADS for that view only. Frozen `1.0` results and events are not extended, flattened or rewritten; sanitizer, identity, least-privilege, safe-path/locking/durability and non-activation protections remain except for the exact versioned deltas. Incompatible later host/MCP consumers remain disabled for the new protocol, not silently migrated.
+
 ## Non-Activation and Capability Boundary
 
 This contract introduces no executable file, deployment change, profile, credential, host connection, Ansible run, OpenStack request, MCP registration, or cloud-state authority. Validation remains fixture-driven.

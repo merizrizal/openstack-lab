@@ -14,6 +14,12 @@ It defines the contract for later implementation of registry validation, named-r
 
 Steps 5–7 remain authoritative for the final result envelope, complete audit events, and the complete safety regression suite.
 
+## Go Phase 01 Amendment Incorporation — Publication Candidate
+
+The [versioned diagnostic addendum](go-phase01-versioned-diagnostic-amendments.md) reproduces the approved AM1–AM5 clauses from task blob `04991e450d6659eeffc69f660749fb8b27700d65`. Its §§1–2/4 retain incorporation review/commit, whole-ADR/task approval, Q1–Q3 provenance and implementation-preflight gates separately from amendment-content approval. No implementation or activation is authorized here.
+
+For the explicitly selected Go Phase 01 view, AM1 extends definitions to schema `2` and requires trusted scope/policy/control enforcement at the same revised owner, including any narrow fixed SDK implementation. AM2 limits the view to the three project tools and its versioned projection; AM3 adds `cancelled → 6` only to result `2.0`; AM4 requires durable intent/control checks before dispatch; AM5 governs consumers, allowlists and rollback. After publication gates pass, these clauses replace conflicting legacy capability/schema/request/status/deployment restrictions below and in the historical runner ADS for that view only. Legacy definitions/statuses, fixed script mappings, minimal environment, privilege/limit protections and separately governed later host/MCP behavior remain unchanged outside those exact deltas. No caller override, parallel policy owner, unscoped legacy fallback or deletion of later tool definitions is permitted.
+
 ## Non-Activation Boundary
 
 This document introduces no executable files, deployment role, validation playbook, host connection, Ansible execution, credential operation, profile read, OpenStack call, cloud-state authority, or audit record.
