@@ -2,13 +2,13 @@
 
 ## 1. Plan identity and objective
 
-- **Planning status: PLAN_BLOCKED for execution — superseding specifications await independent review, approval and commitment.** This is a complete candidate reconciliation ladder, not a passing preflight or an implementation instruction.
+- **Planning status: PLAN_BLOCKED for implementation — U4 and the current specification candidate are owner-approved; independent fresh-session review and fresh preflight remain pending.** This is a complete candidate reconciliation ladder, not a passing preflight or an implementation instruction.
 - **Sole execution ladder:** this document, `docs/aiops-go/delivery/01-safety-boundary-and-manual-slice-delivery.md`. Source phase files/old revised ADSs are requirements/design history, never another executable ladder.
-- **Scope:** Go Phase 01 Steps 1–3 / §01.6, now proposed under the [Go-owned ADR](../architecture/01-go-owned-safety-boundary-adr.md) and [bounded task](../tasks/01-go-owned-safety-boundary-task.md). They remain draft, not yet authoritative execution sources.
+- **Scope:** Go Phase 01 Steps 1–3 / §01.6 under the committed [Go-owned ADR](../architecture/01-go-owned-safety-boundary-adr.md) and [bounded task](../tasks/01-go-owned-safety-boundary-task.md), supplemented by the owner-approved [environment-auth ADR amendment](../architecture/01-go-owned-safety-boundary-env-auth-amendment.md) and [task amendment](../tasks/01-go-owned-safety-boundary-env-auth-amendment.md). U4 authorizes the Go-only environment-auth direction and this documentation candidate for commit. The amendments and revised ladder still require independent fresh-session review and fresh preflight before implementation.
 - **Objective:** useful named manual diagnostics without model or Python dependency through one Go-owned scoped, bounded, sanitized and durably audited boundary.
 - **Project mode:** existing project with partial implementation. Source presence is not safety acceptance.
-- **Reconciliation base:** `0015097ff8cd73d80cf04e38c0f088f18e48b384`, branch `aiops-go-phase01`, initially clean, no staged/unstaged/untracked work. Historical requirements/code baseline: `0182da9f7c2b322df5da49262748974009db7332`. No implementation delta in inspected Go/requirements paths between them.
-- **Execution authorization:** none. Mode **UNSELECTED**. All execution work remains unchecked. This documentation does not run Chunk 0 or a formal preflight.
+- **Original reconciliation base:** `0015097ff8cd73d80cf04e38c0f088f18e48b384`; historical requirements/code baseline: `0182da9f7c2b322df5da49262748974009db7332`. The accepted Go source candidate was inspected at `16cfe0ede231df7b90b4f93961a7b6eff16512a1`, branch `aiops-go-phase01`, clean before this documentation-only change. The candidate contains only specification, approval-record and handoff documents; no implementation delta is introduced. Verify the exact commit and tree at review time.
+- **Implementation authorization:** none. Mode **UNSELECTED**. The separately authorized Chunk 0 discovery/offline baseline was completed against the prior candidate at `16cfe0ede231df7b90b4f93961a7b6eff16512a1` and is recorded in §4. U4 documentation work is not a fresh implementation preflight and authorizes no later chunk.
 
 Smallest useful outcome:
 
@@ -25,7 +25,7 @@ The original plan at the reconciliation base has blob `ffb89dc6d69a9bc051d11acf9
 
 The prior [ADR](../architecture/01-safety-boundary-and-manual-slice-adr.md), [task](../tasks/01-safety-boundary-and-manual-slice-task.md) and [complete addendum](../../ai-ops-revised/runtime/go-phase01-versioned-diagnostic-amendments.md) remain unchanged. Prior AM1–AM5/whole-document/incorporation approval and Q1–Q3 attestation belong to their exact prior content. They do not approve the replacement.
 
-ADR U1 records the owner's explicit acceptance of review against the current committed publication candidate instead of recovery of missing addendum blobs; U2 selects reassessment of Go ownership; U3 authorizes this documentation. No recovered historical comparison is claimed. G1–G7 identify proposed ownership/definition/audit namespace/consumer/verification deltas. Fresh independent review must assess those deltas and the historical approval/review ordering. Any necessary correction needs separate authorization, followed by affected review/approval revalidation. Obtain approval/commit of the superseding sources, then fresh implementation preflight at the actual base and separate execution authorization. Do not implement either old or new ladder while these gates are unresolved.
+ADR U1 records the owner's explicit acceptance of review against the current committed publication candidate instead of recovery of missing addendum blobs; U2 selects reassessment of Go ownership; U3 authorizes the original documentation; U4 approves the Go-only process-environment authentication direction and the current documentation candidate for commitment. The approval provenance and exact candidate fingerprints are recorded in [the U4 approval record](02-go-environment-auth-approval-record.md); the prior approval record remains unchanged. No recovered historical comparison is claimed. G1–G7 identify proposed ownership/definition/audit namespace/consumer/verification deltas. A separate fresh agent must independently review those deltas, U4's credential-source implications, and historical approval/review ordering. If review requires a material change, obtain affected re-review and renewed approval/commit. Then perform fresh implementation preflight at the actual base and obtain separate execution authorization. Do not implement either old or new ladder while these gates are unresolved.
 
 ## 2. Sources and authority
 
@@ -34,35 +34,35 @@ ADR U1 records the owner's explicit acceptance of review against the current com
 | Repository instructions | `.agents/AGENTS.md` (symlink to `$HOME/.agents/AGENTS.md`), session `$HOME/.pi/agent/AGENTS.md`, entire instructions. | Scope, authority, verification and fresh-session review. |
 | Go PRD | `docs/aiops-go/prd.md`, blob `18add68f88a07ace80979f86b2009d2435524743`, entire document through Further Notes. | Product truth; Q1 attests bounded Phase 01 at the historical revision, not all phases. |
 | Source phase / overview / baseline | `implementation-plan/01-safety-boundary-and-manual-slice.md`, blob `0b02155576fdeec1d899ed9cc59142e2bce01d9b`; overview and educational baseline, read through endings. | Scope/deferred ownership; curriculum does not grant capabilities. |
-| New Go-owned ADR/task | Linked in §1; new working-tree proposals, no approved blob asserted. | Proposed supersession; G1–G7 and task §§4–9 specify constraints/evidence. |
-| Prior ADR/task | Blobs `ff53a9fe28359592494e637a7f8e16186b8bddb0` / `04991e450d6659eeffc69f660749fb8b27700d65`. Entire documents read. | Historical exact-candidate approval and preserved safety/traceability. |
+| Committed Go-owned ADR/task | ADR blob `58e8c4e2c9c2c92fb341a3b8693a49a09671efb9`; task blob `ab3dda9b0dfaa4b8e00b389a8485a0b5d1621e8f835039d1291af951ab639dbb`. | Accepted prior candidate; unchanged. |
+| U4 environment-auth amendments | Owner-approved [ADR amendment](../architecture/01-go-owned-safety-boundary-env-auth-amendment.md) and [task amendment](../tasks/01-go-owned-safety-boundary-env-auth-amendment.md); exact fingerprints and approval provenance in [U4 record](02-go-environment-auth-approval-record.md). | Narrow Go-only process-environment auth decision; preserve identity/project/no-fallback and legacy contracts. Independent fresh-session review and fresh preflight remain required. |
 | Addendum/current affected contracts | Addendum `d415d14414e6887fa71b3a9dea04520e9f88f4d1`; toolbox `3062e3b4b9fca362ea3d51decb8637dd8ad1b396`; runner 1–4 `993d8542232e92b0f3f81ae3957e0064f83b3900`; runner 5–7 `761faeb7e01e0348f8b08087af9f5ec503591079`. Entire files read. | U1's alternative review basis; not a Python dependency or approval of Go replacement. Missing historical addendum candidates remain missing. |
 | Revised placement/foundation/identity/reuse, runner ADSs and restricted-host contracts; Go Phase 03 | Complete relevant documents inspected. | Explicit compatibility/safety references; no legacy runtime/host/MCP activation or shared mutable audit. |
-| Current `aiops/` code, tests, `go.mod`, Makefile | Paths/symbols in §4; inspected, not executed. | Partial implementation/reuse evidence only. |
+| Current `aiops/` code, tests, `go.mod`, Makefile | Paths/symbols in §4 inspected; offline tests/vet/race and four command builds executed as recorded below. | Partial implementation/reuse evidence only; passing baseline is not safety acceptance. |
 
-After approval, the Go PRD/owner decisions and superseding Go ADR/task would govern this slice. Legacy contracts remain governing for their own runtimes. The source Phase 01 reconciliation is not silently discarded: proposed exceptions are exactly G1–G7. Fixed identity/placement and safety guarantees are retained; changed Go audit paths require explicit replacement approval. No PRD, roadmap or old approval record is edited here.
+With the U4 candidate committed (to be verified at fresh preflight), the Go PRD, original Go ADR/task, U4 amendments, and revised sole ladder are the candidate governing sources for this slice, subject to independent review and fresh preflight before implementation. Legacy contracts remain governing for their own runtimes. The source Phase 01 reconciliation is not silently discarded: proposed exceptions are exactly G1–G7. Fixed identity/placement and safety guarantees are retained; changed Go audit paths require explicit replacement approval. U4 changes only the Go authentication-input source, not identity, privilege, authorization policy, or legacy profile contracts. No PRD, roadmap or old approval record is edited here.
 
-Executor compatibility checked by reading installed `chunked-implementation` entrypoint, core safety, execution policy and delivery execution contract. Their defaults are embedded in §8. Real fresh-session orchestration was not tested and no executor was launched. No protected profile/inventory/generated cloud/raw audit data was read; complete transitive dependency/consumer review remains Chunk 0 work.
+Executor compatibility checked by reading installed `chunked-implementation` entrypoint, core safety, execution policy and delivery execution contract. Their defaults are embedded in §8. Real fresh-session orchestration was not tested and no executor was launched. Chunk 0 inspected the transitive consumers/code needed for the recorded baseline. No protected profile, `.env` value, inventory, generated cloud data, or raw audit data was read or used; `.env` inspection was limited to key names.
 
 ## 3. Scope, guardrails and proposed file ownership
 
 Implement only the three tools `server_basic_info`, `server_network_info`, `project_resource_summary`, closed definitions/inputs, trusted per-call policy/scope, bounded exact-name/UUID/derived relationships, reader isolation, seven-status `2.0` outcomes, durable intent/terminal/control recovery, manual CLI, offline evidence and guidance. Task §§4–7 contain exact fields, limits, event counts, filesystem protections and rollback; the ladder cannot weaken them.
 
-Preserve isolated `assistant02` / `ai_ops_assistant` / `aiops_assistant` / `/opt/openstack-ai-ops-assistant`, fresh reader-only profile/expiry/revocation and restricted file metadata. Proposed Go audit subdirectory is `/opt/openstack-ai-ops-assistant/audit/go/`, not the Python log/lock/state. Never inherit ambient credentials, proxy/provider/SSH settings or initialize a model on the manual path. Go credential loading of the existing protected format is a feasibility gate, not an approved parser dependency or changed credential layout.
+Preserve isolated `assistant02` / `ai_ops_assistant` / `aiops_assistant` / `/opt/openstack-ai-ops-assistant`, the dedicated reader identity, project/domain scope, expiry/rotation/revocation ownership, and applicable restricted metadata. For Go only, authentication inputs arrive in process environment supplied by a trusted operator-controlled launcher; Go must not load `.env` itself or use `clouds.yaml`, `secure.yaml`, or another profile as credential source/fallback. Any separate trusted noncredential policy/configuration source remains governed by the parent contract and is not changed by U4. The existing revised/Python profile contracts remain unchanged for those runtimes. The proposed Go audit subdirectory is `/opt/openstack-ai-ops-assistant/audit/go/`, not the Python log/lock/state. Never forward OpenStack credentials to a model/child process or let proxy/provider/SSH environment alter the approved transport. This environment-source choice does not prove reader privileges; effective access remains a separate live gate.
 
 Exclude mutation/remediation, generic executable/shell/SSH/HTTP/file/database tools, stronger credentials, historical runtime reuse, model/agent/planner integration, specialists, investigation recovery/memory/RAG, project/domain/volume workflows, host/MCP, full eval platform, public API/service/UI or future infrastructure. No installation, provisioning, live calls/probes, credential operation, protected-data/audit inspection, root Makefile/Molecule/host Ansible execution, staging/commit/push/merge/deploy.
 
-New paths below are **proposed** and must be confirmed in Chunk 0; no application file is created during planning:
+New paths below are **proposed** and must be reconfirmed at fresh preflight; the prior Chunk 0 inspected current code/consumers but created no application file:
 
 | Alias | Proposed source / responsibility |
 | --- | --- |
 | GO | `aiops/internal/diagnostics/`: `definitions.go`, `boundary.go`, `result.go`, `sanitize.go` and focused `_test.go` files. One owner, not a second policy registry. |
 | AUDIT | Same package: `audit.go`, `control.go`, corresponding tests for filesystem and multiprocess lifecycle. Only audit/control state, not investigation persistence. |
-| READER | Same package: `reader.go`, `server.go`, `network.go`, `summary.go`, with focused tests. Narrow Gophercloud SDK calls under owner lifecycle. |
+| READER | Same package: `reader.go`, `server.go`, `network.go`, `summary.go`, with focused tests. Closed process-environment auth mapping, authenticated identity/project verification and narrow Gophercloud SDK calls under owner lifecycle. |
 | CLI | `aiops/cmd/openstack-diagnostic/main.go`, `main_test.go`; manual command, no model construction. |
-| GUIDE | `docs/aiops-go/manual-diagnostics.md`: implemented usage, entry/consumer matrix, exact deployment manifest, extension/revocation/live prerequisites and rollback. |
+| GUIDE | `docs/aiops-go/manual-diagnostics.md`: implemented usage, entry/consumer matrix, deployment manifest, accepted Go authentication variable names and trusted-launcher ownership (no values), extension/revocation/live prerequisites and rollback. |
 
-Internal organization is Level 1 after approval; create only current-chunk necessities. Proposed filenames are not a mandate for broad abstraction. Record and check exact runtime/control artifact metadata in its introducing implementation chunk; the final manifest must receive applicable review before installation/live use. Temporary internal fixture roots are not production path overrides. A new dependency/credential layout/infrastructure needs separate approval, not merely a manifest entry.
+Internal organization is Level 1 after approval; create only current-chunk necessities. Proposed filenames are not a mandate for broad abstraction. Record and check exact runtime/control artifact metadata in its introducing implementation chunk; the final manifest must receive applicable review before installation/live use. Document accepted Go auth variable names and trusted-launcher ownership without values or a Go credential-file layout. Temporary internal fixture roots are not production path overrides. A new dependency, credential-file layout, or infrastructure needs separate approval, not merely a manifest entry.
 
 ## 4. Current state and baseline strategy
 
@@ -72,14 +72,14 @@ Internal organization is Level 1 after approval; create only current-chunk neces
 | `internal/tools/get_server.go`, `resolveServer`; `get_server_test.go` | UUID/exact-name/missing/ambiguous tests; `AllPages`, host/raw fault fields and raw errors require safe replacement on enabled path. |
 | `internal/tools/get_flavor.go` | Arbitrary flavor/extra-spec reads not selected capability. Use only derived bounded fields under owner. |
 | `internal/tools/get_ports.go`, `get_ports_test.go` | Project/device/response checks and 32-record/four-page ceilings; bound transport/decoding too. |
-| `internal/openstackclient/compute.go`, `network.go` | `AuthOptionsFromEnv` before dispatch is unsuitable. Use explicit dedicated source; disabled routes must not authenticate. |
+| `internal/openstackclient/compute.go`, `network.go` | Existing constructors call `AuthOptionsFromEnv`, which consumes ambient variables and supports modes broader than the approved password/project scope. The new Go boundary must constrain inputs to the approved environment allowlist; disabled routes must not authenticate. |
 | Three automatic `cmd/*/main.go` paths | Agent/workflow/project initialize model/SDK/registry directly. Quarantine diagnostics before side effects; preserve pure config/planning regression seams. |
 | `internal/scopedtools/broker.go` | Specialist assignment/budget/reader seam, not global owner; specialists remain disabled. |
 | `internal/planning/prepared.go`, `review.go` and tests | Digest/immutable copies/single-start/zero-start/original-goal/exact-name regressions to preserve, not new planning work. |
 | `internal/agent/filestore.go`, `internal/project/store.go` | Temp/sync/rename seam, not complete audit/control durability. No investigation schema change. |
-| `go.mod`, `Makefile` | Go `1.27.1`, Gophercloud `v2.14.0`; Go test/build targets build four commands. Toolchain/cache/fixtures unverified. Root Makefile is not safe wrapper. |
+| `go.mod`, `Makefile` | Module declares Go `1.27.1`, Gophercloud `v2.14.0`; baseline tests/vet and four-command build succeeded offline. Existing Makefile build was avoided to preserve ignored binaries. Root Makefile is not a credential loader/wrapper. |
 
-Actually performed: complete named source reads, relevant code/test reads, bounded path/symbol discovery, Git identity/status/diff inspection. **No project tests/builds, Go/Python execution, formatter, credential or live operation ran.** No passing baseline or reproduced implementation failure is asserted. Chunk 0 inspects test external effects before running the offline baseline.
+Chunk 0 was completed at base `16cfe0ede231df7b90b4f93961a7b6eff16512a1`: verified branch/HEAD, clean worktree and expected hashes for the original ladder/task/ADR/approval record; inspected relevant sources and consumers; no repository files were edited. With `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off`, focused tests passed: **108 tests across 4 packages**; `go test ./...` passed: **182 tests across 16 packages**; `go vet ./...` passed; race tests passed: **96 tests across 3 packages**. All four existing commands built to `/tmp/aiops-go-chunk0-build.7RXsPF`; `make build` was avoided so pre-existing ignored binaries in `aiops/bin` remained untouched. Temporary build outputs were not cleaned up. No cloud/live service, credential values, protected profiles, Python/legacy asset, formatter, or external dependency operation was used. `.env`/`.env.example` inspection was key-name-only; no `.env` value was displayed or used. These are pre-change discovery results, not verification of the draft amendments or future implementation. Fresh preflight must revalidate source identities and any material drift after exact-candidate approval/commit.
 
 ## 5. Requirement-to-chunk coverage
 
@@ -91,7 +91,7 @@ R labels are local tracking labels, not PRD IDs. Task §8 separately maps every 
 | R2 | FR-002/010/023, AM1 safety: immutable policy/context, closed definitions, zero pre-admission auth/bypass | Absent generally | 1, 2, 6 | V1/V2/V3; forged/stale/missing policy gives zero forbidden read |
 | R3 | FR-003/011/025: identity, server/fault/derived flavor, exact projected data | Broad/unbounded Go seams | 7, 8 | V4/V9; missing/ambiguous/wrong-scope no unintended target |
 | R4 | FR-011/025: authorized network/subnet relationships and separate project summary | Port seam only for Go | 9, 10 | V4/V5; no broad discovery/server-only project list |
-| R5 | FR-021/022/024/033; NFR-002/012: fixed reader, credentials/transport/model isolation design | Ambient constructors | 1, 6, 12, 14 | V3/V10/V11; source/metadata/canaries, zero fallback; live proof deferred |
+| R5 | FR-021/022/024/033; NFR-002/012: fixed reader, Go process-environment auth allowlist, transport/model isolation | Existing constructors consume broad ambient auth | 1, 6, 12, 14 | V3/V10/V11; synthetic env allowlist, no dotenv/profile-credential fallback, child-env canaries, zero fallback; live proof deferred |
 | R6 | FR-008/009/040; NFR-003: collection-time bytes/pages/memory/deadline/retries/concurrency/cancel | Partial ceilings | 5, 6, 7–11 | V5/V8; no post-cancel/exhausted/fault request, safe resource cleanup |
 | R7 | FR-027/039; AC-014: exact seven outcomes/target/correlation/time/independent flags/SDK null exit | Not implemented | 3, 5, 11 | V6; closed shapes and status-mapped process exits |
 | R8 | FR-028; NFR-004/006: durable intent before first contact, terminal before success, every-request terminal attempt | No general Go audit | 4, 5 | V7; real-filesystem ordered trace and fault injection |
@@ -106,38 +106,38 @@ Task §8's deferrals remain: 02 model/agent/nested calls/planning/initial report
 
 ## 6. Verification catalog and prerequisites
 
-All project checks below are **PLANNED_NOT_RUN**. Root working directory unless stated. Inspect discovered tests/skips and external effects; a zero-test/mandatory-skip result is not success.
+The §4 discovery baseline has run against base `16cfe0ede231df7b90b4f93961a7b6eff16512a1`. The commands below must be repeated as applicable after implementation; those future post-change checks remain planned. Root working directory unless stated. Inspect discovered tests/skips and external effects; a zero-test/mandatory-skip result is not success.
 
 | ID | Working directory / command or procedure | Prerequisites and required evidence |
 | --- | --- | --- |
 | B0 | Root: `rtk git rev-parse HEAD`, `rtk git status --porcelain=v1 --untracked-files=all`, full staged/unstaged and base-to-candidate source comparisons. | Actual base, source/approval freshness and pre-existing work. |
-| G0 | From `aiops/`: `rtk go version`; `rtk go test ./internal/tools ./internal/scopedtools ./internal/planning ./internal/workflow`. | First set session-local `export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off`. Compatible existing Go/cache, fake-only test inspection; baseline counts/failures. No download/install. |
-| G1 | From `aiops/`: `rtk go test ./...`, `rtk go vet ./...`, `rtk make build`. | Same offline environment; full Go suites/vet/four existing binaries, plus new command once Makefile includes it. Vet is a proposed additional standard-tool check. |
+| G0 | From `aiops/`: `rtk go version`; `rtk go test ./internal/tools ./internal/scopedtools ./internal/planning ./internal/workflow`. | Discovery baseline passed: 108 tests across 4 packages with `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off`; repeat after implementation. No download/install. |
+| G1 | From `aiops/`: `rtk go test ./...`, `rtk go vet ./...`, and build each actual command with explicit `-o` paths outside the repository (do not overwrite ignored `aiops/bin` files). | Discovery baseline passed offline: 182 tests across 16 packages, `go vet ./...`, and all four existing command builds to `/tmp/aiops-go-chunk0-build.7RXsPF`. Repeat after implementation; build the new command when it exists. `make build` is not used because it overwrites pre-existing ignored binaries. |
 | GF | From `aiops/`: `rtk go test ./internal/diagnostics -run '<actual-test-pattern>' -count=1`; command tests after CLI exists. | Proposed paths/patterns must first exist and discover intended cases; focused V1–V11, not helper-only claims. |
-| GR | From `aiops/`: `rtk go test -race ./internal/tools ./internal/scopedtools ./internal/planning`; add `./internal/diagnostics ./cmd/openstack-diagnostic` once created. | Compatible local race/compiler support; affected concurrency packages must run. Does not replace V8 independent processes. |
+| GR | From `aiops/`: `rtk go test -race ./internal/tools ./internal/scopedtools ./internal/planning`; add `./internal/diagnostics ./cmd/openstack-diagnostic` once created. | Discovery baseline passed: 96 tests across 3 packages. Repeat for affected packages after implementation; does not replace V8 independent processes. |
 | GOFMT | `rtk gofmt -w <actual-changed-go-files>` then verify no formatter delta remains. | Actual paths; syntax/import/symbol checks and focused tests after formatting. |
 | OS | Proposed Go tests in AUDIT/control fixtures launched by GF/full suite. | Linux temp directories, real OS locks and independent subprocesses; crash/restart/rotation/write/fsync/corruption failures V7/V8, bounded cleanup. No credentials/cloud. |
 | CLI | From `aiops/`: `rtk go test ./cmd/openstack-diagnostic ./internal/diagnostics`; `rtk go build -o bin/openstack-diagnostic ./cmd/openstack-diagnostic`. | Proposed paths after creation; compiled command fixture demonstrates no-model list/invoke with controlled API/owner configuration. No public test override. |
-| DOC | Validate local Markdown links/tables/fences/endings, guide commands vs actual help; static manifest metadata/version/default/namespace assertions via Go tests. | No privileged installer/Ansible host evaluation. Credential layout and new artifact allowlists need applicable approval before use. |
+| DOC | Validate local Markdown links/tables/fences/endings, guide commands vs actual help; static manifest metadata/version/default/namespace assertions via Go tests. | No privileged installer/Ansible host evaluation. Document Go auth variable names/provenance without values; no Go credential-file layout. New runtime/control artifact allowlists need applicable approval before use. |
 | F0 | Root: `rtk git diff --check`, `rtk git diff --cached --check`; complete recorded-base tracked/staged/unstaged diff and full relevant untracked content review. | Scope, symbol/caller/config consistency, no protected data/secrets/unrelated edits or future stubs. |
 
 No Python/script suite is automatically required for an independent Go path that does not change/call it. If a substantiated retained consumer requires such changes, stop to resolve scope/contract authority and run its actual applicable regression/static/syntax checks with a user-confirmed venv where Python executes. Do not silently waive a selected consumer's tests or introduce Python merely for document QA.
 
 ## 7. Engineering choices, estimates and dependencies
 
-The owner chose reassessment, not a production design approval. The candidate uses narrow SDK reads, a Go-owned definition source and isolated Go audit state. Internal package layout, compiled vs protected metadata, serialization of minimal control state and compliant sequential/conflict-rejecting admission are Level 1 after approval. Protected policy/context/credential feasibility must be demonstrated; CLI input is not its own authority. Do not add a service, new dependency, credential format or relaxed audit retention to make the plan feasible without approval.
+The owner approved Go ownership and U4's process-environment-only authentication direction, and approved this specification candidate for commitment; independent review remains pending and this is not implementation authorization. The candidate uses narrow SDK reads, a Go-owned definition source and isolated Go audit state. Internal package layout, use of the pinned auth helper behind closed checks versus explicit option construction, compiled vs protected policy metadata, serialization of minimal control state and compliant sequential/conflict-rejecting admission are Level 1 after approval. Demonstrate a closed environment allowlist, trusted launcher, fixed identity/project checks, no Go dotenv or credential-profile fallback, and child-process isolation; CLI input is not its own authority. Do not add a service, new dependency, dotenv/auth-profile parser, credential-file format or relaxed audit retention.
 
-Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours**. Tests/docs/verification included once per chunk; external approval/access waits excluded. Lower/upper ranges assume existing Go dependencies suffice and Linux fixtures/toolchain are available; credential-format feasibility may require re-estimation, not silent scope reduction. Effort is not agent runtime/calendar duration.
+Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours**. Tests/docs/verification included once per chunk; external approval/access waits excluded. Lower/upper ranges assume existing Go dependencies and Linux fixtures/toolchain remain available. The environment-auth direction removes the YAML profile as a Go authentication source; the offline module cache lacked the old `gopkg.in/yaml.v2@v2.4.0` source. Whether a separate parent-approved noncredential policy source needs YAML support remains an implementation-feasibility question; do not add a parser dependency or change that source without approval. Re-estimate only for evidenced in-scope work, not silent scope reduction. Effort is not agent runtime/calendar duration.
 
 | Chunk | Goal | Depends on accepted chunks | Hours | State |
 | --- | --- | --- | --- | --- |
-| 0 | Source/feasibility/consumer discovery and baseline | Separate discovery authorization | 3–5 | Not started |
+| 0 | Source/feasibility/consumer discovery and baseline | Separate discovery authorization | 3–5 | Completed at base `16cfe0e`; revalidate exact sources/drift at fresh preflight |
 | 1 | Quarantine unsafe automatic diagnostics | 0 and specification gates | 2–4 | Not started |
 | 2 | One closed Go owner and denied recording slice | 1 | 4–6 | Not started |
 | 3 | Safe seven-status results and sanitizer | 2 | 4–6 | Not started |
 | 4 | Secure Go audit filesystem and records | 3 | 5–8 | Not started |
 | 5 | Intent/terminal lifecycle and shared restart control | 4 | 6–10 | Not started |
-| 6 | Trusted config/credential seam and bounded SDK transport | 2–5 | 5–8 | Not started |
+| 6 | Environment-auth and bounded SDK transport | 2–5 | 5–8 | Not started |
 | 7 | First useful scoped server UUID read | 6 | 4–6 | Not started |
 | 8 | Exact-name and bounded fault/flavor completion | 7 | 4–7 | Not started |
 | 9 | Authorized bounded network evidence | 8 | 4–7 | Not started |
@@ -156,7 +156,7 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 - Before code: independent review, applicable approval/commit, fresh preflight at actual base, and explicit execution instruction selecting mode. Separately authorized Chunk 0 discovery can report facts/blockers but cannot silently approve sources or start Chunk 1.
 - Default failure budget: **two failed validation attempts for the same current-chunk issue**. Diagnose/fix smallest in-scope defects autonomously; preserve counts across sessions, no infinite repair loop or advancement with known required failure. Classify pre-existing/environment failures separately.
 - Mode UNSELECTED. **Single-chunk:** only requested chunk, then stop; ask before creating an unrequested handoff. **Continuous-loop:** explicit authorization and capable coordinator, exactly one chunk per real fresh session; non-final handoff/evidence checked before next dispatch. If real orchestration is unavailable, disclose and offer manual next-session instructions; do not simulate sessions.
-- Environment: repo and temporary loopback HTTP/files/process fixtures only. Set offline Go variables in §6 before checks; no dependencies/toolchain download, package install, root `.env`, protected inputs or live systems. Python environment prerequisite applies only to actual authorized Python work; no venv has been supplied or assumed.
+- Environment: repo and temporary loopback HTTP/files/process fixtures only. Set offline Go variables in §6 before checks; no dependency/toolchain download, package install, root `.env` loading, protected profile inputs, credential values, or live systems. Go auth tests use synthetic process variables only; no dotenv loader. Python environment prerequisite applies only to actual authorized Python work; no venv has been supplied or assumed.
 - Every implementation chunk includes changed-file discovery, formatting/syntax/import/symbol checks, focused behavior tests and applicable full checks, complete staged/unstaged/relevant untracked diff review, functional/integration/security risk, validation gaps and safe rollback. Re-run affected checks after repairs. Common gate applies to every chunk below.
 - Rollback disables task-owned new bindings, preserves evidence/fault state and unrelated work; never deletes audit, resets repository work, clears faults or restores ambient/legacy bypass. Future feature defects require an explicit bounded repair in this same plan, not a competing ladder or hidden feature work during final cleanup.
 - Evidence defaults to the chunk report; GUIDE holds final sanitized matrix/manifest. Future handoffs, if authorized/required: `docs/handoffs/aiops-go-delivery-01-chunk-<N>-to-<N+1>.md` plus separate next-session instructions. None is created by planning. Include source/base/candidate/mode/policy/failure counts, paths/symbols, actual tests/counts/skips, diff/risks/rollback, blockers and precise next step; never credentials.
@@ -168,14 +168,15 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 
 ### Chunk 0: Discovery and baseline
 
-- **Goal / coverage / entry:** confirm R1–R14, G1–G7 source gates and actual base under separate discovery-only authorization. Do not implement a feature.
+- **Goal / coverage / entry:** discovery-only authorization; confirm R1–R14, G1–G7 source gates and actual base. The prior Chunk 0 completed this against the then-current candidate at `16cfe0ede231df7b90b4f93961a7b6eff16512a1`; §4 records its evidence. This amended ladder still requires exact-candidate governance and fresh preflight before any implementation. Do not implement a feature.
 - **Inspect / changes:** complete sources in §2; Go callers/SDK/auth/tests/build; exact proposed packages, policy/credential/consumer/manifest seams. No application changes; report evidence only.
 - **Tasks:**
-  - [ ] Verify exact committed approvals and U1 alternative provenance basis; independent review/ordering and supersession approval/commit gates. Stop before code if unmet; do not amend sources to pass.
-  - [ ] Record actual HEAD/branch/all staged/unstaged/untracked work and requirements/code/source drift; confirm sole ladder and unstarted state.
-  - [ ] Inventory enabled/disabled direct Go, SDK, agent/workflow/project, legacy script/runner and host/MCP consumers without executing legacy assets. Resolve actual dependency closure/versions and no duplicate owner.
-  - [ ] Establish protected context and fixed existing-profile loader feasibility with inspected APIs/formats and synthetic design, without real profile reads. Identify any specific dependency/layout approval need, not a workaround. Confirm byte-bound SDK transport and OS lock/crash-test approach.
-  - [ ] Confirm existing compatible Go/cache/race/compiler/Linux fixtures and test offline safety. When separately authorized and source gates permit, run B0/G0/G1/GR baseline; record discoveries/skips/pre-existing failures. No assumed Python prerequisite.
+  - [ ] Verify the committed U4 approval record and exact source fingerprints, U1 alternative provenance basis, independent review/ordering and review verdict. Stop before code if unmet; do not amend sources to pass.
+  - [x] At the prior base, record HEAD/branch/clean worktree, expected source hashes and implementation/requirements drift; the new amendment candidate still needs fresh source/status verification after approval/commit.
+  - [x] Inventory relevant enabled/disabled Go SDK, command, legacy script/runner and host/MCP consumers without executing legacy assets; inspect the pinned Gophercloud auth helper and model-child environment seams.
+  - [x] Inspect Go environment-auth inputs without displaying/using `.env` values; record unsupported Gophercloud auth modes, no-Go-dotenv/credential-fallback boundary, offline cache limitation for the old YAML parser path if still required by the parent noncredential policy source, and byte-bounded SDK/OS-lock test approach. No protected profile values were read.
+  - [x] Run the offline baseline at `16cfe0e` with `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off`: focused 108/4 packages, full 182/16, vet pass, race 96/3, and four existing commands built to the unique `/tmp` directory. Preserve existing ignored binaries; no live cloud or Python asset.
+  - [ ] At fresh preflight, verify the exact approved amendment/ladder commits and revalidate material code/toolchain/cache drift. No assumed Python prerequisite.
 - **Validation / safe state:** read-only inspections and authorized baseline only; no new source. Check generated artifacts/worktree after commands.
 - **Risk / rollback / stop:** report unresolved authority/environment/feasibility precisely; no destructive cleanup. Stop with confirmed gates/baseline or BLOCKED, never auto-enter Chunk 1. Handoff only per §8.
 
@@ -184,7 +185,7 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 - **Goal / requirements / entry:** R1/R2/R5/R10/R13; accepted 0 plus approved superseding sources and preflight.
 - **Inspect / files / symbols:** observed `aiops/cmd/openstack-agent/main.go`, `openstack-workflow/main.go`, `openstack-project/main.go` and their tests; narrow early diagnostic guards before model/SDK setup. Six-file cohesive boundary is justified by one repeated bypass across three commands and their regression tests.
 - **Tasks:**
-  - [ ] Visibly disable noncompliant diagnostic startup before inference/ambient auth/registry/specialist side effects; preserve pure local/config/planning behavior where independently safe.
+  - [ ] Visibly disable noncompliant diagnostic startup before inference, OpenStack environment/auth processing, registry or specialist side effects; preserve pure local/config/planning behavior where independently safe.
   - [ ] Add startup traps/counters proving zero model/auth/SDK dispatch; preserve existing planning/config tests rather than delete them.
 - **Excluded / compile-safe state:** no Phase 02 investigation integration, generic lifecycle refactor or broken binary. Existing pure helpers/tests still compile; disabled diagnostic routes return safe limitation.
 - **Validation / post-work:** from `aiops/`, `rtk go test ./cmd/openstack-agent ./cmd/openstack-workflow ./cmd/openstack-project`, G0/G1 and GOFMT/F0; V2/V3/V11, counters zero, not just nonzero exit.
@@ -197,7 +198,7 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 - **Tasks:**
   - [ ] Define immutable reviewed three-tool metadata and trusted context/policy intersection; validate required fields/limits/versions/duplicates/closed serialized shapes if used.
   - [ ] Add denied/invalid recording-executor vertical slice: zero forbidden auth/read, one terminal attempt through an internal audit seam. Bind copies against caller mutation/drift.
-- **Excluded / safe state:** no credential loading or positive runtime dispatch yet; explicit non-success for unavailable controls. Types/callees exist before wiring; no future schemas.
+- **Excluded / safe state:** no authentication resolution or positive runtime dispatch yet; the later reader boundary accepts only approved process-environment authentication inputs and has no Go dotenv or profile-credential fallback. Explicit non-success for unavailable controls. Types/callees exist before wiring; no future schemas.
 - **Validation / post-work:** GF admission/definitions tests, G1/GOFMT/F0; V1/V2, including wrong types/validators/defaults/extra args/unknown/mutation and context races.
 - **Risk / rollback / stop:** validator repairs Level 1; no product normalization/schema changes outside approved task. Roll back only unused disabled owner. Stop at proven negative slice; §8 handoff.
 
@@ -238,17 +239,19 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 - **Validation / post-work:** GF control/lifecycle, OS/GR/G1/GOFMT/F0; V7/V8, zero contact on failed intent, zero success payload on failed terminal and zero post-fault admission even after fresh process.
 - **Risk / rollback / stop:** Level 1 mechanism repair within §8; inability to prove restart closure blocks integration, no availability exception. Rollback disables owner, preserves evidence/control faults. Stop at physical-process publication/recovery proof; §8 handoff.
 
-### Chunk 6: Trusted configuration, credential seam and bounded SDK transport
+### Chunk 6: Trusted process-environment authentication and bounded SDK transport
 
-- **Goal / requirements / entry:** R2/R5/R6/R10; accepted 2–5, Chunk 0 loader feasibility and all specific dependency/layout approvals if needed.
-- **Inspect / files / symbols:** existing `openstackclient` constructors and Gophercloud use; proposed READER `reader.go`, `reader_test.go` for explicit auth source, fixed endpoints and response/request budgeting, plus GUIDE metadata for any introduced protected policy artifact. A necessary private loader/helper must remain cohesive; record/check its artifact metadata here, with final manifest review before installation/live use.
+- **Goal / requirements / entry:** R2/R5/R6/R10; accepted 2–5, approved U4 amendment and validated exact environment-input contract.
+- **Inspect / files / symbols:** existing `openstackclient` constructors and pinned Gophercloud `AuthOptionsFromEnv`; proposed READER `reader.go`, `reader_test.go` for closed process-environment mapping, authenticated identity/project verification, fixed endpoints and response/request budgeting. GUIDE records accepted variable names and trusted-launcher ownership only, never values or a Go credential-file layout.
 - **Tasks:**
-  - [ ] Build explicit protected policy/profile loading and SDK ownership with synthetic metadata/secrets only; never merge ambient `OS_*`/provider/SSH/proxy state or return credential-bearing client handles.
-  - [ ] Admit/intend before possible auth/contact; verify authenticated project/current profile; reject wrong source, revoked/unsafe metadata and public context overrides with zero forbidden operation.
-  - [ ] Bound body bytes before SDK decoding, pages/records/memory/request/time/retry/cancel and approved endpoint origins including redirects/pagination; no token forwarding/stronger-profile fallback.
-- **Excluded / safe state:** no live profile read, custom permissive YAML parser, new dependency/broker/credential layout without approval. Collector implementations still unavailable; only synthetic token/API fixtures.
-- **Validation / post-work:** GF reader/credentials/transport, GR/G1/GOFMT/F0; V2/V3/V5, hostile body/redirect/pagination and cancellation-between-requests counters.
-- **Risk / rollback / stop:** unprovable credential/context loading is BLOCKED, not ambient auth fallback. Rollback disables binding without touching profile data. Stop with trusted bounded SDK seam proven; §8 handoff.
+  - [ ] Read authentication inputs only from a trusted launcher-supplied process environment using the reviewed closed allowlist for password-based project scope. Validate required/alternative selectors, endpoint and expected identity/project before any resource read; reject unsupported helper inputs (`OS_USERID`, `OS_PASSCODE`, application credentials, system scope, deprecated tenant aliases) before auth or construct explicit options instead. `OS_TOKEN` is not read by the pinned helper but is outside the contract and must not be introduced.
+  - [ ] Do not load `.env` in Go or use `clouds.yaml`, `secure.yaml`, or another profile as an authentication source/fallback; do not invoke root Makefile. Keep any separate noncredential policy/configuration source within the parent contract. Add no dotenv/auth-profile parser. No stronger-credential fallback.
+  - [ ] Admit and durably record intent before authentication/contact; zero authentication/resource calls on denied, disabled, missing, conflicting or unsupported inputs. Verify the authenticated principal/project against the dedicated project-reader policy before SDK reads; env values are never authorization policy.
+  - [ ] Keep region/interface/service endpoints, targets, budgets, capabilities, audit paths and approvals outside ambient auth environment authority. Prevent proxy/redirect/unapproved endpoint influence; bound body bytes before SDK decoding, pages/records/memory/request/time/retry/cancel and approved endpoint origins.
+  - [ ] Prove no OpenStack auth variable reaches Codex/Pi/model/child processes and no secret reaches arguments, logs, errors, results, audit, reports or fixtures. Exercise existing Codex/Pi environment filters with synthetic canaries.
+- **Excluded / safe state:** no real credential values, live authentication, permissive helper modes, Go dotenv/credential-profile loader, new dependency/broker/credential-file layout, or legacy runtime changes. Any noncredential policy source remains under the parent contract. Collector implementations remain unavailable; fixtures use synthetic environment values and fake/local transports only.
+- **Validation / post-work:** GF auth/transport and child-environment tests, GR/G1/GOFMT/F0; V2/V3/V5, unsupported/malformed pre-auth inputs with zero auth/resource calls, authenticated identity/project mismatch with zero resource calls, no dotenv or profile-credential fallback, hostile body/redirect/pagination and cancellation-between-requests counters.
+- **Risk / rollback / stop:** if the pinned helper cannot be constrained without weakening the closed allowlist, construct explicit options within approved design discretion; no ambient or profile-credential fallback. Rollback disables binding without touching legacy profile data. Stop unless trusted-launcher provenance, no-dotenv behavior, identity/project checks, bounded transport and model isolation are proven; §8 handoff.
 
 ### Chunk 7: First useful authorized server UUID read
 
@@ -306,7 +309,7 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
   - [ ] Emit exact safe versioned result/process mapping and identity/unavailable/denial guidance, no raw input/reflected errors or duplicate adapter audit/retry/fallback.
   - [ ] Build actual CLI fixtures against controlled owner/API, all seven statuses, malformed/unsupported/trailing JSON and unknown/mutation/override inputs; verify initialization traps and owned subprocess cleanup/cancellation.
 - **Excluded / safe state:** no automatic investigation/approval/resume wiring. Existing unsafe commands stay disabled, live entry remains gated even though binary builds.
-- **Validation / post-work:** CLI/G1/GR/GOFMT/F0; V2/V5/V6/V9/V10 at compiled subprocess seam, zero inference/Python/ambient auth.
+- **Validation / post-work:** CLI/G1/GR/GOFMT/F0; V2/V5/V6/V9/V10 at compiled subprocess seam, zero inference/Python initialization or authentication processing for metadata-only listing.
 - **Risk / rollback / stop:** command-only repairs; context-integrity issue escalates without public JSON authority. Rollback removes new command binding but retains old guards. Stop at useful no-model list/invoke; §8 handoff.
 
 ### Chunk 12: Consumers, exact deployment manifest and safe rollback
@@ -315,7 +318,7 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 - **Files / symbols:** GO `compatibility_test.go` (proposed), GUIDE manifest/matrix sections; necessary private version/inspection helpers only when a retained consumer needs them. No general migration/installer.
 - **Tasks:**
   - [ ] Enumerate explicit Go/legacy consumers and enabled versions; reject unsupported selection, no inferred `2.0` compatibility, legacy output flattening or in-place record conversion.
-  - [ ] Document exact binary/policy/definition/control artifacts, paths, ownership/modes, Go-only audit namespace and disabled-live prerequisites; test static source/manifest assertions. No credential format/dependency becomes approved merely by listing it.
+  - [ ] Document exact binary/policy/definition/control artifacts, paths, ownership/modes, Go-only audit namespace and disabled-live prerequisites; record accepted Go auth variable names and trusted-launcher responsibility without values. Test static source/manifest assertions. No credential-file format/dependency becomes approved merely by listing it.
   - [ ] Exercise synthetic disable-first rollback, bounded active-work cleanup, preserved intents/events/faults/legacy state and no ambient/Python fallback. Isolated inspection must not append to or reinterpret Python control state.
 - **Excluded / safe state:** no legacy runtime/source/roles/host/MCP consumer changes, provisioning or audit inspection of real data. If required, substantiate and resolve scope first.
 - **Validation / post-work:** GF compatibility, G1/GR/DOC/F0; V3/V6/V11 and preserved planning regressions.
@@ -340,7 +343,7 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 - **Tasks:**
   - [ ] Document exact implemented no-model list/invoke, safe offline fixture reproduction, all enabled/disabled routes/versions, identity guidance, budgets, partial/unavailable and incomplete-audit recovery.
   - [ ] Complete sanitized entry/consumer/provenance matrix and deployment manifest, significant Level 1 choices, extension review, version/disable-first rollback and no replay.
-  - [ ] Describe fixed placement/profile/file metadata, one-month reader rotation/revocation/admin ownership and live deployment gate. Operator-only disposable create/update/delete denial needs conclusive authorization signature plus independent admin no-change postconditions/cleanup owner; unexpected mutation means stop/revoke, never an agent probe/tool.
+  - [ ] Describe fixed placement/control-artifact metadata, Go process-environment auth names and trusted-launcher boundary (no secret values or `.env` path), dedicated reader identity, one-month rotation/revocation/admin ownership and live deployment gate. Operator-only disposable create/update/delete denial needs conclusive authorization signature plus independent admin no-change postconditions/cleanup owner; unexpected mutation means stop/revoke, never an agent probe/tool.
 - **Excluded / safe state:** no live command execution/deployment recipe that silently enables access; no private env path or sensitive topology/evidence.
 - **Validation / post-work:** DOC/CLI documented offline reproduction and F0, V11. Read through guide ending, compare commands with real help and fixture behavior.
 - **Risk / rollback / stop:** documentation corrections only; behavior defects use explicit bounded repair. Rollback guide-only; stop with accurate reproducible guidance and live gaps, §8 handoff.
@@ -373,33 +376,36 @@ Rough effort for one experienced engineer; **1 engineer-day ≈ 6 focused hours*
 
 | Risk | Evidence / remaining work | Action / authority |
 | --- | --- | --- |
-| Supersession not approved | U2 approves reassessment, not G1–G7/task/plan technical details; historical sources still reflect Python ownership. | Fresh independent review including U1/ordering, exact-candidate approval/commit and actual-base preflight before code. Do not edit old approvals to manufacture readiness. |
-| Credential/context feasibility | Existing Go uses ambient auth; existing protected profile format loader unverified with current dependencies. | Chunk 0/6 must prove explicit safe loading/context. Escalate specific new dependency/layout proposal if necessary; no ad hoc permissive parser or service. |
+| Independent review pending | U4 approves the Go-only environment-auth direction and current documentation candidate, not a waiver of independent review or implementation preflight; historical sources still reflect Python ownership. | A fresh agent must review the committed approval record, both U4 amendments, sole ladder, U1/order evidence and relevant sources; then run fresh preflight. Material changes require affected review and renewed approval/commit. Do not edit old approvals to manufacture readiness. |
+| Environment-auth boundary | Existing Go calls broad `AuthOptionsFromEnv`; pinned helper accepts more auth modes than the approved password/project scope. Trusted-launcher provenance and child-process isolation still need implementation tests; no Go `.env` loader is permitted. | After independent review and preflight, Chunk 6 must prove a closed allowlist, fixed identity/project verification, no dotenv/profile-credential fallback, zero calls on rejected inputs, and no model/child propagation. Use explicit options if the helper cannot be safely constrained; no fallback or new parser dependency. |
 | Cross-process crash durability | Existing FileStore and broker mutex are insufficient proof. | Chunks 4/5 require physical OS/file/process failures. Retention/path/availability tradeoff changes require approval. |
 | Legacy coexistence/consumer confusion | Same runtime root but separate Go audit; schema version alone does not identify producer/compatibility. | Exact manifest/consumer configuration and rejection tests in 12; no shared append/rotation/control or automatic adapters. |
 | Collection/transport escape | AllPages/raw outputs and unbounded decoding; SDK links/redirects may change destination. | Chunk 6–10 response-byte/origin and relationship tests; no silent broad reads/token forwarding. |
-| Toolchain/cache/race environment | `go 1.27.1` and compiler/cache not tested during authoring. | Confirm in separately authorized 0; missing required checks BLOCKED, no auto-download/install/downgrade. |
+| Toolchain/cache/race environment | Offline baseline passed at `16cfe0e` for tests/vet/race/four existing builds; future new-package coverage remains untested. | Revalidate at fresh preflight and run required checks after implementation; missing required checks BLOCKED, no auto-download/install/downgrade. |
 | Current live policy unknown | Historical reader/placement acceptance not proof of current Go deployment. | Keep live disabled until owner-authorized Phase 07/equivalent; guide lists exact proof/cleanup/revocation ownership. |
 
 Ordinary engineering difficulty stays Level 0/1. A genuine escalation includes category, exact evidence/problem, alternatives/tradeoffs, recommendation, precise authorization and independent safe remaining work. The user's alternative publication-review determination is recorded; do not repeatedly demand missing unchanged historical candidates or reopen unchanged historical approvals by default.
 
 ## 12. Suggested later execution prompt
 
-This prompt is **not executed**. Only after separately satisfying review/approval/commit and authorizing discovery:
+This prompt is **not executed**. The owner-approved U4 candidate is to be committed; a separate fresh-session review remains required before preflight or implementation:
 
 ```text
-Use chunked-implementation in single-chunk mode.
+In a separate fresh session, perform independent read-only review of the committed U4 amendments and revised ladder. Stop after reporting findings; do not run implementation preflight or implement in this review session. A later separate session must perform fresh preflight; implementation still requires separate explicit chunk authorization.
 Controlling ladder: docs/aiops-go/delivery/01-safety-boundary-and-manual-slice-delivery.md
-Task: docs/aiops-go/tasks/01-go-owned-safety-boundary-task.md
-ADR: docs/aiops-go/architecture/01-go-owned-safety-boundary-adr.md
-Execute Chunk 0 discovery/baseline only, then stop.
-Verify exact approved committed superseding sources, current base/status,
-U1 alternative publication-review basis and fresh independent review/order evidence.
-If a gate is unmet, report the exact blocker; do not silently amend sources,
-reuse old approvals for changed architecture, start code or recover missing blobs by guesswork.
-Run baseline checks only when authorized, offline-safe and toolchain/cache confirmed.
-No live/credential/profile-content/host/provider operation, installation, root Makefile,
-legacy runtime execution, commit or later delivery. Ask before an unrequested handoff.
+Task/ADR amendments:
+  docs/aiops-go/tasks/01-go-owned-safety-boundary-env-auth-amendment.md
+  docs/aiops-go/architecture/01-go-owned-safety-boundary-env-auth-amendment.md
+Original accepted task/ADR remain unchanged and linked from those amendments.
+Perform fresh preflight against exact approved commits and actual base/status;
+revalidate U1 provenance, independent review/order evidence and material drift.
+Chunk 0's offline baseline was completed at 16cfe0e; reuse only if fresh preflight
+confirms no relevant drift. Do not start implementation unless separately authorized
+for a named chunk. If a gate is unmet, report the exact blocker; do not silently amend
+sources, reuse old approvals for changed architecture, or recover missing blobs by guesswork.
+No `.env`/profile values or dotenv loading, live/credential/host/provider operation,
+installation, root Makefile, legacy runtime execution, commit or later delivery.
+Ask before an unrequested handoff.
 ```
 
-**End of reconciled candidate plan. PLAN_BLOCKED for execution pending superseding-source governance; authoring inspection is not independent review, preflight, completed Chunk 0 or implementation authorization.**
+**End of revised candidate plan. PLAN_BLOCKED for implementation pending independent fresh-session review and fresh preflight. U4 and this documentation candidate are owner-approved for commitment; the committed U4 approval record identifies the candidate. Chunk 0 discovery/offline baseline was completed against the prior candidate at `16cfe0ede231df7b90b4f93961a7b6eff16512a1`; it is not independent review, fresh preflight, or implementation authorization.**
