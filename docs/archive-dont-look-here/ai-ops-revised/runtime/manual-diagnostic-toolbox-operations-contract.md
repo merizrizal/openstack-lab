@@ -13,6 +13,12 @@ This is the approved Phase 03 Chunk 1 documentation contract. It is subordinate 
 
 It defines the contract for later implementation. It does not create scripts, deploy files, connect to a host, read profile content, authenticate, call OpenStack, alter cloud state, or authorize a runner, MCP, host diagnostic, or remediation capability.
 
+## Go Phase 01 Amendment Incorporation — Publication Candidate
+
+The [versioned diagnostic addendum](go-phase01-versioned-diagnostic-amendments.md) reproduces the approved AM1–AM5 clauses from task blob `04991e450d6659eeffc69f660749fb8b27700d65`. Its §§1–2/4 distinguish amendment-content approval from pending incorporation review/commit, whole-ADR/task approval, Q1–Q3 provenance and implementation preflight. This notice does not satisfy those gates or authorize execution.
+
+For the explicitly selected Go Phase 01 view, AM2 replaces only the legacy invocation/relationship/projection/output restrictions needed for the bounded server fault/flavor extension and inner diagnostic `2.0`. AM1 requires revised-owner scope/control enforcement for retained script/SDK paths; AM5 governs explicit compatibility, file allowlists and disable-first rollback. All other protections remain. After the addendum's publication gates pass, these scoped clauses take precedence over conflicting legacy wording below and the historical toolbox ADS for that view only. The `1.0` view, historical reuse restrictions and independently governed host/MCP contracts are unchanged; no silent projection/schema change or capability activation is permitted.
+
 ## Approved Runtime Boundary
 
 | Concern | Approved value |
