@@ -7,6 +7,7 @@
 **Requirements:** [Current Delivery 1 PRD](../prd.md), including its endings, open decisions, testing decisions and AC-001–AC-031.
 **Architecture:** [Owner-approved boundary ADR](../architecture/01-manual-diagnostic-enforcement-and-persistence-boundaries.md), B1–B5. The approved constraints do not select a concrete transport or storage mechanism.
 **Original authoring authorization:** The invoking user explicitly authorized the action in the `002` specification-authoring instruction and requested task/architecture outputs under the current `docs/ai-ops-go/` tree. That was documentation-only authorization, not execution, self-approval or automatic advancement.
+**Privacy redaction:** Machine-specific local paths were removed after the recorded approval and preflight. Historical fingerprints below identify the original documents, not these redacted bytes. Reassess approval and preflight freshness against the actual candidate before execution; this redaction does not itself grant approval or execution authority.
 
 ## 1. Objective and observable outcomes
 
@@ -29,12 +30,12 @@ This contract defines outcomes and constraints, not another execution ladder. Th
 
 | Item | Observed authoring baseline |
 | --- | --- |
-| Project root | `/home/meriz/Documents/Synctech.ID/CI_CD/openstack-lab` |
+| Project root | Repository root (machine-specific path redacted). |
 | Branch / HEAD | `aiops-go-phase01` / `e29fa87e293246c187f5b01604e6f012dfbb4761` |
 | HEAD tree | `2ed028bf34f68a75f63d885b0967df6c80852089` |
 | Committed current requirements | PRD blob `37a7a291d27934a6fa19d71eb4a7f7e250df786f`; baseline blob `d3049659d9d40b6b7cb7012f57d02cbe579693a8`, verified with `git ls-tree HEAD`. |
 | Initial project changes | No tracked staged/unstaged changes; nine untracked roadmap Markdown files (overview and Phases 01–08). No committed current roadmap/task/ADR candidate established. |
-| Parent repository | `/home/meriz/Documents/Synctech.ID`, branch `main`, HEAD `74c01ca9de6c2153a0306b037860bfe3c276b649`, tree `479ab2554139c368375a6a7aa77c4e97e75fb2f7`. |
+| Parent repository | Separate enclosing repository (machine-specific path redacted), branch `main`, HEAD `74c01ca9de6c2153a0306b037860bfe3c276b649`, tree `479ab2554139c368375a6a7aa77c4e97e75fb2f7`. |
 | Parent pre-existing state | Modified `Etc/goose/handoff-openstack-aiops/aiops-prompt.md`, `Etc/skills/README.md`; untracked `001` and `002` handoff/instruction pairs. No staged changes. Preserve all. No output goes there. |
 | Approval evidence at authoring | PRD header states owner-approved `scope_ready` product scope. Phase 01 records scope/decomposition approval only. `002` reports preceding scope review, but no standalone report/original transcript was supplied. At authoring, no independent review or exact-candidate approval of these drafts was established; the subsequent review and approval are recorded above. |
 
@@ -335,7 +336,7 @@ Future execution verdicts may be `READY_FOR_REVIEW`, `BLOCKED` or `INCOMPLETE`; 
 
 Current sources read completely: `.agents/AGENTS.md`; current PRD and learning baseline; overview and all eight phase files. Current README/architecture were read completely for lab context. Selected code/test files and anchors are in §2; reading engine/adapter seams was targeted, not an exhaustive code or threat audit. No current acceptance record was discovered under `docs/ai-ops-go/`.
 
-External `002-instruction-ai-ops-go-phase01-specification-authoring.md` and paired handoff were read completely, as were the historical `001` pair, under `/home/meriz/Documents/Synctech.ID/Etc/goose/handoff-openstack-aiops/`. The `001` review instruction was not re-executed; the legacy `aiops-prompt.md` was not followed. The present user supplies explicit authoring authority absent from those prepared packets.
+External `002-instruction-ai-ops-go-phase01-specification-authoring.md` and paired handoff were read completely, as were the historical `001` pair, from a separate local handoff directory (machine-specific path redacted). The `001` review instruction was not re-executed; the legacy `aiops-prompt.md` was not followed. The present user supplies explicit authoring authority absent from those prepared packets.
 
 Only specifically relevant archived compatibility contracts were read completely, all under `docs/archive-dont-look-here/aiops-go/`:
 

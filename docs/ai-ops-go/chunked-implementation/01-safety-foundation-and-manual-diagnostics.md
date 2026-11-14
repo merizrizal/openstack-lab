@@ -4,6 +4,8 @@
 
 **Planning status: PLAN_READY.** This is the planning author's self-assessment, not independent plan acceptance, implementation authorization, deployed validation or release approval. A subsequent separately authorized independent implementation preflight returned `PREFLIGHT_PASS`; its complete response and evidence boundary are recorded in §14. The verdict is separate from the planning status and does not authorize execution.
 
+**Privacy redaction and freshness:** Machine-specific local paths were subsequently removed from this plan and the task contract. The recorded fingerprints and preflight verdict describe earlier bytes; assess the actual redacted candidate, approval and affected preflight freshness before execution. This redaction does not itself reissue a verdict or authorize implementation.
+
 - **Mode:** `single-implementation-plan / SINGLE_PLAN`; execution mode **UNSELECTED**.
 - **Selected contract:** [Phase 01 task](../tasks/01-safety-foundation-and-manual-diagnostics.md), four roadmap steps and [§01.6](../implementation-plan/01-safety-foundation-and-manual-diagnostics.md#016-phase-definition-of-done), not all Delivery 1.
 - **Project mode:** existing project with partial implementation; no existing behavior is classified accepted from source inspection alone.
@@ -31,21 +33,21 @@ All observations in this section were actually made during planning using read-o
 
 | Item | Observation |
 | --- | --- |
-| Project root | `/home/meriz/Documents/Synctech.ID/CI_CD/openstack-lab` |
+| Project root | Repository root (machine-specific path redacted). |
 | Branch | `aiops-go-phase01` |
 | HEAD / tree | `ae7983c9af3a243ac4b1b104f6949d3afa56f6e1` / `1965507f8b104f0ba2ed92586a51d951413ff467` |
 | Parent / subject | `e29fa87e293246c187f5b01604e6f012dfbb4761` / `docs(ai-ops): approve Phase 01 safety contract and ADR` |
 | Initial worktree/index | Full porcelain with all untracked files empty; staged/unstaged name-status empty. |
 | Candidate delta from parent | Exactly 11 added Markdown files: overview, phases 01–08, task and ADR. No application delta in this commit. |
 | Destination | User-selected `chunked-implementation/` exists, empty by both listing and full bounded find; no execution plan exists under the suggested `execution-plans/` location. No controlling plan/progress is overwritten. |
-| Enclosing repository | `/home/meriz/Documents/Synctech.ID`, `main`, HEAD `74c01ca9de6c2153a0306b037860bfe3c276b649`, tree `479ab2554139c368375a6a7aa77c4e97e75fb2f7`. Separate repository, unchanged by this work. |
+| Enclosing repository | Separate repository (machine-specific path redacted), `main`, HEAD `74c01ca9de6c2153a0306b037860bfe3c276b649`, tree `479ab2554139c368375a6a7aa77c4e97e75fb2f7`. Unchanged by this work. |
 | Enclosing pre-existing work | Modified `Etc/goose/handoff-openstack-aiops/aiops-prompt.md` and `Etc/skills/README.md`; untracked handoff/instruction pairs 001–004; no staged changes. Preserve all. The prompt was neither read as instructions nor executed. |
 
 Observed commands, working directory project root unless `-C` identifies the enclosing repository: `rtk git branch --show-current`, `rtk git rev-parse HEAD 'HEAD^{tree}'`, `rtk proxy git status --porcelain=v1 --untracked-files=all`, staged/unstaged `rtk git diff --name-status`, `rtk proxy git ls-files -- docs/ai-ops-go`, `rtk proxy git log -1 --format='%H%n%P%n%s'`, `rtk proxy git show --stat --oneline HEAD`, parent-to-HEAD name-status, `rtk proxy git ls-tree HEAD` for the sources, and `rtk proxy sha256sum` for every current source below. These distinguish committed blobs, working bytes and untracked state; a commit alone does not establish approval.
 
 ### 2.2 Controlling source fingerprints
 
-Paths in this table are relative to `docs/ai-ops-go/`. The measured SHA-256 values match the `004` packet. Task and ADR Git blobs were checked against HEAD; a clean worktree and the measured working bytes bind this plan to that committed candidate.
+Paths in this table are relative to `docs/ai-ops-go/`. These are historical planning-stage fingerprints, not assertions about the later privacy-redacted task or plan bytes. The measured SHA-256 values matched the `004` packet at planning time. Task and ADR Git blobs were checked against the then-current HEAD; a clean worktree and the measured working bytes bound the plan to that committed candidate.
 
 | Source | SHA-256 | Authority / inspection |
 | --- | --- | --- |
@@ -70,8 +72,8 @@ Paths in this table are relative to `docs/ai-ops-go/`. The measured SHA-256 valu
 ### 2.3 Instructions, skills and historical compatibility
 
 - Applicable `.agents/AGENTS.md` was read completely (symlink to the installed shared instructions); no additional `AGENTS.md` was discovered under `aiops/` or current product docs. User scope, requirements, approved ADR/task and preservation rules govern.
-- The external `004-instruction-ai-ops-go-phase01-single-implementation-plan.md` and paired `004-ai-ops-go-phase01-review-to-single-plan-handoff.md` under `/home/meriz/Documents/Synctech.ID/Etc/goose/handoff-openstack-aiops/` were read through their endings. Their prepared-not-authorized state is satisfied only for planning by this invocation, not by the packet itself.
-- Installed `single-implementation-plan` and all its required SINGLE_PLAN references (integrated ownership, template, execution contract, quality checklist) were read fully, as were `chunked-implementation`, delivery/core-safety/execution-policy references, and pre-read/pre-edit/post-edit/RTK skills. They are available through `.agents/skills`, a symlink to `/home/meriz/.agents/skills`, not repository-versioned executor code.
+- The external `004-instruction-ai-ops-go-phase01-single-implementation-plan.md` and paired `004-ai-ops-go-phase01-review-to-single-plan-handoff.md` in a separate local handoff directory (machine-specific path redacted) were read through their endings. Their prepared-not-authorized state is satisfied only for planning by this invocation, not by the packet itself.
+- Installed `single-implementation-plan` and all its required SINGLE_PLAN references (integrated ownership, template, execution contract, quality checklist) were read fully, as were `chunked-implementation`, delivery/core-safety/execution-policy references, and pre-read/pre-edit/post-edit/RTK skills. At planning time they were available through `.agents/skills`, a symlink to a user-local skills directory (machine-specific path redacted), not repository-versioned executor code.
 - Installed skill SHA-256: planner `dab6b9242e808313d6ea4087a668195c7b5b055be232413a0e4cc353c01b1478`; executor `1facb456e5ad8f29e0849dda09930f2a5a3c2234a6161b1dacf5898289b9230c`; delivery contract `f1dbc726a84774a52c1420eb75a707a63ffc8190624088665e2adcf14c3f0c38`; core safety `4d5ed44e7b5823d7a005933bbf198cd391224e98cff57fb2c932cae1e83dd614`; policy `1f367383c371aac18dd2fbdea1a930015b718a190ad711d070d2d8c2fb9a2f31`. Re-resolve policy if these change materially.
 - Current harness exposes read/write/exact-edit/bash and parallel tool calls, **not a fresh-worker/session orchestration tool**. Parallel reads are not isolated independent agents. Continuous-loop feasibility is therefore not established; single-chunk manual sessions remain possible after separate authorization.
 - [README](../../../README.md) architecture/prerequisite sections and [lab architecture](../../architecture.md) in full were inspected. They describe lab topology, not authorization to select production routes, identities or defaults. No protected configuration/credentials were read.
@@ -708,7 +710,7 @@ The following is a **suggested separately authorized invocation**, not current a
 ```text
 Use chunked-implementation in SINGLE-CHUNK mode. Execute Chunk 0 only from
  docs/ai-ops-go/chunked-implementation/01-safety-foundation-and-manual-diagnostics.md
-in /home/meriz/Documents/Synctech.ID/CI_CD/openstack-lab.
+from the project repository root.
 
 I authorize source/base/approval/ladder revalidation and reviewed safe credential-free
 local Go baseline checks only. Re-read the current approved task, ADR, PRD,
@@ -761,7 +763,7 @@ This section records the original planning-stage observations and assessment, no
 
 ## 14. Recorded independent implementation preflight
 
-The following is the complete response-only report returned by the separately authorized independent preflight in the current conversation. The user subsequently authorized recording it here. The reviewed plan fingerprint below identifies the **pre-recording** candidate, not the bytes after adding this report and clarifying historical references. This documentation update does not itself approve the plan, authorize a chunk, or extend the verdict to materially changed sources or execution states. A future executor must assess whether intervening changes, including this recording-only update, require affected revalidation.
+The following is the complete response-only report returned by the separately authorized independent preflight in the current conversation. The user subsequently authorized recording it here. The reviewed plan fingerprint below identifies the **pre-recording** candidate, not the bytes after adding this report, clarifying historical references, or later redacting machine-specific paths from the plan and task. This documentation update does not itself approve the plan, authorize a chunk, or extend the verdict to materially changed sources or execution states. A future executor must assess whether intervening changes, including these documentation updates, require affected revalidation.
 
 ---
 
