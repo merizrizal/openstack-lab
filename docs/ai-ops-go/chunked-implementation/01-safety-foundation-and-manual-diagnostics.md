@@ -105,6 +105,8 @@ No legacy tool catalog, identity, path, auth source, HTTP exception, schema/exit
 
 All paths below are **observed**, relative to `aiops/`. Inspection was targeted, not an exhaustive code or deployment security audit.
 
+**Ubuntu version clarification:** Ubuntu 26 is acceptable for the local Chunk 0 baseline, as clarified by the user. This does not change PRD FR-021/AC-026: Ubuntu 24.04 LTS x86-64 remains the required observer and deployment-acceptance target. A build or ABI compatibility signal on Ubuntu 26 is not evidence of the Ubuntu 24.04 security-context/runtime fixture or deployed acceptance, and does not declare Ubuntu 26 a supported observer. Do not change the target or claim Ubuntu 26 support without separately authorized validation and a product decision.
+
 | Evidence anchor | Observed gap / reuse boundary |
 | --- | --- |
 | `Makefile:build`, `go.mod` | Four binaries; Go `1.27.1`, Gophercloud `v2.14.0`. No toolchain/cache execution. Keep declared version; do not auto-install/download or downgrade it. |
