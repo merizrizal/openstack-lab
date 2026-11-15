@@ -310,12 +310,22 @@ One experienced engineer; **1 engineer-day ≈ 6 focused hours**. Ranges include
 2. **Single-chunk:** exactly the selected chunk, post-work/report, then stop. Default is to obtain confirmation before creating an unrequested handoff. A prior explicit handoff instruction may satisfy that confirmation; it never authorizes the next chunk.
 3. **Continuous-loop:** explicit authorization and real fresh-session orchestration required. A capable main agent selects one chunk, dispatches one fresh worker, accepts its evidence/exit conditions and complete non-final handoff, then dispatches the next. Each worker stops. Missing orchestration means report the gap and supply a manual next-session prompt; do not simulate isolation or silently run all chunks in one session.
 4. **Failure budget:** at most **two failed validation attempts for the same current-chunk issue**, absent a separately authorized finite override fixed before retries. Count and report failed attempts; session changes do not reset the budget. Diagnose current regression versus baseline/environment, repair only smallest safe in-scope defect, add regression coverage, rerun affected checks. Do not weaken tests, advance with unresolved required failures/gaps, or implement future chunks to fix the current one. Missing tools/access or exhaustion stops with a concrete blocker.
-5. **Environment:** current development repo and safe disposable offline fixtures only. No `.env` or real credentials/protected records, automatic package/toolchain/module installs/downloads, live infrastructure/model/MCP, root Make, provisioning, deployment or destructive external actions. Go prerequisites are in §4. If Python execution actually becomes necessary, obtain/activate a user-provided or verified approved venv once and reuse it; no Python is needed merely for Go or Markdown planning and none is executed here.
+5. **Environment:** current development repo and explicitly designated safe disposable offline fixtures only. No `.env` or real credentials/protected records, automatic package/toolchain/module installs/downloads, live infrastructure/model/MCP, root Make, deployment or destructive external actions. Fixture creation, mounting, filling, permission/user changes, execution, and cleanup are not authorized by default; use the separately authorized fixture-preparation gate below and only for named facilities/actions. Go prerequisites are in §4. If Python execution actually becomes necessary, obtain/activate a user-provided or verified approved venv once and reuse it; no Python is needed merely for Go or Markdown planning and none is executed here.
 6. **Mandatory per-chunk post-work:** changed-file discovery, relevant full tracked/staged/untracked diff review, formatter on changed language files, syntax/type/build/symbol/import/caller validation, focused behavior/regression tests, discovered test counts/skips, and functional/integration risk/validation-gap/rollback statement. Always apply §4 F plus relevant D/S/I/R/O/X checks; documentation-only chunks instead validate complete contents/links/whitespace, without product formatting/build. No observed result may be fabricated from an expected outcome.
 7. **Common chunk exit E:** all explicit tasks and required focused checks actually pass; safe intermediate state and scope-conforming full diff; risks/gaps/choices/base/candidate/failed-attempt count recorded; selected mode's handoff rule satisfied. Non-final report: `CONTINUABLE`, `BLOCKED` or `INCOMPLETE`; a `CONTINUABLE` worker still stops. No bypass/new exposure while its required controls are incomplete. Final gate uses `READY_FOR_REVIEW`, `BLOCKED` or `INCOMPLETE`, never automatic acceptance/deployment/Phase 02.
 8. **Handoff H for every non-final rung below:** single-chunk asks confirmation before unrequested creation and stops; continuous non-final requires complete handoff and worker exit before main-agent acceptance. Proposed fallback path, no current-repository convention established: `docs/handoffs/ai-ops-go-manual-diagnostics-chunk-N-to-M.md`. Use installed handoff skill if authorized/available; its paired next-session instruction, when required, remains an execution artifact, not an extra planning output now. Include exact task/plan/source/base/candidate/mode/policy identity, completed/next chunk, files/symbols, actual commands/results/discovery/skips, full diff summary, decisions/approvals/gates, risks/gaps/rollback, blockers/environment and precise next instructions. No secrets. No automatic final/next-phase handoff.
 9. Evidence defaults to the chunk completion response and authorized handoffs; fixture-generated expected/actual records live only in controlled temporary outputs or explicitly reviewed synthetic fixtures. No execution logs/handoffs are created by this planning invocation. Keep phase/chunk labels in documents, not executable symbols/config.
 10. Authoritative source conflict, required scope expansion, changed approved architecture, material safety/privacy/integrity risk, unavailable required tooling or unauthorized environment access is an escalation. Stop dependent work and report evidence/options, not a permissive fallback. Self-check does not replace independent review in a separate fresh session. Reproduce/substantiate review findings before repair.
+
+### Fixture preparation gate — separate from application chunks
+
+The required non-root security-context, bounded disposable-filesystem, and utility/interpreter-free runtime facilities are verification prerequisites, not product components. Their availability does **not** gate the documentation-only Chunk 1.
+
+- Chunk 0 records existing evidence and classifies each facility as established, unavailable, or unverified. It does not create, mount, fill, configure, execute, or clean up fixtures.
+- Chunk 1 may document compliant realizations and record fixture requirements as pending. It must not claim fixture evidence or require the facilities to exist before completing the design record.
+- Before any dependent verification, a separate explicit fixture-preparation authorization must identify the VM, existing path or proposed facility, owner, exact setup/test actions, capacity or other bounds, and cleanup authority. Prefer a dedicated disposable VM or snapshot. Do not use an active controller/assistant root filesystem for an ENOSPC test or alter its security configuration under this plan.
+- This gate applies to the actual-ENOSPC check in Chunk 8, target-OS security-context checks in Chunk 12, and mandatory evidence closure in Chunk 20, plus any earlier check whose stated evidence depends on the same facility. Missing access blocks that dependent check/chunk and final acceptance; it does not waive the check or block documentation-only Chunk 1. If this is the only remaining Chunk 0 gap after its other exit checks pass, report Chunk 0 as `CONTINUABLE` to Chunk 1, not `BLOCKED`.
+- G2's trusted operator configuration, finite usable limit, and protected setup remain prerequisites before startup/use; synthetic fixtures do not substitute for deployment configuration. G1/G3/G4 reviews and approvals retain their existing timing. Fixture availability does not approve a design, satisfy a review, or establish deployed/live acceptance. The historical `PREFLIGHT_PASS` in §14 is not refreshed by this amendment; applicable preflight remains required before feature edits.
 
 ## 9. Implementation Ladder: Phase 01 Manual Diagnostic Safety Boundary
 
@@ -332,29 +342,29 @@ One experienced engineer; **1 engineer-day ≈ 6 focused hours**. Ranges include
   - [ ] Inventory commands/branches, registry/SDK constructors/callers, build outputs and actual supported routes; confirm proposed paths and no competing plan.
   - [ ] Confirm formal preflight status separately; do not issue a verdict or treat the old draft review as current preflight.
   - [ ] Inspect test startup/side effects, sanitized offline launch, installed Go 1.27.1/cache, race/OS contexts/bounded filesystem utility-free fixture access. No auto-provisioning/downloads/credential inspection.
-  - [ ] Run B0/B1 then safe B2; record actual tests discovered, skips/errors and four-binary baseline, source/command side effects. If unavailable, classify exact blocker; do not begin features.
+  - [ ] Run B0/B1 then safe B2; record actual tests discovered, skips/errors and four-binary baseline, source/command side effects. Record fixture gaps without provisioning; fixture-only gaps block dependent verification, not the documentation-only Chunk 1. Missing baseline tooling, source/authority issues, or other feature-entry blockers remain blocking.
   - [ ] Confirm coverage, chunk feasibility/estimate and G1–G4 timing; record any supported refinement in this same plan without marking unperformed work complete.
 - **Compile-safe state/excluded:** source unchanged; no feature or concrete gate approval fabricated.
 - **Validation/post-work:** repository drift/authority evidence, safe baseline results, final status/diff and risk review; no formatter on untouched files.
 - **Risk/rollback/repair:** unsafe test side effects or unavailable toolchain are blockers; no baseline reset/cleanup of user work. Remove only identified task-generated disposable outputs if safe.
-- **Handoff/stop:** H and E, or precise blocker; stop before Chunk 1.
+- **Handoff/stop:** If all Chunk 0 source/baseline/authority exit checks pass and only fixture evidence is pending, report `CONTINUABLE` to documentation-only Chunk 1 and carry the fixture gates forward. Report `BLOCKED` for any remaining Chunk 0 entry/exit blocker. Neither status authorizes the next chunk or fixture operation.
 
 ### Chunk 1: Document the Concrete G1–G4 Realization
 
 - **Goal/requirements:** settle feasible compliant engineering mechanisms, not change B1–B5/product rules. Supports V1–V3/V8–V12.
-- **Entry/dependencies:** 0; separate design-work authorization and actual current sources; no feature edits without applicable preflight.
+- **Entry/dependencies:** Chunk 0 source/base/authority revalidation; separate explicit design-work authorization and actual current sources. Fixture gaps may remain pending for this documentation-only chunk. No feature edits without applicable preflight.
 - **Inspect:** task §3/§6/§10, ADR B1–B5/§6, code inventory, permitted OS/filesystem facilities.
 - **Proposed changes:** `docs/ai-ops-go/manual-diagnostics.md` realization/operator-guide section (new documentation, no deployment values); record identity of gate evidence in this plan only if execution authorization permits plan tracking. No ADR/PRD rewrite.
 - **Tasks:**
   - [ ] Specify credential-owning/requesting non-root domains, authenticated local ingress, independently trusted configuration/current authorization and negative OS-context proof. No inference/MCP scaffolding.
-  - [ ] Specify exact permitted authentication/reader destinations and API/relationship rules, input-source controls and no ambient/proxy/redirect fallback; synthetic fixture setup only. Do not adopt archived HTTP/auth decisions.
+  - [ ] Specify exact permitted authentication/reader destinations and API/relationship rules, input-source controls and no ambient/proxy/redirect fallback; document synthetic-fixture setup requirements only, without creating or running fixtures. Do not adopt archived HTTP/auth decisions.
   - [ ] Specify protected namespace/versioning, initial file/directory durability ordering, writer/admission/health lock ordering, quota reservation, audit/result publication, crash/recovery/ack and bounded audited cleanup. Explain minimal payload-retention choice.
-  - [ ] Identify G2 synthetic prerequisites vs real operator-supplied environment and safe bounded filesystem/security-context fixture availability; record exact tests needed.
+  - [ ] Identify G2 synthetic prerequisites vs real operator-supplied environment; record the required properties, current evidence status, and exact future tests for bounded-filesystem, security-context, and utility-free runtime fixtures. Mark unavailable/unverified facilities as pending; do not provision or execute them in this chunk.
   - [ ] Obtain separately reviewed/approved concrete G1/G4 realizations before their affected execution and G3 review before enabling collectors. Record pending/satisfied states honestly; do not self-approve. Ordinary compliant details remain Level 1.
 - **Compile-safe/excluded:** documentation only; no enabled reader/persistence or new infrastructure, account/path/endpoint/credential values.
 - **Validation/post-work:** complete document/links/consistency against task §3 and ADR §6, diff/scope/security review. No product test implied.
 - **Risk/rollback/repair:** if realization needs weakened safety/expanded privilege, stop for precise Level 2 decision. Revise only proposed design text, not approved sources; unresolved gates block dependent chunks, not independent compliant design.
-- **Handoff/stop:** H/E with explicit gate ledger, no claim of implemented controls.
+- **Handoff/stop:** H/E with explicit gate ledger, pending fixture-preparation work, and no claim of implemented controls or fixture evidence. Stop after this documentation chunk; do not automatically enter Chunk 2.
 
 ### Chunk 2: Close Legacy Exposure and Build One Dormant Runtime
 
@@ -452,7 +462,7 @@ One experienced engineer; **1 engineer-day ≈ 6 focused hours**. Ranges include
 ### Chunk 8: Finite Managed Capacity and Honest Physical Disk Failure
 
 - **Goal/requirements:** V10/V11; FR-049 and capacity portion FR-048.
-- **Entry/dependencies:** 7; G2 synthetic finite limit, approved G4 capacity/reservation design, expendable bounded filesystem facility.
+- **Entry/dependencies:** 7; G2 synthetic finite limit and approved G4 capacity/reservation design. The separate fixture-preparation gate must establish an authorized expendable bounded filesystem before the real-ENOSPC check; otherwise this chunk cannot exit as complete.
 - **Inspect:** new managed/control records and protected data accounting; no real legacy data.
 - **Proposed changes/symbols:** `internal/protectedstore/capacity.go` and test; accounting/reservation/check-health and distinct quota/ENOSPC outcomes.
 - **Tasks:**
@@ -516,7 +526,7 @@ One experienced engineer; **1 engineer-day ≈ 6 focused hours**. Ranges include
 ### Chunk 12: Authenticated Ingress and Independent OS Authority
 
 - **Goal/requirements:** V1–V3, FR-002/010/021/022/033; actual boundary domain, not package trust.
-- **Entry/dependencies:** 11; **concrete G1 separately reviewed/approved**, G2 synthetic non-root context fixture setup, approved protected configuration/access design. No operator provisioning by agent.
+- **Entry/dependencies:** 11; **concrete G1 separately reviewed/approved**, G2 synthetic configuration, approved protected configuration/access design, and the separately authorized target-OS security-context fixture before its real-context checks. No operator-account provisioning by the application agent.
 - **Inspect:** G1 realization, command inventory, policy/context and health contracts.
 - **Proposed changes/symbols:** `internal/diagnostic/ingress.go` and test; authenticated caller binding/configuration-to-request context, mechanism-specific file split only if build/platform constraints justify it and ladder is updated in place.
 - **Tasks:**
@@ -643,7 +653,7 @@ One experienced engineer; **1 engineer-day ≈ 6 focused hours**. Ranges include
 ### Chunk 20: Close Mandatory OS, Process, Crash, Capacity and Package Evidence
 
 - **Goal/requirements:** V1–V12 evidence closure, especially V3/V9–V12; no new capability.
-- **Entry/dependencies:** 19; existing introducing-chunk tests already pass, target-OS non-root/security-context, independent-process, bounded filesystem and utility-free fixture facilities actually available and authorized.
+- **Entry/dependencies:** 19; existing introducing-chunk tests already pass, and the separate fixture-preparation gate has established authorized target-OS security-context, independent-process, bounded-filesystem, and utility-free runtime facilities. Missing mandatory facilities keep this evidence-closure chunk blocked; they are not converted to skips.
 - **Inspect:** §5 coverage, all fixture discovery/skip results, command linkage/artifact map and actual store/ingress failure states.
 - **Proposed changes:** test-only `internal/diagnostic/system_test.go` and `internal/protectedstore/process_test.go` plus strictly needed synthetic fixtures; exact tests/selectors recorded here at introduction. No new production API or test bypass flag.
 - **Tasks:**
@@ -694,7 +704,7 @@ All remain unchecked during planning:
 | --- | --- | --- |
 | Concrete boundary/storage not selected or approved | Current ADR intentionally constraint-based; 1 records mechanisms, task §3/ADR §6 govern timed separate review/approval and 6/12/13 gate affected work. | Not a Level 2 planning blocker; no immediate enablement permitted. If infeasible without changed guarantees, stop with precise Level 2 request. |
 | Go 1.27.1 unavailable/caches missing | Module declares version; nothing was executed to verify it. B0/Chunk 0 must confirm with offline/no-download controls. | Unverified prerequisite, not claimed failure; required unavailable tooling blocks execution, not silently downgrade/install. |
-| Real OS identity/disk/crash/utility-free fixtures unavailable | Tests require more than ordinary mocks; facility/access/provisioning not established here. Discover early in 0/1, execute alongside changes and close in 20. | Mandatory missing offline evidence blocks acceptance; obtain separately provided safe facilities, never root/host-disk workaround. |
+| Real OS identity/disk/crash/utility-free fixtures unavailable | Tests require more than ordinary mocks. Chunk 0 records availability; Chunk 1 documents requirements; a separate, specifically authorized fixture-preparation gate establishes facilities before dependent checks. Read-only inspection of `assistant01:/opt/aiops-openstack-lab/` found it empty and on the VM root ext4 filesystem, not a bounded fixture. | Missing facilities block dependent verification and final acceptance, not documentation-only Chunk 1. Never use an active VM root disk as an ENOSPC workaround or treat mocks/skips as evidence. |
 | Historical review differs from approved bytes | Exact old hashes recorded; original review/update diff remains unavailable. The later initial-depth preflight independently inspected the current committed contents; see §14. | Historical draft-to-approved drift remains `UNVERIFIED_DRIFT`; the old draft verdict is not reused. Revalidate affected checks on material changes. |
 | Entry consolidation leaves raw route or old binary | Four mains and registry consumers observed; 2/19 inventory includes direct builds/branches, 20 package proof. | Disable before side effects; no delivered second runtime or bypass revival. |
 | Audit fault cannot persist its own marker | Required state may be uncertain/unwritable; durable intent/control validation and fail-closed startup, 7/9/10/20. | Absence of marker never restores health; independent caller/restart tests mandatory. |
@@ -967,3 +977,15 @@ PREFLIGHT_PASS
 ---
 
 **End of recorded preflight report.**
+
+## 15. User-authorized execution-sequence amendment
+
+This amendment implements the user's direction to modify sequencing while retaining approved G1–G4 constraints. It does not modify the PRD, task contract, ADR, B1–B5, acceptance criteria, or required evidence.
+
+The earlier recovery packet treated unresolved fixture access as a prerequisite to Chunk 1. That was an over-broad gate: Chunk 1 is documentation-only and its plan already assigns it to document concrete G1–G4 realizations and identify fixture requirements. Fixture availability therefore remains pending evidence, not a prerequisite to writing that design record. The original handoff's `BLOCKED` label accurately recorded the then-controlling sequence. Under this amendment, if Chunk 0's non-fixture exit criteria pass and only fixture gaps remain, its current status is `CONTINUABLE` to documentation-only Chunk 1; fixture evidence itself remains pending and unpassed.
+
+The revised sequence is: (1) Chunk 0 records source/baseline state and fixture availability without provisioning and is `CONTINUABLE` to Chunk 1 if its other exit criteria pass with only fixture gaps pending; (2) separately authorized Chunk 1 documents compliant designs, identifies exact fixture properties/tests, and marks unavailable facilities pending; (3) a distinct, specifically authorized fixture-preparation operation locates or prepares facilities before the chunks whose mandatory checks require them; (4) affected checks and enablement remain blocked until actual evidence is collected. No fixture setup or execution is authorized by this plan amendment.
+
+Read-only inspection on `assistant01` established that `/opt/aiops-openstack-lab/` exists, is owned by `ansible_sys_user:ansible_sys_user`, has no entries, and resides on the VM's root ext4 filesystem (24,455,327,744 bytes total; 19,567,034,368 available). It is not a bounded filesystem fixture. This observation does not establish that no other fixture exists elsewhere.
+
+The historical `PREFLIGHT_PASS` in §14 remains tied to its recorded older candidate and is not reissued here. Documentation-only Chunk 1 requires current source/base revalidation and explicit chunk authorization; applicable current preflight remains a prerequisite before any feature edits. G2 trusted operator configuration, finite usable limit, and protected setup before startup/use; G1/G3/G4 review/approval timing; G1 negative OS proof before manual enablement; G4 durability/fault evidence before acceptance; all mandatory offline checks; and the prohibition on claiming deployed acceptance from fixtures remain unchanged.
