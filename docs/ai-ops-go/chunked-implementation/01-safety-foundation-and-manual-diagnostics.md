@@ -2,7 +2,7 @@
 
 ## 1. Identity, outcome and authorization
 
-**Planning status: PLAN_READY.** This is the planning author's self-assessment, not independent plan acceptance, implementation authorization, deployed validation or release approval. A subsequent separately authorized independent implementation preflight returned `PREFLIGHT_PASS`; its complete response and evidence boundary are recorded in §14. The verdict is separate from the planning status and does not authorize execution.
+**Planning status: PLAN_READY.** This is the planning author's self-assessment, not independent plan acceptance, implementation authorization, deployed validation or release approval. A historical independent preflight is summarized in §14; a later preflight and its distinct evidence boundary are recorded in §16. Neither verdict adopts the plan or authorizes execution.
 
 **Privacy redaction and freshness:** Machine-specific local paths were subsequently removed from this plan and the task contract. The recorded fingerprints and preflight verdict describe earlier bytes; assess the actual redacted candidate, approval and affected preflight freshness before execution. This redaction does not itself reissue a verdict or authorize implementation.
 
@@ -306,7 +306,7 @@ One experienced engineer; **1 engineer-day ≈ 6 focused hours**. Ranges include
 
 **Policy source:** installed executor/core-safety/delivery/policy fingerprints in §2.3, applicable repository instructions, and task. No compatible project retry/environment/handoff override was supplied. The following defaults apply at execution, not as permission to execute now:
 
-1. Use this single controlling plan only after explicit chunk execution authorization and controlling-plan adoption. For this governed workflow, current approved/committed task/ADR and applicable formal preflight evidence are required before feature edits; the subsequent preflight report is recorded in §14 and must be revalidated for material drift. A separately authorized source/baseline-only Chunk 0 is not itself a preflight verdict. Re-read plan, sources, instructions and authorized handoff before each session; verify source/approval/base drift and classify impacts before reuse.
+1. Use this single controlling plan only after explicit chunk execution authorization and controlling-plan adoption. For this governed workflow, current approved/committed task/ADR and applicable formal preflight evidence are required before feature edits; historical and later preflight records are in §§14 and 16 and must be revalidated for material drift. A separately authorized source/baseline-only Chunk 0 is not itself a preflight verdict. Re-read plan, sources, instructions and authorized handoff before each session; verify source/approval/base drift and classify impacts before reuse.
 2. **Single-chunk:** exactly the selected chunk, post-work/report, then stop. Default is to obtain confirmation before creating an unrequested handoff. A prior explicit handoff instruction may satisfy that confirmation; it never authorizes the next chunk.
 3. **Continuous-loop:** explicit authorization and real fresh-session orchestration required. A capable main agent selects one chunk, dispatches one fresh worker, accepts its evidence/exit conditions and complete non-final handoff, then dispatches the next. Each worker stops. Missing orchestration means report the gap and supply a manual next-session prompt; do not simulate isolation or silently run all chunks in one session.
 4. **Failure budget:** at most **two failed validation attempts for the same current-chunk issue**, absent a separately authorized finite override fixed before retries. Count and report failed attempts; session changes do not reset the budget. Diagnose current regression versus baseline/environment, repair only smallest safe in-scope defect, add regression coverage, rerun affected checks. Do not weaken tests, advance with unresolved required failures/gaps, or implement future chunks to fix the current one. Missing tools/access or exhaustion stops with a concrete blocker.
@@ -775,208 +775,13 @@ This section records the original planning-stage observations and assessment, no
 
 ## 14. Recorded independent implementation preflight
 
-The following is the complete response-only report returned by the separately authorized independent preflight in the current conversation. The user subsequently authorized recording it here. The reviewed plan fingerprint below identifies the **pre-recording** candidate, not the bytes after adding this report, clarifying historical references, or later redacting machine-specific paths from the plan and task. This documentation update does not itself approve the plan, authorize a chunk, or extend the verdict to materially changed sources or execution states. A future executor must assess whether intervening changes, including these documentation updates, require affected revalidation.
+### Historical initial preflight — compact record
 
----
+The separately authorized, response-only initial implementation preflight returned `PREFLIGHT_PASS` for branch `aiops-go-phase01`, base `ae7983c9af3a243ac4b1b104f6949d3afa56f6e1`, tree `1965507f8b104f0ba2ed92586a51d951413ff467`, and the then-untracked, unadopted plan candidate. It assessed the committed task and ADR as approved on their documented owner-approval provenance, found no material contract or plan blocker, and did not authorize implementation or plan adoption. The original draft-review transcript and pre-approval-update bytes were unavailable; draft-to-approved drift remained `UNVERIFIED_DRIFT`.
 
-# AI-OPS Go Phase 01 — Implementation Preflight
+Reviewed SHA-256 identities under `docs/ai-ops-go/`: PRD `a685452c2b2d7303a342376117299d777131fd4ff6dfd3ffc19dd397974da9ed`; task `977965efc06c760ce13c70b6547ac04ddf4ff2c25fd93a252e5550db7d0d5133`; ADR `e1f8fb358ff230f5ff1812404bc24fba5d1906d796179d8c1a93cae9b521781d`; plan `b12c42012e1b4084e17c6874750547f40885e176ce0792c951f9681b36ba5d42`; Phase 01 roadmap `3f489644009010e68077749dbcc9d4cb983dd87bb83747cf46b912bf1cb20f14`. The task and ADR HEAD blobs were `469814bee1c8bb30a52b1461b8efbb04de62e4f3` and `de9ad8d08bf305a30202168888f14fb393426da4` respectively.
 
-**Mode:** IMPLEMENTATION PREFLIGHT, read-only
-
-**Pass:** INITIAL, round 1; no previous preflight report available
-
-**Project:** Existing project with partial implementation
-
-**Authorization:** Your invocation explicitly authorized this review—not implementation.
-
-### 1. Verified candidate and repository state
-
-| Item | Observed state |
-|---|---|
-| Branch | `aiops-go-phase01` |
-| HEAD | `ae7983c9af3a243ac4b1b104f6949d3afa56f6e1` |
-| Tree | `1965507f8b104f0ba2ed92586a51d951413ff467` |
-| Parent | `e29fa87e293246c187f5b01604e6f012dfbb4761` |
-| Commit subject | `docs(ai-ops): approve Phase 01 safety contract and ADR` |
-| Commit delta | Exactly 11 added roadmap/task/ADR Markdown files; no application changes |
-| Tracked staged/unstaged changes | None |
-| Untracked project files | Exactly the single implementation-plan candidate below |
-
-Under `docs/ai-ops-go/`, measured SHA-256 identities are:
-
-| Source | SHA-256 |
-|---|---|
-| `prd.md` | `a685452c2b2d7303a342376117299d777131fd4ff6dfd3ffc19dd397974da9ed` |
-| `aiops-baseline.md` | `cd03daa694691852842d4812b983cdbd220fba205d02d318d4f57ca9e9503e01` |
-| `implementation-plan/00-implementation-overview.md` | `92bd72c67805ff2f8350dc6bcff5f7228f6b262e6e20d9fd3c627d8ebd31b1f0` |
-| `implementation-plan/01-safety-foundation-and-manual-diagnostics.md` | `3f489644009010e68077749dbcc9d4cb983dd87bb83747cf46b912bf1cb20f14` |
-| `tasks/01-safety-foundation-and-manual-diagnostics.md` | `977965efc06c760ce13c70b6547ac04ddf4ff2c25fd93a252e5550db7d0d5133` |
-| `architecture/01-manual-diagnostic-enforcement-and-persistence-boundaries.md` | `e1f8fb358ff230f5ff1812404bc24fba5d1906d796179d8c1a93cae9b521781d` |
-| `chunked-implementation/01-safety-foundation-and-manual-diagnostics.md` | `b12c42012e1b4084e17c6874750547f40885e176ce0792c951f9681b36ba5d42` |
-
-The task and ADR are tracked and committed, with HEAD blobs:
-
-- Task: `469814bee1c8bb30a52b1461b8efbb04de62e4f3`
-- ADR: `de9ad8d08bf305a30202168888f14fb393426da4`
-
-All measured source identities match the supplied packet. Phases 02–08 also match their recorded fingerprints.
-
-The enclosing repository remains on `main`, HEAD `74c01ca9de6c2153a0306b037860bfe3c276b649`, with the two documented unrelated modifications and untracked `001`–`005` packet pairs. Everything was preserved.
-
-#### Approval and freshness
-
-**Documented approval evidence:** Both committed headers quote the owner’s approval of the task and ADR. The `004` handoff corroborates that approval and distinguishes it from commitment.
-
-**Limitation:** The original response-only draft review and pre-update bytes were not available. Therefore:
-
-- `NONMATERIAL_CONFIRMED` applies relative to the unchanged `004`/`005` committed snapshot.
-- The exact historical draft-to-approved update remains `UNVERIFIED_DRIFT`.
-- I did not reuse the older draft verdict; this review independently assessed the current committed contents.
-- The documented approval records are sufficient for this preflight; no claim of independently recovering the original conversation is made.
-
-### 2. Sources inspected
-
-Read completely through their endings:
-
-- The `005` instruction and paired handoff; both `004` provenance documents.
-- `.agents/AGENTS.md`.
-- Current PRD, task, ADR, roadmap overview, Phases 01–08, and the entire 757-line untracked plan.
-- Installed readiness skill and readiness, freshness, authority, reporting, and convergence references.
-- Relevant executor safety, policy, delivery, and plan-ownership contracts.
-- All four specifically identified archived Go-owned/auth-amendment contracts.
-- `docs/architecture.md`.
-
-Code inspection covered command startup, registry dispatch and callers, server/flavor/port collectors, scoped broker, authentication constructors, persistence and discarded-save seams, tests, and verification entry points. The three tools/broker test files were read completely. README inspection was limited to its opening architecture/prerequisite sections; the educational baseline to its final curriculum.
-
-### 3. Gate assessment
-
-| Gate | Status | Evidence |
-|---|---|---|
-| Task approved separately from Git state | PASS | Committed approval headers and `004` provenance |
-| Task committed | PASS | Tracking, HEAD blob, clean HEAD/worktree comparison |
-| Contract/source freshness | PASS | Current fingerprints match packet; historical verdict not reused |
-| Base identified | PASS | Exact branch, HEAD/tree, parent, and complete status |
-| Complete document, including ending | PASS | Task §§1–12 and explicit ending inspected |
-| Objectives/outcomes | PASS | Task §1 defines observable model-independent manual behavior |
-| Scope/exclusions | PASS | Task §§4–5 preserves all four Phase 01 steps and §01.6 |
-| Acceptance/verification | PASS | Task §§7, 9, 11; V1–V12; plan mapping and final gate |
-| PRD/ADR/security fidelity | PASS | B1–B5 preserved; concrete mechanisms remain timed gates |
-| Prior implementation dependencies | PASS | Existing code is explicitly unaccepted; unsafe paths must be disabled |
-| No blocking contradiction/missing Level 2 decision | PASS | None substantiated in the inspected candidate |
-
-These assess **contract readiness**, not whether the existing implementation already satisfies the contract.
-
-### 4. Independent traceability and security assessment
-
-| Governing obligation | Current coverage and evidence path |
-|---|---|
-| FR-001/002/010/023/024/043/046; AC-012/028/029 contributions | One runtime, trusted scope, fixed Go execution and manual independence: task §§4.1–4.2; plan Chunks 2–4, 12–13, 19–21; V1–V3/V12 |
-| FR-003; AC-002 contribution | Literal case-sensitive names, meaningful whitespace, original/resolved identity and bounded audited lookup: task §4.3; Chunks 14/19; V4 |
-| FR-011/025; AC-004/027 contributions | Explicit required field states and authorized server-derived flavor/port relationships: Chunks 15–17; V5 |
-| FR-027/029/039/040; AC-014/015/022 contributions | Eight statuses, safe metadata, minimization before sinks and collection-time bounds: Chunks 3–5, 13–19; V6–V7 |
-| FR-014/015/028; AC-007/014/030 contributions | Durable intent before dispatch, outcome before disclosure, shared/restart failure admission, acknowledged uncertainty and separate confirmed recollection: Chunks 6–10/18; V8–V10 |
-| FR-048–050; AC-024/031 contributions | Protected versioned store, quota versus actual disk-full, audited bounded cleanup and legacy isolation: Chunks 6–11/20; V10–V11 |
-| Relevant NFRs | Authorization, separation, durability, bounded operation, privacy, observability and public-seam verification are retained; release performance/cost claims remain deferred |
-
-#### Existing risks are real—and correctly treated as implementation work
-
-1. **Current dispatch is not the approved boundary.**
-   `aiops/internal/tools/registry.go:35–42` directly invokes tools. Agent and workflow callers use it, while diagnostic mains construct clients/stores before their command loops. The plan requires disabling old entry paths first, then implementing authenticated credential-owning enforcement. A facade alone cannot pass V1–V3.
-
-2. **Current identity and projection behavior needs replacement or constrained reuse.**
-   `get_server.go` trims input, uses `AllPages`, exposes host/raw fault details, and omits required field states. `get_flavor.go` reads extra specs without verified server linkage. Chunks 14–17 explicitly address these differences.
-
-3. **Existing persistence is insufficient evidence.**
-   Store helpers sync files and rename them but do not establish the required directory durability, independent-writer admission, capacity, lifecycle, or recovery guarantees. Discarded saves also exist in deferred engines. The plan does not enable those engines or mistake their presence for accepted behavior.
-
-These are substantiated baseline deficiencies, **not missing preflight specifications**. Their repairs remain LEVEL_0/LEVEL_1 within the approved task and mandatory implementation evidence.
-
-The contract also correctly distinguishes:
-
-- Pre-dispatch rejection: zero implementation/authentication/API calls.
-- Post-read scope rejection: withhold unsafe output and honestly record prior contact.
-- Recovery acknowledgement: neither authorization nor consent to recollect.
-- Uncertain recollection: separate confirmation, current authorization, and a new observation.
-
-### 5. Plan feasibility and status
-
-**No material plan contradiction was substantiated.**
-
-Observed:
-
-- 22 consecutive headings, Chunks 0–21.
-- Dependencies point to earlier work.
-- Estimates total **15–27.25 days / 90–163.5 hours**.
-- Contracts precede callers; persistence precedes audited dispatch.
-- Public diagnostics remain unavailable until security/storage/reader/lifecycle controls exist.
-- Tests accompany introducing behavior.
-- Real OS, independent-process, crash, first-create and bounded-filesystem disk-full evidence are mandatory—not replaceable by mocks.
-- Chunk 21 reserves full verification, documentation/demo and complete-diff review without new features.
-
-These are sound planned intermediate states; actual compilability and behavior remain untested.
-
-#### Plan adoption remains separate
-
-The plan is **untracked, uncommitted and not independently accepted**. This review does not approve it.
-
-The installed executor requires use of the accepted controlling ladder. That is an execution-stage adoption requirement. I found **no current governing rule requiring this plan to be committed before task-contract preflight**. The archived task’s stronger plan-commitment rule belongs to a different candidate and is not imported.
-
-Before execution, the owner/coordinator should explicitly select the exact reviewed plan as controlling. Its untracked status does not invalidate the committed-task gate.
-
-### 6. Remaining timed gates
-
-Task §3 and ADR §6 govern—not the older roadmap’s historical wording.
-
-| Gate | Required timing and closure |
-|---|---|
-| **G1** | Document and separately review/approve the concrete non-root OS/IPC realization before affected execution. Actual unauthorized-local-caller proof must precede manual enablement. Plan Chunks 1/12/19 preserve this. |
-| **G2** | Trusted configured scope/endpoints, protected setup and finite usable storage limit before startup/use. Synthetic offline fixtures do not require actual deployment values. Live probes require their own explicit scope and cleanup owner. |
-| **G3** | Review exact reader APIs, relationships and transport/destination controls before collector enablement. Actual cloud reader/mutation-denial proof remains separately authorized live acceptance. |
-| **G4** | Separately review/approve concrete versioning, durability, arbitration, capacity, cleanup and recovery before persistent execution. Actual fault/crash/filesystem results precede acceptance. |
-| **G5/G6** | Remain later release/MCP gates; not approved here. |
-
-Compliant package/schema organization, finite limits, test seams, local transport and persistence choices remain **LEVEL_1** within these constraints. Routine verification and repair are **LEVEL_0**.
-
-No present LEVEL_2 change is requested. If a realization requires weaker safety, new material risk, privilege, infrastructure or expanded scope, dependent work must stop for that precise decision.
-
-### 7. Findings, evidence timing and limitations
-
-**Material preflight blockers:** None substantiated.
-
-**Required contract/plan repairs:** None identified.
-
-**Prior finding closure:** Not applicable; initial-depth review, no fabricated remediation history.
-
-**Non-convergence:** Not applicable.
-
-| Evidence maturity | Assessment |
-|---|---|
-| `AVAILABLE_NOW` | Approval records, commitment, current sources, code seams and complete plan inspected |
-| `REQUIRED_BEFORE_THIS_GATE` | No indispensable unresolved source/authority gap identified |
-| `FUTURE_IMPLEMENTATION` | Baseline checks, actual compilation/tests, G1–G4 realization evidence, OS/process/crash/disk/package verification |
-| `OPTIONAL_ADVISORY` | Additional fuzz/soak coverage must not replace mandatory evidence |
-
-Go `1.27.1` is declared, but installed toolchain/cache and safe fixture facilities remain **unverified**, not proven unavailable. Chunk 0 must establish them before relying on them.
-
-No product tests, builds, vet/race checks, formatters, services, downloads, credentials/`.env`, protected records, cloud/host/model/MCP calls, provisioning or deployment were performed. No repository file was changed.
-
-The four historical contracts were used only for compatibility comparison. Their identities, paths, authentication source, HTTP exceptions, catalog, seven-status envelope and approvals were not inherited.
-
-### 8. May work proceed?
-
-**Yes—a separately authorized executor may proceed at this reviewed base**, after explicitly adopting the controlling plan and selecting the bounded execution mode/chunk.
-
-The safe next work is **Chunk 0 only**: source/base revalidation and guarded offline baseline/facility discovery. Subsequent work remains constrained by the G1–G4 timing above. No model analysis, investigation/resume, MCP, broad catalog, host/operator enablement, migration or unrelated lab work is authorized.
-
-This report supplies neither execution authorization nor plan/concrete-mechanism approval, implementation acceptance, or deployment permission. Material changes to the task, ADR, PRD, plan, approval evidence or relied-on implementation require affected revalidation.
-
-The authorized response-only preflight is complete; I am stopping here.
-
-PREFLIGHT_PASS
-
----
-
-**End of recorded preflight report.**
+The reviewer inspected the full governing sources and then-current plan, relevant code and tests, and four archived compatibility contracts. It identified unsafe legacy command/registry routes, identity/projection gaps and insufficient persistence evidence as implementation obligations, not already accepted behavior. V1–V12, G1–G4 timed reviews and mandatory OS/process/filesystem evidence remained required. No product tests, builds, fixture execution or live work were performed by that reviewer. Subsequent plan/task changes and §15 did not refresh this historical verdict; see §16 for the later review.
 
 ## 15. User-authorized execution-sequence amendment
 
@@ -988,4 +793,58 @@ The revised sequence is: (1) Chunk 0 records source/baseline state and fixture a
 
 Read-only inspection on `assistant01` established that `/opt/aiops-openstack-lab/` exists, is owned by `ansible_sys_user:ansible_sys_user`, has no entries, and resides on the VM's root ext4 filesystem (24,455,327,744 bytes total; 19,567,034,368 available). It is not a bounded filesystem fixture. This observation does not establish that no other fixture exists elsewhere.
 
-The historical `PREFLIGHT_PASS` in §14 remains tied to its recorded older candidate and is not reissued here. Documentation-only Chunk 1 requires current source/base revalidation and explicit chunk authorization; applicable current preflight remains a prerequisite before any feature edits. G2 trusted operator configuration, finite usable limit, and protected setup before startup/use; G1/G3/G4 review/approval timing; G1 negative OS proof before manual enablement; G4 durability/fault evidence before acceptance; all mandatory offline checks; and the prohibition on claiming deployed acceptance from fixtures remain unchanged.
+The historical `PREFLIGHT_PASS` in §14 remains tied to its recorded older candidate and is not reissued by this amendment. Documentation-only Chunk 1 requires current source/base revalidation and explicit chunk authorization; applicable current preflight remains a prerequisite before any feature edits. G2 trusted operator configuration, finite usable limit, and protected setup before startup/use; G1/G3/G4 review/approval timing; G1 negative OS proof before manual enablement; G4 durability/fault evidence before acceptance; all mandatory offline checks; and the prohibition on claiming deployed acceptance from fixtures remain unchanged. The later review is recorded separately in §16.
+
+## 16. Current implementation preflight — response record
+
+**Review:** `specification-readiness-authority`, IMPLEMENTATION PREFLIGHT, read-only initial-depth assessment, explicitly authorized by the user. The reviewer performed no implementation. The `011` handoff's earlier blocked response concerned availability of an independent reviewer, not a substantive prior plan finding; no remediation ledger was invented. The handoff describes a separate prospective executor session, but the reviewer could not independently attest its identity or that of a future executor. An executor must be in a separate session from the reviewer.
+
+**Review verdict:** `PREFLIGHT_PASS` for the reviewed committed task and candidate/base below, not plan adoption, implementation authorization, independent Chunk 1 acceptance, G1–G4 mechanism approval, fixture authorization, live/deployment approval, or product acceptance. The user subsequently authorized recording the report and compacting §14; that documentation action does not itself approve the plan or authorize a chunk.
+
+### Candidate, provenance and freshness
+
+| Item | Observed during review, before this documentation update |
+| --- | --- |
+| Project branch / HEAD / tree | `aiops-go-phase01` / `6617bd95236977750d4d53b2cf99a9b32de242bf` / `146c0d9ee6b90f3c84702ba5fac04679a3e25ad9` |
+| Candidate comparison base | `e78fdb3a294414c64a14830f4d505e7f66e1b9e9`; only the plan sequencing amendment and candidate manual changed; no application delta. |
+| Intended implementation base | Current HEAD above, clean project worktree at review; current state must be rechecked before execution. |
+| Historical §14 preflight base | `ae7983c9af3a243ac4b1b104f6949d3afa56f6e1`; its task/plan bytes differ and its verdict was not reused. |
+| Project state | No tracked, staged, unstaged or untracked changes at review. Four ignored legacy `aiops/bin/openstack-*` binaries existed and were preserved. |
+| Enclosing repository | `main`, HEAD `74c01ca9de6c2153a0306b037860bfe3c276b649`, tree `479ab2554139c368375a6a7aa77c4e97e75fb2f7`; two unrelated tracked modifications, untracked `001`–`011` handoff pairs and TLSBeacon files were preserved. |
+
+Measured pre-recording SHA-256 values, relative to `docs/ai-ops-go/`:
+
+| Source | SHA-256 |
+| --- | --- |
+| `prd.md` | `a685452c2b2d7303a342376117299d777131fd4ff6dfd3ffc19dd397974da9ed` |
+| `tasks/01-safety-foundation-and-manual-diagnostics.md` | `b599995efcd78087b35d06a5e30e3b276255797924f1776d0fe7d692fc0d2e41` |
+| `architecture/01-manual-diagnostic-enforcement-and-persistence-boundaries.md` | `e1f8fb358ff230f5ff1812404bc24fba5d1906d796179d8c1a93cae9b521781d` |
+| `chunked-implementation/01-safety-foundation-and-manual-diagnostics.md` | `77340a1a6d2e8f43ce93221cce896edcdd1a370f321efa484c34126fc3376853` |
+| `manual-diagnostics.md` | `26cb2c1a733ecd97840fc3b1df2b11d6d13b00144b5ceccafc067ee2ea5ae67c` |
+| `implementation-plan/01-safety-foundation-and-manual-diagnostics.md` | `3f489644009010e68077749dbcc9d4cb983dd87bb83747cf46b912bf1cb20f14` |
+
+The reviewer classified current content relative to `011` as `NONMATERIAL_CONFIRMED`: reported HEAD/tree and the five candidate hashes matched. The older preflight's changed plan/base required fresh review. The observed task delta since that base was a privacy-redaction/provenance update, not a substantive task-rule change. The earlier draft-to-approved transition remains `UNVERIFIED_DRIFT`: the original review transcript and pre-update bytes were not independently supplied. Task and ADR approval are documented in their headers separately from Git commitment; the reviewer did not claim to recover the original transcript.
+
+**Recording freshness:** the plan hash above identifies the reviewed **pre-recording** bytes, not this updated file. Compacting §14 and recording this report changes the candidate. Before relying on the verdict for execution, inspect the actual documentation diff and revalidate affected source, candidate, approval and base freshness; material or unverified drift requires appropriate independent revalidation. This record does not itself extend the verdict to changed bytes or a different base.
+
+### Gate and traceability assessment
+
+| Gate / obligation | Review assessment |
+| --- | --- |
+| Approved and committed task/ADR | Passed on documented owner-approval provenance plus tracked, committed HEAD contents; historical draft-byte comparison remained unavailable. |
+| Complete scope, objectives, exclusions, security and verification | Passed as contract and plan readiness; task §§1–12, ADR B1–B5, Phase 01 roadmap, complete plan including §§8–9/14–15 and exact Chunk 2 rung, and candidate manual were inspected. |
+| V1/V2, FR-050 and legacy exposure | Chunk 2 requires all supported old routes to refuse before model/cloud/store/knowledge/registry effects, with public-entry side-effect traps and inventory. Existing source is not compliant today. |
+| V12 and one-artifact dormant runtime | New help/readiness/catalog must remain local and diagnostic requests explicitly unavailable; build/output inventory must preserve and not overwrite stale binaries. These are future implementation obligations, not passing evidence. |
+| B1–B5 and later evidence | The plan keeps authenticated ingress, protected persistence, collector enablement and manual activation gated on their respective controls and proof. Candidate `manual-diagnostics.md` does not approve or implement them. |
+| Plan adoption and execution | Not established by the review invocation. Explicitly adopt the exact controlling plan and separately authorize Chunk 2 before feature edits; recheck applicable preflight freshness. |
+
+The review observed model and ambient cloud-client construction in the agent/workflow/project mains before interactive paths, followed by legacy stores and knowledge loading; the chat main initializes a model client. `aiops/internal/tools/registry.go` dispatches directly, with callers in `internal/agent/runtime.go` and `internal/workflow/server_incident.go`. Existing command tests principally cover client configuration and planning parsing, not startup side-effect refusal. Existing ignored binaries do not become safe when source is changed: preserve and distinguish them from fresh build outputs; do not claim they are quarantined or supported.
+
+The reviewer found a dormant intermediate state feasible as a plan but did not establish compilation, refusal behavior or zero side effects. The four archived Go-owned and environment-auth ADR/task contracts were compatibility context only; their catalog, identities, paths, seven-status envelope, environment-auth and HTTP exceptions are not current authority. Ordinary compliant test seams, package organization and isolated build handling are Level 1; routine in-scope repairs are Level 0. Weakening security, changing requirements or expanding scope is Level 2 and blocks dependent work.
+
+### Evidence timing, remaining gates and stop boundary
+
+- **Before Chunk 2:** explicit current-plan adoption and Chunk 2 authorization; recheck source/base state, applicable preflight freshness, safe offline toolchain and output handling. Prior Chunk 0 results are reported historical evidence, not tests run in this review. Chunk 2 is not yet authorized by this record.
+- **Later:** G1/G4 concrete review and approval before affected execution; G3 operation/destination review before collector enablement; G2 trusted configuration before real startup/use. G1 target-OS unauthorized-caller proof precedes manual enablement. Crash, independent-process, bounded-filesystem ENOSPC and utility/interpreter-free evidence remain mandatory at their assigned gates; fixture preparation requires separate facility-specific authorization.
+- **Not run in the review:** Go tests, builds, formatters, fixtures, live services or deployment checks; no `.env` contents, credentials or protected records were inspected, and no repository file was changed. No current fixture or deployed-safety claim follows.
+- **No substantive preflight blocker was substantiated** for the pre-recording candidate. The separately authorized review and this documentation update stop here; neither starts Chunk 2.
