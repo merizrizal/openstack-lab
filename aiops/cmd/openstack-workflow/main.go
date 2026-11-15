@@ -19,6 +19,9 @@ import (
 )
 
 func main() {
+	fmt.Fprintln(os.Stderr, "openstack-workflow is disabled; use aiops")
+	os.Exit(2)
+
 	aiClient, aiClientName, aiModel, err := newAIClient()
 	if err != nil {
 		fail("configure AI client: %v", err)

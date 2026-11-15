@@ -16,7 +16,4 @@ test:
 
 build:
 	mkdir -p bin
-	$(GO) build -o bin/openstack-ai ./cmd/openstack-ai
-	$(GO) build -o bin/openstack-agent ./cmd/openstack-agent
-	$(GO) build -o bin/openstack-workflow ./cmd/openstack-workflow
-	$(GO) build -o bin/openstack-project ./cmd/openstack-project
+	$(GO) build -o bin/aiops ./cmd/aiops

@@ -34,6 +34,9 @@ actual OpenStack environment.
 `
 
 func main() {
+	fmt.Fprintln(os.Stderr, "openstack-ai is disabled; use aiops")
+	os.Exit(2)
+
 	client, providerName, modelName, err := newAIClient()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "configure AI client: %v\n", err)
