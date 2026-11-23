@@ -44,6 +44,56 @@ func TestSanitizeArgumentsUsesOnlyFixedIdentifierProjection(t *testing.T) {
 	}
 }
 
+func TestSanitizeArgumentsNeverEmitsSecretCanariesAcrossRepresentations(t *testing.T) {
+	cases := []struct {
+		name         string
+		identifier   string
+		wantWithheld bool
+	}{
+		{name: "authorization header", identifier: "Authorization: Bearer authorization-canary"},
+		{name: "complete PEM block", identifier: "-----BEGIN PRIVATE KEY-----private-key-canary-----END PRIVATE KEY-----"},
+		{name: "secret assignment", identifier: "password=assignment-canary"},
+		{name: "encoded secret assignment", identifier: "cGFzc3dvcmQ9YmFzZTY0LWNhbmFyeQ==", wantWithheld: true},
+		{name: "encoded sensitive query", identifier: "https://example.invalid/?%2574oken=encoded-canary", wantWithheld: true},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			raw, err := json.Marshal(map[string]string{"server_identifier": test.identifier})
+			if err != nil {
+				t.Fatal(err)
+			}
+			value, err := sanitizeArguments(raw)
+			if test.wantWithheld {
+				assertWithheld(t, value, err)
+				return
+			}
+			if err != nil {
+				t.Fatalf("sanitizeArguments() error = %v", err)
+			}
+
+			jsonValue, ok := value.JSONValue()
+			if !ok {
+				t.Fatal("sanitized JSON value unavailable")
+			}
+			jsonEnvelope, err := json.Marshal(value)
+			if err != nil {
+				t.Fatalf("marshal sanitized value: %v", err)
+			}
+			if _, ok := value.Text(); ok {
+				t.Fatal("argument projection unexpectedly exposed a text representation")
+			}
+			for representation, output := range map[string][]byte{
+				"JSON value":    jsonValue,
+				"JSON envelope": jsonEnvelope,
+			} {
+				if strings.Contains(string(output), "canary") {
+					t.Errorf("%s contains secret canary: %s", representation, output)
+				}
+			}
+		})
+	}
+}
+
 func TestSanitizeArgumentsRejectsUnreviewedFieldsAndCallerProjectionOverrides(t *testing.T) {
 	for _, raw := range [][]byte{
 		[]byte(`{"server_identifier":"server-1","token":"extra-canary"}`),
