@@ -447,7 +447,7 @@ The required non-root security-context, bounded disposable-filesystem, and utili
 - **Compile-safe/excluded:** pure tested transformation; all later sinks must accept only minimized/sanitized values. No remote aliases, exports or knowledge pipeline.
 - **Validation/post-work:** F/D/X, independent truncation/redaction/withholding fixtures, diff review.
 - **Risk/rollback/repair:** partial output before failure leaks; make transformation atomic-to-caller and fail closed. Revert unconsumed helper only, no raw fallback.
-- **Handoff/stop:** H/E; safe transform contract ready before persistence.
+- **Handoff/stop:** H/E; safe transform contract ready before persistence. Exit accepted by the owner on 2026-11-25; see §18.
 
 ### Chunk 6: Protected Versioned New Namespace and Durable Commit
 
@@ -895,3 +895,26 @@ This amendment changes only where V2 evidence is collected. It does not change t
 - **Coverage and stop:** V2 remains mandatory and is not behaviorally complete until the Chunk 9 composed-seam tests and later public-path tests pass. Chunks before the first composed seam remain disconnected; this clarification does not permit enabling a route or skipping any later evidence. It does not retroactively certify Chunk 4's execution or automatically start Chunk 5; revalidate the candidate and the revised Chunk 4 exit evidence before continuing.
 
 **Preflight applicability:** This is an execution-side applicability assessment, not a new independent preflight verdict. The amendment preserves the V2 behavior and evidence path already assigned to Chunks 9 and 12–19, while assigning structural-only evidence to the validator-only Chunk 4 where no downstream seam exists. No requirement, approved constraint, scope, or phase-wide coverage is removed; applicability is classified `NONMATERIAL_CONFIRMED` under §16. The recorded `PREFLIGHT_PASS` is not reissued by this clarification.
+
+## 18. Chunk 5 exit acceptance record
+
+**Owner decision (2026-11-25):** The user, as product owner, was asked in this conversation: “Do you, as product owner, accept the Phase 01 Chunk 5 exit for candidate 351a6d3+0bf20b1, based on the independent 054 review (NO_BLOCKING_FINDINGS, EXIT_SUPPORTED, non-blocking N1–N3), and authorize recording it in the ladder and committing locally? Any conditions?” The owner answered: “Accept, no conditions”. No conditions were attached.
+
+**Accepted candidate:**
+
+- Implementation `351a6d345b44765509d18ec2f309cf2f66a56d6d`; canary tests `0bf20b1579e313d42f9695a3d8c59eb67f65d6fa`; base `9838eb487130342d350efa21dcfd48404588b7c2`. Reviewed at HEAD `d22ed5541ce560b604fbddc96f0b60f01ff225bf`, with no `aiops/` change since `0bf20b1`.
+- `aiops/internal/diagnostic/` SHA-256 values: `sanitize.go` `9e77273b5e77e021668be38a9285c9a56da91841146f8694e74344b8554e1245`; `sanitize_test.go` `639ac8498077ef3982c297496a80a86ce9b202381ea6bb003bc55d835065ed6b`; `result.go` `6794b40bb173ea8cd78cb343758917157d372082836b4b7dc57155524df8540b`; `result_test.go` `7434b118d9e0345ab926bc89c0ede0c43dd197d55e45198908686a15f6c83b43`; `registry.go` `ad31075c261b84626bf05462c0a6b81946f755375c0d2de76a98597812be11e9`; `registry_test.go` `3860d3645d9ab67f68deb5a5d795bf4d8b917a89841a65e486408e5a9c57ea66`.
+
+**Basis:** An independent, review-only acceptance check under the external 054 instruction, method `independent-implementation-review`, returned `NO_BLOCKING_FINDINGS` with Chunk 5 exit assessment `EXIT_SUPPORTED`. It reported no BLOCKING or UNCONFIRMED findings and no Level 2 questions. Its offline F/D checks plus vet, race and static X checks were observed to pass (28 top-level diagnostic tests, 0 fail, 0 skip), with 0 failed attempts. The §8 item 4 budget and the two historical sanitizer failures were neither spent nor reset. The review report was returned in that conversation; the external 055 handoff §2–§3 is its record.
+
+**Task 3 sink-canary reading (the review's reading, not a plan change):** Chunk 5's share is representation-level canaries on the sanitized value, envelope and error surfaces the package offers. Real sink canaries remain with Chunks 6 and 9, Chunk 19 and the V6/FR-029 allocations in §5.
+
+**Carried NON_BLOCKING advisories** (not new task obligations unless the owner decides so):
+
+- **N1** (Chunks 6/9/19): existing internal contracts do not yet consume the sanitized sink-value type (`validatedRequest` in request auditing, plain-string `TargetIdentity.Original`/`ResolvedTarget`); align them or justify each necessary local identifier.
+- **N2** (Chunk 19, or any chunk reusing `truncateUTF8`): the truncation helper is unreachable from `sanitizeArguments` and has no multibyte or split-boundary test; add them on reuse.
+- **N3** (any later sanitizer change, or an optional bounded hardening session): removing the standalone-bearer, incomplete-PEM or quoted-sensitive-key rules fails no test; argument-path cases would cover them.
+
+**What this record is not:** It is not implementation preflight revalidation, fixture setup or Chunk 6 authorization. It is not proof of real sink safety or that arbitrary input is secret-free. It changes no requirement, chunk task, checkbox, V-obligation, traceability or gate row, or §16 fingerprint or verdict.
+
+**Effect:** The Chunk 5 dependency in the Chunk 6 entry is satisfied by this record. Chunk 6 still requires the G4 approval (recorded in `d22ed55`), safe synthetic fixture setup under the §8 fixture-preparation gate, applicability of the §16 preflight (with any affected revalidation), and separate Chunk 6 authorization.
