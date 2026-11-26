@@ -947,3 +947,70 @@ This amendment changes only where V2 evidence is collected. It does not change t
 **What this record is not:** It is not plan adoption, fixture authorization, Chunk 6 authorization, implementation acceptance or deployment approval. It changes no requirement, chunk task, checkbox, V-obligation, traceability or gate row, or the §16–§18 records. The §8 failure budget and the two historical sanitizer failures are neither spent nor reset.
 
 **Effect:** The preflight-applicability dependency for Chunk 6 recorded in §18 is satisfied by this record. Chunk 6 still requires safe synthetic fixture setup under the §8 fixture-preparation gate and separate Chunk 6 authorization.
+
+## 20. Chunk 6 synthetic fixture-preparation authorization record
+
+**Session and authorization:** a fresh session ran the external 059 fixture-gate instruction (ladder §8, "Fixture preparation gate — separate from application chunks"). The user's invoking prompt said: "I explicitly authorize the action which are mentioned in the instructions. I want to emphasize that this is a fresh session." That covers this gate session with read-only local fact gathering, one owner authorization request, this §20 record and a local commit. Harness-level isolation is not attested.
+
+**Candidate before this append (OBSERVED):** branch `aiops-go-phase01`, HEAD `0fcf6a329b18aa757e8f380d9d43f4eb80606e1a`, tree `6b8d987d68ce03355f04b592c57607e341be035d`, parent `2e001be351c580b65cd3d26d6ae39a015ed53a70`. The working tree and index were clean, and `git diff --stat 0bf20b1 HEAD -- aiops` was empty. This ladder had SHA-256 `519de13551ff75f187ddd4076130eeaf978c65295714743f170f33ac03033974` (949 lines), and its first 920 lines hashed to `491a65120491419b6885c3cd9d431f2c9a328cd2bb2f32199e8c2a93561560b7`. The PRD, manual, task, ADR and roadmap hashes matched the §19 candidate. `git diff --stat 2e001be HEAD` showed only this ladder, +29/−0 (the §19 append). §19 applicability: `NONMATERIAL_CONFIRMED`.
+
+**Facts gathered (OBSERVED, read-only, local workstation only):**
+
+- `uname -r`: `7.0.0-44-generic`. `/etc/os-release`: Ubuntu 26.04.1 LTS. `systemd-detect-virt`: `none` (bare metal). This matches the KVM host recorded in manual §5.3.5. The workstation is not the supported stack.
+- `TMPDIR` is unset, so Go's `os.TempDir()` and `t.TempDir()` default to `/tmp`. `findmnt -T /tmp`: `tmpfs`, `rw,noatime,inode64`.
+- `findmnt -T /var/tmp`, `-T $HOME` and `-T <repo>`: `/` on `/dev/nvme0n1p4`, `ext4`, `rw,relatime`. `stat -f`: block size 4096, about 298 GB available, about 43 million free inodes. `/var/tmp` has mode `drwxrwxrwt`, owned by `root:root`. The session user is uid 1000.
+- `/proc/fs/ext4/nvme0n1p4/options` (world-readable) includes `rw`, `barrier` and `data=ordered`. `/proc/self/mountinfo` shows superblock options `rw` only for `/`.
+- Go: `env -i … GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOWORK=off go version` printed `go1.27.4 linux/amd64`; `go` resolves through `/home/meriz/.local/bin/go` to `/opt/go/bin/go`. `aiops/go.mod` declares `go 1.27.1`.
+- `UNVERIFIED`: `STATX_DIOALIGN` values and direct-I/O behaviour on this ext4 and on tmpfs. They cannot be observed without code and are a Chunk 6 runtime check. No guest or host command was run.
+
+**Chunk 6 needs covered by this gate (ladder Chunk 6 `:458-465`, manual §§5.3.1, 5.3.3, 5.3.5):** real temporary-filesystem first-create/reopen with file and directory durability ordering; synthetic legacy hash/read traps; injected short-write, flush, sync, rename and permission faults; the `Verified` primitive (own barrier, page-cache-bypassing reread with confirmed `STATX_DIOALIGN` support and alignment, refusal on unsupported, misaligned or fallback paths, and the stale-match buffer test); the §5.3.1 effective mount-option check and bank alignment. Out of scope: Chunk 8 actual ENOSPC, Chunk 12 target-OS non-root security contexts, and Chunk 20 crash, writeback-error and quota evidence.
+
+**Test-seam authority classification (§2D triage; not a design):**
+
+- No stack-policy seam is needed for the positive mount-option path on this facility, because the local ext4 `/` already shows `barrier` and `data=ordered`. The sources require no runtime kernel or OS check. The kernel line and the host chain are operator preconditions (manual §5.3.5).
+- A test-only injected effective-options source, used to exercise refusal on `nobarrier`, `barrier=0`, `data=journal`, `data=writeback`, or unreadable or unparseable values, is `LEVEL_1`. The source, parsing and correlation mechanism is Level 1 (manual §5.3.1). The seam must be unexported, settable only from same-package tests and unreachable from production construction, which binds the real source; a test asserts this, as with the Chunk 7 seam.
+- Any seam that relaxes the supported option set, or accepts a non-ext4 or otherwise unsupported filesystem on a production-reachable path, would be `LEVEL_2`, because it relaxes the §5.3.5 binding. It is not authorized and not needed.
+
+**Owner question (verbatim):** "Which facility do you authorize for Chunk 6 real-filesystem tests? This covers Chunk 6 fixture use only. It is NOT Chunk 6 authorization or plan adoption, and it does not cover Chunks 8, 12 or 20. What I found on this workstation: Ubuntu 26.04.1, kernel 7.0.0-44, bare metal (systemd-detect-virt: none), so it is not the supported stack. TMPDIR is unset, so Go's t.TempDir() would land in /tmp, which is tmpfs. /var/tmp is on ext4 / (nvme0n1p4); its effective options include rw, barrier and data=ordered, and about 298 GB is free."
+
+The options were option A (local ext4, marked recommended), "A + guest assistant01" (adding a compiled test binary run on the active guest after read-only re-inspection) and "C: disposable VM (defer)" (new Level 2 infrastructure; the gate would stay blocked).
+
+**Owner answer (verbatim selection):** "A: local ext4 (Recommended)". The selected option's text, verbatim:
+
+> VM/facility: local workstation (bare metal, Ubuntu 26.04.1,
+>   kernel 7.0.0-44); not a VM; NOT the supported stack.
+> Path: proposed new session-owned parent
+>   `mktemp -d /var/tmp/aiops-chunk6.XXXXXX` (ext4 /, nvme0n1p4),
+>   plus /tmp (tmpfs) used only as a refusal case.
+> Owner: merizrizal (uid 1000); the Chunk 6 session creates it.
+> Setup: create that one 0700 parent; set TMPDIR to it for Go
+>   tests only. No root, mount, format, loop, chown or sudo.
+> Test actions: Go tests make, write, fsync, rename, chmod and
+>   O_DIRECT-read only objects they created under t.TempDir()
+>   in that parent (and tmpfs refusal dirs under /tmp).
+>   Read-only /proc/fs/ext4/<dev>/options and /proc/self/mountinfo.
+> Bounds: <=64 MiB and <=10,000 files in total; no ENOSPC or
+>   filling; nothing outside the parent or the test tmpfs dirs.
+> Cleanup authority: Chunk 6 session; t.TempDir auto-cleanup,
+>   then `rm -rf` of exactly the recorded parent path after
+>   checking it matches /var/tmp/aiops-chunk6.*. Evidence kept
+>   in the session report, not on disk.
+
+No follow-up was needed, because the answer defines all six §8 fields.
+
+**Authorized facility (the six §8 fields, as answered):**
+
+| §8 field | Authorized value |
+| --- | --- |
+| VM/facility | The local workstation: bare metal, Ubuntu 26.04.1, kernel 7.0.0-44. It is not a VM and not the supported stack. |
+| Existing path or proposed facility | A proposed new session-owned parent from `mktemp -d /var/tmp/aiops-chunk6.XXXXXX` on ext4 `/` (`nvme0n1p4`). `/tmp` (tmpfs) is used only as a refusal case. |
+| Owner | merizrizal (uid 1000). The Chunk 6 session creates the parent. |
+| Exact setup and test actions | Create that one 0700 parent and set `TMPDIR` to it for Go tests only; no root, mount, format, loop, chown or sudo. Go tests make, write, fsync, rename, chmod and `O_DIRECT`-read only objects they created under `t.TempDir()` in that parent, and tmpfs refusal directories under `/tmp`. They read `/proc/fs/ext4/<dev>/options` and `/proc/self/mountinfo` read-only. |
+| Capacity and other bounds | At most 64 MiB and 10,000 files in total. No ENOSPC or filling. Nothing outside the parent or the test tmpfs directories. |
+| Cleanup authority | The Chunk 6 session. `t.TempDir` cleans up automatically; then `rm -rf` removes exactly the recorded parent path, after checking that it matches `/var/tmp/aiops-chunk6.*`. Evidence is kept in the session report, not on disk. |
+
+**What this authorization is not:** It is not Chunk 6 authorization or plan adoption. Results on this facility are code-behaviour evidence only, **not supported-stack evidence** (manual §5.3.5; §4 Ubuntu version clarification). It changes nothing about G4, the §5.3.5 conditions or residuals, or the Chunk 8, 12 and 20 fixture gates. It authorizes no guest, host or VM action. Whether Chunk 6's "O" validation also needs supported-stack (Ubuntu 24.04 guest) evidence before Chunk 6 can exit is not decided here; if it does, that needs a separate facility authorization. It changes no requirement, chunk task, checkbox, V-obligation, gate row or §16–§19 record. The §8 failure budget and the two historical sanitizer failures are neither spent nor reset. PF-002 and PF-003 were not asked or edited.
+
+**Not run:** fixture creation, any Go build, test or vet command, and any guest, host, VM, live or cloud command. The archived legacy contracts were not consulted, because no compatibility question arose.
+
+**Effect:** The Chunk 6 "safe synthetic fixture setup" entry dependency is satisfied for the named facility only. Chunk 6 still requires separate Chunk 6 authorization and current-plan adoption (§8 item 1).
